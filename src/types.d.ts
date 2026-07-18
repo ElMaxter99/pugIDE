@@ -17,18 +17,6 @@ declare module 'pug-parser' {
   export default parse;
 }
 
-declare module 'pug-walk' {
-  function walk(
-    node: unknown,
-    handlers: {
-      before?: (node: unknown, parent: unknown) => void;
-      after?: (node: unknown, parent: unknown) => void;
-      replace?: (node: unknown) => void;
-    }
-  ): void;
-  export default walk;
-}
-
 declare module 'pug' {
   interface Options {
     filename?: string;
@@ -48,3 +36,23 @@ declare module 'monaco-editor' {
   const monaco: any;
   export default monaco;
 }
+
+interface PugBundle {
+  compile(src: string, options?: {
+    filename?: string;
+    doctype?: string;
+    pretty?: boolean;
+    self?: boolean;
+  }): (locals?: Record<string, unknown>) => string;
+  render(src: string, options?: Record<string, unknown>): string;
+  compileClient(src: string, options?: Record<string, unknown>): string;
+  runtime: unknown;
+}
+
+interface ParserBundle {
+  lexer(src: string, options?: { filename?: string }): unknown[];
+  parse(tokens: unknown[], options?: { filename?: string }): unknown;
+}
+
+declare const pugBundle: PugBundle;
+declare const parserBundle: ParserBundle;

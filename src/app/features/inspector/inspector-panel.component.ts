@@ -2,16 +2,12 @@ import {
   Component,
   ChangeDetectionStrategy,
   inject,
-  signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { InspectorState } from '../../core/state/inspector.state';
-import { InspectorNode } from '../../core/models/index';
 
 @Component({
   selector: 'app-inspector-panel',
   standalone: true,
-  imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="inspector-panel">
@@ -50,7 +46,7 @@ import { InspectorNode } from '../../core/models/index';
             <div class="properties">
               <div class="prop-row">
                 <span class="prop-label">Pug Line</span>
-                <span class="prop-value clickable" (click)="goToPugLine()">
+                <span class="prop-value">
                   {{ inspectorState.selectedElement()!.pugLine }}
                 </span>
               </div>
@@ -237,12 +233,5 @@ export class InspectorPanelComponent {
     const node = this.inspectorState.selectedElement();
     if (!node) return [];
     return Object.entries(node.attrs);
-  }
-
-  goToPugLine(): void {
-    const node = this.inspectorState.selectedElement();
-    if (node) {
-      // Would emit event to editor to go to line
-    }
   }
 }

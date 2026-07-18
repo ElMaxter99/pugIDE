@@ -6,7 +6,6 @@ import { EditorState } from '../state/editor.state';
 import { ParserState } from '../state/parser.state';
 import { PreviewState } from '../state/preview.state';
 import { DataState } from '../state/data.state';
-import { InspectorState } from '../state/inspector.state';
 import { TerminalState } from '../state/terminal.state';
 import { PreferencesState } from './preferences.state';
 import { PugVariable } from '../models/index';
@@ -19,7 +18,6 @@ export class OrchestratorService {
   private parserState = inject(ParserState);
   private previewState = inject(PreviewState);
   private dataState = inject(DataState);
-  private inspectorState = inject(InspectorState);
   private terminalState = inject(TerminalState);
   private preferences = inject(PreferencesState);
 
@@ -66,7 +64,6 @@ export class OrchestratorService {
       const parseResult = await this.parser.parse(code);
       this.parserState.updateFromParseResult(parseResult);
 
-      // Populate DataState from parsed variables if empty
       if (!this.initialDataLoaded && Object.keys(this.dataState.data()).length === 0) {
         const data = this.buildDataFromVariables(parseResult.variables);
         if (Object.keys(data).length > 0) {
@@ -102,8 +99,6 @@ export class OrchestratorService {
           `Compiled in ${compileResult.compilationTime.toFixed(1)}ms`
         );
       }
-
-      this.inspectorState.updateNodes([]);
     } catch (err: unknown) {
       const error = err as Error;
       this.terminalState.addEntry('error', 'System', error.message);

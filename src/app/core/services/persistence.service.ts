@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { AppPreferences } from '../models/index';
 
 const STORAGE_KEY = 'pug-ide-preferences';

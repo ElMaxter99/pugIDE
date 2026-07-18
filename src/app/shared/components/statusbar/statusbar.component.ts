@@ -3,7 +3,6 @@ import { DecimalPipe } from '@angular/common';
 import { EditorState } from '../../../core/state/editor.state';
 import { TerminalState } from '../../../core/state/terminal.state';
 import { PreviewState } from '../../../core/state/preview.state';
-import { PreferencesState } from '../../../core/services/preferences.state';
 
 @Component({
   selector: 'app-statusbar',
@@ -112,7 +111,6 @@ export class StatusbarComponent {
   protected editorState = inject(EditorState);
   protected terminalState = inject(TerminalState);
   protected previewState = inject(PreviewState);
-  protected preferences = inject(PreferencesState);
 
   getLanguage(): string {
     const tab = this.editorState.activeTab();

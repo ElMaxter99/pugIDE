@@ -5,7 +5,6 @@ import { TerminalEntry } from '../models/index';
 export class TerminalState {
   readonly entries = signal<TerminalEntry[]>([]);
   readonly isVisible = signal(true);
-  readonly height = signal(200);
   readonly activeFilter = signal<'all' | 'error' | 'warning' | 'info' | 'success' | 'debug'>('all');
 
   readonly filteredEntries = computed(() => {
@@ -40,10 +39,6 @@ export class TerminalState {
 
   toggle(): void {
     this.isVisible.update((v) => !v);
-  }
-
-  setHeight(height: number): void {
-    this.height.set(Math.max(100, Math.min(600, height)));
   }
 
   setFilter(filter: TerminalEntry['type'] | 'all'): void {

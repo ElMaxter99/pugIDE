@@ -28,10 +28,6 @@ export interface DataNode {
   arrayItemType?: DataType;
 }
 
-export interface DataTree {
-  root: DataNode[];
-}
-
 export interface PugAstNode {
   type: string;
   name?: string;
@@ -109,33 +105,12 @@ export interface CompileError {
   severity: 'error' | 'warning';
 }
 
-export interface PreviewDevice {
-  name: string;
-  width: number;
-  height: number;
-  icon: string;
-}
-
 export interface TerminalEntry {
   id: string;
   timestamp: number;
   type: 'info' | 'error' | 'warning' | 'success' | 'debug';
   source: string;
   message: string;
-}
-
-export interface ProjectConfig {
-  name: string;
-  rootPath: string;
-  files: string[];
-  helpers: HelperFunction[];
-}
-
-export interface HelperFunction {
-  name: string;
-  args: string[];
-  body: string;
-  description?: string;
 }
 
 export interface InspectorNode {

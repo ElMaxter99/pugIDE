@@ -7,12 +7,6 @@ export class EditorState {
   readonly activeTabId = signal<string | null>(null);
   readonly editorContent = signal<string>('');
   readonly cursorPosition = signal<{ line: number; column: number }>({ line: 0, column: 0 });
-  readonly isReadOnly = signal(false);
-  readonly fontSize = signal(14);
-  readonly minimap = signal(true);
-  readonly wordWrap = signal(false);
-  readonly theme = signal<'vs-dark' | 'vs-light'>('vs-dark');
-
   readonly activeTab = computed(() => {
     const id = this.activeTabId();
     return this.openTabs().find((t) => t.id === id) ?? null;

@@ -5,10 +5,12 @@ import { StatusbarComponent } from '../shared/components/statusbar/statusbar.com
 import { EditorPanelComponent } from '../features/editor/editor-panel.component';
 import { SmartDataEditorComponent } from '../features/smart-data-editor/smart-data-editor.component';
 import { PreviewPanelComponent } from '../features/preview/preview-panel.component';
+import { TerminalPanelComponent } from '../features/terminal/terminal-panel.component';
 import { OrchestratorService } from '../core/services/orchestrator.service';
 import { EditorState } from '../core/state/editor.state';
 import { PreviewState } from '../core/state/preview.state';
 import { TerminalState } from '../core/state/terminal.state';
+import { DataState } from '../core/state/data.state';
 
 @Component({
   selector: 'app-main-layout',
@@ -20,16 +22,24 @@ import { TerminalState } from '../core/state/terminal.state';
     EditorPanelComponent,
     SmartDataEditorComponent,
     PreviewPanelComponent,
+    TerminalPanelComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="app-layout">
       <app-topbar />
-      <div class="app-body">
-        <app-sidebar />
-        <app-editor-panel />
-        <app-smart-data-editor />
-        <app-preview-panel />
+      <div class="app-content">
+        <div class="app-body">
+          <app-sidebar />
+          <app-editor-panel />
+          <app-smart-data-editor />
+          <app-preview-panel />
+        </div>
+        @if (terminalState.isVisible()) {
+          <div class="app-terminal">
+            <app-terminal-panel />
+          </div>
+        }
       </div>
       <app-statusbar />
     </div>
@@ -50,11 +60,26 @@ import { TerminalState } from '../core/state/terminal.state';
       font-family: var(--font-family);
     }
 
+    .app-content {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
     .app-body {
       display: flex;
       flex: 1;
       min-height: 0;
       overflow: hidden;
+    }
+
+    .app-terminal {
+      height: 180px;
+      min-height: 100px;
+      border-top: 1px solid var(--border-color);
+      flex-shrink: 0;
     }
   `],
 })
@@ -63,6 +88,7 @@ export class MainLayoutComponent implements OnInit {
   protected editorState = inject(EditorState);
   protected terminalState = inject(TerminalState);
   private previewState = inject(PreviewState);
+  private dataState = inject(DataState);
 
   ngOnInit(): void {
     this.orchestrator.initialize();
@@ -131,7 +157,9 @@ html(lang="es")
 
     this.editorState.openFile('/demo.pug', 'demo.pug', 'pug', demoPug);
     this.editorState.updateContent(demoPug);
+    this.dataState.setData(defaultData);
     this.previewState.setDevice('Desktop', 1200, 800);
     this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');
+    this.orchestrator.manualCompile();
   }
 }

@@ -1,5 +1,5 @@
-import { Injectable, signal, computed } from '@angular/core';
-import { PugVariable, DataNode, DataTree, ParseResult, PugMixin } from '../models/index';
+import { Injectable, signal } from '@angular/core';
+import { PugVariable, DataNode, ParseResult, PugMixin } from '../models/index';
 
 @Injectable({ providedIn: 'root' })
 export class ParserState {
@@ -8,30 +8,15 @@ export class ParserState {
   readonly mixins = signal<PugMixin[]>([]);
   readonly includes = signal<string[]>([]);
   readonly extendsPath = signal<string | undefined>(undefined);
-  readonly isParsing = signal(false);
-  readonly parseTime = signal(0);
-  readonly rawAst = signal<unknown>(null);
-
-  readonly variableCount = computed(() => this.variables().length);
-  readonly mixinCount = computed(() => this.mixins().length);
-
   updateFromParseResult(result: ParseResult): void {
     this.variables.set(result.variables);
     this.mixins.set(result.mixins);
     this.includes.set(result.includes);
     this.extendsPath.set(result.extendsPath);
-    this.parseTime.set(result.compilationTime);
-    this.rawAst.set(result.ast);
-    this.isParsing.set(false);
     this.dataTree.set(this.buildDataTree(result.variables));
   }
 
-  setParsing(parsing: boolean): void {
-    this.isParsing.set(parsing);
-  }
-
-  updateDataTree(tree: DataNode[]): void {
-    this.dataTree.set(tree);
+  setParsing(_parsing: boolean): void {
   }
 
   private buildDataTree(variables: PugVariable[]): DataNode[] {

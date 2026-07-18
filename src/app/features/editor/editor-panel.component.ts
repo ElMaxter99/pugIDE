@@ -11,7 +11,6 @@ import {
 } from '@angular/core';
 import { TabsComponent } from '../../shared/components/tabs/tabs.component';
 import { EditorState } from '../../core/state/editor.state';
-import { PreferencesState } from '../../core/services/preferences.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 
 declare const monaco: any;
@@ -105,7 +104,6 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   @ViewChild('editorContainer') editorContainer!: ElementRef<HTMLDivElement>;
 
   protected editorState = inject(EditorState);
-  private preferences = inject(PreferencesState);
   private orchestrator = inject(OrchestratorService);
 
   private editor: any = null;

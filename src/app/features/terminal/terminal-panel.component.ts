@@ -2,14 +2,11 @@ import {
   Component,
   ChangeDetectionStrategy,
   inject,
-  signal,
   ViewChild,
   ElementRef,
-  AfterViewChecked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TerminalState } from '../../core/state/terminal.state';
-import { TerminalEntry } from '../../core/models/index';
 
 @Component({
   selector: 'app-terminal-panel',
@@ -233,22 +230,10 @@ import { TerminalEntry } from '../../core/models/index';
     }
   `],
 })
-export class TerminalPanelComponent implements AfterViewChecked {
+export class TerminalPanelComponent {
   @ViewChild('outputEl') outputEl!: ElementRef<HTMLDivElement>;
 
   protected terminalState = inject(TerminalState);
-  private shouldScroll = false;
-
-  constructor() {
-    // Detect new entries and scroll
-  }
-
-  ngAfterViewChecked(): void {
-    if (this.shouldScroll) {
-      this.scrollToBottom();
-      this.shouldScroll = false;
-    }
-  }
 
   formatTime(timestamp: number): string {
     const date = new Date(timestamp);

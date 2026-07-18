@@ -2,13 +2,11 @@ import {
   Component,
   ChangeDetectionStrategy,
   inject,
-  signal,
   effect,
   ViewChild,
   ElementRef,
 } from '@angular/core';
 import { PreviewState } from '../../core/state/preview.state';
-import { PreferencesState } from '../../core/services/preferences.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 
 @Component({
@@ -234,7 +232,6 @@ export class PreviewPanelComponent {
   @ViewChild('previewFrame') previewFrame!: ElementRef<HTMLIFrameElement>;
 
   previewState = inject(PreviewState);
-  private preferences = inject(PreferencesState);
   private orchestrator = inject(OrchestratorService);
 
   constructor() {

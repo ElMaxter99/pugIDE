@@ -3,10 +3,6 @@ import {
   ChangeDetectionStrategy,
   input,
   output,
-  signal,
-  HostListener,
-  ElementRef,
-  inject,
 } from '@angular/core';
 import { ContextMenuAction } from '../../../core/models/index';
 
