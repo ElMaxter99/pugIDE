@@ -1,0 +1,185 @@
+:root {
+  --font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  --bg-primary: #16111b;
+  --bg-secondary: #231e27;
+  --bg-tertiary: #1f1a23;
+  --bg-surface: #16111b;
+  --bg-surface-dim: #16111b;
+  --bg-surface-container: #231e27;
+  --bg-surface-container-low: #1f1a23;
+  --bg-surface-container-high: #2e2832;
+  --bg-surface-container-highest: #39323d;
+  --bg-surface-container-lowest: #110c15;
+  --bg-surface-variant: #39323d;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(221, 183, 255, 0.1);
+  --bg-input: #110c15;
+  --bg-badge: rgba(255, 255, 255, 0.08);
+  --bg-close: rgba(255, 255, 255, 0.1);
+
+  --text-primary: #eadfed;
+  --text-secondary: #cfc2d6;
+  --text-tertiary: #988d9f;
+  --text-on-primary: #490080;
+  --text-on-primary-container: #400071;
+  --text-on-secondary: #003640;
+
+  --border-color: #4d4354;
+  --border-subtle: rgba(77, 67, 84, 0.5);
+
+  --accent-color: #ddb7ff;
+  --accent-container: #b76dff;
+  --accent-hover: #c9a0f0;
+
+  --secondary-color: #4cd7f6;
+  --secondary-container: #03b5d3;
+
+  --tertiary-color: #fabc4e;
+  --tertiary-container: #bd871a;
+
+  --error-color: #ffb4ab;
+  --error-container: #93000a;
+  --warning-color: #fabc4e;
+  --success-color: #a6e3a1;
+  --info-color: #4cd7f6;
+
+  --pug-color: #a8b9d4;
+  --scss-color: #cd6799;
+  --json-color: #cbcb43;
+  --js-color: #f0db4f;
+  --html-color: #e44d26;
+  --css-color: #264de4;
+  --tag-color: #569cd6;
+
+  --radius: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4d4354;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #988d9f;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::selection {
+  background: rgba(221, 183, 255, 0.3);
+}
+
+input, textarea, button, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+}
+
+a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--bg-surface-container-highest);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.2;
+}
+
+[draggable="true"] {
+  cursor: grab;
+}
+
+[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-4px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulse-primary {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.live-indicator {
+  animation: pulse-primary 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.font-label-sm {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}

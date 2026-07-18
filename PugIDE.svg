@@ -1,0 +1,55 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="left">
+      <rect x="0" y="0" width="256" height="512"/>
+    </clipPath>
+    <clipPath id="right">
+      <rect x="256" y="0" width="256" height="512"/>
+    </clipPath>
+  </defs>
+
+  <!-- Fondo -->
+  <rect width="512" height="512" fill="white"/>
+
+  <!-- Mitad Pug -->
+  <g clip-path="url(#left)">
+    <circle cx="256" cy="180" r="110" fill="#E9C79D"/>
+    <ellipse cx="256" cy="210" rx="55" ry="50" fill="#3B302B"/>
+    <ellipse cx="225" cy="165" rx="22" ry="28" fill="#222"/>
+    <circle cx="230" cy="160" r="5" fill="white"/>
+    <path d="M160 105 Q185 60 225 95 L215 140 Z" fill="#3B302B"/>
+    <path d="M256 195 L256 290" stroke="#222" stroke-width="2"/>
+  </g>
+
+  <!-- Mitad Documento Jade/Pug -->
+  <g clip-path="url(#right)">
+    <path d="M256 70 H360 L420 130 V290
+             C420 315 400 335 375 335 H256 Z"
+          fill="#4FC3A1"/>
+
+    <path d="M360 70 V130 H420" fill="#8BE0C6"/>
+
+    <rect x="290" y="120" width="70" height="8" rx="4" fill="#0F5E4D"/>
+    <rect x="290" y="150" width="45" height="8" rx="4" fill="#0F5E4D"/>
+    <rect x="290" y="180" width="60" height="8" rx="4" fill="#0F5E4D"/>
+
+    <text x="300" y="260"
+          font-family="monospace"
+          font-size="64"
+          fill="#0F5E4D">{}</text>
+  </g>
+
+  <!-- Línea divisoria -->
+  <line x1="256" y1="70" x2="256" y2="335"
+        stroke="white" stroke-width="6"/>
+
+  <!-- Texto -->
+  <text x="256" y="430"
+        text-anchor="middle"
+        font-family="Inter, Arial, sans-serif"
+        font-size="64"
+        font-weight="700">
+    <tspan fill="#20242E">Pug</tspan>
+    <tspan fill="#4FC3A1">IDE</tspan>
+  </text>
+</svg>
