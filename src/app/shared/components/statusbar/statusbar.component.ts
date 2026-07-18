@@ -1,4 +1,5 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { EditorState } from '../../../core/state/editor.state';
 import { TerminalState } from '../../../core/state/terminal.state';
 import { PreviewState } from '../../../core/state/preview.state';
@@ -7,6 +8,7 @@ import { PreferencesState } from '../../../core/services/preferences.state';
 @Component({
   selector: 'app-statusbar',
   standalone: true,
+  imports: [DecimalPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <footer class="statusbar">

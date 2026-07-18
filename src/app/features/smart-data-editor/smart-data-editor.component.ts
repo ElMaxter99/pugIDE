@@ -10,6 +10,17 @@ import { ParserState } from '../../core/state/parser.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { PugVariable } from '../../core/models/index';
 
+interface TreeNode {
+  key: string;
+  path: string;
+  depth: number;
+  kind: 'object-open' | 'array-open' | 'object-close' | 'array-close' | 'leaf';
+  value?: unknown;
+  valueType?: string;
+  itemCount?: number;
+  isExpanded?: boolean;
+}
+
 @Component({
   selector: 'app-smart-data-editor',
   standalone: true,
@@ -30,82 +41,79 @@ import { PugVariable } from '../../core/models/index';
       </div>
       <div class="tree-view">
         <div class="tree-content font-mono">
-          <ng-container *ngTemplateOutlet="jsonNode; context: { $implicit: dataState.data(), path: '', depth: 0 }"></ng-container>
+          @for (row of flatRows(); track row.path + row.kind) {
+            @switch (row.kind) {
+              @case ('object-open') {
+                <div class="tree-row expandable" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)">
+                  <span class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
+                  <span class="json-key">{{ row.key }}</span>
+                  <span class="json-colon">:</span>
+                  @if (!row.isExpanded) {
+                    <span class="json-bracket">{{ openCurly }}{{ closeCurly }}</span>
+                  } @else {
+                    <span class="json-bracket">{{ openCurly }}</span>
+                  }
+                </div>
+              }
+              @case ('array-open') {
+                <div class="tree-row expandable" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)">
+                  <span class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
+                  <span class="json-key">{{ row.key }}</span>
+                  <span class="json-colon">:</span>
+                  @if (!row.isExpanded) {
+                    <span class="json-bracket">{{ openBracket }}</span>
+                    <span class="json-count">{{ row.itemCount }} items</span>
+                    <span class="json-bracket">{{ closeBracket }}</span>
+                  } @else {
+                    <span class="json-bracket">{{ openBracket }}</span>
+                  }
+                </div>
+              }
+              @case ('object-close') {
+                <div class="tree-row closing" [style.padding-left.px]="row.depth * 20 + 20">
+                  <span class="json-bracket">{{ closeCurly }}</span>
+                </div>
+              }
+              @case ('array-close') {
+                <div class="tree-row closing" [style.padding-left.px]="row.depth * 20 + 20">
+                  <span class="json-bracket">{{ closeBracket }}</span>
+                </div>
+              }
+              @case ('leaf') {
+                <div class="tree-row leaf" [style.padding-left.px]="row.depth * 20 + 20">
+                  <span class="json-key">{{ row.key }}</span>
+                  <span class="json-colon">:</span>
+                  @if (row.valueType === 'string') {
+                    <input
+                      class="json-input string-input"
+                      [value]="row.value"
+                      (change)="updateValue(row.path, $any($event.target).value)" />
+                  } @else if (row.valueType === 'number') {
+                    <input
+                      class="json-input number-input"
+                      type="number"
+                      [value]="row.value"
+                      (change)="updateValue(row.path, +$any($event.target).value)" />
+                  } @else if (row.valueType === 'boolean') {
+                    <div
+                      class="json-toggle"
+                      [class.on]="row.value"
+                      (click)="toggleBoolean(row.path, row.value)">
+                      <div class="toggle-thumb"></div>
+                    </div>
+                    <span class="json-boolean">{{ row.value }}</span>
+                  } @else if (row.valueType === 'null') {
+                    <span class="json-null">null</span>
+                  } @else {
+                    <span class="json-string">{{ row.value }}</span>
+                  }
+                </div>
+              }
+            }
+          }
         </div>
       </div>
     </section>
-
-    <ng-template #jsonNode let-node let-path="path" let-depth="depth">
-      @for (entry of objectEntries(node); track entry.key) {
-        @if (isObject(entry.value) || isArray(entry.value)) {
-          <div class="tree-branch">
-            <div class="tree-row expandable" (click)="toggleNode(path + entry.key)">
-              <span class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(path + entry.key)">
-                keyboard_arrow_down
-              </span>
-              <span class="json-key">{{ entry.key }}</span>
-              <span class="json-colon">:</span>
-              @if (isArray(entry.value)) {
-                <span class="json-bracket">[</span>
-                @if (!isNodeExpanded(path + entry.key)) {
-                  <span class="json-count">{{ getEntries(entry.value).length }} items</span>
-                  <span class="json-bracket">]</span>
-                }
-              } @else {
-                <span class="json-bracket">{</span>
-                @if (!isNodeExpanded(path + entry.key)) {
-                  <span class="json-bracket">}</span>
-                }
-              }
-            </div>
-            @if (isNodeExpanded(path + entry.key)) {
-              <div class="tree-children">
-                <ng-container *ngTemplateOutlet="jsonNode; context: {
-                  $implicit: entry.value,
-                  path: path + entry.key + '.',
-                  depth: depth + 1
-                }"></ng-container>
-                @if (isArray(entry.value)) {
-                  <div class="tree-row closing"><span class="json-bracket">]</span></div>
-                } @else {
-                  <div class="tree-row closing"><span class="json-bracket">}</span></div>
-                }
-              </div>
-            }
-          </div>
-        } @else {
-          <div class="tree-row leaf">
-            <span class="tree-spacer"></span>
-            <span class="json-key">{{ entry.key }}</span>
-            <span class="json-colon">:</span>
-            @if (isString(entry.value)) {
-              <input
-                class="json-input string-input"
-                [value]="entry.value"
-                (change)="updateValue(path + entry.key, $any($event.target).value)" />
-            } @else if (isNumber(entry.value)) {
-              <input
-                class="json-input number-input"
-                type="number"
-                [value]="entry.value"
-                (change)="updateValue(path + entry.key, +$any($event.target).value)" />
-            } @else if (isBoolean(entry.value)) {
-              <div
-                class="json-toggle"
-                [class.on]="entry.value"
-                (click)="toggleBoolean(path + entry.key, entry.value)">
-                <div class="toggle-thumb"></div>
-              </div>
-              <span class="json-boolean">{{ entry.value }}</span>
-            } @else if (entry.value === null) {
-              <span class="json-null">null</span>
-            } @else {
-              <span class="json-string">"{{ entry.value }}"</span>
-            }
-          </div>
-        }
-      }
-    </ng-template>
   `,
   styles: [`
     :host {
@@ -195,10 +203,6 @@ import { PugVariable } from '../../core/models/index';
       line-height: 20px;
     }
 
-    .tree-branch {
-      margin: 0;
-    }
-
     .tree-row {
       display: flex;
       align-items: center;
@@ -217,16 +221,7 @@ import { PugVariable } from '../../core/models/index';
     }
 
     .tree-row.closing {
-      padding-left: 20px;
-    }
-
-    .tree-row.leaf {
-      padding-left: 20px;
-    }
-
-    .tree-spacer {
-      width: 16px;
-      flex-shrink: 0;
+      color: var(--text-tertiary);
     }
 
     .tree-arrow {
@@ -238,10 +233,6 @@ import { PugVariable } from '../../core/models/index';
 
     .tree-arrow.rotated {
       transform: rotate(0deg);
-    }
-
-    .tree-children {
-      padding-left: 20px;
     }
 
     .json-key {
@@ -263,10 +254,6 @@ import { PugVariable } from '../../core/models/index';
 
     .json-string {
       color: #ce9178;
-    }
-
-    .json-number {
-      color: #b5cea8;
     }
 
     .json-boolean {
@@ -292,10 +279,6 @@ import { PugVariable } from '../../core/models/index';
 
     .string-input {
       color: #ce9178;
-    }
-
-    .string-input::before {
-      content: '"';
     }
 
     .number-input {
@@ -349,36 +332,18 @@ export class SmartDataEditorComponent {
   parserState = inject(ParserState);
   private orchestrator = inject(OrchestratorService);
 
+  readonly openCurly = '{';
+  readonly closeCurly = '}';
+  readonly openBracket = '[';
+  readonly closeBracket = ']';
+
   private expandedPaths = signal<Set<string>>(new Set(['', 'usuario']));
 
-  objectEntries(obj: unknown): Array<{ key: string; value: unknown }> {
-    if (!obj || typeof obj !== 'object') return [];
-    return Object.entries(obj).map(([key, value]) => ({ key, value }));
-  }
-
-  getEntries(obj: unknown): Array<{ key: string; value: unknown }> {
-    return this.objectEntries(obj);
-  }
-
-  isObject(value: unknown): boolean {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
-  }
-
-  isArray(value: unknown): boolean {
-    return Array.isArray(value);
-  }
-
-  isString(value: unknown): boolean {
-    return typeof value === 'string';
-  }
-
-  isNumber(value: unknown): boolean {
-    return typeof value === 'number';
-  }
-
-  isBoolean(value: unknown): boolean {
-    return typeof value === 'boolean';
-  }
+  flatRows = computed(() => {
+    const data = this.dataState.data();
+    const expanded = this.expandedPaths();
+    return this.flattenTree(data, '', 0, expanded);
+  });
 
   isNodeExpanded(path: string): boolean {
     return this.expandedPaths().has(path);
@@ -401,7 +366,7 @@ export class SmartDataEditorComponent {
     this.orchestrator.onDataChange();
   }
 
-  toggleBoolean(path: string, currentValue: boolean): void {
+  toggleBoolean(path: string, currentValue: unknown): void {
     this.dataState.updateValue(path, !currentValue);
     this.orchestrator.onDataChange();
   }
@@ -412,7 +377,6 @@ export class SmartDataEditorComponent {
     this.dataState.setData(data);
     this.orchestrator.onDataChange();
 
-    // Expand all nodes after generating
     const paths = new Set<string>(['']);
     for (const v of variables) {
       const parts = v.path.split('.');
@@ -421,6 +385,103 @@ export class SmartDataEditorComponent {
       }
     }
     this.expandedPaths.set(paths);
+  }
+
+  private flattenTree(
+    obj: unknown,
+    prefix: string,
+    depth: number,
+    expanded: Set<string>
+  ): TreeNode[] {
+    const rows: TreeNode[] = [];
+    if (obj === null || obj === undefined || typeof obj !== 'object') return rows;
+
+    const entries = Object.entries(obj as Record<string, unknown>);
+    for (const [key, value] of entries) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      const isExpandable = value !== null && typeof value === 'object' && !Array.isArray(value);
+      const isArr = Array.isArray(value);
+
+      if (isExpandable || isArr) {
+        const isExp = expanded.has(path);
+        rows.push({
+          key,
+          path,
+          depth,
+          kind: isArr ? 'array-open' : 'object-open',
+          itemCount: isArr ? (value as unknown[]).length : undefined,
+          isExpanded: isExp,
+        });
+        if (isExp) {
+          if (isArr) {
+            const arr = value as unknown[];
+            for (let i = 0; i < arr.length; i++) {
+              const item = arr[i];
+              const itemPath = `${path}.${i}`;
+              if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+                rows.push({
+                  key: String(i),
+                  path: itemPath,
+                  depth: depth + 1,
+                  kind: 'object-open',
+                  isExpanded: expanded.has(itemPath),
+                });
+                if (expanded.has(itemPath)) {
+                  rows.push(...this.flattenTree(item, itemPath, depth + 2, expanded));
+                  rows.push({
+                    key: '',
+                    path: itemPath,
+                    depth: depth + 1,
+                    kind: 'object-close',
+                  });
+                }
+              } else {
+                rows.push({
+                  key: String(i),
+                  path: itemPath,
+                  depth: depth + 1,
+                  kind: 'leaf',
+                  value: item,
+                  valueType: this.getValueType(item),
+                });
+              }
+            }
+            rows.push({
+              key: '',
+              path,
+              depth,
+              kind: 'array-close',
+            });
+          } else {
+            rows.push(...this.flattenTree(value, path, depth + 1, expanded));
+            rows.push({
+              key: '',
+              path,
+              depth,
+              kind: 'object-close',
+            });
+          }
+        }
+      } else {
+        rows.push({
+          key,
+          path,
+          depth,
+          kind: 'leaf',
+          value,
+          valueType: this.getValueType(value),
+        });
+      }
+    }
+    return rows;
+  }
+
+  private getValueType(value: unknown): string {
+    if (value === null) return 'null';
+    if (typeof value === 'boolean') return 'boolean';
+    if (typeof value === 'number') return 'number';
+    if (typeof value === 'string') return 'string';
+    return 'string';
   }
 
   private buildDataFromVariables(variables: PugVariable[]): Record<string, unknown> {
