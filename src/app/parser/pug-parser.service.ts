@@ -160,27 +160,34 @@ export class PugParserService {
   private extractVariables(ast: PugAstNode): PugVariable[] {
     const collected = new Map<string, PugVariable>();
     const localVars = new Set<string>();
+    const eachVarMap = new Map<string, string>();
 
     this.walkAst(ast, (node) => {
       if (node.type === 'Each') {
         const val = (node as PugAstNode & { val?: string }).val;
-        if (val) localVars.add(val);
+        const obj = (node as PugAstNode & { obj?: string }).obj;
+        if (val) {
+          localVars.add(val);
+          if (typeof obj === 'string') {
+            eachVarMap.set(val, obj);
+          }
+        }
       }
     });
 
     this.walkAst(ast, (node) => {
       switch (node.type) {
         case 'Tag':
-          this.extractFromAttrs(node, collected);
-          this.extractFromBlock(node, collected, localVars);
+          this.extractFromAttrs(node, collected, localVars, eachVarMap);
+          this.extractFromBlock(node, collected, localVars, eachVarMap);
           break;
 
         case 'Code':
-          this.extractFromCode(node, collected, localVars);
+          this.extractFromCode(node, collected, localVars, eachVarMap);
           break;
 
         case 'Conditional':
-          this.extractFromConditional(node, collected, localVars);
+          this.extractFromConditional(node, collected, localVars, eachVarMap);
           break;
 
         case 'Each':
@@ -196,7 +203,7 @@ export class PugParserService {
     return Array.from(collected.values()).sort((a, b) => a.path.localeCompare(b.path));
   }
 
-  private extractFromAttrs(node: PugAstNode, collected: Map<string, PugVariable>): void {
+  private extractFromAttrs(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
     if (!node.attrs) return;
     for (const attr of node.attrs) {
       if (typeof attr.val !== 'string') continue;
@@ -205,34 +212,33 @@ export class PugParserService {
 
       const identifiers = this.extractIdentifiers(attr.val);
       for (const id of identifiers) {
-        this.addVariable(collected, id);
+        const remapped = this.remapIdentifier(id, localVars, eachVarMap);
+        if (remapped) this.addVariable(collected, remapped);
       }
     }
   }
 
-  private extractFromBlock(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>): void {
+  private extractFromBlock(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
     if (!node.block?.nodes) return;
     for (const child of node.block.nodes) {
       if (child.type === 'Code' && child.buffer && typeof child.val === 'string') {
         const identifiers = this.extractIdentifiers(child.val);
         for (const id of identifiers) {
-          if (!localVars.has(id)) {
-            this.addVariable(collected, id);
-          }
+          const remapped = this.remapIdentifier(id, localVars, eachVarMap);
+          if (remapped) this.addVariable(collected, remapped);
         }
       }
     }
   }
 
-  private extractFromCode(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>): void {
+  private extractFromCode(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
     if (typeof node.val !== 'string') return;
 
     if (node.buffer) {
       const identifiers = this.extractIdentifiers(node.val);
       for (const id of identifiers) {
-        if (!localVars.has(id)) {
-          this.addVariable(collected, id);
-        }
+        const remapped = this.remapIdentifier(id, localVars, eachVarMap);
+        if (remapped) this.addVariable(collected, remapped);
       }
     } else {
       const varDeclMatch = node.val.match(/(?:var|let|const)\s+(\w+)/);
@@ -242,15 +248,35 @@ export class PugParserService {
     }
   }
 
-  private extractFromConditional(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>): void {
+  private extractFromConditional(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
     const test = (node as PugAstNode & { test?: string }).test;
     if (typeof test !== 'string') return;
     const identifiers = this.extractIdentifiers(test);
     for (const id of identifiers) {
-      if (!localVars.has(id)) {
-        this.addVariable(collected, id);
-      }
+      const remapped = this.remapIdentifier(id, localVars, eachVarMap);
+      if (remapped) this.addVariable(collected, remapped);
     }
+  }
+
+  private remapIdentifier(id: string, localVars: Set<string>, eachVarMap: Map<string, string>): string | null {
+    const parts = id.split('.');
+    const firstName = parts[0];
+
+    if (!localVars.has(firstName)) {
+      if (BUILTINS.has(firstName) || PUG_KEYWORDS.has(firstName) || HTML_TAGS.has(firstName)) {
+        return null;
+      }
+      return id;
+    }
+
+    const arrayPath = eachVarMap.get(firstName);
+    if (!arrayPath) return null;
+
+    if (parts.length === 1) {
+      return arrayPath + '[]';
+    }
+
+    return arrayPath + '[]' + '.' + parts.slice(1).join('.');
   }
 
   private extractFromEach(node: PugAstNode, collected: Map<string, PugVariable>, _localVars: Set<string>): void {
@@ -275,38 +301,42 @@ export class PugParserService {
   private addVariable(collected: Map<string, PugVariable>, path: string): void {
     if (collected.has(path)) return;
 
-    const parts = path.split('.');
-    const name = parts[parts.length - 1];
+    const rawParts = path.split('.');
+    const lastRaw = rawParts[rawParts.length - 1];
+    const name = lastRaw.replace('[]', '');
 
     if (BUILTINS.has(name)) return;
     if (PUG_KEYWORDS.has(name)) return;
     if (HTML_TAGS.has(name)) return;
     if (!IDENTIFIER_RE.test(name)) return;
 
-    const type = this.inferType(name);
+    const isArrayItem = path.includes('[]');
+    const type: DataType = isArrayItem ? 'array' : this.inferType(name);
     const variable: PugVariable = {
       name,
       path,
       type,
       defaultValue: this.defaultValue(type),
-      parentPath: parts.length > 1 ? parts.slice(0, -1).join('.') : undefined,
+      parentPath: rawParts.length > 1 ? rawParts.slice(0, -1).join('.') : undefined,
       isLeaf: true,
     };
 
     collected.set(path, variable);
 
-    if (parts.length > 1) {
-      for (let i = 1; i < parts.length; i++) {
-        const parentPath = parts.slice(0, i).join('.');
+    if (rawParts.length > 1) {
+      for (let i = 1; i < rawParts.length; i++) {
+        const parentPath = rawParts.slice(0, i).join('.');
         if (!collected.has(parentPath)) {
-          const parentName = parts[i - 1];
-          const parentType: DataType = i < parts.length - 1 ? 'object' : this.inferType(parentName);
+          const rawParent = rawParts[i - 1];
+          const parentName = rawParent.replace('[]', '');
+          const parentIsArray = rawParent.includes('[]');
+          const parentType: DataType = parentIsArray ? 'array' : (i < rawParts.length - 1 ? 'object' : this.inferType(parentName));
           collected.set(parentPath, {
             name: parentName,
             path: parentPath,
             type: parentType,
             defaultValue: this.defaultValue(parentType),
-            parentPath: i > 1 ? parts.slice(0, i - 1).join('.') : undefined,
+            parentPath: i > 1 ? rawParts.slice(0, i - 1).join('.') : undefined,
             isLeaf: false,
           });
         }

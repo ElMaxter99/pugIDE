@@ -113,9 +113,55 @@ export class OrchestratorService {
   private buildDataFromVariables(variables: PugVariable[]): Record<string, unknown> {
     const data: Record<string, unknown> = {};
     for (const v of variables) {
-      this.setNestedValue(data, v.path, v.defaultValue);
+      if (v.path.includes('[]')) {
+        this.setArrayValue(data, v.path, v.defaultValue);
+      } else {
+        this.setNestedValue(data, v.path, v.defaultValue);
+      }
     }
     return data;
+  }
+
+  private setArrayValue(data: Record<string, unknown>, path: string, value: unknown): void {
+    const parts = path.split('.');
+    let arrayPathParts: string[] = [];
+    let itemPathParts: string[] = [];
+    let foundArray = false;
+
+    for (const part of parts) {
+      if (part.includes('[]')) {
+        arrayPathParts.push(part.replace('[]', ''));
+        foundArray = true;
+      } else if (foundArray) {
+        itemPathParts.push(part);
+      } else {
+        arrayPathParts.push(part);
+      }
+    }
+
+    const arrayPath = arrayPathParts.join('.');
+    if (!Array.isArray(this.getNestedValue(data, arrayPath))) {
+      this.setNestedValue(data, arrayPath, []);
+    }
+
+    const arr = this.getNestedValue(data, arrayPath) as unknown[];
+    if (itemPathParts.length > 0 && arr.length === 0) {
+      const item: Record<string, unknown> = {};
+      this.setNestedValue(item, itemPathParts.join('.'), value);
+      arr.push(item);
+    } else if (itemPathParts.length > 0 && arr.length > 0) {
+      this.setNestedValue(arr[0] as Record<string, unknown>, itemPathParts.join('.'), value);
+    }
+  }
+
+  private getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+    const keys = path.split('.');
+    let current: any = obj;
+    for (const key of keys) {
+      if (current === null || current === undefined) return undefined;
+      current = current[key];
+    }
+    return current;
   }
 
   private setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {

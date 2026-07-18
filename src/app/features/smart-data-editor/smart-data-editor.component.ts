@@ -32,10 +32,10 @@ interface TreeNode {
         <span class="data-title">Smart Data Editor</span>
         <div class="data-actions">
           <button class="mock-btn" (click)="autoGenerateMock()">
-            <span class="material-symbols-outlined" style="font-size: 14px;">magic_button</span>
-            <span class="mock-label">Auto-generate Mock</span>
+            <span class="material-symbols-outlined" style="font-size: 14px;">code</span>
+            <span class="mock-label">Fill from Pug</span>
           </button>
-          <button class="icon-btn" (click)="autoGenerateMock()" title="Regenerate">
+          <button class="icon-btn" (click)="autoGenerateMock()" title="Regenerate from Pug template">
             <span class="material-symbols-outlined" style="font-size: 18px;">auto_awesome</span>
           </button>
         </div>
@@ -398,18 +398,90 @@ export class SmartDataEditorComponent {
 
   autoGenerateMock(): void {
     const variables = this.parserState.variables();
-    const data = this.buildDataFromVariables(variables);
+    const data = this.buildStructureFromPug(variables);
     this.dataState.setData(data);
     this.orchestrator.onDataChange();
 
     const paths = new Set<string>(['']);
     for (const v of variables) {
-      const parts = v.path.split('.');
+      const cleanPath = v.path.replace(/\[\]/g, '');
+      const parts = cleanPath.split('.');
       for (let i = 1; i <= parts.length; i++) {
         paths.add(parts.slice(0, i).join('.'));
       }
     }
     this.expandedPaths.set(paths);
+  }
+
+  private buildStructureFromPug(variables: PugVariable[]): Record<string, unknown> {
+    const data: Record<string, unknown> = {};
+
+    for (const v of variables) {
+      if (v.path.includes('[]')) {
+        this.setArrayStructure(data, v);
+      } else {
+        this.setNestedValue(data, v.path, this.emptyValue(v.type));
+      }
+    }
+
+    return data;
+  }
+
+  private setArrayStructure(data: Record<string, unknown>, v: PugVariable): void {
+    const parts = v.path.split('.');
+    let arrayPathParts: string[] = [];
+    let itemPathParts: string[] = [];
+    let foundArray = false;
+
+    for (const part of parts) {
+      if (part.includes('[]')) {
+        arrayPathParts.push(part.replace('[]', ''));
+        foundArray = true;
+      } else if (foundArray) {
+        itemPathParts.push(part);
+      } else {
+        arrayPathParts.push(part);
+      }
+    }
+
+    const arrayPath = arrayPathParts.join('.');
+    const existing = this.getNestedValue(data, arrayPath);
+
+    if (!Array.isArray(existing)) {
+      this.setNestedValue(data, arrayPath, []);
+    }
+
+    if (itemPathParts.length > 0) {
+      const arr = this.getNestedValue(data, arrayPath) as unknown[];
+      if (arr.length === 0) {
+        const item: Record<string, unknown> = {};
+        this.setNestedValue(item, itemPathParts.join('.'), this.emptyValue(v.type));
+        arr.push(item);
+      } else {
+        this.setNestedValue(arr[0] as Record<string, unknown>, itemPathParts.join('.'), this.emptyValue(v.type));
+      }
+    }
+  }
+
+  private emptyValue(type: string): unknown {
+    switch (type) {
+      case 'number': return 0;
+      case 'boolean': return false;
+      case 'null': return null;
+      case 'array': return [];
+      case 'object': return {};
+      default: return '';
+    }
+  }
+
+  private getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+    const keys = path.split('.');
+    let current: any = obj;
+    for (const key of keys) {
+      if (current === null || current === undefined) return undefined;
+      current = current[key];
+    }
+    return current;
   }
 
   private flattenTree(
@@ -521,14 +593,6 @@ export class SmartDataEditorComponent {
     if (typeof value === 'number') return 'number';
     if (typeof value === 'string') return 'string';
     return 'string';
-  }
-
-  private buildDataFromVariables(variables: PugVariable[]): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    for (const v of variables) {
-      this.setNestedValue(data, v.path, v.defaultValue);
-    }
-    return data;
   }
 
   private setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
