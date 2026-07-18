@@ -31,7 +31,6 @@ export class OrchestratorService {
 
   private setupAutoCompile(): void {
     this.codeChange$.pipe(debounceTime(300)).subscribe(async (code) => {
-      if (!this.preferences.autoCompile()) return;
       await this.processCode(code);
     });
   }
@@ -44,9 +43,7 @@ export class OrchestratorService {
 
   onCodeChange(code: string): void {
     this.editorState.updateContent(code);
-    if (this.preferences.autoCompile()) {
-      this.codeChange$.next(code);
-    }
+    this.codeChange$.next(code);
   }
 
   async manualCompile(): Promise<void> {

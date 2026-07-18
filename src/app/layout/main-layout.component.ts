@@ -100,6 +100,7 @@ export class MainLayoutComponent implements OnInit {
     if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault();
       this.editorState.saveCurrentFile();
+      this.orchestrator.manualCompile();
     }
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
       event.preventDefault();

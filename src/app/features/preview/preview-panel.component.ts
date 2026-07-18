@@ -233,6 +233,7 @@ export class PreviewPanelComponent {
 
   previewState = inject(PreviewState);
   private orchestrator = inject(OrchestratorService);
+  private lastBlobUrl: string | null = null;
 
   constructor() {
     effect(() => {
@@ -263,8 +264,12 @@ export class PreviewPanelComponent {
   private updatePreview(html: string): void {
     if (!this.previewFrame) return;
     const iframe = this.previewFrame.nativeElement;
+    if (this.lastBlobUrl) {
+      URL.revokeObjectURL(this.lastBlobUrl);
+    }
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
+    this.lastBlobUrl = url;
     iframe.src = url;
   }
 }

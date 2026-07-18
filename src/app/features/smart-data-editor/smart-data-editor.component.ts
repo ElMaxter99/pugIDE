@@ -14,11 +14,12 @@ interface TreeNode {
   key: string;
   path: string;
   depth: number;
-  kind: 'object-open' | 'array-open' | 'object-close' | 'array-close' | 'leaf';
+  kind: 'object-open' | 'array-open' | 'object-close' | 'array-close' | 'leaf' | 'inline-array';
   value?: unknown;
   valueType?: string;
   itemCount?: number;
   isExpanded?: boolean;
+  inlineItems?: string[];
 }
 
 @Component({
@@ -107,6 +108,19 @@ interface TreeNode {
                   } @else {
                     <span class="json-string">{{ row.value }}</span>
                   }
+                </div>
+              }
+              @case ('inline-array') {
+                <div class="tree-row leaf" [style.padding-left.px]="row.depth * 20 + 20">
+                  <span class="json-key">{{ row.key }}</span>
+                  <span class="json-colon">:</span>
+                  <span class="json-bracket">{{ openBracket }}</span>
+                  <span class="inline-array-content">
+                    @for (item of row.inlineItems; track $index; let last = $last) {
+                      <span class="json-string">{{ item }}</span>@if (!last) {<span class="json-comma">, </span>}
+                    }
+                  </span>
+                  <span class="json-bracket">{{ closeBracket }}</span>
                 </div>
               }
             }
@@ -265,6 +279,17 @@ interface TreeNode {
       font-style: italic;
     }
 
+    .json-comma {
+      color: var(--text-tertiary);
+    }
+
+    .inline-array-content {
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+    }
+
     .json-input {
       background: transparent;
       border: none;
@@ -403,6 +428,20 @@ export class SmartDataEditorComponent {
       const isArr = Array.isArray(value);
 
       if (isExpandable || isArr) {
+        if (isArr) {
+          const arr = value as unknown[];
+          const isPrimitiveArr = arr.every(item => item === null || typeof item !== 'object');
+          if (isPrimitiveArr) {
+            rows.push({
+              key,
+              path,
+              depth,
+              kind: 'inline-array',
+              inlineItems: arr.map(item => item === null ? 'null' : String(item)),
+            });
+            continue;
+          }
+        }
         const isExp = expanded.has(path);
         rows.push({
           key,

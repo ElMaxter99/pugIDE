@@ -4,6 +4,7 @@ import {
   inject,
 } from '@angular/core';
 import { EditorState } from '../../../core/state/editor.state';
+import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { PreferencesState } from '../../../core/services/preferences.state';
 
 @Component({
@@ -208,9 +209,11 @@ import { PreferencesState } from '../../../core/services/preferences.state';
 export class TopbarComponent {
   protected editorState = inject(EditorState);
   protected preferences = inject(PreferencesState);
+  private orchestrator = inject(OrchestratorService);
 
   onSave(): void {
     this.editorState.saveCurrentFile();
+    this.orchestrator.manualCompile();
   }
 
   onToggleAutoSave(): void {
