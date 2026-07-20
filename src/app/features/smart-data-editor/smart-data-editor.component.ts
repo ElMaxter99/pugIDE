@@ -546,6 +546,10 @@ export class SmartDataEditorComponent {
       requestAnimationFrame(() => {
         textarea.selectionStart = textarea.selectionEnd = start + 2;
       });
+    } else if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+      event.preventDefault();
+      this.applyJson();
+      this.orchestrator.manualCompile();
     }
   }
 

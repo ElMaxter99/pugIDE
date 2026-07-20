@@ -76,7 +76,7 @@ import { getFileType } from '../../../core/models/tab.model';
           class="file-row file-item"
           [style.padding-left.px]="16 + level * 16"
           [class.active]="isActive(node.path)"
-          (dblclick)="onNodeDblClick(node)">
+          (click)="onNodeClick(node)">
           <span class="material-symbols-outlined file-icon">description</span>
           <span class="file-name">{{ node.name }}</span>
         </div>
@@ -315,10 +315,12 @@ export class SidebarComponent {
   onNodeClick(node: FileNode): void {
     if (node.type === 'directory') {
       this.projectState.toggleDir(node.path);
+    } else {
+      this.openFile(node);
     }
   }
 
-  onNodeDblClick(node: FileNode): void {
+  private openFile(node: FileNode): void {
     if (node.type === 'file') {
       const type = getFileType(node.name);
       this.editorState.openFile(node.path, node.name, type, node.content ?? '');

@@ -20,19 +20,24 @@ if(typeof Buffer==="undefined"){var Buffer={from:function(d,e){return typeof d==
   var require_fs_shim = __commonJS({
     "src/assets/fs-shim.cjs"(exports, module) {
       "use strict";
+      var pugFs = globalThis.__pugFs;
       module.exports = {
-        readFileSync: function() {
+        readFileSync: function(path, options) {
+          if (pugFs && pugFs.readFileSync) return pugFs.readFileSync(path, options);
+          if (globalThis.__pugReadFile) return globalThis.__pugReadFile(path, options);
           return "";
         },
         readSync: function() {
           return 0;
         },
-        existsSync: function() {
+        existsSync: function(path) {
+          if (pugFs && pugFs.existsSync) return pugFs.existsSync(path);
+          if (globalThis.__pugReadFile) return true;
           return false;
         },
         statSync: function() {
           return { isFile: function() {
-            return false;
+            return true;
           }, isDirectory: function() {
             return false;
           } };

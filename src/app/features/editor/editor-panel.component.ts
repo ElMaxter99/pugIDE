@@ -225,6 +225,15 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       this.editorState.setCursorPosition(e.position.lineNumber, e.position.column);
     });
 
+    this.editor.onKeyDown((e: any) => {
+      if ((e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyS) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.editorState.saveCurrentFile();
+        this.orchestrator.manualCompile();
+      }
+    });
+
     this.editorReady.set(true);
 
     const tab = this.editorState.activeTab();
@@ -250,7 +259,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     let model = this.models.get(tab.path) ?? monaco.editor.getModel(uri);
 
     if (!model) {
-      const content = this.editorState.editorContent();
+      const content = this.editorState.files().get(tab.path) ?? '';
       model = monaco.editor.createModel(content, lang, uri);
       this.models.set(tab.path, model);
     }

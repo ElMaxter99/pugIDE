@@ -35,7 +35,12 @@ export class PugCompilerService {
     }
   }
 
-  async compile(pugCode: string, data: Record<string, unknown> = {}): Promise<CompileResult> {
+  async compile(
+    pugCode: string,
+    data: Record<string, unknown> = {},
+    files?: Map<string, string>,
+    activeFilePath?: string,
+  ): Promise<CompileResult> {
     const start = performance.now();
     const errors: CompileError[] = [];
     let html = '';
@@ -51,12 +56,35 @@ export class PugCompilerService {
         });
       } else {
         const bundle = getPugBundle();
-        const compiledFn = bundle.compile(pugCode, {
+        const prevReadFile = globalThis.__pugReadFile;
+
+        if (files) {
+          globalThis.__pugReadFile = (filePath: string, options?: { encoding?: string }) => {
+            const normalized = filePath.replace(/\\/g, '/');
+            const content = files.get(normalized) ?? files.get('/' + normalized);
+            if (content !== undefined) return content;
+            const byName = Array.from(files.entries()).find(
+              ([p]) => p.endsWith('/' + normalized.split('/').pop()!)
+            );
+            if (byName) return byName[1];
+            return '';
+          };
+        }
+
+        const opts: Record<string, unknown> = {
           pretty: true,
           doctype: 'html',
           self: false,
-        });
+        };
+        if (activeFilePath) {
+          opts['filename'] = activeFilePath;
+          opts['basedir'] = '/';
+        }
+
+        const compiledFn = bundle.compile(pugCode, opts);
         html = compiledFn(data);
+
+        globalThis.__pugReadFile = prevReadFile;
       }
     } catch (err: unknown) {
       const error = err as { message?: string; line?: number; column?: number };

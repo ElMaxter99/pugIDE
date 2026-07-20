@@ -11,6 +11,7 @@ import { EditorState } from '../core/state/editor.state';
 import { PreviewState } from '../core/state/preview.state';
 import { TerminalState } from '../core/state/terminal.state';
 import { DataState } from '../core/state/data.state';
+import { ProjectState } from '../core/state/project.state';
 import { PreferencesState } from '../core/services/preferences.state';
 
 @Component({
@@ -90,6 +91,7 @@ export class MainLayoutComponent implements OnInit {
   protected terminalState = inject(TerminalState);
   private previewState = inject(PreviewState);
   private dataState = inject(DataState);
+  private projectState = inject(ProjectState);
   private preferences = inject(PreferencesState);
 
   constructor() {
@@ -123,31 +125,52 @@ export class MainLayoutComponent implements OnInit {
   }
 
   private loadDemoProject(): void {
-    const demoPug = `doctype html
+    const files: Array<{ path: string; name: string; content: string }> = [
+      {
+        path: '/main.pug',
+        name: 'main.pug',
+        content: `doctype html
 html(lang="es")
   head
     meta(charset="UTF-8")
-    title= usuario.nombre
+    title PugIDE Dashboard
   body
-    h1 Perfil de #{usuario.nombre}
-    p Edad: #{usuario.edad}
-    p Email: #{usuario.email}
-    if usuario.activo
-      p(style="color: green") Usuario activo
-    else
-      p(style="color: red") Usuario inactivo
-    h2 Hobbies
-    ul
-      each hobby in usuario.hobbies
-        li= hobby
-    h2 Dirección
-    p Calle: #{usuario.direccion.calle}
-    p Ciudad: #{usuario.direccion.ciudad}
-    h2 Amigos
-    each amigo in usuario.amigos
-      .amigo
-        h3= amigo.nombre
-        p Edad: #{amigo.edad}`;
+    h1 Pug Project
+    include components/card.pug
+    include components/navbar.pug`,
+      },
+      {
+        path: '/components/card.pug',
+        name: 'card.pug',
+        content: `mixin card(data)
+  .card-container
+    .card-header
+      h2= data.title
+      if data.price
+        .price-badge= '$' + data.price
+    .card-body
+      p= data.description
+    .card-footer
+      each item in data.items
+        +product-item(item)
+
+mixin product-item(item)
+  .product-row
+    span= item.name
+    span= item.price`,
+      },
+      {
+        path: '/components/navbar.pug',
+        name: 'navbar.pug',
+        content: `mixin navbar(links)
+  nav.navbar
+    .nav-brand PugIDE
+    ul.nav-links
+      each link in links
+        li
+          a(href=link.url)= link.label`,
+      },
+    ];
 
     const defaultData: Record<string, unknown> = {
       usuario: {
@@ -167,8 +190,11 @@ html(lang="es")
       },
     };
 
-    this.editorState.openFile('/demo.pug', 'demo.pug', 'pug', demoPug);
-    this.editorState.updateContent(demoPug);
+    this.editorState.openFile(files[0].path, files[0].name, 'pug', files[0].content);
+    for (let i = 1; i < files.length; i++) {
+      this.editorState.files.update((m) => { m.set(files[i].path, files[i].content); return m; });
+    }
+    this.projectState.setProject('PugProject', this.editorState.files());
     this.dataState.setData(defaultData);
     this.previewState.setDevice('Desktop', 1200, 800);
     this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');

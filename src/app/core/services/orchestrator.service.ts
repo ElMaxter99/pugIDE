@@ -78,7 +78,9 @@ export class OrchestratorService {
       }
 
       const data = this.dataState.data();
-      const compileResult = await this.compiler.compile(code, data);
+      const files = this.editorState.allFileContents();
+      const activePath = this.editorState.activeTab()?.path;
+      const compileResult = await this.compiler.compile(code, data, files, activePath);
       this.previewState.updateCompiledResult(compileResult);
 
       for (const error of compileResult.errors) {

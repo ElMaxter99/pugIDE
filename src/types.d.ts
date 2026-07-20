@@ -40,6 +40,7 @@ declare module 'monaco-editor' {
 interface PugBundle {
   compile(src: string, options?: {
     filename?: string;
+    basedir?: string;
     doctype?: string;
     pretty?: boolean;
     self?: boolean;
@@ -48,6 +49,8 @@ interface PugBundle {
   compileClient(src: string, options?: Record<string, unknown>): string;
   runtime: unknown;
 }
+
+declare var __pugReadFile: ((path: string, options?: { encoding?: string }) => string) | undefined;
 
 interface ParserBundle {
   lexer(src: string, options?: { filename?: string }): unknown[];
