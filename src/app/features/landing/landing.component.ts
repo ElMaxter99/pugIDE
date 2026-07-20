@@ -1,20 +1,29 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { APP_VERSION } from '../../core/models/version.token';
+import { PreferencesState } from '../../core/services/preferences.state';
 
 @Component({
   selector: 'app-landing',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="landing-root">
+    <div class="landing-root" [class.light-mode]="!isDark">
       <div class="bg-glow top-left"></div>
       <div class="bg-glow bottom-right"></div>
+
+      <header class="landing-topbar">
+        <span class="logo">PugIDE</span>
+        <button class="theme-btn" (click)="toggleTheme()" [attr.aria-label]="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'">
+          <span class="material-symbols-outlined">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
+        </button>
+      </header>
 
       <main class="landing-main">
         <section class="hero-section">
           <div class="version-badge">
             <span class="version-dot"></span>
-            <span class="version-text">Version 2.0 — Ahora disponible</span>
+            <span class="version-text">Version {{ version }}</span>
           </div>
 
           <h1 class="hero-title">
@@ -138,6 +147,43 @@ import { Router } from '@angular/router';
       color: var(--text-primary);
       position: relative;
       overflow-x: hidden;
+    }
+
+    .landing-topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: color-mix(in srgb, var(--bg-surface) 80%, transparent);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle, var(--border-color));
+    }
+    .logo {
+      font-family: 'Geist', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent-color);
+    }
+    .theme-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-lg);
+      background: var(--bg-surface-container);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .theme-btn:hover {
+      background: var(--bg-surface-container-high);
     }
 
     .bg-glow {
@@ -604,6 +650,22 @@ import { Router } from '@angular/router';
 })
 export class LandingComponent {
   private router = inject(Router);
+  private prefs = inject(PreferencesState);
+  protected version = inject(APP_VERSION);
+
+  constructor() {
+    document.documentElement.classList.toggle('light-mode', this.prefs.theme() === 'light');
+  }
+
+  get isDark(): boolean {
+    return this.prefs.theme() === 'dark';
+  }
+
+  toggleTheme(): void {
+    const next = this.isDark ? 'light' : 'dark';
+    this.prefs.update({ theme: next });
+    document.documentElement.classList.toggle('light-mode', next === 'light');
+  }
 
   goToIde(): void {
     this.router.navigate(['/ide']);
