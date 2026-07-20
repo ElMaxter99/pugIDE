@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, HostListener } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, OnInit, HostListener, effect } from '@angular/core';
 import { TopbarComponent } from '../shared/components/topbar/topbar.component';
 import { SidebarComponent } from '../shared/components/sidebar/sidebar.component';
 import { StatusbarComponent } from '../shared/components/statusbar/statusbar.component';
@@ -11,6 +11,7 @@ import { EditorState } from '../core/state/editor.state';
 import { PreviewState } from '../core/state/preview.state';
 import { TerminalState } from '../core/state/terminal.state';
 import { DataState } from '../core/state/data.state';
+import { PreferencesState } from '../core/services/preferences.state';
 
 @Component({
   selector: 'app-main-layout',
@@ -89,6 +90,14 @@ export class MainLayoutComponent implements OnInit {
   protected terminalState = inject(TerminalState);
   private previewState = inject(PreviewState);
   private dataState = inject(DataState);
+  private preferences = inject(PreferencesState);
+
+  constructor() {
+    effect(() => {
+      const theme = this.preferences.theme();
+      document.documentElement.classList.toggle('light-mode', theme === 'light');
+    });
+  }
 
   ngOnInit(): void {
     this.orchestrator.initialize();

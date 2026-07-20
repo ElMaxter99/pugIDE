@@ -51,17 +51,6 @@ import { getFileType } from '../../../core/models/tab.model';
             <ng-container *ngTemplateOutlet="fileNode; context: { $implicit: node, level: 0 }"></ng-container>
           }
         </div>
-
-        <div class="sidebar-footer">
-          <div class="footer-item">
-            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_circle</span>
-            <span class="footer-label">Profile</span>
-          </div>
-          <div class="footer-item">
-            <span class="material-symbols-outlined">settings</span>
-            <span class="footer-label">Settings</span>
-          </div>
-        </div>
       </div>
     </aside>
 
@@ -316,11 +305,10 @@ export class SidebarComponent {
   protected projectState = inject(ProjectState);
   protected editorState = inject(EditorState);
 
-  activePanel = signal<'files' | 'search' | 'git'>('files');
+  activePanel = signal<'files' | 'git'>('files');
 
   panels = [
     { id: 'files' as const, icon: 'folder', label: 'Explorer' },
-    { id: 'search' as const, icon: 'search', label: 'Search' },
     { id: 'git' as const, icon: 'account_tree', label: 'Source Control' },
   ];
 
