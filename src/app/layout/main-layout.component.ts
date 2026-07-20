@@ -93,9 +93,11 @@ export class MainLayoutComponent implements OnInit {
   private preferences = inject(PreferencesState);
 
   constructor() {
+    const theme = this.preferences.theme();
+    document.documentElement.classList.toggle('light-mode', theme === 'light');
     effect(() => {
-      const theme = this.preferences.theme();
-      document.documentElement.classList.toggle('light-mode', theme === 'light');
+      const t = this.preferences.theme();
+      document.documentElement.classList.toggle('light-mode', t === 'light');
     });
   }
 
