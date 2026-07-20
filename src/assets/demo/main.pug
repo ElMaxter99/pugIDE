@@ -31,6 +31,12 @@ html(lang="es")
   body
     h1 PugIDE - Demo Completo de Funcionalidades
 
+    //- Includes (deben ir antes de usar los mixins)
+    include components/card.pug
+    include components/navbar.pug
+
+    //- ===================== SECCION 1: VARIABLES BASICAS =====================
+
     //- ===================== SECCION 1: VARIABLES BASICAS =====================
     h2 1. Variables Básicas (interpolación, textos, atributos)
     p Hola, #{nombre}. Tu email es #{email}
@@ -77,8 +83,8 @@ html(lang="es")
             td= usuario.email
             td= usuario.rol || 'Invitado'
 
-    //- ===================== SECCION 4: MIXINS =====================
-    h2 4. Mixins (reutilización de componentes)
+    //- ===================== SECCION 4: MIXINS DESDE INCLUDE =====================
+    h2 4. Mixins incluidos desde componentes
     +card(noticia)
     +card(noticia2)
     +navbar(linksNav)
@@ -102,10 +108,10 @@ html(lang="es")
     .undefined-safe
       p
         strong Valor null:
-        = valorNulo !== null ? valorNulo : 'null'
+        = valorNulo !== null && valorNulo !== undefined ? valorNulo : 'null'
       p
         strong Valor undefined:
-        = valorUndefined !== undefined ? valorUndefined : 'undefined'
+        = valorUndefined !== undefined && valorUndefined !== null ? valorUndefined : 'undefined'
       p
         | Entero opcional con fallback:
         = puntuacion !== null && puntuacion !== undefined ? puntuacion : 'Sin calificar'

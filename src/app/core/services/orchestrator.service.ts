@@ -29,6 +29,10 @@ export class OrchestratorService {
     this.setupAutoCompile();
   }
 
+  markDataInitialized(): void {
+    this.initialDataLoaded = true;
+  }
+
   private setupAutoCompile(): void {
     this.codeChange$.pipe(debounceTime(300)).subscribe(async (code) => {
       await this.processCode(code);

@@ -104,10 +104,10 @@ export class MainLayoutComponent implements OnInit {
     });
   }
 
-  async ngOnInit(): Promise<void> {
+  ngOnInit(): void {
     vercelInject();
     this.orchestrator.initialize();
-    await this.loadDemoProject();
+    this.loadDemoProject();
   }
 
   @HostListener('window:keydown', ['$event'])
@@ -140,12 +140,22 @@ export class MainLayoutComponent implements OnInit {
       { path: '/components/navbar.pug', name: 'navbar.pug', content: navbarPug },
     ];
 
-    this.editorState.openFile(files[0].path, files[0].name, 'pug', files[0].content);
+    // Resolve includes manually for compilation
+    const resolvedMain = mainPug.replace(
+      /^include (.+\.pug)$/gm,
+      (_, includePath: string) => {
+        const match = files.find(f => f.path.endsWith('/' + includePath) || f.path === '/' + includePath);
+        return match ? match.content : '// include not found: ' + includePath;
+      }
+    );
+
+    this.editorState.openFile(files[0].path, files[0].name, 'pug', resolvedMain);
     for (let i = 1; i < files.length; i++) {
       this.editorState.files.update((m) => { m.set(files[i].path, files[i].content); return m; });
     }
     this.projectState.setProject('PugProject', this.editorState.files());
     this.dataState.setData(rawData as Record<string, unknown>);
+    this.orchestrator.markDataInitialized();
     this.previewState.setDevice('Desktop', 1200, 800);
     this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');
     this.orchestrator.manualCompile();

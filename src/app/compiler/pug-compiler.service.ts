@@ -61,12 +61,14 @@ export class PugCompilerService {
         if (files) {
           globalThis.__pugReadFile = (filePath: string, options?: { encoding?: string }) => {
             const normalized = filePath.replace(/\\/g, '/');
+            console.log('[PugReadFile]', normalized, 'files:', Array.from(files.keys()));
             const content = files.get(normalized) ?? files.get('/' + normalized);
             if (content !== undefined) return content;
             const byName = Array.from(files.entries()).find(
               ([p]) => p.endsWith('/' + normalized.split('/').pop()!)
             );
             if (byName) return byName[1];
+            console.log('[PugReadFile] NOT FOUND:', normalized);
             return '';
           };
         }
