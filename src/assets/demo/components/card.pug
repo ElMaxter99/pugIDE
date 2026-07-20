@@ -1,0 +1,16 @@
+mixin card(data)
+  .card-container
+    .card-header
+      h2= data.title
+      if data.price
+        .price-badge= '$' + data.price
+    .card-body
+      p= data.description
+    .card-footer
+      each item in data.items
+        +product-item(item)
+
+mixin product-item(item)
+  .product-row
+    span= item.name
+    span= item.price

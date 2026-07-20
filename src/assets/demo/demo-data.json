@@ -1,0 +1,67 @@
+{
+  "nombre": "Carlos",
+  "email": "carlos@email.com",
+  "edad": 28,
+  "activo": true,
+  "avatar": "https://i.pravatar.cc/64?u=1",
+
+  "rol": "admin",
+  "desactivado": false,
+
+  "hobbies": ["Programar", "Leer", "Viajar", "Fotografia"],
+
+  "usuarios": [
+    { "nombre": "Ana", "edad": 25, "email": "ana@email.com", "rol": "admin" },
+    { "nombre": "Luis", "edad": 30, "email": "luis@email.com", "rol": "editor" },
+    { "nombre": "Marta", "edad": 22, "email": "marta@email.com" }
+  ],
+
+  "noticia": {
+    "title": "Lanzamiento de PugIDE",
+    "price": 0,
+    "description": "Un IDE moderno para desarrollar plantillas Pug con vista previa en vivo y editor de datos inteligente.",
+    "items": [
+      { "name": "Monaco Editor", "price": "Gratuito" },
+      { "name": "Vista Previa", "price": "En vivo" },
+      { "name": "Editor JSON", "price": "Smart" }
+    ]
+  },
+  "noticia2": {
+    "title": "Nueva version 2.0",
+    "price": 29.99,
+    "description": "Soporte para mixins, includes, y analisis de variables automatico.",
+    "items": [
+      { "name": "Soporte ESBuild", "price": "Incluido" },
+      { "name": "Inspector HTML", "price": "Nuevo" },
+      { "name": "Temas oscuro/claro", "price": "Mejorado" }
+    ]
+  },
+  "linksNav": [
+    { "url": "#inicio", "label": "Inicio" },
+    { "url": "#docs", "label": "Documentacion" },
+    { "url": "#ejemplos", "label": "Ejemplos" },
+    { "url": "#contacto", "label": "Contacto" }
+  ],
+
+  "vacio": {},
+
+  "valorNulo": null,
+  "valorUndefined": null,
+  "puntuacion": null,
+
+  "rawHtml": "<strong>texto en negrita escapado</strong>",
+
+  "urlTarget": "https://ejemplo.com",
+  "colorFondo": "bg-blue",
+  "idPagina": 42,
+  "atributosData": { "role": "button", "aria-label": "Click me" },
+  "atributosExtra": { "data-toggle": "modal", "data-target": "#myModal" },
+
+  "stringVal": "Esto es un string",
+  "intVal": 42,
+  "floatVal": 3.1416,
+  "boolTrue": true,
+  "boolFalse": false,
+  "arrayVacio": [],
+  "arrayConItems": ["a", "b", "c"]
+}

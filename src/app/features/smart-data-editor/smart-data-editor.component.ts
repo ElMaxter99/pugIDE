@@ -47,24 +47,7 @@ interface TreeNode {
         </div>
       </div>
 
-      @if (jsonRawMode()) {
-        <div class="json-editor-area">
-          @if (jsonError()) {
-            <div class="json-error-bar">
-              <span class="material-symbols-outlined" style="font-size: 14px; color: var(--error-color);">error</span>
-              <span class="json-error-text">{{ jsonError() }}</span>
-            </div>
-          }
-          <textarea
-            #jsonArea
-            class="json-textarea font-mono"
-            (input)="onJsonInput($any($event.target).value)"
-            (blur)="applyJson()"
-            (keydown)="onTextareaKeydown($event)"
-            spellcheck="false"
-            placeholder="Enter valid JSON..."></textarea>
-        </div>
-      } @else {
+      @if (!jsonRawMode()) {
         <div class="tree-view">
           <div class="tree-content font-mono">
             @for (row of flatRows(); track row.path + row.kind) {
@@ -153,6 +136,23 @@ interface TreeNode {
           </div>
         </div>
       }
+
+      <div class="json-editor-area" [class.hidden]="!jsonRawMode()">
+        @if (jsonError()) {
+          <div class="json-error-bar">
+            <span class="material-symbols-outlined" style="font-size: 14px; color: var(--error-color);">error</span>
+            <span class="json-error-text">{{ jsonError() }}</span>
+          </div>
+        }
+        <textarea
+          #jsonArea
+          class="json-textarea font-mono"
+          (input)="onJsonInput($any($event.target).value)"
+          (blur)="applyJson()"
+          (keydown)="onTextareaKeydown($event)"
+          spellcheck="false"
+          placeholder="Enter valid JSON..."></textarea>
+      </div>
     </section>
   `,
   styles: [`
@@ -426,6 +426,10 @@ interface TreeNode {
       overflow: hidden;
     }
 
+    .json-editor-area.hidden {
+      display: none;
+    }
+
     .json-error-bar {
       display: flex;
       align-items: center;
@@ -500,11 +504,10 @@ export class SmartDataEditorComponent {
   toggleMode(): void {
     const goingRaw = !this.jsonRawMode();
     if (goingRaw) {
-      this.rawJsonContent.set(JSON.stringify(this.dataState.data(), null, 2));
+      const json = JSON.stringify(this.dataState.data(), null, 2);
+      this.jsonArea.nativeElement.value = json;
+      this.rawJsonContent.set(json);
       this.jsonError.set(null);
-      requestAnimationFrame(() => {
-        if (this.jsonArea) this.jsonArea.nativeElement.value = this.rawJsonContent();
-      });
     } else {
       this.applyJson();
     }
@@ -550,6 +553,7 @@ export class SmartDataEditorComponent {
       const end = textarea.selectionEnd;
       const value = textarea.value;
       const newValue = value.substring(0, start) + '  ' + value.substring(end);
+      this.jsonArea.nativeElement.value = newValue;
       this.rawJsonContent.set(newValue);
       requestAnimationFrame(() => {
         textarea.selectionStart = textarea.selectionEnd = start + 2;
@@ -574,10 +578,9 @@ export class SmartDataEditorComponent {
     this.dataState.setData({});
     this.orchestrator.onDataChange();
     if (this.jsonRawMode()) {
+      this.jsonArea.nativeElement.value = '{}';
       this.rawJsonContent.set('{}');
       this.jsonError.set(null);
-      const textarea = this.jsonArea?.nativeElement;
-      if (textarea) textarea.value = '{}';
     }
     this.expandedPaths.set(new Set(['']));
   }

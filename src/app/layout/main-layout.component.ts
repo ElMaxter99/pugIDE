@@ -104,10 +104,10 @@ export class MainLayoutComponent implements OnInit {
     });
   }
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     vercelInject();
     this.orchestrator.initialize();
-    this.loadDemoProject();
+    await this.loadDemoProject();
   }
 
   @HostListener('window:keydown', ['$event'])
@@ -126,78 +126,26 @@ export class MainLayoutComponent implements OnInit {
     }
   }
 
-  private loadDemoProject(): void {
+  private async loadDemoProject(): Promise<void> {
+    const [mainPug, cardPug, navbarPug, rawData] = await Promise.all([
+      fetch('assets/demo/main.pug').then(r => r.text()),
+      fetch('assets/demo/components/card.pug').then(r => r.text()),
+      fetch('assets/demo/components/navbar.pug').then(r => r.text()),
+      fetch('assets/demo/demo-data.json').then(r => r.json()),
+    ]);
+
     const files: Array<{ path: string; name: string; content: string }> = [
-      {
-        path: '/main.pug',
-        name: 'main.pug',
-        content: `doctype html
-html(lang="es")
-  head
-    meta(charset="UTF-8")
-    title PugIDE Dashboard
-  body
-    h1 Pug Project
-    include components/card.pug
-    include components/navbar.pug`,
-      },
-      {
-        path: '/components/card.pug',
-        name: 'card.pug',
-        content: `mixin card(data)
-  .card-container
-    .card-header
-      h2= data.title
-      if data.price
-        .price-badge= '$' + data.price
-    .card-body
-      p= data.description
-    .card-footer
-      each item in data.items
-        +product-item(item)
-
-mixin product-item(item)
-  .product-row
-    span= item.name
-    span= item.price`,
-      },
-      {
-        path: '/components/navbar.pug',
-        name: 'navbar.pug',
-        content: `mixin navbar(links)
-  nav.navbar
-    .nav-brand PugIDE
-    ul.nav-links
-      each link in links
-        li
-          a(href=link.url)= link.label`,
-      },
+      { path: '/main.pug', name: 'main.pug', content: mainPug },
+      { path: '/components/card.pug', name: 'card.pug', content: cardPug },
+      { path: '/components/navbar.pug', name: 'navbar.pug', content: navbarPug },
     ];
-
-    const defaultData: Record<string, unknown> = {
-      usuario: {
-        nombre: 'Carlos',
-        edad: 28,
-        email: 'carlos@email.com',
-        activo: true,
-        hobbies: ['Programar', 'Leer', 'Viajar'],
-        direccion: {
-          calle: 'Av. Siempre Viva 742',
-          ciudad: 'Madrid',
-        },
-        amigos: [
-          { nombre: 'Ana', edad: 25 },
-          { nombre: 'Luis', edad: 30 },
-        ],
-      },
-    };
 
     this.editorState.openFile(files[0].path, files[0].name, 'pug', files[0].content);
     for (let i = 1; i < files.length; i++) {
       this.editorState.files.update((m) => { m.set(files[i].path, files[i].content); return m; });
     }
     this.projectState.setProject('PugProject', this.editorState.files());
-    this.dataState.setData(defaultData);
+    this.dataState.setData(rawData as Record<string, unknown>);
     this.previewState.setDevice('Desktop', 1200, 800);
     this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');
     this.orchestrator.manualCompile();

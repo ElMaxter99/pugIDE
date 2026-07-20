@@ -1,0 +1,184 @@
+doctype html
+html(lang="es")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    title PugIDE - Demo Completo
+    style.
+      body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #f5f5f5; color: #333; }
+      h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
+      h2 { color: #2980b9; }
+      .empty-object-demo { background: #fff3cd; border: 1px solid #ffc107; padding: 10px; border-radius: 4px; margin: 10px 0; }
+      .empty-object-demo code { background: #ffeeba; padding: 2px 6px; border-radius: 3px; }
+      .undefined-safe { background: #d4edda; border: 1px solid #28a745; padding: 10px; border-radius: 4px; margin: 10px 0; }
+      .card-container { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 15px; margin: 10px 0; }
+      .card-header { display: flex; justify-content: space-between; align-items: center; }
+      .price-badge { background: #27ae60; color: white; padding: 3px 10px; border-radius: 12px; font-weight: bold; }
+      .card-body { margin: 10px 0; color: #555; }
+      .card-footer { border-top: 1px solid #eee; padding-top: 10px; }
+      .product-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed #eee; }
+      .navbar { background: #2c3e50; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; }
+      .nav-brand { font-weight: bold; font-size: 1.2em; }
+      .nav-links { list-style: none; display: flex; gap: 15px; margin: 0; padding: 0; }
+      .nav-links a { color: #ecf0f1; text-decoration: none; }
+      .nav-links a:hover { color: #3498db; }
+      pre { background: #f8f9fa; border: 1px solid #ddd; padding: 10px; border-radius: 4px; overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+      th { background: #3498db; color: white; }
+      .value-null { color: #999; font-style: italic; }
+      .value-empty { color: #e74c3c; font-weight: bold; }
+  body
+    h1 PugIDE - Demo Completo de Funcionalidades
+
+    //- ===================== SECCION 1: VARIABLES BASICAS =====================
+    h2 1. Variables Básicas (interpolación, textos, atributos)
+    p Hola, #{nombre}. Tu email es #{email}
+    p Edad: #{edad} años
+    p
+      | Activo:
+      strong= activo ? 'Sí' : 'No'
+    img(src=avatar width="64" height="64" style="border-radius:50%")
+
+    //- ===================== SECCION 2: CONDICIONALES =====================
+    h2 2. Condicionales (if / unless / else)
+    if rol === 'admin'
+      p.badge-admin Escudo: Eres administrador
+    else if rol === 'editor'
+      p.badge-editor Lapiz: Eres editor
+    else
+      p.badge-user Persona: Eres usuario regular
+
+    unless desactivado
+      p Checkmark: Cuenta activa
+    else
+      p X: Cuenta desactivada
+
+    //- ===================== SECCION 3: CADA / ITERACIONES =====================
+    h2 3. Iteraciones (each / while)
+    h3 Lista de hobbies:
+    ul
+      each hobby in hobbies
+        li= hobby
+
+    h3 Usuarios del sistema:
+    table
+      thead
+        tr
+          th Nombre
+          th Edad
+          th Email
+          th Rol
+      tbody
+        each usuario in usuarios
+          tr
+            td= usuario.nombre
+            td= usuario.edad
+            td= usuario.email
+            td= usuario.rol || 'Invitado'
+
+    //- ===================== SECCION 4: MIXINS =====================
+    h2 4. Mixins (reutilización de componentes)
+    +card(noticia)
+    +card(noticia2)
+    +navbar(linksNav)
+
+    //- ===================== SECCION 5: OBJETO VACIO =====================
+    h2 5. Objeto Vacio ({}) - Edge Case
+    .empty-object-demo
+      p
+        strong Prueba de objeto vacio:
+        |  La variable <code>vacio</code> deberia ser <code>{}</code>
+      if Object.keys(vacio).length === 0
+        p Checkmark: <code>vacio</code> es un objeto vacio (no tiene propiedades)
+      else
+        p Advertencia: <code>vacio</code> tiene propiedades: #{JSON.stringify(vacio)}
+      p
+        | Acceso seguro a propiedad inexistente:
+        = vacio.propiedadInexistente || 'Advertencia: undefined (no hay propiedad)'
+
+    //- ===================== SECCION 6: ACCESO SEGURO (undefined/null) =====================
+    h2 6. Valores null / undefined
+    .undefined-safe
+      p
+        strong Valor null:
+        = valorNulo !== null ? valorNulo : 'null'
+      p
+        strong Valor undefined:
+        = valorUndefined !== undefined ? valorUndefined : 'undefined'
+      p
+        | Entero opcional con fallback:
+        = puntuacion !== null && puntuacion !== undefined ? puntuacion : 'Sin calificar'
+
+    //- ===================== SECCION 7: STRING INTERPOLACION =====================
+    h2 7. String Interpolation y Literals
+    p
+      | Mensaje personalizado:
+      strong
+        = 'Hola ' + nombre + ', tienes ' + edad + ' anyos y tu email es ' + email
+    p
+      | Texto escapado:
+      = rawHtml
+    p
+      | Texto NO escapado (raw):
+      != rawHtml
+
+    //- ===================== SECCION 8: CODE EMBEBIDO =====================
+    h2 8. Codigo JavaScript Embebido
+    - var fecha = new Date()
+    - var anio = fecha.getFullYear()
+    p Anyo actual: #{anio}
+    - var numeros = [10, 20, 30, 40, 50]
+    p Suma de numeros: #{numeros.reduce((a, b) => a + b, 0)}
+
+    //- ===================== SECCION 9: COMENTARIOS =====================
+    // Este es un comentario HTML (visible en source)
+    //- Este es un comentario Pug (no visible en HTML)
+
+    //- ===================== SECCION 10: CASE/WHEN =====================
+    h2 9. Case / When
+    - var estado = 'completado'
+    case estado
+      when 'pendiente'
+        p Reloj: Estado: Pendiente
+      when 'procesando'
+        p Circular: Estado: Procesando
+      when 'completado'
+        p Checkmark: Estado: Completado
+      default
+        p Interrogacion: Estado desconocido: #{estado}
+
+    //- ===================== SECCION 11: ATRIBUTOS DINAMICOS =====================
+    h2 10. Atributos Dinamicos
+    - var urlClase = 'externo'
+    a(href=urlTarget, class=urlClase, target='_blank' data-id=idPagina) Enlace dinamico
+    div(class=['box', colorFondo])
+    div(data-values=atributosData)&attributes(atributosExtra)
+
+    //- ===================== SECCION 12: TIPOS DE DATOS JSON =====================
+    h2 11. Tipos de Datos desde JSON
+    p
+      | String: #{stringVal}
+    p
+      | Numero (entero): #{intVal}
+    p
+      | Numero (float): #{floatVal}
+    p
+      | Booleano (true):
+      = boolTrue ? 'verdadero' : 'falso'
+    p
+      | Booleano (false):
+      = boolFalse ? 'verdadero' : 'falso'
+    p
+      | Array vacio:
+      = arrayVacio.length === 0 ? '[] (vacio)' : arrayVacio.join(', ')
+    p
+      | Array con items:
+      each item in arrayConItems
+        span(style="margin-right:5px")= item
+
+    //- ===================== SECTION: LAYOUT & FOOTER =====================
+    hr
+    footer
+      p PugIDE Demo - #{anio}
+      p Copy; Todos los derechos reservados.

@@ -1,0 +1,7 @@
+mixin navbar(links)
+  nav.navbar
+    .nav-brand PugIDE
+    ul.nav-links
+      each link in links
+        li
+          a(href=link.url)= link.label
