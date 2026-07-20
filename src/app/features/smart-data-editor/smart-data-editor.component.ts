@@ -5,6 +5,8 @@ import {
   signal,
   computed,
   HostListener,
+  ViewChild,
+  ElementRef,
 } from '@angular/core';
 import { DataState } from '../../core/state/data.state';
 import { ParserState } from '../../core/state/parser.state';
@@ -54,8 +56,8 @@ interface TreeNode {
             </div>
           }
           <textarea
+            #jsonArea
             class="json-textarea font-mono"
-            [value]="rawJsonContent()"
             (input)="onJsonInput($any($event.target).value)"
             (blur)="applyJson()"
             (keydown)="onTextareaKeydown($event)"
@@ -469,6 +471,8 @@ export class SmartDataEditorComponent {
   private orchestrator = inject(OrchestratorService);
   private terminalState = inject(TerminalState);
 
+  @ViewChild('jsonArea') jsonArea!: ElementRef<HTMLTextAreaElement>;
+
   readonly openCurly = '{';
   readonly closeCurly = '}';
   readonly openBracket = '[';
@@ -498,6 +502,9 @@ export class SmartDataEditorComponent {
     if (goingRaw) {
       this.rawJsonContent.set(JSON.stringify(this.dataState.data(), null, 2));
       this.jsonError.set(null);
+      requestAnimationFrame(() => {
+        if (this.jsonArea) this.jsonArea.nativeElement.value = this.rawJsonContent();
+      });
     } else {
       this.applyJson();
     }
@@ -516,7 +523,8 @@ export class SmartDataEditorComponent {
   }
 
   applyJson(): void {
-    const text = this.rawJsonContent();
+    const textarea = this.jsonArea?.nativeElement;
+    const text = textarea ? textarea.value : this.rawJsonContent();
     try {
       const parsed = JSON.parse(text);
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
@@ -568,6 +576,8 @@ export class SmartDataEditorComponent {
     if (this.jsonRawMode()) {
       this.rawJsonContent.set('{}');
       this.jsonError.set(null);
+      const textarea = this.jsonArea?.nativeElement;
+      if (textarea) textarea.value = '{}';
     }
     this.expandedPaths.set(new Set(['']));
   }

@@ -6,6 +6,7 @@ import { EditorPanelComponent } from '../features/editor/editor-panel.component'
 import { SmartDataEditorComponent } from '../features/smart-data-editor/smart-data-editor.component';
 import { PreviewPanelComponent } from '../features/preview/preview-panel.component';
 import { TerminalPanelComponent } from '../features/terminal/terminal-panel.component';
+import { inject as vercelInject } from '@vercel/analytics';
 import { OrchestratorService } from '../core/services/orchestrator.service';
 import { EditorState } from '../core/state/editor.state';
 import { PreviewState } from '../core/state/preview.state';
@@ -104,6 +105,7 @@ export class MainLayoutComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    vercelInject();
     this.orchestrator.initialize();
     this.loadDemoProject();
   }
