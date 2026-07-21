@@ -66,16 +66,20 @@ export class EditorState {
   }
 
   updateContent(content: string): void {
+    console.log('[EditorState] updateContent, length:', content.length);
     this.editorContent.set(content);
     const activeId = this.activeTabId();
     if (activeId) {
       const active = this.openTabs().find((t) => t.id === activeId);
       if (active) {
         this.files.update((f) => { f.set(active.path, content); return f; });
+        if (!active.isDirty) {
+          console.log('[EditorState] first dirty - updating openTabs');
+          this.openTabs.update((tabs) =>
+            tabs.map((t) => (t.id === activeId ? { ...t, isDirty: true } : t))
+          );
+        }
       }
-      this.openTabs.update((tabs) =>
-        tabs.map((t) => (t.id === activeId ? { ...t, isDirty: true } : t))
-      );
     }
   }
 

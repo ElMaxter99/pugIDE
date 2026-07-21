@@ -120,6 +120,7 @@ export class MainLayoutComponent implements OnInit {
 
   @HostListener('window:keydown', ['$event'])
   onKeydown(event: KeyboardEvent): void {
+    console.log('[MainLayout] window:keydown', event.key, 'ctrl:', event.ctrlKey, 'meta:', event.metaKey);
     if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault();
       this.editorState.saveCurrentFile();

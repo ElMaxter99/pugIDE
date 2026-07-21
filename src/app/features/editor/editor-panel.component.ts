@@ -110,16 +110,32 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   private updateDisposable: { dispose(): void } | null = null;
   private cursorDisposable: { dispose(): void } | null = null;
   private models = new Map<string, any>();
+  private pasteListener: (() => void) | null = null;
 
   protected editorReady = signal(false);
 
+  private lastTabId: string | null = null;
+  private suppressContentChange = false;
+
   constructor() {
+    console.log('[EditorPanel] constructor');
     effect(() => {
       const tab = this.editorState.activeTab();
+      console.log('[EditorPanel] effect - activeTab:', tab?.id, 'editorReady:', this.editorReady());
       if (tab && this.editorReady()) {
-        this.loadModel(tab);
+        if (tab.id !== this.lastTabId) {
+          console.log('[EditorPanel] effect - tab changed from', this.lastTabId, 'to', tab.id);
+          this.lastTabId = tab.id;
+          this.loadModel(tab);
+        } else {
+          console.log('[EditorPanel] effect - same tab, skipping loadModel');
+        }
       }
     });
+  }
+
+  get suppressChanges(): boolean {
+    return this.suppressContentChange;
   }
 
   async ngAfterViewInit(): Promise<void> {
@@ -129,6 +145,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.updateDisposable?.dispose();
     this.cursorDisposable?.dispose();
+    this.pasteListener?.();
     this.editor?.dispose();
   }
 
@@ -163,6 +180,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   private initEditor(): void {
+    console.log('[EditorPanel] initEditor');
     monaco.editor.defineTheme('pugIDE-dark', {
       base: 'vs-dark',
       inherit: true,
@@ -216,8 +234,25 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       },
     });
 
-    this.updateDisposable = this.editor.onDidChangeModelContent(() => {
+    console.log('[EditorPanel] editor created with value: empty, isFocused:', this.editor.hasTextFocus?.());
+
+    this.editor.onDidFocusEditorText(() => {
+      console.log('[EditorPanel] FOCUS - editor text focused');
+    });
+    this.editor.onDidBlurEditorText(() => {
+      console.log('[EditorPanel] BLUR - editor text blurred');
+    });
+
+    // DOM paste event on the container to catch any paste reaching it
+    const pasteHandler = (ev: ClipboardEvent) => {
+      console.log('[EditorPanel] DOM paste event on container (capture), clipboard:', ev.clipboardData?.getData('text/plain')?.slice(0, 30));
+    };
+    this.editorContainer.nativeElement.addEventListener('paste', pasteHandler, true);
+    this.pasteListener = () => this.editorContainer.nativeElement.removeEventListener('paste', pasteHandler, true);
+
+    this.updateDisposable = this.editor.onDidChangeModelContent((e: any) => {
       const content = this.editor.getModel()?.getValue() ?? '';
+      console.log('[EditorPanel] onDidChangeModelContent, length:', content.length, 'preview:', content.slice(0, 50), 'event:', e);
       this.orchestrator.onCodeChange(content);
     });
 
@@ -225,8 +260,28 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       this.editorState.setCursorPosition(e.position.lineNumber, e.position.column);
     });
 
-    this.editor.onKeyDown((e: any) => {
-      if ((e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyS) {
+    this.editor.onKeyDown(async (e: any) => {
+      console.log('[EditorPanel] onKeyDown, key:', e.keyCode, 'ctrl:', e.ctrlKey, 'meta:', e.metaKey, 'focused:', this.editor?.hasTextFocus?.());
+      if ((e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyV) {
+        console.log('[EditorPanel] Ctrl+V detected! selection:', this.editor?.getSelection?.()?.toString());
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          const text = await navigator.clipboard.readText();
+          console.log('[EditorPanel] clipboard text length:', text.length, 'preview:', text.slice(0, 50));
+          if (text) {
+            const sel = this.editor.getSelection();
+            if (sel) {
+              this.editor.executeEdits('paste', [
+                { range: sel, text, forceMoveMarkers: true }
+              ]);
+              this.editor.focus();
+            }
+          }
+        } catch (err) {
+          console.log('[EditorPanel] clipboard API failed:', err);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyS) {
         e.preventDefault();
         e.stopPropagation();
         this.editorState.saveCurrentFile();
@@ -234,15 +289,17 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       }
     });
 
-    this.editorReady.set(true);
+    console.log('[EditorPanel] editorReady set to true');
 
     const tab = this.editorState.activeTab();
+    console.log('[EditorPanel] initEditor - activeTab:', tab?.id);
     if (tab) {
       this.loadModel(tab);
     }
   }
 
   private loadModel(tab: { path: string; type: string; name: string }): void {
+    console.log('[EditorPanel] loadModel', tab.path, 'current model:', this.editor?.getModel()?.uri?.toString());
     if (!this.editor) return;
 
     const langMap: Record<string, string> = {
@@ -257,15 +314,20 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     const lang = langMap[tab.type] ?? 'plaintext';
     const uri = monaco.Uri.parse(tab.path);
     let model = this.models.get(tab.path) ?? monaco.editor.getModel(uri);
+    console.log('[EditorPanel] loadModel - found in cache:', !!this.models.get(tab.path), 'found globally:', !!monaco.editor.getModel(uri));
 
     if (!model) {
       const content = this.editorState.files().get(tab.path) ?? '';
+      console.log('[EditorPanel] loadModel - creating new model, content length:', content.length);
       model = monaco.editor.createModel(content, lang, uri);
       this.models.set(tab.path, model);
     }
 
     if (this.editor.getModel() !== model) {
+      console.log('[EditorPanel] loadModel - setting model (was different)');
       this.editor.setModel(model);
+    } else {
+      console.log('[EditorPanel] loadModel - same model, noop');
     }
   }
 }
