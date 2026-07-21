@@ -74,6 +74,67 @@ export class PugParserService {
     this.initialized = true;
   }
 
+  async parseAllFiles(files: Map<string, string>): Promise<PugVariable[]> {
+    await this.initialize();
+    const allVars: PugVariable[] = [];
+    const seenPaths = new Set<string>();
+
+    function resolveIncludesInCode(code: string, baseDir: string): string {
+      return code.split('\n').map(line => {
+        const m = line.match(/^\s*(include|extends)\s+['"]?([^'"]+)/);
+        if (m) {
+          const rawPath = m[2].trim();
+          const path = rawPath.startsWith('/') ? rawPath : baseDir + rawPath;
+          const content = files.get(path) ?? files.get('/' + rawPath);
+          if (content !== undefined) return content;
+        }
+        return line;
+      }).join('\n');
+    }
+
+    const entries = Array.from(files.entries());
+    for (const [filePath, code] of entries) {
+      if (!code.trim()) continue;
+      if (!filePath.endsWith('.pug')) continue;
+      const baseDir = filePath.substring(0, filePath.lastIndexOf('/') + 1);
+      const resolvedCode = baseDir && baseDir !== '/' ? resolveIncludesInCode(code, baseDir) : code;
+      try {
+        if (this.lexerFn && this.parserFn) {
+          const tokens = this.lexerFn(resolvedCode, { filename: filePath }) as unknown[];
+          const ast = this.parserFn(tokens, { filename: filePath });
+          const vars = this.extractVariables(ast);
+          for (const v of vars) {
+            if (!seenPaths.has(v.path)) {
+              seenPaths.add(v.path);
+              allVars.push(v);
+            }
+          }
+          const mixins = this.extractMixins(ast);
+          for (const m of mixins) {
+            for (const arg of m.args) {
+              const cleanArg = arg.replace(/^\.\.\./, '').trim();
+              if (cleanArg && IDENTIFIER_RE.test(cleanArg)) {
+                const existing = allVars.find(v2 => v2.path === cleanArg);
+                if (!existing) {
+                  allVars.push({
+                    path: cleanArg,
+                    name: cleanArg,
+                    type: 'object' as DataType,
+                    defaultValue: {},
+                    isLeaf: false,
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        // skip files with parse errors
+      }
+    }
+    return allVars;
+  }
+
   async parse(code: string, filename = 'input.pug'): Promise<ParseResult> {
     const start = performance.now();
     const errors: ParseError[] = [];
@@ -288,7 +349,10 @@ export class PugParserService {
     }
 
     const arrayPath = eachVarMap.get(firstName);
-    if (!arrayPath) return null;
+    if (!arrayPath) {
+      if (parts.length === 1) return null;
+      return id;
+    }
 
     if (parts.length === 1) {
       return arrayPath + '[]';
@@ -354,9 +418,8 @@ export class PugParserService {
     const bodyLocalVars = new Set(parentLocalVars);
     const bodyEachVarMap = new Map(parentEachVarMap);
 
-    for (const [param, arg] of paramMap) {
+    for (const [param] of paramMap) {
       bodyLocalVars.add(param);
-      bodyEachVarMap.set(param, arg);
     }
 
     const walk = (node: PugAstNode) => {

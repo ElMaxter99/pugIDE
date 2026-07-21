@@ -65,12 +65,18 @@ export class OrchestratorService {
     this.parserState.setParsing(true);
 
     try {
-      const parseResult = await this.parser.parse(code);
-      this.parserState.updateFromParseResult(parseResult);
+      const files = this.editorState.allFileContents();
+      const activePath = this.editorState.activeTab()?.path;
+      const files2 = files;
 
-      if (parseResult.includes.length > 0) {
-        this.ensureIncludeFiles(parseResult.includes);
+      const rawParseResult = await this.parser.parse(code);
+      if (rawParseResult.includes.length > 0) {
+        this.ensureIncludeFiles(rawParseResult.includes);
       }
+
+      const resolvedCode = this.resolvePugIncludes(code, files, activePath);
+      const parseResult = await this.parser.parse(resolvedCode);
+      this.parserState.updateFromParseResult(parseResult);
 
       if (!this.initialDataLoaded && Object.keys(this.dataState.data()).length === 0) {
         const data = this.buildDataFromVariables(parseResult.variables);
@@ -89,8 +95,6 @@ export class OrchestratorService {
       }
 
       const data = this.dataState.data();
-      const files = this.editorState.allFileContents();
-      const activePath = this.editorState.activeTab()?.path;
       const compileResult = await this.compiler.compile(code, data, files, activePath);
       this.previewState.updateCompiledResult(compileResult);
 
@@ -123,8 +127,10 @@ export class OrchestratorService {
     this.codeChange$.next(code);
   }
 
-  clearDataWithKeys(): Record<string, unknown> {
-    const variables = this.parserState.variables();
+  async clearDataWithKeys(): Promise<Record<string, unknown>> {
+    const files = this.editorState.allFileContents();
+    const variables = await this.parser.parseAllFiles(files);
+    console.log('[clearDataWithKeys] all variables:', variables.map(v => `${v.path} (${v.type})`).join(', '));
     if (variables.length === 0) return {};
     return this.buildDataFromVariables(variables);
   }
@@ -157,6 +163,28 @@ export class OrchestratorService {
         this.editorState.files()
       );
     }
+  }
+
+  private resolvePugIncludes(code: string, files: Map<string, string>, activeFilePath?: string): string {
+    const lines = code.split('\n');
+    const result: string[] = [];
+    const baseDir = activeFilePath ? activeFilePath.substring(0, activeFilePath.lastIndexOf('/') + 1) : '/';
+
+    for (const line of lines) {
+      const incMatch = line.match(/^\s*(include|extends)\s+['"]?([^'"]+)/);
+      if (incMatch) {
+        const rawPath = incMatch[2].trim();
+        const path = rawPath.startsWith('/') ? rawPath : baseDir + rawPath;
+        const content = files.get(path) ?? files.get('/' + rawPath);
+        if (content !== undefined) {
+          result.push(content);
+          continue;
+        }
+      }
+      result.push(line);
+    }
+
+    return result.join('\n');
   }
 
   private buildDataFromVariables(variables: PugVariable[]): Record<string, unknown> {

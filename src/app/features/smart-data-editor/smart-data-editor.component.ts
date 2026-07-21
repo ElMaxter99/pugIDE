@@ -574,8 +574,8 @@ export class SmartDataEditorComponent {
     });
   }
 
-  clearData(): void {
-    const emptyData = this.orchestrator.clearDataWithKeys();
+  async clearData(): Promise<void> {
+    const emptyData = await this.orchestrator.clearDataWithKeys();
     this.dataState.setData(emptyData);
     this.orchestrator.onDataChange();
     if (this.jsonRawMode()) {

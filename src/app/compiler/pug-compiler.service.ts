@@ -56,21 +56,10 @@ export class PugCompilerService {
         });
       } else {
         const bundle = getPugBundle();
-        const prevReadFile = globalThis.__pugReadFile;
 
+        let resolvedCode = pugCode;
         if (files) {
-          globalThis.__pugReadFile = (filePath: string, options?: { encoding?: string }) => {
-            const normalized = filePath.replace(/\\/g, '/');
-            console.log('[PugReadFile]', normalized, 'files:', Array.from(files.keys()));
-            const content = files.get(normalized) ?? files.get('/' + normalized);
-            if (content !== undefined) return content;
-            const byName = Array.from(files.entries()).find(
-              ([p]) => p.endsWith('/' + normalized.split('/').pop()!)
-            );
-            if (byName) return byName[1];
-            console.log('[PugReadFile] NOT FOUND:', normalized);
-            return '';
-          };
+          resolvedCode = this.resolveIncludes(pugCode, files, activeFilePath);
         }
 
         const opts: Record<string, unknown> = {
@@ -83,10 +72,8 @@ export class PugCompilerService {
           opts['basedir'] = '/';
         }
 
-        const compiledFn = bundle.compile(pugCode, opts);
+        const compiledFn = bundle.compile(resolvedCode, opts);
         html = compiledFn(data);
-
-        globalThis.__pugReadFile = prevReadFile;
       }
     } catch (err: unknown) {
       const error = err as { message?: string; line?: number; column?: number };
@@ -105,6 +92,28 @@ export class PugCompilerService {
       errors,
       compilationTime: performance.now() - start,
     };
+  }
+
+  private resolveIncludes(code: string, files: Map<string, string>, activeFilePath?: string): string {
+    const lines = code.split('\n');
+    const result: string[] = [];
+    const baseDir = activeFilePath ? activeFilePath.substring(0, activeFilePath.lastIndexOf('/') + 1) : '/';
+
+    for (const line of lines) {
+      const incMatch = line.match(/^\s*(include|extends)\s+['"]?([^'"]+)/);
+      if (incMatch) {
+        const rawPath = incMatch[2].trim();
+        const path = rawPath.startsWith('/') ? rawPath : baseDir + rawPath;
+        const content = files.get(path) ?? files.get('/' + rawPath);
+        if (content !== undefined) {
+          result.push(content);
+          continue;
+        }
+      }
+      result.push(line);
+    }
+
+    return result.join('\n');
   }
 }
 
