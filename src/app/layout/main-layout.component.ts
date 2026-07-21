@@ -1,4 +1,5 @@
 import { Component, ChangeDetectionStrategy, inject, OnInit, HostListener, effect } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { TopbarComponent } from '../shared/components/topbar/topbar.component';
 import { SidebarComponent } from '../shared/components/sidebar/sidebar.component';
 import { StatusbarComponent } from '../shared/components/statusbar/statusbar.component';
@@ -88,6 +89,7 @@ import { PreferencesState } from '../core/services/preferences.state';
 })
 export class MainLayoutComponent implements OnInit {
   private orchestrator = inject(OrchestratorService);
+  private route = inject(ActivatedRoute);
   protected editorState = inject(EditorState);
   protected terminalState = inject(TerminalState);
   private previewState = inject(PreviewState);
@@ -107,7 +109,13 @@ export class MainLayoutComponent implements OnInit {
   ngOnInit(): void {
     vercelInject();
     this.orchestrator.initialize();
-    this.loadDemoProject();
+
+    const isDemo = this.route.snapshot.queryParamMap.get('demo') === 'true';
+    if (isDemo) {
+      this.loadDemoProject();
+    } else {
+      this.loadEmptyProject();
+    }
   }
 
   @HostListener('window:keydown', ['$event'])
@@ -126,7 +134,37 @@ export class MainLayoutComponent implements OnInit {
     }
   }
 
+  private loadEmptyProject(): void {
+    const defaultPug = `doctype html
+html(lang="es")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    title PugIDE
+  body
+    h1 Hola, #{nombre}
+    p Empieza a editar tu plantilla Pug y los datos aqui.`;
+
+    this.editorState.openTabs.set([]);
+    this.editorState.activeTabId.set(null);
+    this.editorState.editorContent.set('');
+    this.editorState.files.set(new Map());
+
+    this.editorState.openFile('/main.pug', 'main.pug', 'pug', defaultPug);
+    this.projectState.setProject('MiProyecto', this.editorState.files());
+    this.dataState.setData({ nombre: 'Mundo' });
+    this.orchestrator.markDataInitialized();
+    this.previewState.setDevice('Desktop', 1200, 800);
+    this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');
+    this.orchestrator.manualCompile();
+  }
+
   private async loadDemoProject(): Promise<void> {
+    this.editorState.openTabs.set([]);
+    this.editorState.activeTabId.set(null);
+    this.editorState.editorContent.set('');
+    this.editorState.files.set(new Map());
+
     const [mainPug, cardPug, navbarPug, rawData] = await Promise.all([
       fetch('assets/demo/main.pug').then(r => r.text()),
       fetch('assets/demo/components/card.pug').then(r => r.text()),

@@ -40,7 +40,7 @@ import { PreferencesState } from '../../core/services/preferences.state';
               Empezar a crear
               <span class="material-symbols-outlined">arrow_forward</span>
             </button>
-            <button class="btn btn-secondary" (click)="goToIde()">
+            <button class="btn btn-secondary" (click)="goToDemo()">
               Ver demo interactiva
             </button>
           </div>
@@ -119,7 +119,7 @@ import { PreferencesState } from '../../core/services/preferences.state';
                 <div>
                   <h3 class="feature-title">JSON Tree &amp; Mocking</h3>
                   <p class="feature-desc">Visualiza estructuras complejas y genera datos de prueba con un solo clic. PugIDE entiende tus arrays y objetos anidados para poblar tu UI en segundos.</p>
-                  <button class="mock-btn" (click)="goToIde()">
+                  <button class="mock-btn" (click)="goToDemo()">
                     Explorar sistema de mocks
                     <span class="material-symbols-outlined">chevron_right</span>
                   </button>
@@ -127,7 +127,7 @@ import { PreferencesState } from '../../core/services/preferences.state';
                 <div class="mock-code-panel">
                   <pre>{{ '{' }}<br>  "users": [<br>    &#123; "id": 1, "name": "John Doe" &#125;,<br>    &#123; "id": 2, "name": "Jane Smith" &#125;<br>  ]<br>{{ '}' }}</pre>
                   <div class="mock-overlay-btn">
-                    <button class="btn btn-tertiary" (click)="goToIde()">
+                    <button class="btn btn-tertiary" (click)="goToDemo()">
                       <span class="material-symbols-outlined">casino</span>
                       Generate Mock
                     </button>
@@ -669,5 +669,9 @@ export class LandingComponent {
 
   goToIde(): void {
     this.router.navigate(['/ide']);
+  }
+
+  goToDemo(): void {
+    this.router.navigate(['/ide'], { queryParams: { demo: true } });
   }
 }
