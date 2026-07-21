@@ -161,6 +161,7 @@ export class PugParserService {
     const collected = new Map<string, PugVariable>();
     const localVars = new Set<string>();
     const eachVarMap = new Map<string, string>();
+    const mixinDefs = new Map<string, { args: string[]; body: PugAstNode[] }>();
 
     this.walkAst(ast, (node) => {
       if (node.type === 'Each') {
@@ -171,6 +172,17 @@ export class PugParserService {
           if (typeof obj === 'string') {
             eachVarMap.set(val, obj);
           }
+        }
+      }
+      if (node.type === 'Mixin') {
+        const isCall = (node as PugAstNode & { call?: boolean }).call === true;
+        if (!isCall && node.name) {
+          const argsStr = typeof node.args === 'string' ? node.args : '';
+          const args = argsStr.trim()
+            ? argsStr.split(',').map(a => a.trim().split('=')[0].trim()).filter(a => a.length > 0)
+            : [];
+          const body = node.block?.nodes ?? [];
+          mixinDefs.set(node.name, { args, body });
         }
       }
     });
@@ -197,7 +209,7 @@ export class PugParserService {
         case 'Mixin': {
           const isCall = (node as PugAstNode & { call?: boolean }).call === true;
           if (isCall) {
-            this.extractFromMixinCallArgs(node, collected, localVars, eachVarMap);
+            this.extractFromMixinCallArgs(node, collected, localVars, eachVarMap, mixinDefs);
           } else {
             this.extractFromMixinDef(node, collected, localVars);
           }
@@ -304,16 +316,85 @@ export class PugParserService {
     }
   }
 
-  private extractFromMixinCallArgs(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
+  private extractFromMixinCallArgs(
+    node: PugAstNode,
+    collected: Map<string, PugVariable>,
+    localVars: Set<string>,
+    eachVarMap: Map<string, string>,
+    mixinDefs: Map<string, { args: string[]; body: PugAstNode[] }>
+  ): void {
     if (typeof node.args !== 'string' || !node.args.trim()) return;
+
     const identifiers = this.extractIdentifiers(node.args);
     for (const id of identifiers) {
       const remapped = this.remapIdentifier(id, localVars, eachVarMap);
-      if (remapped) this.addVariable(collected, remapped);
+      if (remapped) this.addVariable(collected, remapped, 'object');
+    }
+
+    const mixinName = node.name ?? '';
+    const def = mixinDefs.get(mixinName);
+    if (!def) return;
+
+    const callArgs = node.args.split(',').map(a => a.trim());
+    const paramMap = new Map<string, string>();
+    for (let i = 0; i < def.args.length && i < callArgs.length; i++) {
+      paramMap.set(def.args[i], callArgs[i]);
+    }
+
+    this.extractFromMixinBody(def.body, paramMap, collected, localVars, eachVarMap);
+  }
+
+  private extractFromMixinBody(
+    body: PugAstNode[],
+    paramMap: Map<string, string>,
+    collected: Map<string, PugVariable>,
+    parentLocalVars: Set<string>,
+    parentEachVarMap: Map<string, string>
+  ): void {
+    const bodyLocalVars = new Set(parentLocalVars);
+    const bodyEachVarMap = new Map(parentEachVarMap);
+
+    for (const [param, arg] of paramMap) {
+      bodyLocalVars.add(param);
+      bodyEachVarMap.set(param, arg);
+    }
+
+    const walk = (node: PugAstNode) => {
+      switch (node.type) {
+        case 'Tag':
+          this.extractFromAttrs(node, collected, bodyLocalVars, bodyEachVarMap);
+          this.extractFromBlock(node, collected, bodyLocalVars, bodyEachVarMap);
+          break;
+        case 'Code':
+          this.extractFromCode(node, collected, bodyLocalVars, bodyEachVarMap);
+          break;
+        case 'Conditional':
+          this.extractFromConditional(node, collected, bodyLocalVars, bodyEachVarMap);
+          break;
+        case 'Each': {
+          const val = (node as PugAstNode & { val?: string }).val;
+          const obj = (node as PugAstNode & { obj?: string }).obj;
+          if (val) {
+            bodyLocalVars.add(val);
+            if (typeof obj === 'string') {
+              const parts = obj.split('.');
+              if (paramMap.has(parts[0])) {
+                parts[0] = paramMap.get(parts[0])!;
+              }
+              bodyEachVarMap.set(val, parts.join('.'));
+            }
+          }
+          break;
+        }
+      }
+    };
+
+    for (const node of body) {
+      this.walkAst(node, walk);
     }
   }
 
-  private addVariable(collected: Map<string, PugVariable>, path: string): void {
+  private addVariable(collected: Map<string, PugVariable>, path: string, typeOverride?: DataType): void {
     if (collected.has(path)) return;
 
     const rawParts = path.split('.');
@@ -326,7 +407,7 @@ export class PugParserService {
     if (!IDENTIFIER_RE.test(name)) return;
 
     const isArrayItem = path.includes('[]');
-    const type: DataType = isArrayItem ? 'array' : this.inferType(name);
+    const type: DataType = typeOverride ?? (isArrayItem ? 'array' : this.inferType(name));
     const variable: PugVariable = {
       name,
       path,

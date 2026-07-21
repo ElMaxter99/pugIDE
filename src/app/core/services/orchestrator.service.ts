@@ -116,30 +116,10 @@ export class OrchestratorService {
     this.codeChange$.next(code);
   }
 
-  clearDataValues(data: Record<string, unknown>): Record<string, unknown> {
-    return this.clearValuesRecursive(data);
-  }
-
-  private clearValuesRecursive(obj: Record<string, unknown>): Record<string, unknown> {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      if (value === null) {
-        result[key] = null;
-      } else if (Array.isArray(value)) {
-        result[key] = [];
-      } else if (typeof value === 'object' && value !== null) {
-        result[key] = this.clearValuesRecursive(value as Record<string, unknown>);
-      } else if (typeof value === 'string') {
-        result[key] = '';
-      } else if (typeof value === 'number') {
-        result[key] = 0;
-      } else if (typeof value === 'boolean') {
-        result[key] = false;
-      } else {
-        result[key] = value;
-      }
-    }
-    return result;
+  clearDataWithKeys(): Record<string, unknown> {
+    const variables = this.parserState.variables();
+    if (variables.length === 0) return {};
+    return this.buildDataFromVariables(variables);
   }
 
   private buildDataFromVariables(variables: PugVariable[]): Record<string, unknown> {

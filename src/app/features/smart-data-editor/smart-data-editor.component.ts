@@ -575,8 +575,7 @@ export class SmartDataEditorComponent {
   }
 
   clearData(): void {
-    const currentData = this.dataState.data();
-    const emptyData = this.orchestrator.clearDataValues(currentData);
+    const emptyData = this.orchestrator.clearDataWithKeys();
     this.dataState.setData(emptyData);
     this.orchestrator.onDataChange();
     if (this.jsonRawMode()) {
