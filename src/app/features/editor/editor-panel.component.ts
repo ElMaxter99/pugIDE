@@ -12,6 +12,7 @@ import {
 import { TabsComponent } from '../../shared/components/tabs/tabs.component';
 import { EditorState } from '../../core/state/editor.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
+import { getFileType } from '../../core/models/tab.model';
 
 declare const monaco: any;
 
@@ -289,7 +290,27 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       }
     });
 
-    console.log('[EditorPanel] editorReady set to true');
+    this.editorReady.set(true);
+
+    // Click-to-navigate for include/extends lines
+    this.editor.onMouseDown((e: any) => {
+      const pos = e.target?.position;
+      if (!pos) return;
+      const model = this.editor.getModel();
+      if (!model) return;
+      const line = model.getLineContent(pos.lineNumber);
+      const incMatch = line.match(/^\s*(?:include|extends)\s+['"]?([^'"]+)/);
+      if (!incMatch) return;
+      const rawPath = incMatch[1].trim();
+      const path = rawPath.startsWith('/') ? rawPath : '/' + rawPath;
+      const name = path.split('/').pop() ?? 'file';
+      const files = this.editorState.files();
+      if (!files.has(path)) {
+        this.orchestrator.addFile(path, name);
+        return;
+      }
+      this.editorState.openFile(path, name, getFileType(name), files.get(path) ?? '');
+    });
 
     const tab = this.editorState.activeTab();
     console.log('[EditorPanel] initEditor - activeTab:', tab?.id);
@@ -311,16 +332,28 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       css: 'css',
     };
 
+    const currentModel = this.editor.getModel();
+    if (currentModel) {
+      const currentPath = currentModel.uri.path;
+      const currentContent = currentModel.getValue();
+      this.editorState.files.update((f) => { f.set(currentPath, currentContent); return f; });
+    }
+
     const lang = langMap[tab.type] ?? 'plaintext';
     const uri = monaco.Uri.parse(tab.path);
     let model = this.models.get(tab.path) ?? monaco.editor.getModel(uri);
-    console.log('[EditorPanel] loadModel - found in cache:', !!this.models.get(tab.path), 'found globally:', !!monaco.editor.getModel(uri));
 
     if (!model) {
       const content = this.editorState.files().get(tab.path) ?? '';
       console.log('[EditorPanel] loadModel - creating new model, content length:', content.length);
       model = monaco.editor.createModel(content, lang, uri);
       this.models.set(tab.path, model);
+    } else {
+      const content = this.editorState.files().get(tab.path);
+      if (content !== undefined && model.getValue() !== content) {
+        console.log('[EditorPanel] loadModel - refreshed cached model from files');
+        model.setValue(content);
+      }
     }
 
     if (this.editor.getModel() !== model) {

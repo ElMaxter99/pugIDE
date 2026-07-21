@@ -9,19 +9,26 @@ import { FileNode } from '../../../core/models/file-node.model';
 import { ProjectState } from '../../../core/state/project.state';
 import { EditorState } from '../../../core/state/editor.state';
 import { getFileType } from '../../../core/models/tab.model';
+import { OrchestratorService } from '../../../core/services/orchestrator.service';
+import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, DialogComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <aside class="sidebar">
+      <app-dialog
+        [config]="dialogConfig()"
+        [isOpen]="dialogOpen()"
+        (confirmed)="onDialogConfirm($event)"
+        (cancelled)="dialogOpen.set(false)" />
       <div class="sidebar-inner">
         <div class="workspace-header">
           <div class="workspace-label-row">
             <span class="workspace-label">Workspace</span>
-            <button class="add-btn">
+            <button class="add-btn" (click)="showNewFileDialog()" title="New file">
               <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
             </button>
           </div>
@@ -304,8 +311,20 @@ import { getFileType } from '../../../core/models/tab.model';
 export class SidebarComponent {
   protected projectState = inject(ProjectState);
   protected editorState = inject(EditorState);
+  private orchestrator = inject(OrchestratorService);
 
   activePanel = signal<'files' | 'git'>('files');
+
+  protected dialogOpen = signal(false);
+  protected dialogConfig = signal<DialogConfig>({
+    title: 'New File',
+    message: 'Enter filename (e.g. components/card.pug)',
+    confirmText: 'Create',
+    cancelText: 'Cancel',
+    showInput: true,
+    inputLabel: 'Filename',
+    inputValue: '',
+  });
 
   panels = [
     { id: 'files' as const, icon: 'folder', label: 'Explorer' },
@@ -318,6 +337,32 @@ export class SidebarComponent {
     } else {
       this.openFile(node);
     }
+  }
+
+  showNewFileDialog(): void {
+    const activePath = this.editorState.activeTab()?.path ?? '/main.pug';
+    const dir = activePath.substring(0, activePath.lastIndexOf('/') + 1);
+    this.dialogConfig.update((c) => ({
+      ...c,
+      inputValue: dir + 'new-file.pug',
+    }));
+    this.dialogOpen.set(true);
+  }
+
+  onDialogConfirm(value: string): void {
+    this.dialogOpen.set(false);
+    const name = value.trim();
+    if (!name) return;
+
+    const path = name.startsWith('/') ? name : '/' + name;
+    const filename = path.split('/').pop() ?? name;
+
+    if (this.editorState.files().has(path)) {
+      this.editorState.openFile(path, filename, getFileType(filename), '');
+      return;
+    }
+
+    this.orchestrator.addFile(path, filename);
   }
 
   private openFile(node: FileNode): void {

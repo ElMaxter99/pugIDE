@@ -8,7 +8,9 @@ import { PreviewState } from '../state/preview.state';
 import { DataState } from '../state/data.state';
 import { TerminalState } from '../state/terminal.state';
 import { PreferencesState } from './preferences.state';
+import { ProjectState } from '../state/project.state';
 import { PugVariable } from '../models/index';
+import { getFileType } from '../models/tab.model';
 
 @Injectable({ providedIn: 'root' })
 export class OrchestratorService {
@@ -20,6 +22,7 @@ export class OrchestratorService {
   private dataState = inject(DataState);
   private terminalState = inject(TerminalState);
   private preferences = inject(PreferencesState);
+  private projectState = inject(ProjectState);
 
   private codeChange$ = new Subject<string>();
   private isProcessing = false;
@@ -64,6 +67,10 @@ export class OrchestratorService {
     try {
       const parseResult = await this.parser.parse(code);
       this.parserState.updateFromParseResult(parseResult);
+
+      if (parseResult.includes.length > 0) {
+        this.ensureIncludeFiles(parseResult.includes);
+      }
 
       if (!this.initialDataLoaded && Object.keys(this.dataState.data()).length === 0) {
         const data = this.buildDataFromVariables(parseResult.variables);
@@ -120,6 +127,36 @@ export class OrchestratorService {
     const variables = this.parserState.variables();
     if (variables.length === 0) return {};
     return this.buildDataFromVariables(variables);
+  }
+
+  addFile(path: string, name: string, content = ''): void {
+    const activePath = this.editorState.activeTab()?.path;
+    this.editorState.files.update((f) => { f.set(path, content); return f; });
+    this.projectState.setProject(
+      this.projectState.projectName(),
+      this.editorState.files()
+    );
+    this.editorState.openFile(path, name, getFileType(name), content);
+  }
+
+  private ensureIncludeFiles(includes: string[]): void {
+    let changed = false;
+    const files = this.editorState.files();
+    for (const includePath of includes) {
+      const path = includePath.startsWith('/') ? includePath : '/' + includePath;
+      if (!files.has(path)) {
+        const name = path.split('/').pop() ?? 'unknown.pug';
+        this.editorState.files.update((f) => { f.set(path, ''); return f; });
+        this.terminalState.addEntry('info', 'Files', `Created missing include: ${name}`);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.projectState.setProject(
+        this.projectState.projectName(),
+        this.editorState.files()
+      );
+    }
   }
 
   private buildDataFromVariables(variables: PugVariable[]): Record<string, unknown> {

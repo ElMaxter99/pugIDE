@@ -38,8 +38,10 @@ export class EditorState {
     };
     this.openTabs.update((tabs) => [...tabs, tab]);
     this.activeTabId.set(tab.id);
-    this.files.update((f) => { f.set(path, content); return f; });
-    this.editorContent.set(content);
+    if (!this.files().has(path)) {
+      this.files.update((f) => { f.set(path, content); return f; });
+    }
+    this.editorContent.set(this.files().get(path) ?? content);
   }
 
   private loadFileContent(path: string): void {

@@ -179,16 +179,7 @@ html(lang="es")
       { path: '/components/navbar.pug', name: 'navbar.pug', content: navbarPug },
     ];
 
-    // Resolve includes manually for compilation
-    const resolvedMain = mainPug.replace(
-      /^include (.+\.pug)$/gm,
-      (_, includePath: string) => {
-        const match = files.find(f => f.path.endsWith('/' + includePath) || f.path === '/' + includePath);
-        return match ? match.content : '// include not found: ' + includePath;
-      }
-    );
-
-    this.editorState.openFile(files[0].path, files[0].name, 'pug', resolvedMain);
+    this.editorState.openFile(files[0].path, files[0].name, 'pug', files[0].content);
     for (let i = 1; i < files.length; i++) {
       this.editorState.files.update((m) => { m.set(files[i].path, files[i].content); return m; });
     }
