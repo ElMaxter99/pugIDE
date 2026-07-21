@@ -194,9 +194,15 @@ export class PugParserService {
           this.extractFromEach(node, collected, localVars);
           break;
 
-        case 'Mixin':
-          this.extractFromMixinDef(node, collected, localVars);
+        case 'Mixin': {
+          const isCall = (node as PugAstNode & { call?: boolean }).call === true;
+          if (isCall) {
+            this.extractFromMixinCallArgs(node, collected, localVars, eachVarMap);
+          } else {
+            this.extractFromMixinDef(node, collected, localVars);
+          }
           break;
+        }
       }
     });
 
@@ -295,6 +301,15 @@ export class PugParserService {
           localVars.add(name);
         }
       }
+    }
+  }
+
+  private extractFromMixinCallArgs(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
+    if (typeof node.args !== 'string' || !node.args.trim()) return;
+    const identifiers = this.extractIdentifiers(node.args);
+    for (const id of identifiers) {
+      const remapped = this.remapIdentifier(id, localVars, eachVarMap);
+      if (remapped) this.addVariable(collected, remapped);
     }
   }
 

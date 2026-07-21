@@ -575,11 +575,14 @@ export class SmartDataEditorComponent {
   }
 
   clearData(): void {
-    this.dataState.setData({});
+    const currentData = this.dataState.data();
+    const emptyData = this.orchestrator.clearDataValues(currentData);
+    this.dataState.setData(emptyData);
     this.orchestrator.onDataChange();
     if (this.jsonRawMode()) {
-      this.jsonArea.nativeElement.value = '{}';
-      this.rawJsonContent.set('{}');
+      const json = JSON.stringify(emptyData, null, 2);
+      this.jsonArea.nativeElement.value = json;
+      this.rawJsonContent.set(json);
       this.jsonError.set(null);
     }
     this.expandedPaths.set(new Set(['']));
