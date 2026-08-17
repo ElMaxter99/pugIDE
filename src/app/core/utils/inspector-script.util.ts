@@ -77,14 +77,18 @@ export const INSPECTOR_SCRIPT = `(function () {
     var attrs = {};
     for (var i = 0; i < el.attributes.length; i++) {
       var a = el.attributes[i];
-      if (a.name !== 'data-pugide-line') attrs[a.name] = a.value;
+      if (a.name !== 'data-pugide-line' && a.name !== 'data-pugide-src') attrs[a.name] = a.value;
     }
     var line = el.getAttribute('data-pugide-line');
+    var src = el.getAttribute('data-pugide-src');
+    var srcParts = src ? src.split('::') : null;
     parent.postMessage({
       source: 'pugide-inspector',
       tagName: el.tagName.toLowerCase(),
       attrs: attrs,
-      htmlLine: line ? parseInt(line, 10) : undefined
-    }, '*');
+      htmlLine: line ? parseInt(line, 10) : undefined,
+      pugFile: srcParts ? srcParts[0] : undefined,
+      pugLine: srcParts ? parseInt(srcParts[1], 10) : undefined
+    }, window.location.origin);
   }, true);
 })();`;

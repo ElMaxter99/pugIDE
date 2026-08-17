@@ -277,6 +277,8 @@ export class PreviewPanelComponent implements OnDestroy {
         tagName: e.data.tagName,
         attrs: e.data.attrs ?? {},
         htmlLine: e.data.htmlLine,
+        pugFile: e.data.pugFile,
+        pugLine: e.data.pugLine,
         children: [],
       });
     }

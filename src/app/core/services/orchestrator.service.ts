@@ -15,7 +15,6 @@ import { ProjectState } from '../state/project.state';
 import { PersistenceService } from './persistence.service';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
-import { resolvePugIncludes } from '../utils/pug-includes.util';
 
 @Injectable({ providedIn: 'root' })
 export class OrchestratorService {
@@ -81,8 +80,8 @@ export class OrchestratorService {
         this.ensureIncludeFiles(rawParseResult.includes);
       }
 
-      const resolvedCode = resolvePugIncludes(code, files, activePath);
-      const parseResult = await this.parser.parse(resolvedCode);
+      const template = await this.compiler.prepare(code, activePath, files);
+      const parseResult = this.parser.parseAst(template.ast);
       this.parserState.updateFromParseResult(parseResult);
       this.parserState.setParsing(false);
 
@@ -105,16 +104,9 @@ export class OrchestratorService {
         );
       }
 
-      for (const error of parseResult.errors) {
-        this.terminalState.addEntry(
-          error.severity,
-          'Parser',
-          `Line ${error.line}:${error.column} - ${error.message}`
-        );
-      }
-
       const data = this.dataState.data();
-      const compileResult = await this.compiler.compile(resolvedCode, data, activePath);
+      const compileResult = template.render(data);
+      compileResult.compilationTime += template.linkTime;
 
       const scssResult = this.scssCompiler.compileAll(files);
       compileResult.css = scssResult.css;
@@ -140,7 +132,7 @@ export class OrchestratorService {
         this.terminalState.addEntry('error', 'scss', `${scssError.path} - ${scssError.message}`);
       }
 
-      if (parseResult.errors.length === 0 && compileResult.errors.length === 0) {
+      if (compileResult.errors.length === 0) {
         this.terminalState.addEntry(
           'success',
           'Compiler',

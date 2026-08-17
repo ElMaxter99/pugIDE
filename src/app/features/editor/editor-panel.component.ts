@@ -4,6 +4,7 @@ import {
   inject,
   signal,
   effect,
+  untracked,
   OnDestroy,
   AfterViewInit,
   ElementRef,
@@ -141,6 +142,32 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       if (this.editorReady() && typeof monaco !== 'undefined') {
         monaco.editor.setTheme(theme === 'vs-dark' ? 'pugIDE-dark' : 'pugIDE-light');
       }
+    });
+
+    // Jump to a file+line requested elsewhere (e.g. the inspector "Pug Line" click).
+    effect(() => {
+      const req = this.editorState.goToRequest();
+      if (!req || !this.editorReady() || !this.editor) return;
+      untracked(() => {
+        const files = this.editorState.files();
+        if (!files.has(req.path)) {
+          this.editorState.goToRequest.set(null);
+          return;
+        }
+        const existingTab = this.editorState.openTabs().find((t) => t.path === req.path);
+        if (existingTab) {
+          this.editorState.selectTab(existingTab.id);
+        } else {
+          const name = req.path.split('/').pop() ?? req.path;
+          this.editorState.openFile(req.path, name, getFileType(name), files.get(req.path) ?? '');
+        }
+        const activeTab = this.editorState.activeTab();
+        if (activeTab) this.loadModel(activeTab);
+        this.editor.revealLineInCenter(req.line);
+        this.editor.setPosition({ lineNumber: req.line, column: 1 });
+        this.editor.focus();
+        this.editorState.goToRequest.set(null);
+      });
     });
   }
 

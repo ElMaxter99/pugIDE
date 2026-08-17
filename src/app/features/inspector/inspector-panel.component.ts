@@ -4,6 +4,7 @@ import {
   inject,
 } from '@angular/core';
 import { InspectorState } from '../../core/state/inspector.state';
+import { EditorState } from '../../core/state/editor.state';
 
 @Component({
   selector: 'app-inspector-panel',
@@ -47,8 +48,11 @@ import { InspectorState } from '../../core/state/inspector.state';
               @if (inspectorState.selectedElement()!.pugLine !== undefined) {
                 <div class="prop-row">
                   <span class="prop-label">Pug Line</span>
-                  <span class="prop-value">
-                    {{ inspectorState.selectedElement()!.pugLine }}
+                  <span
+                    class="prop-value clickable"
+                    title="Open in editor"
+                    (click)="goToPugSource()">
+                    {{ pugSourceLabel() }}
                   </span>
                 </div>
               }
@@ -232,10 +236,24 @@ import { InspectorState } from '../../core/state/inspector.state';
 })
 export class InspectorPanelComponent {
   protected inspectorState = inject(InspectorState);
+  private editorState = inject(EditorState);
 
   getAttributeEntries(): [string, string][] {
     const node = this.inspectorState.selectedElement();
     if (!node) return [];
     return Object.entries(node.attrs);
+  }
+
+  pugSourceLabel(): string {
+    const node = this.inspectorState.selectedElement();
+    if (!node || node.pugLine === undefined) return '';
+    const fileName = node.pugFile?.split('/').pop();
+    return fileName ? `${fileName}:${node.pugLine}` : `${node.pugLine}`;
+  }
+
+  goToPugSource(): void {
+    const node = this.inspectorState.selectedElement();
+    if (!node || node.pugLine === undefined || !node.pugFile) return;
+    this.editorState.requestGoToLine(node.pugFile, node.pugLine);
   }
 }

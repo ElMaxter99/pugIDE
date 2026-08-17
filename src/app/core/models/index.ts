@@ -115,6 +115,7 @@ export interface TerminalEntry {
 
 export interface InspectorNode {
   tagName: string;
+  pugFile?: string;
   pugLine?: number;
   htmlLine?: number;
   attrs: Record<string, string>;

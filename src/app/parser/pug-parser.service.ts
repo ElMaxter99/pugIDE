@@ -169,6 +169,19 @@ export class PugParserService {
       });
     }
 
+    return this.buildParseResult(ast, errors, start);
+  }
+
+  /**
+   * Extracts variables/mixins/includes from an AST obtained elsewhere (e.g.
+   * the fully linked AST from `PugCompilerService.prepare()`, which resolves
+   * `include`/`extends`/`block` correctly instead of a naive text splice).
+   */
+  parseAst(ast: PugAstNode | null, errors: ParseError[] = []): ParseResult {
+    return this.buildParseResult(ast, errors, performance.now());
+  }
+
+  private buildParseResult(ast: PugAstNode | null, errors: ParseError[], start: number): ParseResult {
     const variables = ast ? this.extractVariables(ast) : [];
     const mixins = ast ? this.extractMixins(ast) : [];
     const includes = ast ? this.extractIncludes(ast) : [];
