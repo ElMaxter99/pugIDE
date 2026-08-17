@@ -1,5 +1,5 @@
 {
   "buildCommand": "npm run build:prod",
-  "outputDirectory": "dist/pug-ide",
+  "outputDirectory": "dist/pug-ide/browser",
   "framework": "angular"
 }
