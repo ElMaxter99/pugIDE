@@ -22,7 +22,14 @@ import { PreferencesState } from '../../../core/services/preferences.state';
             <span class="material-symbols-outlined">contrast</span>
           </button>
           <div class="divider"></div>
-          <button class="text-btn" (click)="onToggleAutoSave()">Auto-save</button>
+          <button
+            class="text-btn"
+            [class.active]="preferences.autoCompile()"
+            [title]="preferences.autoCompile() ? 'Auto-compile is on: recompiles as you type' : 'Auto-compile is off: press Save or Ctrl+S to compile'"
+            (click)="onToggleAutoCompile()">
+            <span class="status-dot" [class.on]="preferences.autoCompile()"></span>
+            Auto-compile
+          </button>
           <button class="save-btn" (click)="onSave()">Save</button>
         </div>
       </div>
@@ -89,6 +96,9 @@ import { PreferencesState } from '../../../core/services/preferences.state';
     }
 
     .text-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       padding: 0 12px;
       height: 36px;
       font-size: 14px;
@@ -100,6 +110,24 @@ import { PreferencesState } from '../../../core/services/preferences.state';
     .text-btn:hover {
       background: var(--bg-surface-container-highest);
       color: var(--text-primary);
+    }
+
+    .text-btn.active {
+      color: var(--text-on-primary-container, var(--accent-color));
+      background: var(--accent-container, transparent);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+
+    .status-dot.on {
+      background: var(--accent-color);
+      box-shadow: 0 0 6px var(--accent-color);
     }
 
     .save-btn {
@@ -134,7 +162,7 @@ export class TopbarComponent {
     this.orchestrator.saveSession();
   }
 
-  onToggleAutoSave(): void {
+  onToggleAutoCompile(): void {
     this.preferences.update({ autoCompile: !this.preferences.autoCompile() });
   }
 

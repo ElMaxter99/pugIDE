@@ -36,9 +36,11 @@ import { ParserState } from '../../../core/state/parser.state';
       <div class="status-right">
         <span class="status-item dim">UTF-8</span>
         <span class="status-item dim">{{ getLanguage() }}</span>
-        <div class="status-item live">
-          <span class="material-symbols-outlined" style="font-size: 14px;">save</span>
-          <span>Guardado local</span>
+        <div class="status-item" [class.live]="!editorState.hasUnsavedChanges()" [class.pending]="editorState.hasUnsavedChanges()">
+          <span class="material-symbols-outlined" style="font-size: 14px;">
+            {{ editorState.hasUnsavedChanges() ? 'edit' : 'cloud_done' }}
+          </span>
+          <span>{{ editorState.hasUnsavedChanges() ? 'Cambios sin guardar' : 'Guardado' }}</span>
         </div>
       </div>
     </footer>
@@ -95,6 +97,10 @@ import { ParserState } from '../../../core/state/parser.state';
 
     .status-item.live {
       color: var(--accent-color);
+    }
+
+    .status-item.pending {
+      color: var(--tertiary-color);
     }
 
     .error-icon {
