@@ -23,7 +23,8 @@ type PendingAction =
   | { type: 'newFile'; dir: string }
   | { type: 'rename'; path: string }
   | { type: 'delete'; path: string }
-  | { type: 'importProject' };
+  | { type: 'importProject' }
+  | { type: 'newSession' };
 
 @Component({
   selector: 'app-sidebar',
@@ -79,6 +80,13 @@ type PendingAction =
             <ng-container *ngTemplateOutlet="fileNode; context: { $implicit: node, level: 0 }"></ng-container>
           }
         </div>
+
+        <div class="sidebar-footer">
+          <div class="footer-item" (click)="showNewSessionDialog()">
+            <span class="material-symbols-outlined">restart_alt</span>
+            <span class="footer-label">NUEVA SESIÓN</span>
+          </div>
+        </div>
       </div>
     </aside>
 
@@ -109,6 +117,9 @@ type PendingAction =
           (contextmenu)="onNodeContextMenu($event, node)">
           <span class="material-symbols-outlined file-icon">{{ fileIcon(node) }}</span>
           <span class="file-name">{{ node.name }}</span>
+          @if (projectState.isAutoCreated(node.path)) {
+            <span class="auto-created-dot" title="Creado automáticamente porque la plantilla lo referencia"></span>
+          }
         </div>
       }
     </ng-template>
@@ -267,6 +278,16 @@ type PendingAction =
       white-space: nowrap;
     }
 
+    .auto-created-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      box-shadow: 0 0 4px var(--accent-color);
+      flex-shrink: 0;
+      margin-right: 4px;
+    }
+
     .sidebar-footer {
       margin-top: auto;
       border-top: 1px solid var(--border-color);
@@ -398,6 +419,19 @@ export class SidebarComponent {
     await this.projectIo.importFromZipFile(file);
   }
 
+  showNewSessionDialog(): void {
+    this.pendingAction = { type: 'newSession' };
+    this.dialogConfig.set({
+      title: 'Nueva sesión',
+      message: 'Esto descarta el proyecto actual y empieza uno en blanco. Los cambios sin exportar se perderán.',
+      confirmText: 'Empezar de nuevo',
+      cancelText: 'Cancelar',
+      showInput: false,
+      type: 'warning',
+    });
+    this.dialogOpen.set(true);
+  }
+
   private showDeleteDialog(path: string): void {
     this.pendingAction = { type: 'delete', path };
     this.dialogConfig.set({
@@ -440,6 +474,8 @@ export class SidebarComponent {
       } else {
         this.zipInput.nativeElement.click();
       }
+    } else if (action.type === 'newSession') {
+      this.orchestrator.resetToEmptyProject();
     }
   }
 
@@ -491,6 +527,7 @@ export class SidebarComponent {
     if (node.type === 'file') {
       const type = getFileType(node.name);
       this.editorState.openFile(node.path, node.name, type, node.content ?? '');
+      this.projectState.clearAutoCreated(node.path);
     }
   }
 

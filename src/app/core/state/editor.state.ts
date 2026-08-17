@@ -12,6 +12,8 @@ export class EditorState {
   readonly resetToken = signal(0);
   /** Set to request the editor open a file and jump to a line (e.g. from the inspector); consumed once by the editor panel. */
   readonly goToRequest = signal<{ path: string; line: number } | null>(null);
+  /** Bumped to ask the editor panel to format the active document (e.g. from a toolbar button). */
+  readonly formatRequestToken = signal(0);
 
   readonly activeTab = computed(() => {
     const id = this.activeTabId();
@@ -162,5 +164,9 @@ export class EditorState {
 
   requestGoToLine(path: string, line: number): void {
     this.goToRequest.set({ path, line });
+  }
+
+  requestFormat(): void {
+    this.formatRequestToken.update((v) => v + 1);
   }
 }

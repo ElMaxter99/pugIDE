@@ -6,6 +6,8 @@ export class ProjectState {
   readonly projectName = signal('untitled-project');
   readonly fileTree = signal<FileNode[]>([]);
   readonly expandedDirs = signal<Set<string>>(new Set());
+  /** Paths auto-created by the orchestrator (e.g. a missing `include` target) — shown as a badge until opened. */
+  readonly autoCreatedPaths = signal<Set<string>>(new Set());
 
   setProject(name: string, files: Map<string, string>): void {
     this.projectName.set(name);
@@ -67,5 +69,23 @@ export class ProjectState {
 
   isExpanded(path: string): boolean {
     return this.expandedDirs().has(path);
+  }
+
+  markAutoCreated(paths: string[]): void {
+    if (paths.length === 0) return;
+    this.autoCreatedPaths.update((set) => new Set([...set, ...paths]));
+  }
+
+  clearAutoCreated(path: string): void {
+    if (!this.autoCreatedPaths().has(path)) return;
+    this.autoCreatedPaths.update((set) => {
+      const next = new Set(set);
+      next.delete(path);
+      return next;
+    });
+  }
+
+  isAutoCreated(path: string): boolean {
+    return this.autoCreatedPaths().has(path);
   }
 }

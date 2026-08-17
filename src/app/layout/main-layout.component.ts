@@ -187,28 +187,8 @@ export class MainLayoutComponent implements OnInit {
   }
 
   private loadEmptyProject(): void {
-    const defaultPug = `doctype html
-html(lang="es")
-  head
-    meta(charset="UTF-8")
-    meta(name="viewport" content="width=device-width, initial-scale=1.0")
-    title PugIDE
-  body
-    h1 Hola, #{nombre}
-    p Empieza a editar tu plantilla Pug y los datos aqui.`;
-
-    this.editorState.openTabs.set([]);
-    this.editorState.activeTabId.set(null);
-    this.editorState.editorContent.set('');
-    this.editorState.files.set(new Map());
-
-    this.editorState.openFile('/main.pug', 'main.pug', 'pug', defaultPug);
-    this.projectState.setProject('MiProyecto', this.editorState.files());
-    this.dataState.setInitialData({ nombre: 'Mundo' });
-    this.orchestrator.markDataInitialized();
-    this.previewState.setDevice('Desktop', 1200, 800);
+    this.orchestrator.resetToEmptyProject();
     this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');
-    this.orchestrator.manualCompile();
   }
 
   private async loadDemoProject(): Promise<void> {

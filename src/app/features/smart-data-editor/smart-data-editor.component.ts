@@ -12,6 +12,7 @@ import { DataState } from '../../core/state/data.state';
 import { ParserState } from '../../core/state/parser.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { TerminalState } from '../../core/state/terminal.state';
+import { DataType } from '../../core/models/index';
 
 interface TreeNode {
   key: string;
@@ -61,6 +62,9 @@ interface TreeNode {
                 @case ('object-open') {
                   <div class="tree-row expandable" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)">
                     <span class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
+                    @if (isAutoCreated(row.path)) {
+                      <span class="auto-created-dot" title="Creado automáticamente porque la plantilla lo referencia"></span>
+                    }
                     <span class="json-key">{{ row.key }}</span>
                     <span class="json-colon">:</span>
                     @if (!row.isExpanded) {
@@ -73,6 +77,9 @@ interface TreeNode {
                 @case ('array-open') {
                   <div class="tree-row expandable" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)">
                     <span class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
+                    @if (isAutoCreated(row.path)) {
+                      <span class="auto-created-dot" title="Creado automáticamente porque la plantilla lo referencia"></span>
+                    }
                     <span class="json-key">{{ row.key }}</span>
                     <span class="json-colon">:</span>
                     @if (!row.isExpanded) {
@@ -96,9 +103,35 @@ interface TreeNode {
                 }
                 @case ('leaf') {
                   <div class="tree-row leaf" [style.padding-left.px]="row.depth * 20 + 20">
+                    @if (isAutoCreated(row.path)) {
+                      <span class="auto-created-dot" title="Creado automáticamente porque la plantilla lo referencia"></span>
+                    }
                     <span class="json-key">{{ row.key }}</span>
                     <span class="json-colon">:</span>
-                    @if (row.valueType === 'string') {
+                    @if (row.valueType === 'date') {
+                      <input
+                        class="json-input date-input"
+                        type="date"
+                        [value]="row.value"
+                        (change)="updateValue(row.path, $any($event.target).value)" />
+                    } @else if (row.valueType === 'color') {
+                      <input
+                        class="color-swatch"
+                        type="color"
+                        [value]="row.value"
+                        (change)="updateValue(row.path, $any($event.target).value)" />
+                      <input
+                        class="json-input string-input"
+                        [value]="row.value"
+                        (change)="updateValue(row.path, $any($event.target).value)" />
+                    } @else if (row.valueType === 'url') {
+                      <input
+                        class="json-input string-input"
+                        type="url"
+                        placeholder="https://..."
+                        [value]="row.value"
+                        (change)="updateValue(row.path, $any($event.target).value)" />
+                    } @else if (row.valueType === 'string') {
                       <input
                         class="json-input string-input"
                         [value]="row.value"
@@ -355,6 +388,34 @@ interface TreeNode {
       color: #ce9178;
     }
 
+    .date-input {
+      color: var(--text-primary);
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      padding: 1px 4px;
+    }
+
+    .color-swatch {
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      background: none;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .auto-created-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      box-shadow: 0 0 4px var(--accent-color);
+      flex-shrink: 0;
+    }
+
     .number-input {
       color: #b5cea8;
     }
@@ -507,6 +568,12 @@ export class SmartDataEditorComponent {
     const data = this.dataState.data();
     const expanded = this.expandedPaths();
     return this.flattenTree(data, '', 0, expanded);
+  });
+
+  private typeByVariablePath = computed(() => {
+    const map = new Map<string, DataType>();
+    for (const v of this.parserState.variables()) map.set(v.path, v.type);
+    return map;
   });
 
   @HostListener('window:keydown', ['$event'])
@@ -742,12 +809,39 @@ export class SmartDataEditorComponent {
     return rows;
   }
 
-  private getValueType(value: unknown): string {
+  private getValueType(value: unknown, path: string): string {
     if (value === null) return 'null';
     if (typeof value === 'boolean') return 'boolean';
     if (typeof value === 'number') return 'number';
-    if (typeof value === 'string') return 'string';
+    if (typeof value === 'string') {
+      const inferred = this.typeByVariablePath().get(this.toVariablePath(path));
+      if (inferred === 'date' || inferred === 'url' || inferred === 'color') return inferred;
+      return 'string';
+    }
     return 'string';
   }
 
+  /** Converts a data-tree path with real array indices (`items.0.name`) to the `[]`-based path used by `PugVariable` (`items[].name`). */
+  private toVariablePath(dataPath: string): string {
+    const parts = dataPath.split('.');
+    const out: string[] = [];
+    for (const part of parts) {
+      if (/^\d+$/.test(part) && out.length > 0) {
+        out[out.length - 1] += '[]';
+      } else {
+        out.push(part);
+      }
+    }
+    return out.join('.');
+  }
+
+  isAutoCreated(path: string): boolean {
+    const created = this.dataState.autoCreatedPaths();
+    if (created.size === 0) return false;
+    if (created.has(path)) return true;
+    for (const p of created) {
+      if (path.startsWith(p + '.')) return true;
+    }
+    return false;
+  }
 }
