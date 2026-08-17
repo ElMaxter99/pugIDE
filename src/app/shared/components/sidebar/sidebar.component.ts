@@ -14,6 +14,7 @@ import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
 import { ContextMenuAction } from '../../../core/models/index';
 import { getFileIcon } from '../../../core/utils/file-icon.util';
+import { APP_VERSION } from '../../../core/models/version.token';
 
 type PendingAction =
   | { type: 'newFile'; dir: string }
@@ -50,7 +51,7 @@ type PendingAction =
             <div class="workspace-avatar">P</div>
             <div class="workspace-text">
               <p class="workspace-name">{{ projectState.projectName() }}</p>
-              <p class="workspace-version">v1.2.4</p>
+              <p class="workspace-version">v{{ version }}</p>
             </div>
           </div>
         </div>
@@ -279,6 +280,7 @@ export class SidebarComponent {
   protected projectState = inject(ProjectState);
   protected editorState = inject(EditorState);
   private orchestrator = inject(OrchestratorService);
+  protected version = inject(APP_VERSION);
 
   protected dialogOpen = signal(false);
   protected dialogConfig = signal<DialogConfig>({
