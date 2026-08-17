@@ -15,7 +15,6 @@ import { ProjectState } from '../state/project.state';
 import { PersistenceService } from './persistence.service';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
-import { resolvePugIncludes } from '../utils/pug-includes.util';
 
 @Injectable({ providedIn: 'root' })
 export class OrchestratorService {
@@ -53,7 +52,7 @@ export class OrchestratorService {
   async initialize(): Promise<void> {
     await this.parser.initialize();
     await this.compiler.initialize();
-    this.terminalState.addEntry('info', 'PugIDE', 'PugIDE initialized successfully');
+    this.terminalState.addEntry('info', 'PugIDE', 'PugIDE se ha inicializado correctamente');
   }
 
   onCodeChange(code: string): void {
@@ -81,9 +80,13 @@ export class OrchestratorService {
         this.ensureIncludeFiles(rawParseResult.includes);
       }
 
-      const resolvedCode = resolvePugIncludes(code, files, activePath);
-      const parseResult = await this.parser.parse(resolvedCode);
+      const template = await this.compiler.prepare(code, activePath, files);
+      const parseResult = this.parser.parseAst(template.ast);
       this.parserState.updateFromParseResult(parseResult);
+      // The linked AST has include/extends already resolved away, so it can never report them;
+      // use the raw single-file parse instead — it reflects what *this* file declares.
+      this.parserState.includes.set(rawParseResult.includes);
+      this.parserState.extendsPath.set(rawParseResult.extendsPath);
       this.parserState.setParsing(false);
 
       if (!this.initialDataLoaded && Object.keys(this.dataState.data()).length === 0) {
@@ -96,8 +99,9 @@ export class OrchestratorService {
 
       const skeleton = this.buildDataFromVariables(parseResult.variables);
       const patchedData = structuredClone(this.dataState.data());
-      if (this.deepMergeMissing(patchedData, skeleton)) {
-        this.dataState.patchMissingData(patchedData);
+      const newPaths: string[] = [];
+      if (this.deepMergeMissing(patchedData, skeleton, '', newPaths)) {
+        this.dataState.patchMissingData(patchedData, newPaths);
         this.terminalState.addEntry(
           'info',
           'Data',
@@ -105,16 +109,9 @@ export class OrchestratorService {
         );
       }
 
-      for (const error of parseResult.errors) {
-        this.terminalState.addEntry(
-          error.severity,
-          'Parser',
-          `Line ${error.line}:${error.column} - ${error.message}`
-        );
-      }
-
       const data = this.dataState.data();
-      const compileResult = await this.compiler.compile(resolvedCode, data, activePath);
+      const compileResult = template.render(data);
+      compileResult.compilationTime += template.linkTime;
 
       const scssResult = this.scssCompiler.compileAll(files);
       compileResult.css = scssResult.css;
@@ -132,7 +129,7 @@ export class OrchestratorService {
         this.terminalState.addEntry(
           error.severity,
           error.source,
-          `Line ${error.line ?? '?'} - ${error.message}`
+          `Línea ${error.line ?? '?'} - ${error.message}`
         );
       }
 
@@ -140,11 +137,11 @@ export class OrchestratorService {
         this.terminalState.addEntry('error', 'scss', `${scssError.path} - ${scssError.message}`);
       }
 
-      if (parseResult.errors.length === 0 && compileResult.errors.length === 0) {
+      if (compileResult.errors.length === 0) {
         this.terminalState.addEntry(
           'success',
           'Compiler',
-          `Compiled in ${compileResult.compilationTime.toFixed(1)}ms`
+          `Compilado en ${compileResult.compilationTime.toFixed(1)}ms`
         );
       }
     } catch (err: unknown) {
@@ -189,10 +186,39 @@ export class OrchestratorService {
     this.terminalState.addEntry(
       'success',
       'Project',
-      `Loaded "${projectName}" (${files.size} file${files.size === 1 ? '' : 's'}).`
+      `Se cargó "${projectName}" (${files.size} archivo${files.size === 1 ? '' : 's'}).`
     );
     this.manualCompile();
     this.saveSession();
+  }
+
+  /** Discards the current project and starts a blank one, callable both at bootstrap and from inside a running IDE session. */
+  resetToEmptyProject(): void {
+    const defaultPug = `doctype html
+html(lang="es")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    title PugIDE
+  body
+    h1 Hola, #{nombre}
+    p Empieza a editar tu plantilla Pug y los datos aqui.`;
+
+    this.persistence.clearProjectState();
+
+    this.editorState.openTabs.set([]);
+    this.editorState.activeTabId.set(null);
+    this.editorState.editorContent.set('');
+    this.editorState.files.set(new Map());
+    this.editorState.bumpResetToken();
+
+    this.editorState.openFile('/main.pug', 'main.pug', getFileType('main.pug'), defaultPug);
+    this.projectState.setProject('MiProyecto', this.editorState.files());
+    this.dataState.setInitialData({ nombre: 'Mundo' });
+    this.initialDataLoaded = true;
+    this.previewState.setDevice('Desktop', 1200, 800);
+    this.terminalState.addEntry('info', 'PugIDE', 'Nueva sesión iniciada.');
+    this.manualCompile();
   }
 
   onDataChange(): void {
@@ -230,7 +256,7 @@ export class OrchestratorService {
     const name = newPath.split('/').pop() ?? newPath;
     this.editorState.renameOpenTab(oldPath, newPath, name);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
-    this.terminalState.addEntry('info', 'Files', `Renamed ${oldPath} to ${newPath}`);
+    this.terminalState.addEntry('info', 'Files', `Se renombró ${oldPath} a ${newPath}`);
   }
 
   deleteFile(path: string): void {
@@ -239,7 +265,7 @@ export class OrchestratorService {
     this.editorState.files.update((f) => { f.delete(path); return f; });
     this.editorState.closeTabByPath(path);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
-    this.terminalState.addEntry('info', 'Files', `Deleted ${path}`);
+    this.terminalState.addEntry('info', 'Files', `Se eliminó ${path}`);
   }
 
   duplicateFile(path: string): void {
@@ -252,7 +278,7 @@ export class OrchestratorService {
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     const name = newPath.split('/').pop() ?? newPath;
     this.editorState.openFile(newPath, name, getFileType(name), content);
-    this.terminalState.addEntry('info', 'Files', `Duplicated ${path} as ${newPath}`);
+    this.terminalState.addEntry('info', 'Files', `Se duplicó ${path} como ${newPath}`);
   }
 
   private generateDuplicatePath(path: string, files: Map<string, string>): string {
@@ -271,13 +297,15 @@ export class OrchestratorService {
 
   private ensureIncludeFiles(includes: string[]): void {
     let changed = false;
+    const createdPaths: string[] = [];
     const files = this.editorState.files();
     for (const includePath of includes) {
       const path = includePath.startsWith('/') ? includePath : '/' + includePath;
       if (!files.has(path)) {
         const name = path.split('/').pop() ?? 'unknown.pug';
         this.editorState.files.update((f) => { f.set(path, ''); return f; });
-        this.terminalState.addEntry('info', 'Files', `Created missing include: ${name}`);
+        this.terminalState.addEntry('info', 'Files', `Se creó el include que faltaba: ${name}`);
+        createdPaths.push(path);
         changed = true;
       }
     }
@@ -286,6 +314,7 @@ export class OrchestratorService {
         this.projectState.projectName(),
         this.editorState.files()
       );
+      this.projectState.markAutoCreated(createdPaths);
     }
   }
 
@@ -343,13 +372,20 @@ export class OrchestratorService {
     return current;
   }
 
-  /** Merges `source` into `target`, filling in only keys missing from `target` (recursing into plain objects). Never touches arrays or primitives already present. Returns whether anything changed. */
-  private deepMergeMissing(target: Record<string, unknown>, source: Record<string, unknown>): boolean {
+  /** Merges `source` into `target`, filling in only keys missing from `target` (recursing into plain objects). Never touches arrays or primitives already present. Returns whether anything changed, and appends the dotted paths of every newly added key to `newPaths`. */
+  private deepMergeMissing(
+    target: Record<string, unknown>,
+    source: Record<string, unknown>,
+    pathPrefix: string,
+    newPaths: string[],
+  ): boolean {
     let changed = false;
     for (const key of Object.keys(source)) {
       const sourceValue = source[key];
+      const path = pathPrefix ? `${pathPrefix}.${key}` : key;
       if (!(key in target)) {
         target[key] = sourceValue;
+        newPaths.push(path);
         changed = true;
         continue;
       }
@@ -358,7 +394,7 @@ export class OrchestratorService {
         sourceValue !== null && typeof sourceValue === 'object' && !Array.isArray(sourceValue) &&
         targetValue !== null && typeof targetValue === 'object' && !Array.isArray(targetValue);
       if (bothPlainObjects) {
-        if (this.deepMergeMissing(targetValue as Record<string, unknown>, sourceValue as Record<string, unknown>)) {
+        if (this.deepMergeMissing(targetValue as Record<string, unknown>, sourceValue as Record<string, unknown>, path, newPaths)) {
           changed = true;
         }
       }

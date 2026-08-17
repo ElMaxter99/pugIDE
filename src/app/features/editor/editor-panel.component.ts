@@ -4,6 +4,7 @@ import {
   inject,
   signal,
   effect,
+  untracked,
   OnDestroy,
   AfterViewInit,
   ElementRef,
@@ -14,8 +15,11 @@ import { EditorState } from '../../core/state/editor.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { getFileType } from '../../core/models/tab.model';
 import { PreferencesState } from '../../core/services/preferences.state';
+import { FormatterService } from '../../core/services/formatter.service';
 
 declare const monaco: any;
+
+let formattingProvidersRegistered = false;
 
 @Component({
   selector: 'app-editor-panel',
@@ -29,8 +33,8 @@ declare const monaco: any;
         @if (!editorState.activeTab()) {
           <div class="empty-editor">
             <span class="material-symbols-outlined empty-icon">description</span>
-            <h3>No file open</h3>
-            <p>Open a file from the explorer</p>
+            <h3>Ningún archivo abierto</h3>
+            <p>Abre un archivo desde el explorador</p>
           </div>
         }
         <div #editorContainer class="monaco-host" [class.hidden]="!editorState.activeTab()"></div>
@@ -108,6 +112,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   protected editorState = inject(EditorState);
   private orchestrator = inject(OrchestratorService);
   private preferences = inject(PreferencesState);
+  private formatter = inject(FormatterService);
 
   private editor: any = null;
   private updateDisposable: { dispose(): void } | null = null;
@@ -141,6 +146,55 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       if (this.editorReady() && typeof monaco !== 'undefined') {
         monaco.editor.setTheme(theme === 'vs-dark' ? 'pugIDE-dark' : 'pugIDE-light');
       }
+    });
+
+    // Apply editor preferences (Settings panel) live to the running Monaco instance.
+    effect(() => {
+      const fontSize = this.preferences.fontSize();
+      const zoom = this.preferences.zoom();
+      const tabSize = this.preferences.tabSize();
+      const minimap = this.preferences.minimap();
+      const wordWrap = this.preferences.wordWrap();
+      if (!this.editorReady() || !this.editor) return;
+      this.editor.updateOptions({
+        fontSize: Math.round(fontSize * (zoom / 100)),
+        tabSize,
+        minimap: { enabled: minimap },
+        wordWrap: wordWrap ? 'on' : 'off',
+      });
+    });
+
+    // Format-on-demand (e.g. a toolbar "Format" button elsewhere).
+    effect(() => {
+      const token = this.editorState.formatRequestToken();
+      if (token === 0 || !this.editorReady() || !this.editor) return;
+      untracked(() => this.runFormat());
+    });
+
+    // Jump to a file+line requested elsewhere (e.g. the inspector "Pug Line" click).
+    effect(() => {
+      const req = this.editorState.goToRequest();
+      if (!req || !this.editorReady() || !this.editor) return;
+      untracked(() => {
+        const files = this.editorState.files();
+        if (!files.has(req.path)) {
+          this.editorState.goToRequest.set(null);
+          return;
+        }
+        const existingTab = this.editorState.openTabs().find((t) => t.path === req.path);
+        if (existingTab) {
+          this.editorState.selectTab(existingTab.id);
+        } else {
+          const name = req.path.split('/').pop() ?? req.path;
+          this.editorState.openFile(req.path, name, getFileType(name), files.get(req.path) ?? '');
+        }
+        const activeTab = this.editorState.activeTab();
+        if (activeTab) this.loadModel(activeTab);
+        this.editor.revealLineInCenter(req.line);
+        this.editor.setPosition({ lineNumber: req.line, column: 1 });
+        this.editor.focus();
+        this.editorState.goToRequest.set(null);
+      });
     });
   }
 
@@ -234,12 +288,12 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       value: '',
       language: 'pug',
       theme: initialTheme,
-      fontSize: 13,
+      fontSize: Math.round(this.preferences.fontSize() * (this.preferences.zoom() / 100)),
       fontFamily: "'JetBrains Mono', monospace",
       fontLigatures: true,
-      minimap: { enabled: false },
-      wordWrap: 'on',
-      tabSize: 2,
+      minimap: { enabled: this.preferences.minimap() },
+      wordWrap: this.preferences.wordWrap() ? 'on' : 'off',
+      tabSize: this.preferences.tabSize(),
       automaticLayout: true,
       scrollBeyondLastLine: false,
       renderWhitespace: 'selection',
@@ -269,10 +323,17 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       if ((e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyS) {
         e.preventDefault();
         e.stopPropagation();
-        this.editorState.saveCurrentFile();
-        this.orchestrator.manualCompile();
+        (async () => {
+          if (this.preferences.formatOnSave()) {
+            await this.runFormat();
+          }
+          this.editorState.saveCurrentFile();
+          this.orchestrator.manualCompile();
+        })();
       }
     });
+
+    this.registerFormattingProviders();
 
     this.editorReady.set(true);
 
@@ -295,6 +356,32 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       }
       this.editorState.openFile(path, name, getFileType(name), files.get(path) ?? '');
     });
+  }
+
+  private registerFormattingProviders(): void {
+    if (formattingProvidersRegistered) return;
+    formattingProvidersRegistered = true;
+
+    for (const lang of ['pug', 'scss', 'css', 'json']) {
+      monaco.languages.registerDocumentFormattingEditProvider(lang, {
+        provideDocumentFormattingEdits: async (model: any) => {
+          if (!this.formatter.supports(lang)) return [];
+          try {
+            const formatted = await this.formatter.format(model.getValue(), lang, this.preferences.tabSize());
+            return [{ range: model.getFullModelRange(), text: formatted }];
+          } catch (err) {
+            console.error('[Formatter] Failed to format document:', err);
+            return [];
+          }
+        },
+      });
+    }
+  }
+
+  private async runFormat(): Promise<void> {
+    if (!this.editor) return;
+    const action = this.editor.getAction('editor.action.formatDocument');
+    if (action) await action.run();
   }
 
   private disposeAllModels(): void {

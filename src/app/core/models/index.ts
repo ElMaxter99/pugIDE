@@ -79,6 +79,7 @@ export interface PugMixin {
   args: string[];
   body: PugAstNode[];
   line: number;
+  filename?: string;
   callCount: number;
 }
 
@@ -115,6 +116,7 @@ export interface TerminalEntry {
 
 export interface InspectorNode {
   tagName: string;
+  pugFile?: string;
   pugLine?: number;
   htmlLine?: number;
   attrs: Record<string, string>;

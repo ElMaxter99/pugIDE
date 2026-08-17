@@ -3,6 +3,8 @@ import { Injectable, signal, computed } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class DataState {
   readonly data = signal<Record<string, unknown>>({});
+  /** Dotted paths auto-filled with an empty default because the template referenced them — shown as a badge until edited. */
+  readonly autoCreatedPaths = signal<Set<string>>(new Set());
   private undoStack = signal<Record<string, unknown>[]>([]);
   private redoStack = signal<Record<string, unknown>[]>([]);
 
@@ -22,8 +24,11 @@ export class DataState {
   }
 
   /** Like setInitialData, but preserves undo/redo history — for silently auto-healing missing paths mid-session. */
-  patchMissingData(data: Record<string, unknown>): void {
+  patchMissingData(data: Record<string, unknown>, newPaths: string[] = []): void {
     this.data.set(structuredClone(data));
+    if (newPaths.length > 0) {
+      this.autoCreatedPaths.update((set) => new Set([...set, ...newPaths]));
+    }
   }
 
   updateValue(path: string, value: unknown): void {
@@ -31,6 +36,20 @@ export class DataState {
     const current = structuredClone(this.data());
     this.setNestedValue(current, path, value);
     this.data.set(current);
+    this.clearAutoCreated(path);
+  }
+
+  clearAutoCreated(path: string): void {
+    if (this.autoCreatedPaths().size === 0) return;
+    this.autoCreatedPaths.update((set) => {
+      const next = new Set(set);
+      next.delete(path);
+      return next;
+    });
+  }
+
+  isAutoCreated(path: string): boolean {
+    return this.autoCreatedPaths().has(path);
   }
 
   undo(): void {

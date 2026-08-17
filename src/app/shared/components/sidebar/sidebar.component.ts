@@ -15,23 +15,28 @@ import { OrchestratorService } from '../../../core/services/orchestrator.service
 import { ProjectIoService } from '../../../core/services/project-io.service';
 import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
-import { ContextMenuAction } from '../../../core/models/index';
+import { ContextMenuAction, PugMixin } from '../../../core/models/index';
 import { getFileIcon } from '../../../core/utils/file-icon.util';
 import { APP_VERSION } from '../../../core/models/version.token';
+import { ParserState } from '../../../core/state/parser.state';
+import { FindInFilesComponent } from '../find-in-files/find-in-files.component';
 
 type PendingAction =
   | { type: 'newFile'; dir: string }
+  | { type: 'newFolder'; dir: string }
   | { type: 'rename'; path: string }
   | { type: 'delete'; path: string }
-  | { type: 'importProject' };
+  | { type: 'importProject' }
+  | { type: 'newSession' };
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, DialogComponent, ContextMenuComponent],
+  imports: [CommonModule, DialogComponent, ContextMenuComponent, FindInFilesComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <aside class="sidebar">
+      <app-find-in-files #findPanel />
       <app-dialog
         [config]="dialogConfig()"
         [isOpen]="dialogOpen()"
@@ -46,15 +51,21 @@ type PendingAction =
       <div class="sidebar-inner">
         <div class="workspace-header">
           <div class="workspace-label-row">
-            <span class="workspace-label">Workspace</span>
+            <span class="workspace-label">Proyecto</span>
             <div class="workspace-actions">
-              <button class="add-btn" (click)="onImportClick()" title="Import project (folder or .zip)">
+              <button class="add-btn" (click)="onImportClick()" title="Importar proyecto (carpeta o .zip)">
                 <span class="material-symbols-outlined" style="font-size: 16px;">upload</span>
               </button>
-              <button class="add-btn" (click)="onExportClick()" title="Export project (folder or .zip)">
+              <button class="add-btn" (click)="onExportClick()" title="Exportar proyecto (carpeta o .zip)">
                 <span class="material-symbols-outlined" style="font-size: 16px;">download</span>
               </button>
-              <button class="add-btn" (click)="showNewFileDialog()" title="New file">
+              <button class="add-btn" (click)="findPanel.open()" title="Buscar en archivos (Ctrl+Shift+F)">
+                <span class="material-symbols-outlined" style="font-size: 16px;">search</span>
+              </button>
+              <button class="add-btn" (click)="showNewFolderDialog()" title="Nueva carpeta">
+                <span class="material-symbols-outlined" style="font-size: 16px;">create_new_folder</span>
+              </button>
+              <button class="add-btn" (click)="showNewFileDialog()" title="Nuevo archivo">
                 <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
               </button>
             </div>
@@ -78,6 +89,47 @@ type PendingAction =
           @for (node of projectState.fileTree(); track node.path) {
             <ng-container *ngTemplateOutlet="fileNode; context: { $implicit: node, level: 0 }"></ng-container>
           }
+        </div>
+
+        <div class="structure-section">
+          <div class="structure-header" (click)="structureExpanded.set(!structureExpanded())">
+            <span class="material-symbols-outlined expand-icon" [class.rotated]="structureExpanded()">
+              keyboard_arrow_down
+            </span>
+            <span class="workspace-label">ESTRUCTURA</span>
+          </div>
+          @if (structureExpanded()) {
+            <div class="structure-body">
+              @if (parserState.extendsPath(); as ext) {
+                <div class="structure-row" (click)="openRelative(ext)" title="extends {{ ext }}">
+                  <span class="material-symbols-outlined structure-icon">call_merge</span>
+                  <span class="structure-text">extends {{ ext }}</span>
+                </div>
+              }
+              @for (inc of parserState.includes(); track inc) {
+                <div class="structure-row" (click)="openRelative(inc)" title="include {{ inc }}">
+                  <span class="material-symbols-outlined structure-icon">call_split</span>
+                  <span class="structure-text">include {{ inc }}</span>
+                </div>
+              }
+              @for (mixin of parserState.mixins(); track mixin.name + mixin.line) {
+                <div class="structure-row" (click)="goToMixin(mixin)" title="mixin {{ mixin.name }}">
+                  <span class="material-symbols-outlined structure-icon">functions</span>
+                  <span class="structure-text">{{ mixin.name }}({{ mixin.args.join(', ') }})</span>
+                </div>
+              }
+              @if (!parserState.extendsPath() && parserState.includes().length === 0 && parserState.mixins().length === 0) {
+                <div class="structure-empty">Sin mixins, includes ni extends</div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="sidebar-footer">
+          <div class="footer-item" (click)="showNewSessionDialog()">
+            <span class="material-symbols-outlined">restart_alt</span>
+            <span class="footer-label">NUEVA SESIÓN</span>
+          </div>
         </div>
       </div>
     </aside>
@@ -109,6 +161,9 @@ type PendingAction =
           (contextmenu)="onNodeContextMenu($event, node)">
           <span class="material-symbols-outlined file-icon">{{ fileIcon(node) }}</span>
           <span class="file-name">{{ node.name }}</span>
+          @if (projectState.isAutoCreated(node.path)) {
+            <span class="auto-created-dot" title="Creado automáticamente porque la plantilla lo referencia"></span>
+          }
         </div>
       }
     </ng-template>
@@ -267,6 +322,73 @@ type PendingAction =
       white-space: nowrap;
     }
 
+    .auto-created-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-color);
+      box-shadow: 0 0 4px var(--accent-color);
+      flex-shrink: 0;
+      margin-right: 4px;
+    }
+
+    .structure-section {
+      border-top: 1px solid var(--border-color);
+      padding-top: 8px;
+      flex-shrink: 0;
+    }
+
+    .structure-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 16px;
+      cursor: pointer;
+    }
+
+    .structure-body {
+      display: flex;
+      flex-direction: column;
+      max-height: 160px;
+      overflow-y: auto;
+      padding-bottom: 4px;
+    }
+
+    .structure-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 16px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    .structure-row:hover {
+      color: var(--text-primary);
+      background: var(--bg-surface-variant);
+    }
+
+    .structure-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+      color: var(--text-tertiary);
+    }
+
+    .structure-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .structure-empty {
+      padding: 4px 16px;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-style: italic;
+    }
+
     .sidebar-footer {
       margin-top: auto;
       border-top: 1px solid var(--border-color);
@@ -303,20 +425,23 @@ type PendingAction =
 export class SidebarComponent {
   protected projectState = inject(ProjectState);
   protected editorState = inject(EditorState);
+  protected parserState = inject(ParserState);
   private orchestrator = inject(OrchestratorService);
   protected projectIo = inject(ProjectIoService);
   protected version = inject(APP_VERSION);
+
+  protected structureExpanded = signal(false);
 
   @ViewChild('zipInput') private zipInput!: ElementRef<HTMLInputElement>;
 
   protected dialogOpen = signal(false);
   protected dialogConfig = signal<DialogConfig>({
-    title: 'New File',
-    message: 'Enter filename (e.g. components/card.pug)',
-    confirmText: 'Create',
-    cancelText: 'Cancel',
+    title: 'Nuevo archivo',
+    message: 'Introduce el nombre del archivo (ej. components/card.pug)',
+    confirmText: 'Crear',
+    cancelText: 'Cancelar',
     showInput: true,
-    inputLabel: 'Filename',
+    inputLabel: 'Nombre del archivo',
     inputValue: '',
   });
   private pendingAction: PendingAction | null = null;
@@ -346,27 +471,46 @@ export class SidebarComponent {
     })();
     this.pendingAction = { type: 'newFile', dir: baseDir };
     this.dialogConfig.set({
-      title: 'New File',
-      message: 'Enter filename (e.g. components/card.pug)',
-      confirmText: 'Create',
-      cancelText: 'Cancel',
+      title: 'Nuevo archivo',
+      message: 'Introduce el nombre del archivo (ej. components/card.pug)',
+      confirmText: 'Crear',
+      cancelText: 'Cancelar',
       showInput: true,
-      inputLabel: 'Filename',
+      inputLabel: 'Nombre del archivo',
       inputValue: baseDir + 'new-file.pug',
+    });
+    this.dialogOpen.set(true);
+  }
+
+  showNewFolderDialog(dir?: string): void {
+    const baseDir = dir ?? (() => {
+      const activePath = this.editorState.activeTab()?.path ?? '/main.pug';
+      return activePath.substring(0, activePath.lastIndexOf('/') + 1);
+    })();
+    this.pendingAction = { type: 'newFolder', dir: baseDir };
+    this.dialogConfig.set({
+      title: 'Nueva carpeta',
+      message: 'Introduce el nombre de la carpeta',
+      confirmText: 'Crear',
+      cancelText: 'Cancelar',
+      showInput: true,
+      inputLabel: 'Nombre de la carpeta',
+      inputValue: '',
     });
     this.dialogOpen.set(true);
   }
 
   private showRenameDialog(path: string): void {
     this.pendingAction = { type: 'rename', path };
+    const currentName = path.split('/').pop() ?? path;
     this.dialogConfig.set({
-      title: 'Rename',
-      message: `Enter a new path for ${path}`,
-      confirmText: 'Rename',
-      cancelText: 'Cancel',
+      title: 'Renombrar',
+      message: `Introduce un nuevo nombre para ${currentName}`,
+      confirmText: 'Renombrar',
+      cancelText: 'Cancelar',
       showInput: true,
-      inputLabel: 'New path',
-      inputValue: path,
+      inputLabel: 'Nuevo nombre',
+      inputValue: currentName,
     });
     this.dialogOpen.set(true);
   }
@@ -378,12 +522,12 @@ export class SidebarComponent {
   onImportClick(): void {
     this.pendingAction = { type: 'importProject' };
     this.dialogConfig.set({
-      title: 'Import project',
+      title: 'Importar proyecto',
       message: this.projectIo.supportsFileSystemAccess
-        ? 'Pick a folder to import. This replaces every file currently open in the editor.'
-        : 'Pick a .zip file to import. This replaces every file currently open in the editor.',
-      confirmText: 'Continue',
-      cancelText: 'Cancel',
+        ? 'Elige una carpeta para importar. Esto reemplaza todos los archivos abiertos actualmente en el editor.'
+        : 'Elige un archivo .zip para importar. Esto reemplaza todos los archivos abiertos actualmente en el editor.',
+      confirmText: 'Continuar',
+      cancelText: 'Cancelar',
       showInput: false,
       type: 'warning',
     });
@@ -398,13 +542,26 @@ export class SidebarComponent {
     await this.projectIo.importFromZipFile(file);
   }
 
+  showNewSessionDialog(): void {
+    this.pendingAction = { type: 'newSession' };
+    this.dialogConfig.set({
+      title: 'Nueva sesión',
+      message: 'Esto descarta el proyecto actual y empieza uno en blanco. Los cambios sin exportar se perderán.',
+      confirmText: 'Empezar de nuevo',
+      cancelText: 'Cancelar',
+      showInput: false,
+      type: 'warning',
+    });
+    this.dialogOpen.set(true);
+  }
+
   private showDeleteDialog(path: string): void {
     this.pendingAction = { type: 'delete', path };
     this.dialogConfig.set({
-      title: 'Delete file',
-      message: `Are you sure you want to delete ${path}? This cannot be undone.`,
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
+      title: 'Eliminar archivo',
+      message: `¿Seguro que quieres eliminar ${path}? Esta acción no se puede deshacer.`,
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
       showInput: false,
       type: 'warning',
     });
@@ -427,10 +584,19 @@ export class SidebarComponent {
         return;
       }
       this.orchestrator.addFile(path, filename);
+    } else if (action.type === 'newFolder') {
+      const name = value.trim().replace(/^\/+|\/+$/g, '');
+      if (!name) return;
+      const dir = action.dir.endsWith('/') ? action.dir : action.dir + '/';
+      const placeholderPath = `${dir}${name}/.gitkeep`;
+      if (this.editorState.files().has(placeholderPath)) return;
+      this.editorState.files.update((f) => { f.set(placeholderPath, ''); return f; });
+      this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     } else if (action.type === 'rename') {
       const name = value.trim();
       if (!name) return;
-      const newPath = name.startsWith('/') ? name : '/' + name;
+      const dir = action.path.substring(0, action.path.lastIndexOf('/') + 1);
+      const newPath = name.startsWith('/') ? name : dir + name;
       this.orchestrator.renameFile(action.path, newPath);
     } else if (action.type === 'delete') {
       this.orchestrator.deleteFile(action.path);
@@ -440,6 +606,8 @@ export class SidebarComponent {
       } else {
         this.zipInput.nativeElement.click();
       }
+    } else if (action.type === 'newSession') {
+      this.orchestrator.resetToEmptyProject();
     }
   }
 
@@ -450,13 +618,16 @@ export class SidebarComponent {
 
     const items: ContextMenuAction[] = [];
     if (node.type === 'directory') {
-      items.push({ label: 'New File', icon: 'note_add', action: 'newFile' });
+      items.push(
+        { label: 'Nuevo archivo', icon: 'note_add', action: 'newFile' },
+        { label: 'Nueva carpeta', icon: 'create_new_folder', action: 'newFolder' },
+      );
     } else {
       items.push(
-        { label: 'Rename', icon: 'edit', action: 'rename' },
-        { label: 'Duplicate', icon: 'content_copy', action: 'duplicate' },
+        { label: 'Renombrar', icon: 'edit', action: 'rename' },
+        { label: 'Duplicar', icon: 'content_copy', action: 'duplicate' },
         { label: '', action: '', separator: true },
-        { label: 'Delete', icon: 'delete', action: 'delete' },
+        { label: 'Eliminar', icon: 'delete', action: 'delete' },
       );
     }
     this.contextMenuItems.set(items);
@@ -475,6 +646,9 @@ export class SidebarComponent {
       case 'newFile':
         this.showNewFileDialog(node.path + '/');
         break;
+      case 'newFolder':
+        this.showNewFolderDialog(node.path + '/');
+        break;
       case 'rename':
         this.showRenameDialog(node.path);
         break;
@@ -491,7 +665,26 @@ export class SidebarComponent {
     if (node.type === 'file') {
       const type = getFileType(node.name);
       this.editorState.openFile(node.path, node.name, type, node.content ?? '');
+      this.projectState.clearAutoCreated(node.path);
     }
+  }
+
+  openRelative(rawPath: string): void {
+    const path = rawPath.startsWith('/') ? rawPath : '/' + rawPath;
+    const name = path.split('/').pop() ?? 'file';
+    const files = this.editorState.files();
+    if (!files.has(path)) {
+      this.orchestrator.addFile(path, name);
+      return;
+    }
+    this.editorState.openFile(path, name, getFileType(name), files.get(path) ?? '');
+    this.projectState.clearAutoCreated(path);
+  }
+
+  goToMixin(mixin: PugMixin): void {
+    const path = mixin.filename ?? this.editorState.activeTab()?.path;
+    if (!path) return;
+    this.editorState.requestGoToLine(path, mixin.line);
   }
 
   isActive(path: string): boolean {

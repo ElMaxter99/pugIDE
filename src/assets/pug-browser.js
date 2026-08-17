@@ -94,9 +94,9 @@
   var require_fs_shim = __commonJS({
     "src/assets/fs-shim.cjs"(exports, module) {
       "use strict";
-      var pugFs = globalThis.__pugFs;
       module.exports = {
         readFileSync: function(path, options) {
+          var pugFs = globalThis.__pugFs;
           if (pugFs && pugFs.readFileSync) return pugFs.readFileSync(path, options);
           if (globalThis.__pugReadFile) return globalThis.__pugReadFile(path, options);
           return "";
@@ -105,6 +105,7 @@
           return 0;
         },
         existsSync: function(path) {
+          var pugFs = globalThis.__pugFs;
           if (pugFs && pugFs.existsSync) return pugFs.existsSync(path);
           if (globalThis.__pugReadFile) return true;
           return false;

@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   inject,
   effect,
+  signal,
   ViewChild,
   ElementRef,
   OnDestroy,
@@ -23,31 +24,64 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
         <div class="preview-header-left">
           <span class="preview-title">
             <span class="live-dot"></span>
-            Live Preview
+            Vista previa en vivo
           </span>
           <div class="device-switcher">
             <button
               class="device-btn"
+              title="Escritorio"
               [class.active]="previewState.deviceName() === 'Desktop'"
               (click)="setDevice('Desktop', 1200, 800)">
               <span class="material-symbols-outlined" style="font-size: 16px;">desktop_windows</span>
             </button>
             <button
               class="device-btn"
+              title="Tableta"
+              [class.active]="previewState.deviceName() === 'Tablet'"
+              (click)="setDevice('Tablet', 768, 1024)">
+              <span class="material-symbols-outlined" style="font-size: 16px;">tablet_mac</span>
+            </button>
+            <button
+              class="device-btn"
+              title="Móvil"
               [class.active]="previewState.deviceName() === 'Mobile'"
               (click)="setDevice('Mobile', 375, 812)">
               <span class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
             </button>
+            <button
+              class="device-btn"
+              title="Tamaño personalizado"
+              [class.active]="previewState.deviceName() === 'Custom'"
+              (click)="customOpen.set(!customOpen())">
+              <span class="material-symbols-outlined" style="font-size: 16px;">aspect_ratio</span>
+            </button>
+            @if (customOpen()) {
+              <div class="custom-size-popover" (click)="$event.stopPropagation()">
+                <input
+                  type="number"
+                  class="custom-size-input"
+                  min="200"
+                  [value]="previewState.deviceWidth()"
+                  (change)="setCustomWidth($any($event.target).value)" />
+                <span class="custom-size-x">×</span>
+                <input
+                  type="number"
+                  class="custom-size-input"
+                  min="200"
+                  [value]="previewState.deviceHeight()"
+                  (change)="setCustomHeight($any($event.target).value)" />
+              </div>
+            }
           </div>
         </div>
         <div class="preview-header-right">
-          <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspect Element" (click)="inspectorState.toggleInspector()">
+          <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspeccionar elemento" (click)="inspectorState.toggleInspector()">
             <span class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
           </button>
-          <button class="preview-action" title="Refresh" (click)="onReload()">
+          <button class="preview-action" title="Recargar" (click)="onReload()">
             <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
           </button>
-          <button class="preview-action" title="Open in New Tab" (click)="onOpenNewTab()">
+          <button class="preview-action" title="Abrir en nueva pestaña" (click)="onOpenNewTab()">
             <span class="material-symbols-outlined" style="font-size: 18px;">open_in_new</span>
           </button>
         </div>
@@ -132,6 +166,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
     }
 
     .device-switcher {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 2px;
@@ -159,6 +194,37 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
     .device-btn.active {
       background: var(--accent-container);
       color: var(--text-on-primary-container);
+    }
+
+    .custom-size-popover {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      z-index: 20;
+    }
+
+    .custom-size-input {
+      width: 60px;
+      padding: 3px 6px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .custom-size-x {
+      color: var(--text-tertiary);
+      font-size: 12px;
     }
 
     .preview-header-right {
@@ -277,6 +343,8 @@ export class PreviewPanelComponent implements OnDestroy {
         tagName: e.data.tagName,
         attrs: e.data.attrs ?? {},
         htmlLine: e.data.htmlLine,
+        pugFile: e.data.pugFile,
+        pugLine: e.data.pugLine,
         children: [],
       });
     }
@@ -312,8 +380,21 @@ export class PreviewPanelComponent implements OnDestroy {
     );
   }
 
+  protected customOpen = signal(false);
+
   setDevice(name: string, width: number, height: number): void {
     this.previewState.setDevice(name, width, height);
+    this.customOpen.set(false);
+  }
+
+  setCustomWidth(value: string): void {
+    const width = Math.max(200, Number(value) || this.previewState.deviceWidth());
+    this.previewState.setDevice('Custom', width, this.previewState.deviceHeight());
+  }
+
+  setCustomHeight(value: string): void {
+    const height = Math.max(200, Number(value) || this.previewState.deviceHeight());
+    this.previewState.setDevice('Custom', this.previewState.deviceWidth(), height);
   }
 
   onReload(): void {

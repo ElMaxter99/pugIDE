@@ -48,10 +48,10 @@ export interface DialogConfig {
           </div>
           <div class="dialog-footer">
             <button class="dialog-btn secondary" (click)="onCancel()">
-              {{ config().cancelText ?? 'Cancel' }}
+              {{ config().cancelText ?? 'Cancelar' }}
             </button>
             <button class="dialog-btn primary" (click)="onConfirm()">
-              {{ config().confirmText ?? 'Confirm' }}
+              {{ config().confirmText ?? 'Confirmar' }}
             </button>
           </div>
         </div>

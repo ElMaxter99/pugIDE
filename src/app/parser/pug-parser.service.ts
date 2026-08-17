@@ -77,7 +77,7 @@ export class PugParserService {
         this.terminalState.addEntry(
           'error',
           'Parser',
-          `Failed to load parser bundle: ${(err as Error).message ?? err}`
+          `No se pudo cargar el parser: ${(err as Error).message ?? err}`
         );
       }
     }
@@ -89,7 +89,7 @@ export class PugParserService {
       this.terminalState.addEntry(
         'error',
         'Parser',
-        'Pug parser is unavailable — variable, mixin and include detection will not work.'
+        'El parser de Pug no está disponible — no funcionará la detección de variables, mixins ni includes.'
       );
     }
     this.initialized = true;
@@ -139,7 +139,7 @@ export class PugParserService {
         this.terminalState.addEntry(
           'warning',
           'Parser',
-          `Skipped ${filePath}: ${(err as Error).message ?? 'parse error'}`
+          `Se omitió ${filePath}: ${(err as Error).message ?? 'error de análisis'}`
         );
       }
     }
@@ -169,6 +169,19 @@ export class PugParserService {
       });
     }
 
+    return this.buildParseResult(ast, errors, start);
+  }
+
+  /**
+   * Extracts variables/mixins/includes from an AST obtained elsewhere (e.g.
+   * the fully linked AST from `PugCompilerService.prepare()`, which resolves
+   * `include`/`extends`/`block` correctly instead of a naive text splice).
+   */
+  parseAst(ast: PugAstNode | null, errors: ParseError[] = []): ParseResult {
+    return this.buildParseResult(ast, errors, performance.now());
+  }
+
+  private buildParseResult(ast: PugAstNode | null, errors: ParseError[], start: number): ParseResult {
     const variables = ast ? this.extractVariables(ast) : [];
     const mixins = ast ? this.extractMixins(ast) : [];
     const includes = ast ? this.extractIncludes(ast) : [];
@@ -731,6 +744,7 @@ export class PugParserService {
         args,
         body: this.getBodyNodes(node),
         line: node.line ?? 0,
+        filename: node.filename,
         callCount: 0,
       });
     });

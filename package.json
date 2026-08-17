@@ -25,6 +25,7 @@
     "@angular/forms": "20.3.27",
     "@angular/platform-browser": "20.3.27",
     "@angular/router": "20.3.27",
+    "@prettier/plugin-pug": "^3.4.2",
     "@vercel/analytics": "^2.0.1",
     "fflate": "^0.8.3",
     "prettier": "^3.4.0",

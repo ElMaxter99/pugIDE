@@ -7,13 +7,17 @@ import { Router } from '@angular/router';
 import { EditorState } from '../../../core/state/editor.state';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { PreferencesState } from '../../../core/services/preferences.state';
+import { FormatterService } from '../../../core/services/formatter.service';
+import { SettingsPanelComponent } from '../../../features/settings/settings-panel.component';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
+  imports: [SettingsPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="topbar">
+      <app-settings-panel #settingsPanel />
       <div class="topbar-left">
         <h1
           class="logo"
@@ -25,19 +29,27 @@ import { PreferencesState } from '../../../core/services/preferences.state';
       </div>
       <div class="topbar-right">
         <div class="topbar-actions">
-          <button class="icon-btn" title="Toggle Theme" (click)="onToggleTheme()">
+          <button class="icon-btn" title="Cambiar tema" (click)="onToggleTheme()">
             <span class="material-symbols-outlined">contrast</span>
+          </button>
+          @if (canFormatActiveFile()) {
+            <button class="icon-btn" title="Formatear documento" (click)="onFormat()">
+              <span class="material-symbols-outlined">format_align_left</span>
+            </button>
+          }
+          <button class="icon-btn" title="Preferencias del editor" (click)="settingsPanel.open()">
+            <span class="material-symbols-outlined">settings</span>
           </button>
           <div class="divider"></div>
           <button
             class="text-btn"
             [class.active]="preferences.autoCompile()"
-            [title]="preferences.autoCompile() ? 'Auto-compile is on: recompiles as you type' : 'Auto-compile is off: press Save or Ctrl+S to compile'"
+            [title]="preferences.autoCompile() ? 'Autocompilación activada: recompila mientras escribes' : 'Autocompilación desactivada: pulsa Guardar o Ctrl+S para compilar'"
             (click)="onToggleAutoCompile()">
             <span class="status-dot" [class.on]="preferences.autoCompile()"></span>
-            Auto-compile
+            Autocompilar
           </button>
-          <button class="save-btn" (click)="onSave()">Save</button>
+          <button class="save-btn" (click)="onSave()">Guardar</button>
         </div>
       </div>
     </header>
@@ -162,11 +174,21 @@ import { PreferencesState } from '../../../core/services/preferences.state';
 export class TopbarComponent {
   protected editorState = inject(EditorState);
   protected preferences = inject(PreferencesState);
+  private formatter = inject(FormatterService);
   private orchestrator = inject(OrchestratorService);
   private router = inject(Router);
 
   goHome(): void {
     this.router.navigate(['/']);
+  }
+
+  canFormatActiveFile(): boolean {
+    const type = this.editorState.activeTab()?.type;
+    return !!type && this.formatter.supports(type);
+  }
+
+  onFormat(): void {
+    this.editorState.requestFormat();
   }
 
   onSave(): void {

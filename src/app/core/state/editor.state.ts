@@ -10,6 +10,10 @@ export class EditorState {
   readonly files = signal<Map<string, string>>(new Map());
   /** Bumped whenever the whole project is replaced (e.g. import), so the editor can drop stale Monaco models. */
   readonly resetToken = signal(0);
+  /** Set to request the editor open a file and jump to a line (e.g. from the inspector); consumed once by the editor panel. */
+  readonly goToRequest = signal<{ path: string; line: number } | null>(null);
+  /** Bumped to ask the editor panel to format the active document (e.g. from a toolbar button). */
+  readonly formatRequestToken = signal(0);
 
   readonly activeTab = computed(() => {
     const id = this.activeTabId();
@@ -156,5 +160,13 @@ export class EditorState {
 
   bumpResetToken(): void {
     this.resetToken.update((v) => v + 1);
+  }
+
+  requestGoToLine(path: string, line: number): void {
+    this.goToRequest.set({ path, line });
+  }
+
+  requestFormat(): void {
+    this.formatRequestToken.update((v) => v + 1);
   }
 }
