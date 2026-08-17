@@ -67,4 +67,8 @@ export class PersistenceService {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(PROJECT_KEY);
   }
+
+  clearProjectState(): void {
+    localStorage.removeItem(PROJECT_KEY);
+  }
 }

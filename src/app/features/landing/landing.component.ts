@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { APP_VERSION } from '../../core/models/version.token';
 import { PreferencesState } from '../../core/services/preferences.state';
+import { PersistenceService } from '../../core/services/persistence.service';
 
 @Component({
   selector: 'app-landing',
@@ -36,13 +37,23 @@ import { PreferencesState } from '../../core/services/preferences.state';
           </p>
 
           <div class="hero-actions">
-            <button class="btn btn-primary" (click)="goToIde()">
-              Empezar a crear
-              <span class="material-symbols-outlined">arrow_forward</span>
-            </button>
-            <button class="btn btn-secondary" (click)="goToDemo()">
-              Ver demo interactiva
-            </button>
+            @if (hasSavedSession) {
+              <button class="btn btn-primary" (click)="goToIde()">
+                Continuar sesi&oacute;n anterior
+                <span class="material-symbols-outlined">arrow_forward</span>
+              </button>
+              <button class="btn btn-secondary" (click)="startNewSession()">
+                Empezar sesi&oacute;n nueva
+              </button>
+            } @else {
+              <button class="btn btn-primary" (click)="goToIde()">
+                Empezar a crear
+                <span class="material-symbols-outlined">arrow_forward</span>
+              </button>
+              <button class="btn btn-secondary" (click)="goToDemo()">
+                Ver demo interactiva
+              </button>
+            }
           </div>
 
           <div class="hero-visual">
@@ -651,10 +662,15 @@ import { PreferencesState } from '../../core/services/preferences.state';
 export class LandingComponent {
   private router = inject(Router);
   private prefs = inject(PreferencesState);
+  private persistence = inject(PersistenceService);
   protected version = inject(APP_VERSION);
+
+  protected hasSavedSession = false;
 
   constructor() {
     document.documentElement.classList.toggle('light-mode', this.prefs.theme() === 'light');
+    const saved = this.persistence.loadProjectState();
+    this.hasSavedSession = !!saved && Object.keys(saved.files).length > 0;
   }
 
   get isDark(): boolean {
@@ -668,6 +684,11 @@ export class LandingComponent {
   }
 
   goToIde(): void {
+    this.router.navigate(['/ide']);
+  }
+
+  startNewSession(): void {
+    this.persistence.clearProjectState();
     this.router.navigate(['/ide']);
   }
 
