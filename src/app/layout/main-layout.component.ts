@@ -15,6 +15,8 @@ import { TerminalState } from '../core/state/terminal.state';
 import { DataState } from '../core/state/data.state';
 import { ProjectState } from '../core/state/project.state';
 import { PreferencesState } from '../core/services/preferences.state';
+import { PersistenceService, ProjectSessionState } from '../core/services/persistence.service';
+import { getFileType } from '../core/models/tab.model';
 
 @Component({
   selector: 'app-main-layout',
@@ -40,7 +42,7 @@ import { PreferencesState } from '../core/services/preferences.state';
           <app-preview-panel />
         </div>
         @if (terminalState.isVisible()) {
-          <div class="app-terminal">
+          <div class="app-terminal" [class.maximized]="terminalState.isMaximized()">
             <app-terminal-panel />
           </div>
         }
@@ -84,6 +86,11 @@ import { PreferencesState } from '../core/services/preferences.state';
       min-height: 100px;
       border-top: 1px solid var(--border-color);
       flex-shrink: 0;
+      transition: height 0.15s ease;
+    }
+
+    .app-terminal.maximized {
+      height: 70vh;
     }
   `],
 })
@@ -96,6 +103,10 @@ export class MainLayoutComponent implements OnInit {
   private dataState = inject(DataState);
   private projectState = inject(ProjectState);
   private preferences = inject(PreferencesState);
+  private persistence = inject(PersistenceService);
+
+  private restoringSession = false;
+  private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     const theme = this.preferences.theme();
@@ -103,6 +114,17 @@ export class MainLayoutComponent implements OnInit {
     effect(() => {
       const t = this.preferences.theme();
       document.documentElement.classList.toggle('light-mode', t === 'light');
+    });
+
+    effect(() => {
+      this.editorState.files();
+      this.editorState.openTabs();
+      this.editorState.activeTab();
+      this.projectState.projectName();
+      if (this.restoringSession) return;
+
+      if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
+      this.autosaveTimer = setTimeout(() => this.orchestrator.saveSession(), 1000);
     });
   }
 
@@ -113,14 +135,46 @@ export class MainLayoutComponent implements OnInit {
     const isDemo = this.route.snapshot.queryParamMap.get('demo') === 'true';
     if (isDemo) {
       this.loadDemoProject();
+      return;
+    }
+
+    const saved = this.persistence.loadProjectState();
+    if (saved && Object.keys(saved.files).length > 0) {
+      this.restoreSession(saved);
     } else {
       this.loadEmptyProject();
     }
   }
 
+  private restoreSession(saved: ProjectSessionState): void {
+    this.restoringSession = true;
+    this.editorState.openTabs.set([]);
+    this.editorState.activeTabId.set(null);
+    this.editorState.editorContent.set('');
+    this.editorState.files.set(new Map(Object.entries(saved.files)));
+
+    const pathsToOpen = saved.openTabPaths.length > 0 ? saved.openTabPaths : Object.keys(saved.files);
+    for (const path of pathsToOpen) {
+      const content = saved.files[path];
+      if (content === undefined) continue;
+      const name = path.split('/').pop() ?? path;
+      this.editorState.openFile(path, name, getFileType(name), content);
+    }
+    if (saved.activeTabPath) {
+      const tab = this.editorState.openTabs().find((t) => t.path === saved.activeTabPath);
+      if (tab) this.editorState.selectTab(tab.id);
+    }
+
+    this.projectState.setProject(saved.projectName, this.editorState.files());
+    this.orchestrator.markDataInitialized();
+    this.previewState.setDevice('Desktop', 1200, 800);
+    this.terminalState.addEntry('info', 'PugIDE', 'Restored your previous session.');
+    this.orchestrator.manualCompile();
+    this.restoringSession = false;
+  }
+
   @HostListener('window:keydown', ['$event'])
   onKeydown(event: KeyboardEvent): void {
-    console.log('[MainLayout] window:keydown', event.key, 'ctrl:', event.ctrlKey, 'meta:', event.metaKey);
     if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault();
       this.editorState.saveCurrentFile();
@@ -129,9 +183,6 @@ export class MainLayoutComponent implements OnInit {
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
       event.preventDefault();
       this.orchestrator.manualCompile();
-    }
-    if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
-      event.preventDefault();
     }
   }
 
@@ -153,7 +204,7 @@ html(lang="es")
 
     this.editorState.openFile('/main.pug', 'main.pug', 'pug', defaultPug);
     this.projectState.setProject('MiProyecto', this.editorState.files());
-    this.dataState.setData({ nombre: 'Mundo' });
+    this.dataState.setInitialData({ nombre: 'Mundo' });
     this.orchestrator.markDataInitialized();
     this.previewState.setDevice('Desktop', 1200, 800);
     this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');
@@ -184,7 +235,7 @@ html(lang="es")
       this.editorState.files.update((m) => { m.set(files[i].path, files[i].content); return m; });
     }
     this.projectState.setProject('PugProject', this.editorState.files());
-    this.dataState.setData(rawData as Record<string, unknown>);
+    this.dataState.setInitialData(rawData as Record<string, unknown>);
     this.orchestrator.markDataInitialized();
     this.previewState.setDevice('Desktop', 1200, 800);
     this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');

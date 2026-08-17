@@ -36,9 +36,8 @@ export class PugCompilerService {
   }
 
   async compile(
-    pugCode: string,
+    resolvedCode: string,
     data: Record<string, unknown> = {},
-    files?: Map<string, string>,
     activeFilePath?: string,
   ): Promise<CompileResult> {
     const start = performance.now();
@@ -56,11 +55,6 @@ export class PugCompilerService {
         });
       } else {
         const bundle = getPugBundle();
-
-        let resolvedCode = pugCode;
-        if (files) {
-          resolvedCode = this.resolveIncludes(pugCode, files, activeFilePath);
-        }
 
         const opts: Record<string, unknown> = {
           pretty: true,
@@ -94,27 +88,6 @@ export class PugCompilerService {
     };
   }
 
-  private resolveIncludes(code: string, files: Map<string, string>, activeFilePath?: string): string {
-    const lines = code.split('\n');
-    const result: string[] = [];
-    const baseDir = activeFilePath ? activeFilePath.substring(0, activeFilePath.lastIndexOf('/') + 1) : '/';
-
-    for (const line of lines) {
-      const incMatch = line.match(/^\s*(include|extends)\s+['"]?([^'"]+)/);
-      if (incMatch) {
-        const rawPath = incMatch[2].trim();
-        const path = rawPath.startsWith('/') ? rawPath : baseDir + rawPath;
-        const content = files.get(path) ?? files.get('/' + rawPath);
-        if (content !== undefined) {
-          result.push(content);
-          continue;
-        }
-      }
-      result.push(line);
-    }
-
-    return result.join('\n');
-  }
 }
 
 function loadScript(src: string): Promise<void> {

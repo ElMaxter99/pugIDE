@@ -8,6 +8,8 @@ export class ParserState {
   readonly mixins = signal<PugMixin[]>([]);
   readonly includes = signal<string[]>([]);
   readonly extendsPath = signal<string | undefined>(undefined);
+  readonly isParsing = signal(false);
+
   updateFromParseResult(result: ParseResult): void {
     this.variables.set(result.variables);
     this.mixins.set(result.mixins);
@@ -16,7 +18,8 @@ export class ParserState {
     this.dataTree.set(this.buildDataTree(result.variables));
   }
 
-  setParsing(_parsing: boolean): void {
+  setParsing(parsing: boolean): void {
+    this.isParsing.set(parsing);
   }
 
   private buildDataTree(variables: PugVariable[]): DataNode[] {

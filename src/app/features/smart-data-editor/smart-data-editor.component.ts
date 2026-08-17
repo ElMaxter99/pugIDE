@@ -37,6 +37,12 @@ interface TreeNode {
           <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Switch to visual tree (Ctrl+Shift+J)' : 'Switch to JSON editor (Ctrl+Shift+J)'">
             <span class="mode-label">{{ jsonRawMode() ? 'JSON' : 'Tree' }}</span>
           </button>
+          <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Undo">
+            <span class="material-symbols-outlined" style="font-size: 16px;">undo</span>
+          </button>
+          <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Redo">
+            <span class="material-symbols-outlined" style="font-size: 16px;">redo</span>
+          </button>
           <button class="icon-btn" (click)="copyJsonToClipboard()" title="Copy JSON to clipboard">
             <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
           </button>
@@ -239,6 +245,15 @@ interface TreeNode {
       background: var(--bg-surface-variant);
     }
 
+    .icon-btn:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+
+    .icon-btn:disabled:hover {
+      background: none;
+    }
+
     .tree-view {
       flex: 1;
       overflow-y: auto;
@@ -276,6 +291,7 @@ interface TreeNode {
       color: var(--text-tertiary);
       transition: transform 0.15s;
       flex-shrink: 0;
+      transform: rotate(-90deg);
     }
 
     .tree-arrow.rotated {
@@ -608,19 +624,19 @@ export class SmartDataEditorComponent {
     this.orchestrator.onDataChange();
   }
 
-  toggleBoolean(path: string, currentValue: unknown): void {
-    this.dataState.updateValue(path, !currentValue);
+  undo(): void {
+    this.dataState.undo();
     this.orchestrator.onDataChange();
   }
 
-  private getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-    const keys = path.split('.');
-    let current: any = obj;
-    for (const key of keys) {
-      if (current === null || current === undefined) return undefined;
-      current = current[key];
-    }
-    return current;
+  redo(): void {
+    this.dataState.redo();
+    this.orchestrator.onDataChange();
+  }
+
+  toggleBoolean(path: string, currentValue: unknown): void {
+    this.dataState.updateValue(path, !currentValue);
+    this.orchestrator.onDataChange();
   }
 
   private flattenTree(
@@ -734,16 +750,4 @@ export class SmartDataEditorComponent {
     return 'string';
   }
 
-  private setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
-    const keys = path.split('.');
-    let current: Record<string, unknown> = obj;
-    for (let i = 0; i < keys.length - 1; i++) {
-      const key = keys[i];
-      if (!(key in current) || typeof current[key] !== 'object' || current[key] === null) {
-        current[key] = {};
-      }
-      current = current[key] as Record<string, unknown>;
-    }
-    current[keys[keys.length - 1]] = value;
-  }
 }

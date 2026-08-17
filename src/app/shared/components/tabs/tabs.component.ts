@@ -6,10 +6,14 @@ import {
 } from '@angular/core';
 import { EditorState } from '../../../core/state/editor.state';
 import { Tab } from '../../../core/models/tab.model';
+import { getFileIcon } from '../../../core/utils/file-icon.util';
+import { ContextMenuComponent } from '../context-menu/context-menu.component';
+import { ContextMenuAction } from '../../../core/models/index';
 
 @Component({
   selector: 'app-tabs',
   standalone: true,
+  imports: [ContextMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tabs-bar">
@@ -20,11 +24,12 @@ import { Tab } from '../../../core/models/tab.model';
             [class.active]="tab.id === editorState.activeTabId()"
             (click)="selectTab(tab)"
             (mousedown)="onMouseDown($event, tab)"
+            (contextmenu)="onTabContextMenu($event, tab)"
             draggable="true"
             (dragstart)="onDragStart($event, $index)"
             (dragover)="onDragOver($event, $index)"
             (drop)="onDrop($event, $index)">
-            <span class="material-symbols-outlined tab-file-icon" style="font-size: 14px;">description</span>
+            <span class="material-symbols-outlined tab-file-icon" style="font-size: 14px;">{{ fileIcon(tab) }}</span>
             <span class="tab-name">{{ tab.name }}</span>
             @if (tab.isDirty) {
               <span class="dirty-dot"></span>
@@ -35,6 +40,12 @@ import { Tab } from '../../../core/models/tab.model';
           </div>
         }
       </div>
+      <app-context-menu
+        [items]="contextMenuItems()"
+        [isOpen]="contextMenuOpen()"
+        [positionX]="contextMenuX()"
+        [positionY]="contextMenuY()"
+        (actionSelected)="onContextAction($event)" />
     </div>
   `,
   styles: [`
@@ -135,8 +146,56 @@ export class TabsComponent {
   protected editorState = inject(EditorState);
   private dragIndex = signal<number>(-1);
 
+  protected contextMenuOpen = signal(false);
+  protected contextMenuX = signal(0);
+  protected contextMenuY = signal(0);
+  protected contextMenuItems = signal<ContextMenuAction[]>([]);
+  private contextMenuTabId: string | null = null;
+
+  onTabContextMenu(event: MouseEvent, tab: Tab): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuTabId = tab.id;
+    this.contextMenuItems.set([
+      { label: 'Close', icon: 'close', action: 'close' },
+      { label: 'Close Others', icon: 'close_fullscreen', action: 'closeOthers' },
+      { label: 'Close to the Right', icon: 'last_page', action: 'closeRight' },
+      { label: '', action: '', separator: true },
+      { label: 'Close All', icon: 'clear_all', action: 'closeAll' },
+    ]);
+    this.contextMenuX.set(event.clientX);
+    this.contextMenuY.set(event.clientY);
+    this.contextMenuOpen.set(true);
+  }
+
+  onContextAction(action: string): void {
+    this.contextMenuOpen.set(false);
+    const tabId = this.contextMenuTabId;
+    this.contextMenuTabId = null;
+    if (!tabId || !action) return;
+
+    switch (action) {
+      case 'close':
+        this.editorState.closeTab(tabId);
+        break;
+      case 'closeOthers':
+        this.editorState.closeOtherTabs(tabId);
+        break;
+      case 'closeRight':
+        this.editorState.closeTabsToTheRight(tabId);
+        break;
+      case 'closeAll':
+        this.editorState.closeAllTabs();
+        break;
+    }
+  }
+
   selectTab(tab: Tab): void {
-    this.editorState.activeTabId.set(tab.id);
+    this.editorState.selectTab(tab.id);
+  }
+
+  fileIcon(tab: Tab): string {
+    return getFileIcon(tab.type);
   }
 
   closeTab(event: Event, tabId: string): void {

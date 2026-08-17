@@ -49,6 +49,14 @@ export class EditorState {
     this.editorContent.set(content);
   }
 
+  selectTab(tabId: string): void {
+    this.activeTabId.set(tabId);
+    const tab = this.openTabs().find((t) => t.id === tabId);
+    if (tab) {
+      this.loadFileContent(tab.path);
+    }
+  }
+
   closeTab(tabId: string): void {
     const tabs = this.openTabs();
     const idx = tabs.findIndex((t) => t.id === tabId);
@@ -68,7 +76,6 @@ export class EditorState {
   }
 
   updateContent(content: string): void {
-    console.log('[EditorState] updateContent, length:', content.length);
     this.editorContent.set(content);
     const activeId = this.activeTabId();
     if (activeId) {
@@ -76,7 +83,6 @@ export class EditorState {
       if (active) {
         this.files.update((f) => { f.set(active.path, content); return f; });
         if (!active.isDirty) {
-          console.log('[EditorState] first dirty - updating openTabs');
           this.openTabs.update((tabs) =>
             tabs.map((t) => (t.id === activeId ? { ...t, isDirty: true } : t))
           );
@@ -105,5 +111,44 @@ export class EditorState {
       newTabs.splice(toIndex, 0, moved);
       return newTabs;
     });
+  }
+
+  closeTabByPath(path: string): void {
+    const tab = this.openTabs().find((t) => t.path === path);
+    if (tab) this.closeTab(tab.id);
+  }
+
+  closeOtherTabs(keepTabId: string): void {
+    const keep = this.openTabs().find((t) => t.id === keepTabId);
+    if (!keep) return;
+    this.openTabs.set([keep]);
+    this.activeTabId.set(keep.id);
+    this.loadFileContent(keep.path);
+  }
+
+  closeAllTabs(): void {
+    this.openTabs.set([]);
+    this.activeTabId.set(null);
+    this.editorContent.set('');
+  }
+
+  closeTabsToTheRight(fromTabId: string): void {
+    const tabs = this.openTabs();
+    const idx = tabs.findIndex((t) => t.id === fromTabId);
+    if (idx === -1) return;
+    const remaining = tabs.slice(0, idx + 1);
+    const activeStillOpen = remaining.some((t) => t.id === this.activeTabId());
+    this.openTabs.set(remaining);
+    if (!activeStillOpen) {
+      this.activeTabId.set(remaining[remaining.length - 1]?.id ?? null);
+      const active = remaining[remaining.length - 1];
+      this.editorContent.set(active ? this.files().get(active.path) ?? '' : '');
+    }
+  }
+
+  renameOpenTab(oldPath: string, newPath: string, newName: string): void {
+    this.openTabs.update((tabs) =>
+      tabs.map((t) => (t.path === oldPath ? { ...t, path: newPath, name: newName } : t))
+    );
   }
 }

@@ -11,11 +11,19 @@ import { EditorState } from '../../../core/state/editor.state';
 import { getFileType } from '../../../core/models/tab.model';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
+import { ContextMenuComponent } from '../context-menu/context-menu.component';
+import { ContextMenuAction } from '../../../core/models/index';
+import { getFileIcon } from '../../../core/utils/file-icon.util';
+
+type PendingAction =
+  | { type: 'newFile'; dir: string }
+  | { type: 'rename'; path: string }
+  | { type: 'delete'; path: string };
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, DialogComponent],
+  imports: [CommonModule, DialogComponent, ContextMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <aside class="sidebar">
@@ -24,6 +32,12 @@ import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
         [isOpen]="dialogOpen()"
         (confirmed)="onDialogConfirm($event)"
         (cancelled)="dialogOpen.set(false)" />
+      <app-context-menu
+        [items]="contextMenuItems()"
+        [isOpen]="contextMenuOpen()"
+        [positionX]="contextMenuX()"
+        [positionY]="contextMenuY()"
+        (actionSelected)="onContextAction($event)" />
       <div class="sidebar-inner">
         <div class="workspace-header">
           <div class="workspace-label-row">
@@ -41,18 +55,6 @@ import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
           </div>
         </div>
 
-        <nav class="panel-tabs">
-          @for (panel of panels; track panel.id) {
-            <div
-              class="panel-tab"
-              [class.active]="activePanel() === panel.id"
-              (click)="activePanel.set(panel.id)">
-              <span class="material-symbols-outlined">{{ panel.icon }}</span>
-              <span class="panel-tab-label">{{ panel.label }}</span>
-            </div>
-          }
-        </nav>
-
         <div class="file-tree">
           @for (node of projectState.fileTree(); track node.path) {
             <ng-container *ngTemplateOutlet="fileNode; context: { $implicit: node, level: 0 }"></ng-container>
@@ -66,7 +68,8 @@ import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
         <div
           class="file-row directory-row"
           [style.padding-left.px]="16 + level * 16"
-          (click)="onNodeClick(node)">
+          (click)="onNodeClick(node)"
+          (contextmenu)="onNodeContextMenu($event, node)">
           <span class="material-symbols-outlined expand-icon" [class.rotated]="isExpanded(node.path)">
             keyboard_arrow_down
           </span>
@@ -83,8 +86,9 @@ import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
           class="file-row file-item"
           [style.padding-left.px]="16 + level * 16"
           [class.active]="isActive(node.path)"
-          (click)="onNodeClick(node)">
-          <span class="material-symbols-outlined file-icon">description</span>
+          (click)="onNodeClick(node)"
+          (contextmenu)="onNodeContextMenu($event, node)">
+          <span class="material-symbols-outlined file-icon">{{ fileIcon(node) }}</span>
           <span class="file-name">{{ node.name }}</span>
         </div>
       }
@@ -182,44 +186,6 @@ import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
       color: var(--text-secondary);
     }
 
-    .panel-tabs {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .panel-tab {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 16px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .panel-tab:hover {
-      background: var(--bg-surface-variant);
-    }
-
-    .panel-tab.active {
-      background: var(--bg-surface-container-highest);
-      color: var(--accent-color);
-      border-left: 2px solid var(--accent-color);
-    }
-
-    .panel-tab .material-symbols-outlined {
-      font-size: 20px;
-    }
-
-    .panel-tab-label {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      line-height: 16px;
-      letter-spacing: 0.05em;
-      font-weight: 500;
-    }
-
     .file-tree {
       flex: 1;
       overflow-y: auto;
@@ -251,6 +217,7 @@ import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
       font-size: 16px;
       transition: transform 0.15s;
       flex-shrink: 0;
+      transform: rotate(-90deg);
     }
 
     .expand-icon.rotated {
@@ -313,8 +280,6 @@ export class SidebarComponent {
   protected editorState = inject(EditorState);
   private orchestrator = inject(OrchestratorService);
 
-  activePanel = signal<'files' | 'git'>('files');
-
   protected dialogOpen = signal(false);
   protected dialogConfig = signal<DialogConfig>({
     title: 'New File',
@@ -325,11 +290,17 @@ export class SidebarComponent {
     inputLabel: 'Filename',
     inputValue: '',
   });
+  private pendingAction: PendingAction | null = null;
 
-  panels = [
-    { id: 'files' as const, icon: 'folder', label: 'Explorer' },
-    { id: 'git' as const, icon: 'account_tree', label: 'Source Control' },
-  ];
+  protected contextMenuOpen = signal(false);
+  protected contextMenuX = signal(0);
+  protected contextMenuY = signal(0);
+  protected contextMenuItems = signal<ContextMenuAction[]>([]);
+  private contextMenuTarget: FileNode | null = null;
+
+  fileIcon(node: FileNode): string {
+    return getFileIcon(getFileType(node.name));
+  }
 
   onNodeClick(node: FileNode): void {
     if (node.type === 'directory') {
@@ -339,30 +310,119 @@ export class SidebarComponent {
     }
   }
 
-  showNewFileDialog(): void {
-    const activePath = this.editorState.activeTab()?.path ?? '/main.pug';
-    const dir = activePath.substring(0, activePath.lastIndexOf('/') + 1);
-    this.dialogConfig.update((c) => ({
-      ...c,
-      inputValue: dir + 'new-file.pug',
-    }));
+  showNewFileDialog(dir?: string): void {
+    const baseDir = dir ?? (() => {
+      const activePath = this.editorState.activeTab()?.path ?? '/main.pug';
+      return activePath.substring(0, activePath.lastIndexOf('/') + 1);
+    })();
+    this.pendingAction = { type: 'newFile', dir: baseDir };
+    this.dialogConfig.set({
+      title: 'New File',
+      message: 'Enter filename (e.g. components/card.pug)',
+      confirmText: 'Create',
+      cancelText: 'Cancel',
+      showInput: true,
+      inputLabel: 'Filename',
+      inputValue: baseDir + 'new-file.pug',
+    });
+    this.dialogOpen.set(true);
+  }
+
+  private showRenameDialog(path: string): void {
+    this.pendingAction = { type: 'rename', path };
+    this.dialogConfig.set({
+      title: 'Rename',
+      message: `Enter a new path for ${path}`,
+      confirmText: 'Rename',
+      cancelText: 'Cancel',
+      showInput: true,
+      inputLabel: 'New path',
+      inputValue: path,
+    });
+    this.dialogOpen.set(true);
+  }
+
+  private showDeleteDialog(path: string): void {
+    this.pendingAction = { type: 'delete', path };
+    this.dialogConfig.set({
+      title: 'Delete file',
+      message: `Are you sure you want to delete ${path}? This cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      showInput: false,
+      type: 'warning',
+    });
     this.dialogOpen.set(true);
   }
 
   onDialogConfirm(value: string): void {
     this.dialogOpen.set(false);
-    const name = value.trim();
-    if (!name) return;
+    const action = this.pendingAction;
+    this.pendingAction = null;
+    if (!action) return;
 
-    const path = name.startsWith('/') ? name : '/' + name;
-    const filename = path.split('/').pop() ?? name;
-
-    if (this.editorState.files().has(path)) {
-      this.editorState.openFile(path, filename, getFileType(filename), '');
-      return;
+    if (action.type === 'newFile') {
+      const name = value.trim();
+      if (!name) return;
+      const path = name.startsWith('/') ? name : '/' + name;
+      const filename = path.split('/').pop() ?? name;
+      if (this.editorState.files().has(path)) {
+        this.editorState.openFile(path, filename, getFileType(filename), '');
+        return;
+      }
+      this.orchestrator.addFile(path, filename);
+    } else if (action.type === 'rename') {
+      const name = value.trim();
+      if (!name) return;
+      const newPath = name.startsWith('/') ? name : '/' + name;
+      this.orchestrator.renameFile(action.path, newPath);
+    } else if (action.type === 'delete') {
+      this.orchestrator.deleteFile(action.path);
     }
+  }
 
-    this.orchestrator.addFile(path, filename);
+  onNodeContextMenu(event: MouseEvent, node: FileNode): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.contextMenuTarget = node;
+
+    const items: ContextMenuAction[] = [];
+    if (node.type === 'directory') {
+      items.push({ label: 'New File', icon: 'note_add', action: 'newFile' });
+    } else {
+      items.push(
+        { label: 'Rename', icon: 'edit', action: 'rename' },
+        { label: 'Duplicate', icon: 'content_copy', action: 'duplicate' },
+        { label: '', action: '', separator: true },
+        { label: 'Delete', icon: 'delete', action: 'delete' },
+      );
+    }
+    this.contextMenuItems.set(items);
+    this.contextMenuX.set(event.clientX);
+    this.contextMenuY.set(event.clientY);
+    this.contextMenuOpen.set(true);
+  }
+
+  onContextAction(action: string): void {
+    this.contextMenuOpen.set(false);
+    const node = this.contextMenuTarget;
+    this.contextMenuTarget = null;
+    if (!node || !action) return;
+
+    switch (action) {
+      case 'newFile':
+        this.showNewFileDialog(node.path + '/');
+        break;
+      case 'rename':
+        this.showRenameDialog(node.path);
+        break;
+      case 'duplicate':
+        this.orchestrator.duplicateFile(node.path);
+        break;
+      case 'delete':
+        this.showDeleteDialog(node.path);
+        break;
+    }
   }
 
   private openFile(node: FileNode): void {
