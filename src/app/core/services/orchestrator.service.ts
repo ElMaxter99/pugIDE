@@ -11,6 +11,7 @@ import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
+import { resolvePugIncludes } from '../utils/pug-includes.util';
 
 @Injectable({ providedIn: 'root' })
 export class OrchestratorService {
@@ -38,6 +39,7 @@ export class OrchestratorService {
 
   private setupAutoCompile(): void {
     this.codeChange$.pipe(debounceTime(300)).subscribe(async (code) => {
+      if (!this.preferences.autoCompile()) return;
       await this.processCode(code);
     });
   }
@@ -67,14 +69,13 @@ export class OrchestratorService {
     try {
       const files = this.editorState.allFileContents();
       const activePath = this.editorState.activeTab()?.path;
-      const files2 = files;
 
       const rawParseResult = await this.parser.parse(code);
       if (rawParseResult.includes.length > 0) {
         this.ensureIncludeFiles(rawParseResult.includes);
       }
 
-      const resolvedCode = this.resolvePugIncludes(code, files, activePath);
+      const resolvedCode = resolvePugIncludes(code, files, activePath);
       const parseResult = await this.parser.parse(resolvedCode);
       this.parserState.updateFromParseResult(parseResult);
 
@@ -95,7 +96,7 @@ export class OrchestratorService {
       }
 
       const data = this.dataState.data();
-      const compileResult = await this.compiler.compile(code, data, files, activePath);
+      const compileResult = await this.compiler.compile(resolvedCode, data, activePath);
       this.previewState.updateCompiledResult(compileResult);
 
       for (const error of compileResult.errors) {
@@ -163,28 +164,6 @@ export class OrchestratorService {
         this.editorState.files()
       );
     }
-  }
-
-  private resolvePugIncludes(code: string, files: Map<string, string>, activeFilePath?: string): string {
-    const lines = code.split('\n');
-    const result: string[] = [];
-    const baseDir = activeFilePath ? activeFilePath.substring(0, activeFilePath.lastIndexOf('/') + 1) : '/';
-
-    for (const line of lines) {
-      const incMatch = line.match(/^\s*(include|extends)\s+['"]?([^'"]+)/);
-      if (incMatch) {
-        const rawPath = incMatch[2].trim();
-        const path = rawPath.startsWith('/') ? rawPath : baseDir + rawPath;
-        const content = files.get(path) ?? files.get('/' + rawPath);
-        if (content !== undefined) {
-          result.push(content);
-          continue;
-        }
-      }
-      result.push(line);
-    }
-
-    return result.join('\n');
   }
 
   private buildDataFromVariables(variables: PugVariable[]): Record<string, unknown> {

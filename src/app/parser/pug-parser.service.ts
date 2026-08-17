@@ -8,6 +8,7 @@ import {
   ParseError,
   DataType,
 } from '../core/models/index';
+import { resolvePugIncludes } from '../core/utils/pug-includes.util';
 
 interface FileReference {
   type: string;
@@ -79,25 +80,11 @@ export class PugParserService {
     const allVars: PugVariable[] = [];
     const seenPaths = new Set<string>();
 
-    function resolveIncludesInCode(code: string, baseDir: string): string {
-      return code.split('\n').map(line => {
-        const m = line.match(/^\s*(include|extends)\s+['"]?([^'"]+)/);
-        if (m) {
-          const rawPath = m[2].trim();
-          const path = rawPath.startsWith('/') ? rawPath : baseDir + rawPath;
-          const content = files.get(path) ?? files.get('/' + rawPath);
-          if (content !== undefined) return content;
-        }
-        return line;
-      }).join('\n');
-    }
-
     const entries = Array.from(files.entries());
     for (const [filePath, code] of entries) {
       if (!code.trim()) continue;
       if (!filePath.endsWith('.pug')) continue;
-      const baseDir = filePath.substring(0, filePath.lastIndexOf('/') + 1);
-      const resolvedCode = baseDir && baseDir !== '/' ? resolveIncludesInCode(code, baseDir) : code;
+      const resolvedCode = resolvePugIncludes(code, files, filePath);
       try {
         if (this.lexerFn && this.parserFn) {
           const tokens = this.lexerFn(resolvedCode, { filename: filePath }) as unknown[];
@@ -259,6 +246,10 @@ export class PugParserService {
           this.extractFromCode(node, collected, localVars, eachVarMap);
           break;
 
+        case 'Text':
+          this.extractFromText(node, collected, localVars, eachVarMap);
+          break;
+
         case 'Conditional':
           this.extractFromConditional(node, collected, localVars, eachVarMap);
           break;
@@ -325,6 +316,43 @@ export class PugParserService {
         localVars.add(varDeclMatch[1]);
       }
     }
+  }
+
+  private extractFromText(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
+    if (typeof node.val !== 'string') return;
+
+    const expressions = this.extractInterpolationExpressions(node.val);
+    for (const expr of expressions) {
+      const identifiers = this.extractIdentifiers(expr);
+      for (const id of identifiers) {
+        const remapped = this.remapIdentifier(id, localVars, eachVarMap);
+        if (remapped) this.addVariable(collected, remapped);
+      }
+    }
+  }
+
+  private extractInterpolationExpressions(text: string): string[] {
+    const expressions: string[] = [];
+    let i = 0;
+
+    while (i < text.length) {
+      if ((text[i] === '#' || text[i] === '!') && text[i + 1] === '{') {
+        let depth = 1;
+        let j = i + 2;
+        const start = j;
+        while (j < text.length && depth > 0) {
+          if (text[j] === '{') depth++;
+          else if (text[j] === '}') depth--;
+          if (depth > 0) j++;
+        }
+        expressions.push(text.slice(start, j));
+        i = j + 1;
+      } else {
+        i++;
+      }
+    }
+
+    return expressions;
   }
 
   private extractFromConditional(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {

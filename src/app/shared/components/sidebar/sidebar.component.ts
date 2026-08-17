@@ -41,18 +41,6 @@ import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
           </div>
         </div>
 
-        <nav class="panel-tabs">
-          @for (panel of panels; track panel.id) {
-            <div
-              class="panel-tab"
-              [class.active]="activePanel() === panel.id"
-              (click)="activePanel.set(panel.id)">
-              <span class="material-symbols-outlined">{{ panel.icon }}</span>
-              <span class="panel-tab-label">{{ panel.label }}</span>
-            </div>
-          }
-        </nav>
-
         <div class="file-tree">
           @for (node of projectState.fileTree(); track node.path) {
             <ng-container *ngTemplateOutlet="fileNode; context: { $implicit: node, level: 0 }"></ng-container>
@@ -182,44 +170,6 @@ import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
       color: var(--text-secondary);
     }
 
-    .panel-tabs {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .panel-tab {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 16px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .panel-tab:hover {
-      background: var(--bg-surface-variant);
-    }
-
-    .panel-tab.active {
-      background: var(--bg-surface-container-highest);
-      color: var(--accent-color);
-      border-left: 2px solid var(--accent-color);
-    }
-
-    .panel-tab .material-symbols-outlined {
-      font-size: 20px;
-    }
-
-    .panel-tab-label {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      line-height: 16px;
-      letter-spacing: 0.05em;
-      font-weight: 500;
-    }
-
     .file-tree {
       flex: 1;
       overflow-y: auto;
@@ -313,8 +263,6 @@ export class SidebarComponent {
   protected editorState = inject(EditorState);
   private orchestrator = inject(OrchestratorService);
 
-  activePanel = signal<'files' | 'git'>('files');
-
   protected dialogOpen = signal(false);
   protected dialogConfig = signal<DialogConfig>({
     title: 'New File',
@@ -325,11 +273,6 @@ export class SidebarComponent {
     inputLabel: 'Filename',
     inputValue: '',
   });
-
-  panels = [
-    { id: 'files' as const, icon: 'folder', label: 'Explorer' },
-    { id: 'git' as const, icon: 'account_tree', label: 'Source Control' },
-  ];
 
   onNodeClick(node: FileNode): void {
     if (node.type === 'directory') {
