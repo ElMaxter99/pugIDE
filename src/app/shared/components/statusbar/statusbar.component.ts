@@ -3,6 +3,7 @@ import { DecimalPipe } from '@angular/common';
 import { EditorState } from '../../../core/state/editor.state';
 import { TerminalState } from '../../../core/state/terminal.state';
 import { PreviewState } from '../../../core/state/preview.state';
+import { ParserState } from '../../../core/state/parser.state';
 
 @Component({
   selector: 'app-statusbar',
@@ -20,7 +21,12 @@ import { PreviewState } from '../../../core/state/preview.state';
           <span class="material-symbols-outlined warning-icon">warning</span>
           <span>{{ terminalState.warningCount() }} warnings</span>
         </div>
-        @if (previewState.compilationTime() > 0) {
+        @if (parserState.isParsing()) {
+          <div class="status-group">
+            <span class="material-symbols-outlined info-icon">sync</span>
+            <span>Parsing&hellip;</span>
+          </div>
+        } @else if (previewState.compilationTime() > 0) {
           <div class="status-group">
             <span class="material-symbols-outlined info-icon">info</span>
             <span>Compiled in {{ previewState.compilationTime() | number:'1.0-0' }}ms</span>
@@ -31,8 +37,8 @@ import { PreviewState } from '../../../core/state/preview.state';
         <span class="status-item dim">UTF-8</span>
         <span class="status-item dim">{{ getLanguage() }}</span>
         <div class="status-item live">
-          <span class="material-symbols-outlined" style="font-size: 14px;">cloud_done</span>
-          <span>Live Sync</span>
+          <span class="material-symbols-outlined" style="font-size: 14px;">save</span>
+          <span>Guardado local</span>
         </div>
       </div>
     </footer>
@@ -111,6 +117,7 @@ export class StatusbarComponent {
   protected editorState = inject(EditorState);
   protected terminalState = inject(TerminalState);
   protected previewState = inject(PreviewState);
+  protected parserState = inject(ParserState);
 
   getLanguage(): string {
     const tab = this.editorState.activeTab();

@@ -4,6 +4,8 @@ import {
   inject,
   ViewChild,
   ElementRef,
+  effect,
+  HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TerminalState } from '../../core/state/terminal.state';
@@ -49,7 +51,7 @@ import { TerminalState } from '../../core/state/terminal.state';
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
             </svg>
           </button>
-          <button class="terminal-action" title="Maximize" (click)="terminalState.toggle()">
+          <button class="terminal-action" [class.active]="terminalState.isMaximized()" title="Maximize" (click)="terminalState.toggleMaximized()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="15 3 21 3 21 9"/>
               <polyline points="9 21 3 21 3 15"/>
@@ -175,6 +177,11 @@ import { TerminalState } from '../../core/state/terminal.state';
       color: var(--text-primary);
     }
 
+    .terminal-action.active {
+      color: var(--accent-color);
+      background: var(--bg-active);
+    }
+
     .terminal-output {
       flex: 1;
       overflow-y: auto;
@@ -234,6 +241,21 @@ export class TerminalPanelComponent {
   @ViewChild('outputEl') outputEl!: ElementRef<HTMLDivElement>;
 
   protected terminalState = inject(TerminalState);
+
+  constructor() {
+    effect(() => {
+      this.terminalState.entries();
+      queueMicrotask(() => this.scrollToBottom());
+    });
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  onKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      this.terminalState.clear();
+    }
+  }
 
   formatTime(timestamp: number): string {
     const date = new Date(timestamp);

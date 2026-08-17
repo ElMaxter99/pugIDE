@@ -2,6 +2,9 @@ import { Injectable, inject } from '@angular/core';
 import { debounceTime, Subject } from 'rxjs';
 import { PugParserService } from '../../parser/pug-parser.service';
 import { PugCompilerService } from '../../compiler/pug-compiler.service';
+import { ScssCompilerService } from '../../compiler/scss-compiler.service';
+import { injectIntoHead, injectIntoBody } from '../utils/html-injection.util';
+import { annotateHtmlLines, INSPECTOR_SCRIPT } from '../utils/inspector-script.util';
 import { EditorState } from '../state/editor.state';
 import { ParserState } from '../state/parser.state';
 import { PreviewState } from '../state/preview.state';
@@ -9,6 +12,7 @@ import { DataState } from '../state/data.state';
 import { TerminalState } from '../state/terminal.state';
 import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
+import { PersistenceService } from './persistence.service';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
 import { resolvePugIncludes } from '../utils/pug-includes.util';
@@ -17,6 +21,7 @@ import { resolvePugIncludes } from '../utils/pug-includes.util';
 export class OrchestratorService {
   private parser = inject(PugParserService);
   private compiler = inject(PugCompilerService);
+  private scssCompiler = inject(ScssCompilerService);
   private editorState = inject(EditorState);
   private parserState = inject(ParserState);
   private previewState = inject(PreviewState);
@@ -24,6 +29,7 @@ export class OrchestratorService {
   private terminalState = inject(TerminalState);
   private preferences = inject(PreferencesState);
   private projectState = inject(ProjectState);
+  private persistence = inject(PersistenceService);
 
   private codeChange$ = new Subject<string>();
   private isProcessing = false;
@@ -78,11 +84,12 @@ export class OrchestratorService {
       const resolvedCode = resolvePugIncludes(code, files, activePath);
       const parseResult = await this.parser.parse(resolvedCode);
       this.parserState.updateFromParseResult(parseResult);
+      this.parserState.setParsing(false);
 
       if (!this.initialDataLoaded && Object.keys(this.dataState.data()).length === 0) {
         const data = this.buildDataFromVariables(parseResult.variables);
         if (Object.keys(data).length > 0) {
-          this.dataState.setData(data);
+          this.dataState.setInitialData(data);
           this.initialDataLoaded = true;
         }
       }
@@ -97,6 +104,17 @@ export class OrchestratorService {
 
       const data = this.dataState.data();
       const compileResult = await this.compiler.compile(resolvedCode, data, activePath);
+
+      const scssResult = this.scssCompiler.compileAll(files);
+      compileResult.css = scssResult.css;
+      if (scssResult.css) {
+        compileResult.html = injectIntoHead(compileResult.html, `<style>\n${scssResult.css}\n</style>`);
+      }
+      if (compileResult.html) {
+        compileResult.html = annotateHtmlLines(compileResult.html);
+        compileResult.html = injectIntoBody(compileResult.html, `<script>${INSPECTOR_SCRIPT}</script>`);
+      }
+
       this.previewState.updateCompiledResult(compileResult);
 
       for (const error of compileResult.errors) {
@@ -105,6 +123,10 @@ export class OrchestratorService {
           error.source,
           `Line ${error.line ?? '?'} - ${error.message}`
         );
+      }
+
+      for (const scssError of scssResult.errors) {
+        this.terminalState.addEntry('error', 'scss', `${scssError.path} - ${scssError.message}`);
       }
 
       if (parseResult.errors.length === 0 && compileResult.errors.length === 0) {
@@ -120,7 +142,19 @@ export class OrchestratorService {
     } finally {
       this.isProcessing = false;
       this.previewState.setLoading(false);
+      this.parserState.setParsing(false);
     }
+  }
+
+  saveSession(): void {
+    const files = this.editorState.files();
+    if (files.size === 0) return;
+    this.persistence.saveProjectState({
+      projectName: this.projectState.projectName(),
+      files: Object.fromEntries(files),
+      openTabPaths: this.editorState.openTabs().map((t) => t.path),
+      activeTabPath: this.editorState.activeTab()?.path ?? null,
+    });
   }
 
   onDataChange(): void {
@@ -131,7 +165,6 @@ export class OrchestratorService {
   async clearDataWithKeys(): Promise<Record<string, unknown>> {
     const files = this.editorState.allFileContents();
     const variables = await this.parser.parseAllFiles(files);
-    console.log('[clearDataWithKeys] all variables:', variables.map(v => `${v.path} (${v.type})`).join(', '));
     if (variables.length === 0) return {};
     return this.buildDataFromVariables(variables);
   }
@@ -144,6 +177,58 @@ export class OrchestratorService {
       this.editorState.files()
     );
     this.editorState.openFile(path, name, getFileType(name), content);
+  }
+
+  renameFile(oldPath: string, newPath: string): void {
+    const files = this.editorState.files();
+    const content = files.get(oldPath);
+    if (content === undefined || oldPath === newPath || files.has(newPath)) return;
+
+    this.editorState.files.update((f) => {
+      f.delete(oldPath);
+      f.set(newPath, content);
+      return f;
+    });
+    const name = newPath.split('/').pop() ?? newPath;
+    this.editorState.renameOpenTab(oldPath, newPath, name);
+    this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+    this.terminalState.addEntry('info', 'Files', `Renamed ${oldPath} to ${newPath}`);
+  }
+
+  deleteFile(path: string): void {
+    const files = this.editorState.files();
+    if (!files.has(path)) return;
+    this.editorState.files.update((f) => { f.delete(path); return f; });
+    this.editorState.closeTabByPath(path);
+    this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+    this.terminalState.addEntry('info', 'Files', `Deleted ${path}`);
+  }
+
+  duplicateFile(path: string): void {
+    const files = this.editorState.files();
+    const content = files.get(path);
+    if (content === undefined) return;
+
+    const newPath = this.generateDuplicatePath(path, files);
+    this.editorState.files.update((f) => { f.set(newPath, content); return f; });
+    this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+    const name = newPath.split('/').pop() ?? newPath;
+    this.editorState.openFile(newPath, name, getFileType(name), content);
+    this.terminalState.addEntry('info', 'Files', `Duplicated ${path} as ${newPath}`);
+  }
+
+  private generateDuplicatePath(path: string, files: Map<string, string>): string {
+    const lastDot = path.lastIndexOf('.');
+    const lastSlash = path.lastIndexOf('/');
+    const base = lastDot > lastSlash ? path.slice(0, lastDot) : path;
+    const ext = lastDot > lastSlash ? path.slice(lastDot) : '';
+    let candidate = `${base}-copy${ext}`;
+    let i = 2;
+    while (files.has(candidate)) {
+      candidate = `${base}-copy-${i}${ext}`;
+      i++;
+    }
+    return candidate;
   }
 
   private ensureIncludeFiles(includes: string[]): void {

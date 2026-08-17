@@ -223,7 +223,7 @@ export class PugParserService {
         }
       }
       if (node.type === 'Mixin') {
-        const isCall = (node as PugAstNode & { call?: boolean }).call === true;
+        const isCall = node.call === true;
         if (!isCall && node.name) {
           const argsStr = typeof node.args === 'string' ? node.args : '';
           const args = argsStr.trim()
@@ -254,12 +254,16 @@ export class PugParserService {
           this.extractFromConditional(node, collected, localVars, eachVarMap);
           break;
 
+        case 'Case':
+          this.extractFromCase(node, collected, localVars, eachVarMap);
+          break;
+
         case 'Each':
           this.extractFromEach(node, collected, localVars);
           break;
 
         case 'Mixin': {
-          const isCall = (node as PugAstNode & { call?: boolean }).call === true;
+          const isCall = node.call === true;
           if (isCall) {
             this.extractFromMixinCallArgs(node, collected, localVars, eachVarMap, mixinDefs);
           } else {
@@ -353,6 +357,15 @@ export class PugParserService {
     }
 
     return expressions;
+  }
+
+  private extractFromCase(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
+    if (typeof node.expr !== 'string') return;
+    const identifiers = this.extractIdentifiers(node.expr);
+    for (const id of identifiers) {
+      const remapped = this.remapIdentifier(id, localVars, eachVarMap);
+      if (remapped) this.addVariable(collected, remapped);
+    }
   }
 
   private extractFromConditional(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {

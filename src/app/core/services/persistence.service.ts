@@ -4,6 +4,13 @@ import { AppPreferences } from '../models/index';
 const STORAGE_KEY = 'pug-ide-preferences';
 const PROJECT_KEY = 'pug-ide-project';
 
+export interface ProjectSessionState {
+  projectName: string;
+  files: Record<string, string>;
+  openTabPaths: string[];
+  activeTabPath: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PersistenceService {
   private defaults: AppPreferences = {
@@ -33,15 +40,15 @@ export class PersistenceService {
     } catch { /* ignore */ }
   }
 
-  loadProjectState(): { openFiles: string[]; activeFile: string | null } {
+  loadProjectState(): ProjectSessionState | null {
     try {
       const raw = localStorage.getItem(PROJECT_KEY);
       if (raw) return JSON.parse(raw);
     } catch { /* ignore */ }
-    return { openFiles: [], activeFile: null };
+    return null;
   }
 
-  saveProjectState(state: { openFiles: string[]; activeFile: string | null }): void {
+  saveProjectState(state: ProjectSessionState): void {
     try {
       localStorage.setItem(PROJECT_KEY, JSON.stringify(state));
     } catch { /* ignore */ }

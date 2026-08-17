@@ -5,13 +5,17 @@ import {
   effect,
   ViewChild,
   ElementRef,
+  OnDestroy,
 } from '@angular/core';
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
+import { InspectorState } from '../../core/state/inspector.state';
+import { InspectorPanelComponent } from '../inspector/inspector-panel.component';
 
 @Component({
   selector: 'app-preview-panel',
   standalone: true,
+  imports: [InspectorPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="preview-section">
@@ -37,6 +41,9 @@ import { OrchestratorService } from '../../core/services/orchestrator.service';
           </div>
         </div>
         <div class="preview-header-right">
+          <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspect Element" (click)="inspectorState.toggleInspector()">
+            <span class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
+          </button>
           <button class="preview-action" title="Refresh" (click)="onReload()">
             <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
           </button>
@@ -46,19 +53,27 @@ import { OrchestratorService } from '../../core/services/orchestrator.service';
         </div>
       </div>
       <div class="preview-viewport">
-        <div class="checkerboard"></div>
-        @if (previewState.isLoading()) {
-          <div class="loading-overlay">
-            <div class="spinner"></div>
+        <div class="preview-canvas">
+          <div class="checkerboard"></div>
+          @if (previewState.isLoading()) {
+            <div class="loading-overlay">
+              <div class="spinner"></div>
+            </div>
+          }
+          <iframe
+            #previewFrame
+            class="preview-iframe"
+            sandbox="allow-scripts allow-same-origin"
+            [style.width.px]="previewState.deviceWidth()"
+            [style.height.px]="previewState.deviceHeight()"
+            (load)="onIframeLoad()">
+          </iframe>
+        </div>
+        @if (inspectorState.isActive()) {
+          <div class="inspector-dock">
+            <app-inspector-panel />
           </div>
         }
-        <iframe
-          #previewFrame
-          class="preview-iframe"
-          sandbox="allow-scripts allow-same-origin"
-          [style.width.px]="previewState.deviceWidth()"
-          [style.height.px]="previewState.deviceHeight()">
-        </iframe>
       </div>
     </section>
   `,
@@ -168,15 +183,35 @@ import { OrchestratorService } from '../../core/services/orchestrator.service';
       color: var(--text-primary);
     }
 
+    .preview-action.active {
+      color: var(--accent-color);
+      background: var(--accent-container);
+    }
+
     .preview-viewport {
       flex: 1;
+      min-height: 0;
+      display: flex;
+      background: var(--bg-surface-dim);
+    }
+
+    .inspector-dock {
+      width: 240px;
+      flex-shrink: 0;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-color);
+      box-shadow: -8px 0 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .preview-canvas {
+      flex: 1;
+      min-width: 0;
       overflow: auto;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 32px;
       position: relative;
-      background: var(--bg-surface-dim);
     }
 
     .checkerboard {
@@ -228,12 +263,23 @@ import { OrchestratorService } from '../../core/services/orchestrator.service';
     }
   `],
 })
-export class PreviewPanelComponent {
+export class PreviewPanelComponent implements OnDestroy {
   @ViewChild('previewFrame') previewFrame!: ElementRef<HTMLIFrameElement>;
 
   previewState = inject(PreviewState);
+  protected inspectorState = inject(InspectorState);
   private orchestrator = inject(OrchestratorService);
   private lastBlobUrl: string | null = null;
+  private messageListener = (e: MessageEvent): void => {
+    if (e.data?.source === 'pugide-inspector') {
+      this.inspectorState.selectElement({
+        tagName: e.data.tagName,
+        attrs: e.data.attrs ?? {},
+        htmlLine: e.data.htmlLine,
+        children: [],
+      });
+    }
+  };
 
   constructor() {
     effect(() => {
@@ -242,6 +288,27 @@ export class PreviewPanelComponent {
         this.updatePreview(html);
       }
     });
+
+    effect(() => {
+      const active = this.inspectorState.isActive();
+      this.previewFrame?.nativeElement.contentWindow?.postMessage(
+        { source: 'pugide-inspector-toggle', active },
+        '*'
+      );
+    });
+
+    window.addEventListener('message', this.messageListener);
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('message', this.messageListener);
+  }
+
+  onIframeLoad(): void {
+    this.previewFrame?.nativeElement.contentWindow?.postMessage(
+      { source: 'pugide-inspector-toggle', active: this.inspectorState.isActive() },
+      '*'
+    );
   }
 
   setDevice(name: string, width: number, height: number): void {

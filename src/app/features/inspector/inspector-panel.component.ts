@@ -44,16 +44,20 @@ import { InspectorState } from '../../core/state/inspector.state';
               <span class="tag-name">{{ inspectorState.selectedElement()!.tagName }}</span>
             </div>
             <div class="properties">
-              <div class="prop-row">
-                <span class="prop-label">Pug Line</span>
-                <span class="prop-value">
-                  {{ inspectorState.selectedElement()!.pugLine }}
-                </span>
-              </div>
-              <div class="prop-row">
-                <span class="prop-label">HTML Line</span>
-                <span class="prop-value">{{ inspectorState.selectedElement()!.htmlLine }}</span>
-              </div>
+              @if (inspectorState.selectedElement()!.pugLine !== undefined) {
+                <div class="prop-row">
+                  <span class="prop-label">Pug Line</span>
+                  <span class="prop-value">
+                    {{ inspectorState.selectedElement()!.pugLine }}
+                  </span>
+                </div>
+              }
+              @if (inspectorState.selectedElement()!.htmlLine !== undefined) {
+                <div class="prop-row">
+                  <span class="prop-label">HTML Line</span>
+                  <span class="prop-value">{{ inspectorState.selectedElement()!.htmlLine }}</span>
+                </div>
+              }
               @for (entry of getAttributeEntries(); track entry[0]) {
                 <div class="prop-row">
                   <span class="prop-label">{{ entry[0] }}</span>
