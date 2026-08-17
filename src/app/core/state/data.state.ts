@@ -21,6 +21,11 @@ export class DataState {
     this.redoStack.set([]);
   }
 
+  /** Like setInitialData, but preserves undo/redo history — for silently auto-healing missing paths mid-session. */
+  patchMissingData(data: Record<string, unknown>): void {
+    this.data.set(structuredClone(data));
+  }
+
   updateValue(path: string, value: unknown): void {
     this.pushUndo();
     const current = structuredClone(this.data());

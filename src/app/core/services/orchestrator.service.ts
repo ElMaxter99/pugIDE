@@ -94,6 +94,17 @@ export class OrchestratorService {
         }
       }
 
+      const skeleton = this.buildDataFromVariables(parseResult.variables);
+      const patchedData = structuredClone(this.dataState.data());
+      if (this.deepMergeMissing(patchedData, skeleton)) {
+        this.dataState.patchMissingData(patchedData);
+        this.terminalState.addEntry(
+          'info',
+          'Data',
+          'Se han creado propiedades vacías por defecto para nuevas referencias del template. Revisa el editor de datos para rellenarlas.'
+        );
+      }
+
       for (const error of parseResult.errors) {
         this.terminalState.addEntry(
           error.severity,
@@ -330,6 +341,29 @@ export class OrchestratorService {
       current = current[key];
     }
     return current;
+  }
+
+  /** Merges `source` into `target`, filling in only keys missing from `target` (recursing into plain objects). Never touches arrays or primitives already present. Returns whether anything changed. */
+  private deepMergeMissing(target: Record<string, unknown>, source: Record<string, unknown>): boolean {
+    let changed = false;
+    for (const key of Object.keys(source)) {
+      const sourceValue = source[key];
+      if (!(key in target)) {
+        target[key] = sourceValue;
+        changed = true;
+        continue;
+      }
+      const targetValue = target[key];
+      const bothPlainObjects =
+        sourceValue !== null && typeof sourceValue === 'object' && !Array.isArray(sourceValue) &&
+        targetValue !== null && typeof targetValue === 'object' && !Array.isArray(targetValue);
+      if (bothPlainObjects) {
+        if (this.deepMergeMissing(targetValue as Record<string, unknown>, sourceValue as Record<string, unknown>)) {
+          changed = true;
+        }
+      }
+    }
+    return changed;
   }
 
   private setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
