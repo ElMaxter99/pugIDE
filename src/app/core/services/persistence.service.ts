@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { AppPreferences } from '../models/index';
 
 const STORAGE_KEY = 'pug-ide-preferences';
@@ -13,6 +13,9 @@ export interface ProjectSessionState {
 
 @Injectable({ providedIn: 'root' })
 export class PersistenceService {
+  /** True when the last write to localStorage failed (quota exceeded, private browsing, disabled storage, ...). */
+  readonly lastWriteFailed = signal(false);
+
   private defaults: AppPreferences = {
     theme: 'dark',
     fontSize: 14,
@@ -37,7 +40,10 @@ export class PersistenceService {
     try {
       const current = this.loadPreferences();
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...prefs }));
-    } catch { /* ignore */ }
+      this.lastWriteFailed.set(false);
+    } catch {
+      this.lastWriteFailed.set(true);
+    }
   }
 
   loadProjectState(): ProjectSessionState | null {
@@ -51,7 +57,10 @@ export class PersistenceService {
   saveProjectState(state: ProjectSessionState): void {
     try {
       localStorage.setItem(PROJECT_KEY, JSON.stringify(state));
-    } catch { /* ignore */ }
+      this.lastWriteFailed.set(false);
+    } catch {
+      this.lastWriteFailed.set(true);
+    }
   }
 
   clearAll(): void {

@@ -3,6 +3,8 @@ import {
   ChangeDetectionStrategy,
   inject,
   signal,
+  ViewChild,
+  ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FileNode } from '../../../core/models/file-node.model';
@@ -10,6 +12,7 @@ import { ProjectState } from '../../../core/state/project.state';
 import { EditorState } from '../../../core/state/editor.state';
 import { getFileType } from '../../../core/models/tab.model';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
+import { ProjectIoService } from '../../../core/services/project-io.service';
 import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
 import { ContextMenuAction } from '../../../core/models/index';
@@ -19,7 +22,8 @@ import { APP_VERSION } from '../../../core/models/version.token';
 type PendingAction =
   | { type: 'newFile'; dir: string }
   | { type: 'rename'; path: string }
-  | { type: 'delete'; path: string };
+  | { type: 'delete'; path: string }
+  | { type: 'importProject' };
 
 @Component({
   selector: 'app-sidebar',
@@ -43,10 +47,24 @@ type PendingAction =
         <div class="workspace-header">
           <div class="workspace-label-row">
             <span class="workspace-label">Workspace</span>
-            <button class="add-btn" (click)="showNewFileDialog()" title="New file">
-              <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
-            </button>
+            <div class="workspace-actions">
+              <button class="add-btn" (click)="onImportClick()" title="Import project (folder or .zip)">
+                <span class="material-symbols-outlined" style="font-size: 16px;">upload</span>
+              </button>
+              <button class="add-btn" (click)="onExportClick()" title="Export project (folder or .zip)">
+                <span class="material-symbols-outlined" style="font-size: 16px;">download</span>
+              </button>
+              <button class="add-btn" (click)="showNewFileDialog()" title="New file">
+                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+              </button>
+            </div>
           </div>
+          <input
+            #zipInput
+            type="file"
+            accept=".zip"
+            style="display: none"
+            (change)="onZipFileSelected($event)" />
           <div class="workspace-info">
             <div class="workspace-avatar">P</div>
             <div class="workspace-text">
@@ -137,6 +155,12 @@ type PendingAction =
       font-weight: 500;
       color: var(--text-tertiary);
       text-transform: uppercase;
+    }
+
+    .workspace-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
     }
 
     .add-btn {
@@ -280,7 +304,10 @@ export class SidebarComponent {
   protected projectState = inject(ProjectState);
   protected editorState = inject(EditorState);
   private orchestrator = inject(OrchestratorService);
+  protected projectIo = inject(ProjectIoService);
   protected version = inject(APP_VERSION);
+
+  @ViewChild('zipInput') private zipInput!: ElementRef<HTMLInputElement>;
 
   protected dialogOpen = signal(false);
   protected dialogConfig = signal<DialogConfig>({
@@ -344,6 +371,33 @@ export class SidebarComponent {
     this.dialogOpen.set(true);
   }
 
+  onExportClick(): void {
+    this.projectIo.exportProject();
+  }
+
+  onImportClick(): void {
+    this.pendingAction = { type: 'importProject' };
+    this.dialogConfig.set({
+      title: 'Import project',
+      message: this.projectIo.supportsFileSystemAccess
+        ? 'Pick a folder to import. This replaces every file currently open in the editor.'
+        : 'Pick a .zip file to import. This replaces every file currently open in the editor.',
+      confirmText: 'Continue',
+      cancelText: 'Cancel',
+      showInput: false,
+      type: 'warning',
+    });
+    this.dialogOpen.set(true);
+  }
+
+  async onZipFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (!file) return;
+    await this.projectIo.importFromZipFile(file);
+  }
+
   private showDeleteDialog(path: string): void {
     this.pendingAction = { type: 'delete', path };
     this.dialogConfig.set({
@@ -380,6 +434,12 @@ export class SidebarComponent {
       this.orchestrator.renameFile(action.path, newPath);
     } else if (action.type === 'delete') {
       this.orchestrator.deleteFile(action.path);
+    } else if (action.type === 'importProject') {
+      if (this.projectIo.supportsFileSystemAccess) {
+        this.projectIo.importFromDirectory();
+      } else {
+        this.zipInput.nativeElement.click();
+      }
     }
   }
 

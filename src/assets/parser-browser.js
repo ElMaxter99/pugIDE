@@ -1,7 +1,81 @@
-
-if(typeof process==="undefined"){var process={env:{},version:"",versions:{node:"0.0.0"},platform:"browser",nextTick:function(fn){setTimeout(fn,0)},cwd:function(){return"/"},argv:[],stdout:{write:function(){}},stderr:{write:function(){}}};globalThis.process=process;}
-if(typeof assert==="undefined"){var assert=function(v,m){if(!v)throw new Error(m||"Assertion failed")};assert.ok=assert;assert.strictEqual=function(a,b,m){if(a!==b)throw new Error(m||"Expected "+a+" === "+b)};assert.notStrictEqual=function(a,b,m){if(a===b)throw new Error(m||"Expected "+a+" !== "+b)};assert.deepStrictEqual=function(a,b,m){if(JSON.stringify(a)!==JSON.stringify(b))throw new Error(m||"Deep strict equal failed")};assert.throws=function(fn,m){try{fn();throw new Error(m||"Expected error")}catch(e){if(e.message===(m||"Expected error"))throw e}};assert.ifError=function(v){if(v)throw v};globalThis.assert=assert;}
-if(typeof Buffer==="undefined"){var Buffer={from:function(d,e){return typeof d==="string"?new TextEncoder().encode(d):new Uint8Array(d)},isBuffer:function(){return false},alloc:function(n){return new Uint8Array(n)}};globalThis.Buffer=Buffer;}
+(function() {
+  const g = globalThis;
+  if (!g.process) {
+    g.process = {
+      browser: true,
+      env: {},
+      version: "",
+      versions: { node: "0.0.0" },
+      platform: "browser",
+      nextTick: function(fn) {
+        setTimeout(fn, 0);
+      },
+      cwd: function() {
+        return "/";
+      },
+      argv: [],
+      stdout: { write: function() {
+      } },
+      stderr: { write: function() {
+      } }
+    };
+  }
+  if (!g.assert) {
+    g.assert = function(value, message) {
+      if (!value) throw new Error(message || "Assertion failed");
+    };
+    g.assert.ok = g.assert;
+    g.assert.strictEqual = function(a, b, msg) {
+      if (a !== b) throw new Error(msg || `Expected ${a} === ${b}`);
+    };
+    g.assert.deepStrictEqual = function(a, b, msg) {
+      if (JSON.stringify(a) !== JSON.stringify(b)) {
+        throw new Error(msg || `Deep strict equal failed`);
+      }
+    };
+    g.assert.notStrictEqual = function(a, b, msg) {
+      if (a === b) throw new Error(msg || `Expected ${a} !== ${b}`);
+    };
+    g.assert.throws = function(fn, msg) {
+      try {
+        fn();
+        throw new Error(msg || "Expected error");
+      } catch (e) {
+        if (e.message === (msg || "Expected error")) throw e;
+      }
+    };
+    g.assert.ifError = function(value) {
+      if (value) throw value;
+    };
+  }
+  if (!g.Buffer) {
+    g.Buffer = {
+      from: function(data) {
+        return typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
+      },
+      isBuffer: function() {
+        return false;
+      },
+      alloc: function(size) {
+        return new Uint8Array(size);
+      }
+    };
+  }
+  if (!g.require) {
+    g.require = function(id) {
+      if (id === "assert") return g.assert;
+      if (id === "util") return { format: function() {
+        return "";
+      } };
+      if (id === "path") return { join: function() {
+        return Array.prototype.join.call(arguments, "/");
+      } };
+      if (id === "fs") return {};
+      if (id === "buffer") return { Buffer: g.Buffer };
+      throw new Error("Module not found: " + id);
+    };
+  }
+})();
 
 "use strict";
 (() => {

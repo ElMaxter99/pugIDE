@@ -157,6 +157,33 @@ export class OrchestratorService {
     });
   }
 
+  /** Replaces the whole in-memory project (used by import) and recompiles from scratch. */
+  loadProject(files: Map<string, string>, projectName: string): void {
+    this.editorState.openTabs.set([]);
+    this.editorState.activeTabId.set(null);
+    this.editorState.editorContent.set('');
+    this.editorState.files.set(files);
+    this.editorState.bumpResetToken();
+
+    this.projectState.setProject(projectName, files);
+    this.dataState.setInitialData({});
+    this.initialDataLoaded = false;
+
+    const firstPugPath = Array.from(files.keys()).find((p) => p.endsWith('.pug')) ?? Array.from(files.keys())[0];
+    if (firstPugPath) {
+      const name = firstPugPath.split('/').pop() ?? firstPugPath;
+      this.editorState.openFile(firstPugPath, name, getFileType(name), files.get(firstPugPath) ?? '');
+    }
+
+    this.terminalState.addEntry(
+      'success',
+      'Project',
+      `Loaded "${projectName}" (${files.size} file${files.size === 1 ? '' : 's'}).`
+    );
+    this.manualCompile();
+    this.saveSession();
+  }
+
   onDataChange(): void {
     const code = this.editorState.editorContent();
     this.codeChange$.next(code);

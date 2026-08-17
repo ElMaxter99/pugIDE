@@ -8,6 +8,8 @@ export class EditorState {
   readonly editorContent = signal<string>('');
   readonly cursorPosition = signal<{ line: number; column: number }>({ line: 0, column: 0 });
   readonly files = signal<Map<string, string>>(new Map());
+  /** Bumped whenever the whole project is replaced (e.g. import), so the editor can drop stale Monaco models. */
+  readonly resetToken = signal(0);
 
   readonly activeTab = computed(() => {
     const id = this.activeTabId();
@@ -150,5 +152,9 @@ export class EditorState {
     this.openTabs.update((tabs) =>
       tabs.map((t) => (t.path === oldPath ? { ...t, path: newPath, name: newName } : t))
     );
+  }
+
+  bumpResetToken(): void {
+    this.resetToken.update((v) => v + 1);
   }
 }

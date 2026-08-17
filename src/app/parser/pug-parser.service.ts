@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   PugAstNode,
   PugVariable,
@@ -9,6 +9,7 @@ import {
   DataType,
 } from '../core/models/index';
 import { resolvePugIncludes } from '../core/utils/pug-includes.util';
+import { TerminalState } from '../core/state/terminal.state';
 
 interface FileReference {
   type: string;
@@ -53,24 +54,43 @@ type ParserFn = (tokens: unknown[], options?: { filename?: string }) => PugAstNo
 
 @Injectable({ providedIn: 'root' })
 export class PugParserService {
+  private terminalState = inject(TerminalState);
+
   private lexerFn: LexerFn | null = null;
   private parserFn: ParserFn | null = null;
   private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+    this.initPromise = this.doInitialize();
+    return this.initPromise;
+  }
+
+  private async doInitialize(): Promise<void> {
     const bundle = (self as any).parserBundle;
     if (!bundle?.lexer) {
       try {
         await loadScript('assets/parser-browser.js');
-      } catch {
-        // parser bundle not available
+      } catch (err) {
+        this.terminalState.addEntry(
+          'error',
+          'Parser',
+          `Failed to load parser bundle: ${(err as Error).message ?? err}`
+        );
       }
     }
     const loaded = (self as any).parserBundle;
     if (loaded?.lexer) {
       this.lexerFn = loaded.lexer as LexerFn;
       this.parserFn = loaded.parse as unknown as ParserFn;
+    } else {
+      this.terminalState.addEntry(
+        'error',
+        'Parser',
+        'Pug parser is unavailable — variable, mixin and include detection will not work.'
+      );
     }
     this.initialized = true;
   }
@@ -115,8 +135,12 @@ export class PugParserService {
             }
           }
         }
-      } catch {
-        // skip files with parse errors
+      } catch (err) {
+        this.terminalState.addEntry(
+          'warning',
+          'Parser',
+          `Skipped ${filePath}: ${(err as Error).message ?? 'parse error'}`
+        );
       }
     }
     return allVars;

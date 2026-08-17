@@ -117,6 +117,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   protected editorReady = signal(false);
 
   private lastTabId: string | null = null;
+  private lastResetToken = 0;
 
   constructor() {
     effect(() => {
@@ -124,6 +125,14 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       if (tab && this.editorReady() && tab.id !== this.lastTabId) {
         this.lastTabId = tab.id;
         this.loadModel(tab);
+      }
+    });
+
+    effect(() => {
+      const token = this.editorState.resetToken();
+      if (token !== this.lastResetToken) {
+        this.lastResetToken = token;
+        this.disposeAllModels();
       }
     });
 
@@ -288,6 +297,15 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  private disposeAllModels(): void {
+    if (!this.editor) return;
+    this.editor.setModel(null);
+    for (const model of this.models.values()) {
+      model.dispose();
+    }
+    this.models.clear();
+  }
+
   private loadModel(tab: { path: string; type: string; name: string }): void {
     if (!this.editor) return;
 
@@ -300,8 +318,10 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       css: 'css',
     };
 
+    // Monaco auto-creates an implicit `inmemory://` model when the editor is
+    // constructed without one — skip it, it's not a real file (see initEditor).
     const currentModel = this.editor.getModel();
-    if (currentModel) {
+    if (currentModel && currentModel.uri.scheme !== 'inmemory') {
       const currentPath = currentModel.uri.path;
       const currentContent = currentModel.getValue();
       this.editorState.files.update((f) => { f.set(currentPath, currentContent); return f; });
