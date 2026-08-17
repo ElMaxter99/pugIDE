@@ -4,6 +4,7 @@ import { EditorState } from '../../../core/state/editor.state';
 import { TerminalState } from '../../../core/state/terminal.state';
 import { PreviewState } from '../../../core/state/preview.state';
 import { ParserState } from '../../../core/state/parser.state';
+import { PersistenceService } from '../../../core/services/persistence.service';
 
 @Component({
   selector: 'app-statusbar',
@@ -36,11 +37,16 @@ import { ParserState } from '../../../core/state/parser.state';
       <div class="status-right">
         <span class="status-item dim">UTF-8</span>
         <span class="status-item dim">{{ getLanguage() }}</span>
-        <div class="status-item" [class.live]="!editorState.hasUnsavedChanges()" [class.pending]="editorState.hasUnsavedChanges()">
+        <div
+          class="status-item"
+          [class.failed]="persistence.lastWriteFailed()"
+          [class.pending]="!persistence.lastWriteFailed() && editorState.hasUnsavedChanges()"
+          [class.live]="!persistence.lastWriteFailed() && !editorState.hasUnsavedChanges()"
+          [title]="persistence.lastWriteFailed() ? 'Local storage save failed — your work may not survive a reload. Export the project to be safe.' : ''">
           <span class="material-symbols-outlined" style="font-size: 14px;">
-            {{ editorState.hasUnsavedChanges() ? 'edit' : 'cloud_done' }}
+            {{ persistence.lastWriteFailed() ? 'cloud_off' : (editorState.hasUnsavedChanges() ? 'edit' : 'cloud_done') }}
           </span>
-          <span>{{ editorState.hasUnsavedChanges() ? 'Cambios sin guardar' : 'Guardado' }}</span>
+          <span>{{ persistence.lastWriteFailed() ? 'No se pudo guardar' : (editorState.hasUnsavedChanges() ? 'Cambios sin guardar' : 'Guardado') }}</span>
         </div>
       </div>
     </footer>
@@ -103,6 +109,10 @@ import { ParserState } from '../../../core/state/parser.state';
       color: var(--tertiary-color);
     }
 
+    .status-item.failed {
+      color: var(--error-color);
+    }
+
     .error-icon {
       font-size: 14px;
       color: var(--error-color);
@@ -124,6 +134,7 @@ export class StatusbarComponent {
   protected terminalState = inject(TerminalState);
   protected previewState = inject(PreviewState);
   protected parserState = inject(ParserState);
+  protected persistence = inject(PersistenceService);
 
   getLanguage(): string {
     const tab = this.editorState.activeTab();
