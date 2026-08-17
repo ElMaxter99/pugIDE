@@ -131,6 +131,7 @@ export class TopbarComponent {
   onSave(): void {
     this.editorState.saveCurrentFile();
     this.orchestrator.manualCompile();
+    this.orchestrator.saveSession();
   }
 
   onToggleAutoSave(): void {

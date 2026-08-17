@@ -4,6 +4,7 @@ import {
   input,
   output,
   signal,
+  effect,
 } from '@angular/core';
 
 export interface DialogConfig {
@@ -195,6 +196,14 @@ export class DialogComponent {
   cancelled = output<void>();
 
   inputValue = signal('');
+
+  constructor() {
+    effect(() => {
+      if (this.isOpen()) {
+        this.inputValue.set(this.config().inputValue ?? '');
+      }
+    });
+  }
 
   onConfirm(): void {
     this.confirmed.emit(this.inputValue());

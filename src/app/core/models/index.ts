@@ -48,7 +48,7 @@ export interface PugAstNode {
   text?: string;
   escape?: boolean;
   buffer?: boolean;
-  call?: string;
+  call?: boolean;
   interpolate?: boolean;
   nodes?: PugAstNode[];
 }
@@ -115,8 +115,8 @@ export interface TerminalEntry {
 
 export interface InspectorNode {
   tagName: string;
-  pugLine: number;
-  htmlLine: number;
+  pugLine?: number;
+  htmlLine?: number;
   attrs: Record<string, string>;
   children: InspectorNode[];
 }

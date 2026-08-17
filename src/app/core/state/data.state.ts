@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, computed } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class DataState {
@@ -6,9 +6,19 @@ export class DataState {
   private undoStack = signal<Record<string, unknown>[]>([]);
   private redoStack = signal<Record<string, unknown>[]>([]);
 
+  readonly canUndo = computed(() => this.undoStack().length > 0);
+  readonly canRedo = computed(() => this.redoStack().length > 0);
+
   setData(data: Record<string, unknown>): void {
     this.pushUndo();
     this.data.set(structuredClone(data));
+  }
+
+  /** Like setData, but doesn't create an undo step — for project bootstrap/auto-seeding, not user edits. */
+  setInitialData(data: Record<string, unknown>): void {
+    this.data.set(structuredClone(data));
+    this.undoStack.set([]);
+    this.redoStack.set([]);
   }
 
   updateValue(path: string, value: unknown): void {
@@ -16,6 +26,24 @@ export class DataState {
     const current = structuredClone(this.data());
     this.setNestedValue(current, path, value);
     this.data.set(current);
+  }
+
+  undo(): void {
+    const stack = this.undoStack();
+    if (stack.length === 0) return;
+    const previous = stack[stack.length - 1];
+    this.undoStack.set(stack.slice(0, -1));
+    this.redoStack.update((s) => [...s, structuredClone(this.data())]);
+    this.data.set(previous);
+  }
+
+  redo(): void {
+    const stack = this.redoStack();
+    if (stack.length === 0) return;
+    const next = stack[stack.length - 1];
+    this.redoStack.set(stack.slice(0, -1));
+    this.undoStack.update((s) => [...s, structuredClone(this.data())]);
+    this.data.set(next);
   }
 
   private pushUndo(): void {
