@@ -8,7 +8,8 @@
     "build": "ng build",
     "watch": "ng build --watch",
     "test": "ng test",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "bundle:pug": "node scripts/bundle-pug.mjs"
   },
   "private": true,
   "dependencies": {

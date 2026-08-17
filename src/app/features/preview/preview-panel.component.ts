@@ -271,6 +271,7 @@ export class PreviewPanelComponent implements OnDestroy {
   private orchestrator = inject(OrchestratorService);
   private lastBlobUrl: string | null = null;
   private messageListener = (e: MessageEvent): void => {
+    if (e.source !== this.previewFrame?.nativeElement.contentWindow) return;
     if (e.data?.source === 'pugide-inspector') {
       this.inspectorState.selectElement({
         tagName: e.data.tagName,

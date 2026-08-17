@@ -34,13 +34,27 @@
     g.assert.notStrictEqual = function (a: any, b: any, msg?: string) {
       if (a === b) throw new Error(msg || `Expected ${a} !== ${b}`);
     };
+    g.assert.throws = function (fn: Function, msg?: string) {
+      try {
+        fn();
+        throw new Error(msg || 'Expected error');
+      } catch (e: any) {
+        if (e.message === (msg || 'Expected error')) throw e;
+      }
+    };
+    g.assert.ifError = function (value: any) {
+      if (value) throw value;
+    };
   }
 
   // buffer polyfill (minimal)
   if (!g.Buffer) {
     g.Buffer = {
-      from: function (data: any) { return new Uint8Array(data); },
+      from: function (data: any) {
+        return typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
+      },
       isBuffer: function () { return false; },
+      alloc: function (size: number) { return new Uint8Array(size); },
     };
   }
 
@@ -51,6 +65,7 @@
       if (id === 'util') return { format: function () { return ''; } };
       if (id === 'path') return { join: function () { return Array.prototype.join.call(arguments, '/'); } };
       if (id === 'fs') return {};
+      if (id === 'buffer') return { Buffer: g.Buffer };
       throw new Error('Module not found: ' + id);
     };
   }
