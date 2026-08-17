@@ -1,15 +1,20 @@
 {
   "name": "pug-ide",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "PugIDE - Visual Pug/Jade development environment with smart data generation",
   "type": "module",
   "scripts": {
     "start": "ng serve",
     "build": "ng build",
+    "build:prod": "ng build --configuration production",
     "watch": "ng build --watch",
     "test": "ng test",
     "lint": "ng lint",
-    "bundle:pug": "node scripts/bundle-pug.mjs"
+    "bundle:pug": "node scripts/bundle-pug.mjs",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
+    "prebuild": "node scripts/validate-build.js"
   },
   "private": true,
   "dependencies": {
