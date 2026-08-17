@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   inject,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { EditorState } from '../../../core/state/editor.state';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { PreferencesState } from '../../../core/services/preferences.state';
@@ -14,7 +15,13 @@ import { PreferencesState } from '../../../core/services/preferences.state';
   template: `
     <header class="topbar">
       <div class="topbar-left">
-        <h1 class="logo">PugIDE</h1>
+        <h1
+          class="logo"
+          role="button"
+          tabindex="0"
+          title="Volver al inicio"
+          (click)="goHome()"
+          (keydown.enter)="goHome()">PugIDE</h1>
       </div>
       <div class="topbar-right">
         <div class="topbar-actions">
@@ -60,6 +67,7 @@ import { PreferencesState } from '../../../core/services/preferences.state';
       letter-spacing: -0.02em;
       color: var(--accent-color);
       line-height: 40px;
+      cursor: pointer;
     }
 
     .topbar-actions {
@@ -155,6 +163,11 @@ export class TopbarComponent {
   protected editorState = inject(EditorState);
   protected preferences = inject(PreferencesState);
   private orchestrator = inject(OrchestratorService);
+  private router = inject(Router);
+
+  goHome(): void {
+    this.router.navigate(['/']);
+  }
 
   onSave(): void {
     this.editorState.saveCurrentFile();
