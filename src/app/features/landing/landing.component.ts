@@ -36,7 +36,7 @@ import { PersistenceService } from '../../core/services/persistence.service';
             La herramienta definitiva para desarrolladores frontend que buscan velocidad y precisi&oacute;n.
           </p>
 
-          <div class="hero-actions">
+          <div class="hero-actions" [class.tight]="hasSavedSession">
             @if (hasSavedSession) {
               <button class="btn btn-primary" (click)="goToIde()">
                 Continuar sesi&oacute;n anterior
@@ -55,6 +55,10 @@ import { PersistenceService } from '../../core/services/persistence.service';
               </button>
             }
           </div>
+
+          @if (hasSavedSession) {
+            <button class="demo-link" (click)="goToDemo()">Ver demo interactiva</button>
+          }
 
           <div class="hero-visual">
             <div class="visual-glow"></div>
@@ -304,6 +308,27 @@ import { PersistenceService } from '../../core/services/persistence.service';
       justify-content: center;
       gap: 16px;
       margin-bottom: 80px;
+    }
+    .hero-actions.tight {
+      margin-bottom: 12px;
+    }
+
+    .demo-link {
+      display: block;
+      margin: 0 auto 80px;
+      background: none;
+      border: none;
+      padding: 4px 8px;
+      font-family: 'Geist', sans-serif;
+      font-size: 12px;
+      color: var(--text-tertiary);
+      opacity: 0.6;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .demo-link:hover {
+      opacity: 1;
+      text-decoration: underline;
     }
 
     .btn {
