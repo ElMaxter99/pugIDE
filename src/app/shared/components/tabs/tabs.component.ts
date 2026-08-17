@@ -34,7 +34,7 @@ import { ContextMenuAction } from '../../../core/models/index';
             @if (tab.isDirty) {
               <span class="dirty-dot"></span>
             }
-            <button class="tab-close" (click)="closeTab($event, tab.id)" title="Close">
+            <button class="tab-close" (click)="closeTab($event, tab.id)" title="Cerrar">
               <span class="material-symbols-outlined" style="font-size: 14px;">close</span>
             </button>
           </div>
@@ -157,11 +157,11 @@ export class TabsComponent {
     event.stopPropagation();
     this.contextMenuTabId = tab.id;
     this.contextMenuItems.set([
-      { label: 'Close', icon: 'close', action: 'close' },
-      { label: 'Close Others', icon: 'close_fullscreen', action: 'closeOthers' },
-      { label: 'Close to the Right', icon: 'last_page', action: 'closeRight' },
+      { label: 'Cerrar', icon: 'close', action: 'close' },
+      { label: 'Cerrar los demás', icon: 'close_fullscreen', action: 'closeOthers' },
+      { label: 'Cerrar los de la derecha', icon: 'last_page', action: 'closeRight' },
       { label: '', action: '', separator: true },
-      { label: 'Close All', icon: 'clear_all', action: 'closeAll' },
+      { label: 'Cerrar todos', icon: 'clear_all', action: 'closeAll' },
     ]);
     this.contextMenuX.set(event.clientX);
     this.contextMenuY.set(event.clientY);

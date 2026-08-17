@@ -26,7 +26,7 @@ export class ProjectIoService {
   async exportProject(): Promise<void> {
     const files = this.editorState.files();
     if (files.size === 0) {
-      this.terminalState.addEntry('warning', 'Export', 'Nothing to export — the project has no files.');
+      this.terminalState.addEntry('warning', 'Export', 'Nada que exportar — el proyecto no tiene archivos.');
       return;
     }
     try {
@@ -37,7 +37,7 @@ export class ProjectIoService {
       }
     } catch (err) {
       if ((err as DOMException)?.name === 'AbortError') return;
-      this.terminalState.addEntry('error', 'Export', `Export failed: ${(err as Error).message ?? err}`);
+      this.terminalState.addEntry('error', 'Export', `Error al exportar: ${(err as Error).message ?? err}`);
     }
   }
 
@@ -46,7 +46,7 @@ export class ProjectIoService {
     for (const [path, content] of files) {
       await this.writeFileToDirectory(dirHandle, path, content);
     }
-    this.terminalState.addEntry('success', 'Export', `Exported ${files.size} file(s) to disk.`);
+    this.terminalState.addEntry('success', 'Export', `Se exportaron ${files.size} archivo(s) a disco.`);
   }
 
   private async writeFileToDirectory(root: any, path: string, content: string): Promise<void> {
@@ -78,7 +78,7 @@ export class ProjectIoService {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    this.terminalState.addEntry('success', 'Export', `Exported ${files.size} file(s) as ${fileName}.`);
+    this.terminalState.addEntry('success', 'Export', `Se exportaron ${files.size} archivo(s) como ${fileName}.`);
   }
 
   async importFromDirectory(): Promise<void> {
@@ -90,7 +90,7 @@ export class ProjectIoService {
       this.finishImport(files, dirHandle.name);
     } catch (err) {
       if ((err as DOMException)?.name === 'AbortError') return;
-      this.terminalState.addEntry('error', 'Import', `Import failed: ${(err as Error).message ?? err}`);
+      this.terminalState.addEntry('error', 'Import', `Error al importar: ${(err as Error).message ?? err}`);
     }
   }
 
@@ -117,15 +117,15 @@ export class ProjectIoService {
       }
       this.finishImport(files, file.name.replace(/\.zip$/i, ''));
     } catch (err) {
-      this.terminalState.addEntry('error', 'Import', `Could not read zip file: ${(err as Error).message ?? err}`);
+      this.terminalState.addEntry('error', 'Import', `No se pudo leer el archivo zip: ${(err as Error).message ?? err}`);
     }
   }
 
   private finishImport(files: Map<string, string>, projectName: string): void {
     if (files.size === 0) {
-      this.terminalState.addEntry('warning', 'Import', 'No supported files found to import.');
+      this.terminalState.addEntry('warning', 'Import', 'No se encontraron archivos compatibles para importar.');
       return;
     }
-    this.orchestrator.loadProject(files, projectName || 'Imported Project');
+    this.orchestrator.loadProject(files, projectName || 'Proyecto Importado');
   }
 }

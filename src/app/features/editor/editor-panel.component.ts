@@ -33,8 +33,8 @@ let formattingProvidersRegistered = false;
         @if (!editorState.activeTab()) {
           <div class="empty-editor">
             <span class="material-symbols-outlined empty-icon">description</span>
-            <h3>No file open</h3>
-            <p>Open a file from the explorer</p>
+            <h3>Ningún archivo abierto</h3>
+            <p>Abre un archivo desde el explorador</p>
           </div>
         }
         <div #editorContainer class="monaco-host" [class.hidden]="!editorState.activeTab()"></div>

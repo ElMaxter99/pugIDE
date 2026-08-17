@@ -18,7 +18,7 @@ import { EditorState } from '../../core/state/editor.state';
           <button
             class="panel-action"
             [class.active]="inspectorState.isActive()"
-            title="Toggle Element Inspector"
+            title="Activar/desactivar el inspector"
             (click)="inspectorState.toggleInspector()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M2 2l7.586 7.586"/>
@@ -37,7 +37,7 @@ import { EditorState } from '../../core/state/editor.state';
               <circle cx="11" cy="11" r="8"/>
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <p>Click the inspector button to enable element selection</p>
+            <p>Pulsa el botón del inspector para seleccionar elementos</p>
           </div>
         } @else if (inspectorState.selectedElement()) {
           <div class="selected-info">
@@ -47,10 +47,10 @@ import { EditorState } from '../../core/state/editor.state';
             <div class="properties">
               @if (inspectorState.selectedElement()!.pugLine !== undefined) {
                 <div class="prop-row">
-                  <span class="prop-label">Pug Line</span>
+                  <span class="prop-label">Línea Pug</span>
                   <span
                     class="prop-value clickable"
-                    title="Open in editor"
+                    title="Abrir en el editor"
                     (click)="goToPugSource()">
                     {{ pugSourceLabel() }}
                   </span>
@@ -58,7 +58,7 @@ import { EditorState } from '../../core/state/editor.state';
               }
               @if (inspectorState.selectedElement()!.htmlLine !== undefined) {
                 <div class="prop-row">
-                  <span class="prop-label">HTML Line</span>
+                  <span class="prop-label">Línea HTML</span>
                   <span class="prop-value">{{ inspectorState.selectedElement()!.htmlLine }}</span>
                 </div>
               }
@@ -72,7 +72,7 @@ import { EditorState } from '../../core/state/editor.state';
           </div>
         } @else {
           <div class="no-selection">
-            <p>Select an element in the preview</p>
+            <p>Selecciona un elemento en la vista previa</p>
           </div>
         }
       </div>

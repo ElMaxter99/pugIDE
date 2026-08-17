@@ -33,18 +33,18 @@ interface TreeNode {
   template: `
     <section class="data-section">
       <div class="data-header">
-        <span class="data-title">Data</span>
+        <span class="data-title">Datos</span>
         <div class="data-actions">
-          <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Switch to visual tree (Ctrl+Shift+J)' : 'Switch to JSON editor (Ctrl+Shift+J)'">
-            <span class="mode-label">{{ jsonRawMode() ? 'JSON' : 'Tree' }}</span>
+          <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Cambiar a árbol visual (Ctrl+Shift+J)' : 'Cambiar a editor JSON (Ctrl+Shift+J)'">
+            <span class="mode-label">{{ jsonRawMode() ? 'JSON' : 'Árbol' }}</span>
           </button>
-          <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Undo">
+          <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Deshacer">
             <span class="material-symbols-outlined" style="font-size: 16px;">undo</span>
           </button>
-          <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Redo">
+          <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Rehacer">
             <span class="material-symbols-outlined" style="font-size: 16px;">redo</span>
           </button>
-          <button class="icon-btn" (click)="copyJsonToClipboard()" title="Copy JSON to clipboard">
+          <button class="icon-btn" (click)="copyJsonToClipboard()" title="Copiar JSON al portapapeles">
             <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
           </button>
           <button class="mock-btn" (click)="clearData()">
@@ -190,7 +190,7 @@ interface TreeNode {
           (blur)="applyJson()"
           (keydown)="onTextareaKeydown($event)"
           spellcheck="false"
-          placeholder="Enter valid JSON..."></textarea>
+          placeholder="Introduce un JSON válido..."></textarea>
       </div>
     </section>
   `,
@@ -614,8 +614,8 @@ export class SmartDataEditorComponent {
     try {
       const parsed = JSON.parse(text);
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        this.jsonError.set('Root must be a JSON object');
-        this.terminalState.addEntry('error', 'DataEditor', 'Invalid JSON: root must be an object, not an array or primitive');
+        this.jsonError.set('La raíz debe ser un objeto JSON');
+        this.terminalState.addEntry('error', 'DataEditor', 'JSON inválido: la raíz debe ser un objeto, no un array ni un valor primitivo');
         return;
       }
       this.jsonError.set(null);
@@ -624,7 +624,7 @@ export class SmartDataEditorComponent {
     } catch (e: unknown) {
       const msg = (e as Error).message;
       this.jsonError.set(msg);
-      this.terminalState.addEntry('error', 'DataEditor', `Invalid JSON: ${msg}`);
+      this.terminalState.addEntry('error', 'DataEditor', `JSON inválido: ${msg}`);
     }
   }
 
@@ -651,9 +651,9 @@ export class SmartDataEditorComponent {
   copyJsonToClipboard(): void {
     const text = JSON.stringify(this.dataState.data(), null, 2);
     navigator.clipboard.writeText(text).then(() => {
-      this.terminalState.addEntry('success', 'DataEditor', 'JSON copied to clipboard');
+      this.terminalState.addEntry('success', 'DataEditor', 'JSON copiado al portapapeles');
     }).catch(() => {
-      this.terminalState.addEntry('error', 'DataEditor', 'Failed to copy to clipboard');
+      this.terminalState.addEntry('error', 'DataEditor', 'No se pudo copiar al portapapeles');
     });
   }
 
@@ -775,7 +775,7 @@ export class SmartDataEditorComponent {
                   depth: depth + 1,
                   kind: 'leaf',
                   value: item,
-                  valueType: this.getValueType(item),
+                  valueType: this.getValueType(item, itemPath),
                 });
               }
             }
@@ -802,7 +802,7 @@ export class SmartDataEditorComponent {
           depth,
           kind: 'leaf',
           value,
-          valueType: this.getValueType(value),
+          valueType: this.getValueType(value, path),
         });
       }
     }

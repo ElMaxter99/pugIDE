@@ -1,11 +1,21 @@
 #!/usr/bin/env node
-// Bundle pug + pug-lexer + pug-parser for browser use with Node.js polyfills.
+// Bundle pug + pug-lexer + pug-parser + prettier/plugin-pug for browser use
+// with Node.js polyfills.
 //
 // This is NOT part of `npm run build` / `ng build` — it only needs to be
-// re-run manually (`npm run bundle:pug`) whenever the pug/pug-lexer/pug-parser
-// versions in package.json change, since the output (src/assets/pug-browser.js,
-// src/assets/parser-browser.js) is checked into git and nothing else
+// re-run manually (`npm run bundle:pug`) whenever the pug/pug-lexer/pug-parser/
+// prettier versions in package.json change, since the output
+// (src/assets/pug-browser.js, src/assets/parser-browser.js,
+// src/assets/formatter-browser.js) is checked into git and nothing else
 // regenerates or verifies it against package.json.
+//
+// The formatter bundle needs one extra alias: `node:util` (the `node:`-
+// prefixed form isn't resolved to the real npm `util` polyfill package the
+// way the bare `util` specifier already is, so it's pointed at the same
+// package explicitly). Angular's own esbuild-based app builder has no
+// equivalent alias hook (tsconfig `paths` only affects first-party source,
+// not third-party bundling), which is exactly the problem this
+// standalone-bundle pattern already solves for the pug compiler.
 //
 // Uses esbuild's JS API rather than shelling out to the CLI: the polyfill
 // banner is derived dynamically from src/polyfills.ts (see below) and passing
@@ -53,6 +63,17 @@ await build({
   ...shared,
   entryPoints: [path.join(rootDir, 'src/assets/parser-entry.cjs')],
   outfile: path.join(rootDir, 'src/assets/parser-browser.js'),
+});
+
+console.log('\nBuilding formatter (prettier + plugin-pug) bundle...');
+await build({
+  ...shared,
+  alias: {
+    ...shared.alias,
+    'node:util': 'util',
+  },
+  entryPoints: [path.join(rootDir, 'src/assets/formatter-entry.cjs')],
+  outfile: path.join(rootDir, 'src/assets/formatter-browser.js'),
 });
 
 console.log('\nDone!');

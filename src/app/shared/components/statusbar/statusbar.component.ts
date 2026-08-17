@@ -16,21 +16,21 @@ import { PersistenceService } from '../../../core/services/persistence.service';
       <div class="status-left">
         <div class="status-group" (click)="toggleTerminal()">
           <span class="material-symbols-outlined error-icon">cancel</span>
-          <span>{{ terminalState.errorCount() }} errors</span>
+          <span>{{ terminalState.errorCount() }} errores</span>
         </div>
         <div class="status-group">
           <span class="material-symbols-outlined warning-icon">warning</span>
-          <span>{{ terminalState.warningCount() }} warnings</span>
+          <span>{{ terminalState.warningCount() }} avisos</span>
         </div>
         @if (parserState.isParsing()) {
           <div class="status-group">
             <span class="material-symbols-outlined info-icon">sync</span>
-            <span>Parsing&hellip;</span>
+            <span>Analizando&hellip;</span>
           </div>
         } @else if (previewState.compilationTime() > 0) {
           <div class="status-group">
             <span class="material-symbols-outlined info-icon">info</span>
-            <span>Compiled in {{ previewState.compilationTime() | number:'1.0-0' }}ms</span>
+            <span>Compilado en {{ previewState.compilationTime() | number:'1.0-0' }}ms</span>
           </div>
         }
       </div>
@@ -42,7 +42,7 @@ import { PersistenceService } from '../../../core/services/persistence.service';
           [class.failed]="persistence.lastWriteFailed()"
           [class.pending]="!persistence.lastWriteFailed() && editorState.hasUnsavedChanges()"
           [class.live]="!persistence.lastWriteFailed() && !editorState.hasUnsavedChanges()"
-          [title]="persistence.lastWriteFailed() ? 'Local storage save failed — your work may not survive a reload. Export the project to be safe.' : ''">
+          [title]="persistence.lastWriteFailed() ? 'No se pudo guardar en el almacenamiento local — tu trabajo podría perderse al recargar. Exporta el proyecto para más seguridad.' : ''">
           <span class="material-symbols-outlined" style="font-size: 14px;">
             {{ persistence.lastWriteFailed() ? 'cloud_off' : (editorState.hasUnsavedChanges() ? 'edit' : 'cloud_done') }}
           </span>
@@ -145,7 +145,7 @@ export class StatusbarComponent {
       case 'javascript': return 'JavaScript';
       case 'html': return 'HTML';
       case 'css': return 'CSS';
-      default: return 'Plain Text';
+      default: return 'Texto plano';
     }
   }
 

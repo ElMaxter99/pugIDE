@@ -1,0 +1,148 @@
+// Demuestra el subconjunto de SCSS soportado por PugIDE: nesting, `&`, $variables.
+$accent: #3498db;
+$dark: #2c3e50;
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 20px;
+  background: #f5f5f5;
+  color: #333;
+}
+
+h1 {
+  color: $dark;
+  border-bottom: 2px solid $accent;
+  padding-bottom: 5px;
+}
+
+h2 {
+  color: #2980b9;
+}
+
+.empty-object-demo {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+
+  code {
+    background: #ffeeba;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+}
+
+.undefined-safe {
+  background: #d4edda;
+  border: 1px solid #28a745;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+.card-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  margin: 10px 0;
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .price-badge {
+    background: #27ae60;
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+  }
+
+  .card-body {
+    margin: 10px 0;
+    color: #555;
+  }
+
+  .card-footer {
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+  }
+}
+
+.product-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px dashed #eee;
+}
+
+.navbar {
+  background: $dark;
+  color: white;
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px;
+
+  .nav-brand {
+    font-weight: bold;
+    font-size: 1.2em;
+  }
+
+  .nav-links {
+    list-style: none;
+    display: flex;
+    gap: 15px;
+    margin: 0;
+    padding: 0;
+
+    a {
+      color: #ecf0f1;
+      text-decoration: none;
+
+      &:hover {
+        color: $accent;
+      }
+    }
+  }
+}
+
+pre {
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+  }
+
+  th {
+    background: $accent;
+    color: white;
+  }
+}
+
+.value-null {
+  color: #999;
+  font-style: italic;
+}
+
+.value-empty {
+  color: #e74c3c;
+  font-weight: bold;
+}

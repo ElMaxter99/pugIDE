@@ -168,7 +168,7 @@ export class MainLayoutComponent implements OnInit {
     this.projectState.setProject(saved.projectName, this.editorState.files());
     this.orchestrator.markDataInitialized();
     this.previewState.setDevice('Desktop', 1200, 800);
-    this.terminalState.addEntry('info', 'PugIDE', 'Restored your previous session.');
+    this.terminalState.addEntry('info', 'PugIDE', 'Se restauró tu sesión anterior.');
     this.orchestrator.manualCompile();
     this.restoringSession = false;
   }
@@ -188,7 +188,7 @@ export class MainLayoutComponent implements OnInit {
 
   private loadEmptyProject(): void {
     this.orchestrator.resetToEmptyProject();
-    this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');
+    this.terminalState.addEntry('info', 'PugIDE', '¡Bienvenido a PugIDE! Abre un proyecto o empieza a programar.');
   }
 
   private async loadDemoProject(): Promise<void> {
@@ -197,17 +197,21 @@ export class MainLayoutComponent implements OnInit {
     this.editorState.editorContent.set('');
     this.editorState.files.set(new Map());
 
-    const [mainPug, cardPug, navbarPug, rawData] = await Promise.all([
+    const [mainPug, layoutPug, cardPug, navbarPug, stylesScss, rawData] = await Promise.all([
       fetch('assets/demo/main.pug').then(r => r.text()),
+      fetch('assets/demo/layout.pug').then(r => r.text()),
       fetch('assets/demo/components/card.pug').then(r => r.text()),
       fetch('assets/demo/components/navbar.pug').then(r => r.text()),
+      fetch('assets/demo/styles.scss').then(r => r.text()),
       fetch('assets/demo/demo-data.json').then(r => r.json()),
     ]);
 
     const files: Array<{ path: string; name: string; content: string }> = [
       { path: '/main.pug', name: 'main.pug', content: mainPug },
+      { path: '/layout.pug', name: 'layout.pug', content: layoutPug },
       { path: '/components/card.pug', name: 'card.pug', content: cardPug },
       { path: '/components/navbar.pug', name: 'navbar.pug', content: navbarPug },
+      { path: '/styles.scss', name: 'styles.scss', content: stylesScss },
     ];
 
     this.editorState.openFile(files[0].path, files[0].name, 'pug', files[0].content);
@@ -218,7 +222,7 @@ export class MainLayoutComponent implements OnInit {
     this.dataState.setInitialData(rawData as Record<string, unknown>);
     this.orchestrator.markDataInitialized();
     this.previewState.setDevice('Desktop', 1200, 800);
-    this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');
+    this.terminalState.addEntry('info', 'PugIDE', '¡Bienvenido a PugIDE! Abre un proyecto o empieza a programar.');
     this.orchestrator.manualCompile();
   }
 }

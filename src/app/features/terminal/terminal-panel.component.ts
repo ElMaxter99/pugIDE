@@ -20,19 +20,19 @@ import { TerminalState } from '../../core/state/terminal.state';
       <div class="terminal-header">
         <div class="terminal-tabs">
           <button class="terminal-tab" [class.active]="terminalState.activeFilter() === 'all'" (click)="terminalState.setFilter('all')">
-            All
+            Todo
             @if (terminalState.entries().length > 0) {
               <span class="count">{{ terminalState.entries().length }}</span>
             }
           </button>
           <button class="terminal-tab" [class.active]="terminalState.activeFilter() === 'error'" (click)="terminalState.setFilter('error')">
-            Errors
+            Errores
             @if (terminalState.errorCount() > 0) {
               <span class="count error">{{ terminalState.errorCount() }}</span>
             }
           </button>
           <button class="terminal-tab" [class.active]="terminalState.activeFilter() === 'warning'" (click)="terminalState.setFilter('warning')">
-            Warnings
+            Avisos
             @if (terminalState.warningCount() > 0) {
               <span class="count warning">{{ terminalState.warningCount() }}</span>
             }
@@ -45,13 +45,13 @@ import { TerminalState } from '../../core/state/terminal.state';
           </button>
         </div>
         <div class="terminal-actions">
-          <button class="terminal-action" title="Clear (Ctrl+Shift+K)" (click)="terminalState.clear()">
+          <button class="terminal-action" title="Limpiar (Ctrl+Shift+K)" (click)="terminalState.clear()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 6h18"/>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
             </svg>
           </button>
-          <button class="terminal-action" [class.active]="terminalState.isMaximized()" title="Maximize" (click)="terminalState.toggleMaximized()">
+          <button class="terminal-action" [class.active]="terminalState.isMaximized()" title="Maximizar" (click)="terminalState.toggleMaximized()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="15 3 21 3 21 9"/>
               <polyline points="9 21 3 21 3 15"/>
@@ -59,7 +59,7 @@ import { TerminalState } from '../../core/state/terminal.state';
               <line x1="3" y1="21" x2="10" y2="14"/>
             </svg>
           </button>
-          <button class="terminal-action" title="Close" (click)="terminalState.toggle()">
+          <button class="terminal-action" title="Cerrar" (click)="terminalState.toggle()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"/>
               <line x1="6" y1="6" x2="18" y2="18"/>
@@ -77,7 +77,7 @@ import { TerminalState } from '../../core/state/terminal.state';
         }
         @if (terminalState.filteredEntries().length === 0) {
           <div class="empty-terminal">
-            <span>No entries</span>
+            <span>Sin registros</span>
           </div>
         }
       </div>
@@ -259,7 +259,7 @@ export class TerminalPanelComponent {
 
   formatTime(timestamp: number): string {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', {
+    return date.toLocaleTimeString('es-ES', {
       hour12: false,
       hour: '2-digit',
       minute: '2-digit',

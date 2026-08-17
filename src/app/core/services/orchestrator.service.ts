@@ -52,7 +52,7 @@ export class OrchestratorService {
   async initialize(): Promise<void> {
     await this.parser.initialize();
     await this.compiler.initialize();
-    this.terminalState.addEntry('info', 'PugIDE', 'PugIDE initialized successfully');
+    this.terminalState.addEntry('info', 'PugIDE', 'PugIDE se ha inicializado correctamente');
   }
 
   onCodeChange(code: string): void {
@@ -83,6 +83,10 @@ export class OrchestratorService {
       const template = await this.compiler.prepare(code, activePath, files);
       const parseResult = this.parser.parseAst(template.ast);
       this.parserState.updateFromParseResult(parseResult);
+      // The linked AST has include/extends already resolved away, so it can never report them;
+      // use the raw single-file parse instead — it reflects what *this* file declares.
+      this.parserState.includes.set(rawParseResult.includes);
+      this.parserState.extendsPath.set(rawParseResult.extendsPath);
       this.parserState.setParsing(false);
 
       if (!this.initialDataLoaded && Object.keys(this.dataState.data()).length === 0) {
@@ -125,7 +129,7 @@ export class OrchestratorService {
         this.terminalState.addEntry(
           error.severity,
           error.source,
-          `Line ${error.line ?? '?'} - ${error.message}`
+          `Línea ${error.line ?? '?'} - ${error.message}`
         );
       }
 
@@ -137,7 +141,7 @@ export class OrchestratorService {
         this.terminalState.addEntry(
           'success',
           'Compiler',
-          `Compiled in ${compileResult.compilationTime.toFixed(1)}ms`
+          `Compilado en ${compileResult.compilationTime.toFixed(1)}ms`
         );
       }
     } catch (err: unknown) {
@@ -182,7 +186,7 @@ export class OrchestratorService {
     this.terminalState.addEntry(
       'success',
       'Project',
-      `Loaded "${projectName}" (${files.size} file${files.size === 1 ? '' : 's'}).`
+      `Se cargó "${projectName}" (${files.size} archivo${files.size === 1 ? '' : 's'}).`
     );
     this.manualCompile();
     this.saveSession();
@@ -252,7 +256,7 @@ html(lang="es")
     const name = newPath.split('/').pop() ?? newPath;
     this.editorState.renameOpenTab(oldPath, newPath, name);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
-    this.terminalState.addEntry('info', 'Files', `Renamed ${oldPath} to ${newPath}`);
+    this.terminalState.addEntry('info', 'Files', `Se renombró ${oldPath} a ${newPath}`);
   }
 
   deleteFile(path: string): void {
@@ -261,7 +265,7 @@ html(lang="es")
     this.editorState.files.update((f) => { f.delete(path); return f; });
     this.editorState.closeTabByPath(path);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
-    this.terminalState.addEntry('info', 'Files', `Deleted ${path}`);
+    this.terminalState.addEntry('info', 'Files', `Se eliminó ${path}`);
   }
 
   duplicateFile(path: string): void {
@@ -274,7 +278,7 @@ html(lang="es")
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     const name = newPath.split('/').pop() ?? newPath;
     this.editorState.openFile(newPath, name, getFileType(name), content);
-    this.terminalState.addEntry('info', 'Files', `Duplicated ${path} as ${newPath}`);
+    this.terminalState.addEntry('info', 'Files', `Se duplicó ${path} como ${newPath}`);
   }
 
   private generateDuplicatePath(path: string, files: Map<string, string>): string {
@@ -300,7 +304,7 @@ html(lang="es")
       if (!files.has(path)) {
         const name = path.split('/').pop() ?? 'unknown.pug';
         this.editorState.files.update((f) => { f.set(path, ''); return f; });
-        this.terminalState.addEntry('info', 'Files', `Created missing include: ${name}`);
+        this.terminalState.addEntry('info', 'Files', `Se creó el include que faltaba: ${name}`);
         createdPaths.push(path);
         changed = true;
       }

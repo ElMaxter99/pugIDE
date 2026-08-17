@@ -79,6 +79,7 @@ export interface PugMixin {
   args: string[];
   body: PugAstNode[];
   line: number;
+  filename?: string;
   callCount: number;
 }
 

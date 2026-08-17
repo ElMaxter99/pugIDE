@@ -29,11 +29,11 @@ import { SettingsPanelComponent } from '../../../features/settings/settings-pane
       </div>
       <div class="topbar-right">
         <div class="topbar-actions">
-          <button class="icon-btn" title="Toggle Theme" (click)="onToggleTheme()">
+          <button class="icon-btn" title="Cambiar tema" (click)="onToggleTheme()">
             <span class="material-symbols-outlined">contrast</span>
           </button>
           @if (canFormatActiveFile()) {
-            <button class="icon-btn" title="Format Document" (click)="onFormat()">
+            <button class="icon-btn" title="Formatear documento" (click)="onFormat()">
               <span class="material-symbols-outlined">format_align_left</span>
             </button>
           }
@@ -44,12 +44,12 @@ import { SettingsPanelComponent } from '../../../features/settings/settings-pane
           <button
             class="text-btn"
             [class.active]="preferences.autoCompile()"
-            [title]="preferences.autoCompile() ? 'Auto-compile is on: recompiles as you type' : 'Auto-compile is off: press Save or Ctrl+S to compile'"
+            [title]="preferences.autoCompile() ? 'Autocompilación activada: recompila mientras escribes' : 'Autocompilación desactivada: pulsa Guardar o Ctrl+S para compilar'"
             (click)="onToggleAutoCompile()">
             <span class="status-dot" [class.on]="preferences.autoCompile()"></span>
-            Auto-compile
+            Autocompilar
           </button>
-          <button class="save-btn" (click)="onSave()">Save</button>
+          <button class="save-btn" (click)="onSave()">Guardar</button>
         </div>
       </div>
     </header>
