@@ -294,7 +294,7 @@ export class PreviewPanelComponent implements OnDestroy {
       const active = this.inspectorState.isActive();
       this.previewFrame?.nativeElement.contentWindow?.postMessage(
         { source: 'pugide-inspector-toggle', active },
-        '*'
+        window.location.origin
       );
     });
 
@@ -308,7 +308,7 @@ export class PreviewPanelComponent implements OnDestroy {
   onIframeLoad(): void {
     this.previewFrame?.nativeElement.contentWindow?.postMessage(
       { source: 'pugide-inspector-toggle', active: this.inspectorState.isActive() },
-      '*'
+      window.location.origin
     );
   }
 
