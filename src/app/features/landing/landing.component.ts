@@ -15,9 +15,16 @@ import { PersistenceService } from '../../core/services/persistence.service';
 
       <header class="landing-topbar">
         <span class="logo">PugIDE</span>
+        <div class="topbar-actions">
+          <a class="credit-link" href="https://github.com/ElMaxter99/pugIDE" target="_blank" rel="noopener noreferrer"
+             title="Código original en GitHub · Licencia MIT · Uso libre con mención al autor">
+            <span class="credit-text">MIT &middot; por ElMaxter99</span>
+            <span class="material-symbols-outlined credit-icon">code</span>
+          </a>
         <button class="theme-btn" (click)="toggleTheme()" [attr.aria-label]="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'">
           <span class="material-symbols-outlined">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
         </button>
+        </div>
       </header>
 
       <main class="landing-main">
@@ -154,34 +161,23 @@ import { PersistenceService } from '../../core/services/persistence.service';
         </section>
       </main>
 
-      <footer class="landing-footer">
-        <p>
-          PugIDE &copy; 2026
-          <a href="https://github.com/ElMaxter99" target="_blank" rel="noopener noreferrer">ElMaxter99</a>
-          &middot; Licencia
-          <a href="https://github.com/ElMaxter99/pugIDE/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT</a>
-          &middot; Uso libre y gratuito, con mención al autor.
-        </p>
-        <a class="footer-repo" href="https://github.com/ElMaxter99/pugIDE" target="_blank" rel="noopener noreferrer">
-          Ver repositorio original en GitHub
-        </a>
-      </footer>
     </div>
   `,
   styles: [`
-    .landing-footer {
-      position: relative;
-      z-index: 1;
-      padding: 32px 24px 40px;
-      text-align: center;
-      font-size: 13px;
+    .topbar-actions { display: flex; align-items: center; gap: 12px; }
+    .credit-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
       color: var(--text-secondary, var(--text-primary));
-      border-top: 1px solid var(--border-subtle, var(--border-color));
+      opacity: 0.7;
+      text-decoration: none;
+      transition: opacity 0.2s, color 0.2s;
     }
-    .landing-footer p { margin: 0 0 8px; }
-    .landing-footer a { color: var(--accent-color); text-decoration: none; }
-    .landing-footer a:hover { text-decoration: underline; }
-    .footer-repo { font-weight: 600; }
+    .credit-link:hover { opacity: 1; color: var(--accent-color); }
+    .credit-icon { font-size: 18px; }
+    @media (max-width: 520px) { .credit-text { display: none; } }
 
     .landing-root {
       min-height: 100vh;
