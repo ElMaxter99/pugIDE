@@ -13,6 +13,7 @@ import { TabsComponent } from '../../shared/components/tabs/tabs.component';
 import { EditorState } from '../../core/state/editor.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { getFileType } from '../../core/models/tab.model';
+import { resolveVirtualPath } from '../../core/utils/pug-vfs.util';
 import { PreferencesState } from '../../core/services/preferences.state';
 
 declare const monaco: any;
@@ -286,9 +287,15 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       const incMatch = line.match(/^\s*(?:include|extends)\s+['"]?([^'"]+)/);
       if (!incMatch) return;
       const rawPath = incMatch[1].trim();
-      const path = rawPath.startsWith('/') ? rawPath : '/' + rawPath;
-      const name = path.split('/').pop() ?? 'file';
       const files = this.editorState.files();
+      const fromPath = this.editorState.activeTab()?.path;
+      let path: string = resolveVirtualPath(rawPath, fromPath, files) ?? '';
+      if (!path) {
+        const dir = fromPath ? fromPath.substring(0, fromPath.lastIndexOf('/') + 1) : '/';
+        path = rawPath.startsWith('/') ? rawPath : dir + rawPath;
+        if (!/\.[a-z0-9]+$/i.test(path)) path += '.pug';
+      }
+      const name = path.split('/').pop() ?? 'file';
       if (!files.has(path)) {
         this.orchestrator.addFile(path, name);
         return;

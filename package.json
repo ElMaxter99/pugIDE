@@ -10,6 +10,7 @@
     "watch": "ng build --watch",
     "test": "ng test",
     "lint": "ng lint",
+    "test:e2e": "node e2e/build.mjs && node e2e/scenarios.mjs",
     "bundle:pug": "node scripts/bundle-pug.mjs",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",

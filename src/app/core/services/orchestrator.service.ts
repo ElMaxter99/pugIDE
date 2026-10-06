@@ -15,7 +15,7 @@ import { ProjectState } from '../state/project.state';
 import { PersistenceService } from './persistence.service';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
-import { resolvePugIncludes } from '../utils/pug-includes.util';
+import { findEntryPath, resolveVirtualPath } from '../utils/pug-vfs.util';
 
 @Injectable({ providedIn: 'root' })
 export class OrchestratorService {
@@ -33,6 +33,7 @@ export class OrchestratorService {
 
   private codeChange$ = new Subject<string>();
   private isProcessing = false;
+  private recompileRequested = false;
   private initialDataLoaded = false;
 
   constructor() {
@@ -67,7 +68,12 @@ export class OrchestratorService {
   }
 
   private async processCode(code: string): Promise<void> {
-    if (this.isProcessing) return;
+    // A change that lands mid-compile (e.g. pasting a whole file) must not be dropped:
+    // remember it and recompile with the latest state once the current run finishes.
+    if (this.isProcessing) {
+      this.recompileRequested = true;
+      return;
+    }
     this.isProcessing = true;
     this.previewState.setLoading(true);
     this.parserState.setParsing(true);
@@ -75,14 +81,21 @@ export class OrchestratorService {
     try {
       const files = this.editorState.allFileContents();
       const activePath = this.editorState.activeTab()?.path;
+      const entryPath = findEntryPath(files, activePath);
+      if (!entryPath) {
+        this.previewState.updateCompiledResult({ html: '', css: '', errors: [], compilationTime: 0 });
+        return;
+      }
+      // The active tab's live content wins over the stored copy (it is the one being typed).
+      const entryCode = entryPath === activePath ? this.editorState.editorContent() : (files.get(entryPath) ?? '');
+      if (entryPath === activePath) files.set(entryPath, entryCode);
 
-      const rawParseResult = await this.parser.parse(code);
+      const rawParseResult = await this.parser.parse(entryCode, entryPath);
       if (rawParseResult.includes.length > 0) {
-        this.ensureIncludeFiles(rawParseResult.includes);
+        this.ensureIncludeFiles(rawParseResult.includes, entryPath);
       }
 
-      const resolvedCode = resolvePugIncludes(code, files, activePath);
-      const parseResult = await this.parser.parse(resolvedCode);
+      const parseResult = await this.parser.parse(entryCode, entryPath, files);
       this.parserState.updateFromParseResult(parseResult);
       this.parserState.setParsing(false);
 
@@ -114,7 +127,7 @@ export class OrchestratorService {
       }
 
       const data = this.dataState.data();
-      const compileResult = await this.compiler.compile(resolvedCode, data, activePath);
+      const compileResult = await this.compiler.compile(entryCode, data, entryPath, files);
 
       const scssResult = this.scssCompiler.compileAll(files);
       compileResult.css = scssResult.css;
@@ -154,6 +167,10 @@ export class OrchestratorService {
       this.isProcessing = false;
       this.previewState.setLoading(false);
       this.parserState.setParsing(false);
+      if (this.recompileRequested) {
+        this.recompileRequested = false;
+        void this.processCode(this.editorState.editorContent());
+      }
     }
   }
 
@@ -202,7 +219,8 @@ export class OrchestratorService {
 
   async clearDataWithKeys(): Promise<Record<string, unknown>> {
     const files = this.editorState.allFileContents();
-    const variables = await this.parser.parseAllFiles(files);
+    const entryPath = findEntryPath(files, this.editorState.activeTab()?.path);
+    const variables = await this.parser.parseProject(files, entryPath);
     if (variables.length === 0) return {};
     return this.buildDataFromVariables(variables);
   }
@@ -269,23 +287,21 @@ export class OrchestratorService {
     return candidate;
   }
 
-  private ensureIncludeFiles(includes: string[]): void {
+  private ensureIncludeFiles(includes: string[], fromPath: string): void {
     let changed = false;
     const files = this.editorState.files();
     for (const includePath of includes) {
-      const path = includePath.startsWith('/') ? includePath : '/' + includePath;
-      if (!files.has(path)) {
-        const name = path.split('/').pop() ?? 'unknown.pug';
-        this.editorState.files.update((f) => { f.set(path, ''); return f; });
-        this.terminalState.addEntry('info', 'Files', `Created missing include: ${name}`);
-        changed = true;
-      }
+      if (resolveVirtualPath(includePath, fromPath, files)) continue;
+      const dir = fromPath.substring(0, fromPath.lastIndexOf('/') + 1);
+      let path = includePath.startsWith('/') ? includePath : dir + includePath;
+      if (!/\.[a-z0-9]+$/i.test(path)) path += '.pug';
+      const name = path.split('/').pop() ?? 'unknown.pug';
+      this.editorState.files.update((f) => { f.set(path, ''); return f; });
+      this.terminalState.addEntry('info', 'Files', `Created missing include: ${name}`);
+      changed = true;
     }
     if (changed) {
-      this.projectState.setProject(
-        this.projectState.projectName(),
-        this.editorState.files()
-      );
+      this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     }
   }
 

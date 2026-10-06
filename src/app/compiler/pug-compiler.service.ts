@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { CompileResult, CompileError } from '../core/models/index';
+import { createPugFilePlugin, normalizeIncludes } from '../core/utils/pug-vfs.util';
 
 function getPugBundle(): any {
   return (self as any).pugBundle;
@@ -36,9 +37,10 @@ export class PugCompilerService {
   }
 
   async compile(
-    resolvedCode: string,
+    code: string,
     data: Record<string, unknown> = {},
-    activeFilePath?: string,
+    entryPath?: string,
+    files?: Map<string, string>,
   ): Promise<CompileResult> {
     const start = performance.now();
     const errors: CompileError[] = [];
@@ -61,12 +63,16 @@ export class PugCompilerService {
           doctype: 'html',
           self: false,
         };
-        if (activeFilePath) {
-          opts['filename'] = activeFilePath;
+        if (entryPath) {
+          opts['filename'] = entryPath;
           opts['basedir'] = '/';
         }
+        if (files) {
+          opts['plugins'] = [createPugFilePlugin(files)];
+        }
 
-        const compiledFn = bundle.compile(resolvedCode, opts);
+        const source = files && entryPath ? normalizeIncludes(code, entryPath, files) : code;
+        const compiledFn = bundle.compile(source, opts);
         html = compiledFn(data);
       }
     } catch (err: unknown) {
