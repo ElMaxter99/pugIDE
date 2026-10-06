@@ -8,7 +8,7 @@ import {
   ParseError,
   DataType,
 } from '../core/models/index';
-import { resolvePugIncludes } from '../core/utils/pug-includes.util';
+import { createPugFilePlugin, normalizeIncludes } from '../core/utils/pug-vfs.util';
 import { TerminalState } from '../core/state/terminal.state';
 
 interface FileReference {
@@ -36,20 +36,12 @@ const PUG_KEYWORDS = new Set([
   'append', 'prepend', 'doctype', 'xml',
 ]);
 
-const HTML_TAGS = new Set([
-  'html', 'head', 'body', 'div', 'span', 'p', 'a', 'h1', 'h2', 'h3',
-  'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'table', 'tr', 'td', 'th',
-  'form', 'input', 'button', 'select', 'option', 'textarea', 'img',
-  'script', 'style', 'link', 'meta', 'title', 'template', 'header',
-  'footer', 'nav', 'main', 'section', 'article', 'aside', 'details',
-  'summary', 'figure', 'figcaption', 'video', 'audio', 'source',
-  'canvas', 'svg', 'path', 'br', 'hr', 'pre', 'code', 'em', 'strong',
-  'small', 's', 'sub', 'sup', 'u', 'i', 'b', 'mark', 'del', 'ins',
-]);
-
 const IDENTIFIER_RE = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+const IDENTIFIER_CHAIN_RE = /^[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*$/;
 
 type LexerFn = (str: string, options?: { filename?: string }) => unknown;
+type LoadFn = (src: string, options: Record<string, unknown>) => PugAstNode;
+type LinkFn = (ast: PugAstNode) => PugAstNode;
 type ParserFn = (tokens: unknown[], options?: { filename?: string }) => PugAstNode;
 
 @Injectable({ providedIn: 'root' })
@@ -58,6 +50,8 @@ export class PugParserService {
 
   private lexerFn: LexerFn | null = null;
   private parserFn: ParserFn | null = null;
+  private loadFn: LoadFn | null = null;
+  private linkFn: LinkFn | null = null;
   private initialized = false;
   private initPromise: Promise<void> | null = null;
 
@@ -85,6 +79,8 @@ export class PugParserService {
     if (loaded?.lexer) {
       this.lexerFn = loaded.lexer as LexerFn;
       this.parserFn = loaded.parse as unknown as ParserFn;
+      this.loadFn = (loaded.load?.string as LoadFn) ?? null;
+      this.linkFn = (loaded.link as LinkFn) ?? null;
     } else {
       this.terminalState.addEntry(
         'error',
@@ -95,58 +91,38 @@ export class PugParserService {
     this.initialized = true;
   }
 
-  async parseAllFiles(files: Map<string, string>): Promise<PugVariable[]> {
+  /** Variables the whole project reads, starting from its entry template (includes/extends followed natively). */
+  async parseProject(files: Map<string, string>, entryPath: string | null): Promise<PugVariable[]> {
     await this.initialize();
-    const allVars: PugVariable[] = [];
-    const seenPaths = new Set<string>();
-
-    const entries = Array.from(files.entries());
-    for (const [filePath, code] of entries) {
-      if (!code.trim()) continue;
-      if (!filePath.endsWith('.pug')) continue;
-      const resolvedCode = resolvePugIncludes(code, files, filePath);
-      try {
-        if (this.lexerFn && this.parserFn) {
-          const tokens = this.lexerFn(resolvedCode, { filename: filePath }) as unknown[];
-          const ast = this.parserFn(tokens, { filename: filePath });
-          const vars = this.extractVariables(ast);
-          for (const v of vars) {
-            if (!seenPaths.has(v.path)) {
-              seenPaths.add(v.path);
-              allVars.push(v);
-            }
-          }
-          const mixins = this.extractMixins(ast);
-          for (const m of mixins) {
-            for (const arg of m.args) {
-              const cleanArg = arg.replace(/^\.\.\./, '').trim();
-              if (cleanArg && IDENTIFIER_RE.test(cleanArg)) {
-                const existing = allVars.find(v2 => v2.path === cleanArg);
-                if (!existing) {
-                  allVars.push({
-                    path: cleanArg,
-                    name: cleanArg,
-                    type: 'object' as DataType,
-                    defaultValue: {},
-                    isLeaf: false,
-                  });
-                }
-              }
-            }
-          }
-        }
-      } catch (err) {
-        this.terminalState.addEntry(
-          'warning',
-          'Parser',
-          `Skipped ${filePath}: ${(err as Error).message ?? 'parse error'}`
-        );
-      }
+    if (!entryPath || !this.lexerFn || !this.parserFn) return [];
+    try {
+      const ast = this.buildLinkedAst(files.get(entryPath) ?? '', entryPath, files);
+      return this.extractVariables(ast);
+    } catch (err) {
+      this.terminalState.addEntry('warning', 'Parser', `Skipped ${entryPath}: ${(err as Error).message ?? 'parse error'}`);
+      return [];
     }
-    return allVars;
   }
 
-  async parse(code: string, filename = 'input.pug'): Promise<ParseResult> {
+  /** Lex+parse then (when a project is given) load and link include/extends natively, like the compiler does. */
+  private buildLinkedAst(code: string, filename: string, files?: Map<string, string>): PugAstNode {
+    if (files && this.loadFn && this.linkFn && this.lexerFn && this.parserFn) {
+      const plugin = createPugFilePlugin(files);
+      const loaded = this.loadFn(normalizeIncludes(code, filename, files), {
+        filename,
+        basedir: '/',
+        lex: this.lexerFn,
+        parse: this.parserFn,
+        resolve: (name: string, source: string | undefined) => plugin.resolve(name, source),
+        read: (name: string) => plugin.read(name),
+      });
+      return this.linkFn(loaded);
+    }
+    const tokens = this.lexerFn!(code, { filename }) as unknown[];
+    return this.parserFn!(tokens, { filename });
+  }
+
+  async parse(code: string, filename = 'input.pug', files?: Map<string, string>): Promise<ParseResult> {
     const start = performance.now();
     const errors: ParseError[] = [];
     let ast: PugAstNode | null = null;
@@ -155,8 +131,7 @@ export class PugParserService {
       await this.initialize();
 
       if (this.lexerFn && this.parserFn) {
-        const tokens = this.lexerFn(code, { filename }) as unknown[];
-        ast = this.parserFn(tokens, { filename });
+        ast = this.buildLinkedAst(code, filename, files);
       }
     } catch (err: unknown) {
       const error = err as { message?: string; line?: number; column?: number };
@@ -229,133 +204,199 @@ export class PugParserService {
 
   // --- Variable Extraction ---
 
+  /**
+   * Walks the (linked) AST collecting every data path the template reads.
+   * Mixin bodies are expanded at each call site with their parameters aliased
+   * to the argument expressions, so `+card(user)` over `mixin card(u) h2= u.name`
+   * yields `user.name` (and `+item(it)` inside `each it in items` yields `items[].…`).
+   */
   private extractVariables(ast: PugAstNode): PugVariable[] {
     const collected = new Map<string, PugVariable>();
-    const localVars = new Set<string>();
-    const eachVarMap = new Map<string, string>();
-    const mixinDefs = new Map<string, { args: string[]; body: PugAstNode[] }>();
+    const mixinDefs = new Map<string, { params: string[]; body: PugAstNode[] }>();
 
     this.walkAst(ast, (node) => {
-      if (node.type === 'Each') {
-        const val = (node as PugAstNode & { val?: string }).val;
-        const obj = (node as PugAstNode & { obj?: string }).obj;
-        if (val) {
-          localVars.add(val);
-          if (typeof obj === 'string') {
-            eachVarMap.set(val, obj);
-          }
-        }
-      }
-      if (node.type === 'Mixin') {
-        const isCall = node.call === true;
-        if (!isCall && node.name) {
-          const argsStr = typeof node.args === 'string' ? node.args : '';
-          const args = argsStr.trim()
-            ? argsStr.split(',').map(a => a.trim().split('=')[0].trim()).filter(a => a.length > 0)
-            : [];
-          const body = node.block?.nodes ?? [];
-          mixinDefs.set(node.name, { args, body });
-        }
+      if (node.type === 'Mixin' && node.call !== true && node.name) {
+        mixinDefs.set(node.name, { params: this.mixinParams(node.args), body: node.block?.nodes ?? [] });
       }
     });
 
-    this.walkAst(ast, (node) => {
-      switch (node.type) {
-        case 'Tag':
-          this.extractFromAttrs(node, collected, localVars, eachVarMap);
-          this.extractFromBlock(node, collected, localVars, eachVarMap);
-          break;
-
-        case 'Code':
-          this.extractFromCode(node, collected, localVars, eachVarMap);
-          break;
-
-        case 'Text':
-          this.extractFromText(node, collected, localVars, eachVarMap);
-          break;
-
-        case 'Conditional':
-          this.extractFromConditional(node, collected, localVars, eachVarMap);
-          break;
-
-        case 'Case':
-          this.extractFromCase(node, collected, localVars, eachVarMap);
-          break;
-
-        case 'Each':
-          this.extractFromEach(node, collected, localVars);
-          break;
-
-        case 'Mixin': {
-          const isCall = node.call === true;
-          if (isCall) {
-            this.extractFromMixinCallArgs(node, collected, localVars, eachVarMap, mixinDefs);
-          } else {
-            this.extractFromMixinDef(node, collected, localVars);
-          }
-          break;
-        }
-      }
-    });
-
+    this.collectNodes(ast.nodes ?? [], new Map(), collected, mixinDefs, 0);
     return Array.from(collected.values()).sort((a, b) => a.path.localeCompare(b.path));
   }
 
-  private extractFromAttrs(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
-    if (!node.attrs) return;
-    for (const attr of node.attrs) {
-      if (typeof attr.val !== 'string') continue;
-      if (attr.val.startsWith('"') || attr.val.startsWith("'")) continue;
-      if (/^\d/.test(attr.val)) continue;
+  private mixinParams(args: unknown): string[] {
+    if (typeof args !== 'string' || !args.trim()) return [];
+    return this.splitArgs(args)
+      .map((a) => a.trim().replace(/^\.\.\./, '').split('=')[0].trim())
+      .filter((a) => IDENTIFIER_RE.test(a));
+  }
 
-      const identifiers = this.extractIdentifiers(attr.val);
-      for (const id of identifiers) {
-        const remapped = this.remapIdentifier(id, localVars, eachVarMap);
-        if (remapped) this.addVariable(collected, remapped);
+  /** Splits a call/definition argument list on top-level commas (ignores commas in strings and brackets). */
+  private splitArgs(args: string): string[] {
+    const out: string[] = [];
+    let depth = 0;
+    let quote = '';
+    let cur = '';
+    for (let i = 0; i < args.length; i++) {
+      const ch = args[i];
+      if (quote) {
+        cur += ch;
+        if (ch === '\\') cur += args[++i] ?? '';
+        else if (ch === quote) quote = '';
+        continue;
       }
+      if (ch === '"' || ch === "'" || ch === '`') { quote = ch; cur += ch; continue; }
+      if ('([{'.includes(ch)) depth++;
+      else if (')]}'.includes(ch)) depth--;
+      if (ch === ',' && depth === 0) { out.push(cur); cur = ''; continue; }
+      cur += ch;
+    }
+    if (cur.trim()) out.push(cur);
+    return out;
+  }
+
+  /** Maps an identifier chain through the local aliases; null when it's not (derived from) project data. */
+  private resolveId(id: string, aliases: Map<string, string | null>): string | null {
+    const parts = id.split('.');
+    const first = parts[0];
+    if (aliases.has(first)) {
+      const base = aliases.get(first);
+      if (!base) return null;
+      return parts.length === 1 ? base : base + '.' + parts.slice(1).join('.');
+    }
+    if (BUILTINS.has(first) || PUG_KEYWORDS.has(first)) return null;
+    return id;
+  }
+
+  private collectExpr(expr: string, aliases: Map<string, string | null>, collected: Map<string, PugVariable>): void {
+    for (const id of this.extractIdentifiers(expr)) {
+      const path = this.resolveId(id, aliases);
+      if (path) this.addVariable(collected, path);
     }
   }
 
-  private extractFromBlock(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
-    if (!node.block?.nodes) return;
-    for (const child of node.block.nodes) {
-      if (child.type === 'Code' && child.buffer && typeof child.val === 'string') {
-        const identifiers = this.extractIdentifiers(child.val);
-        for (const id of identifiers) {
-          const remapped = this.remapIdentifier(id, localVars, eachVarMap);
-          if (remapped) this.addVariable(collected, remapped);
+  private collectNodes(
+    nodes: PugAstNode[],
+    aliases: Map<string, string | null>,
+    collected: Map<string, PugVariable>,
+    mixinDefs: Map<string, { params: string[]; body: PugAstNode[] }>,
+    depth: number,
+  ): void {
+    // `- var x = ...` declares a local for the rest of this block.
+    const scope = new Map(aliases);
+    for (const node of nodes) this.collectNode(node as any, scope, collected, mixinDefs, depth);
+  }
+
+  private collectNode(
+    node: any,
+    scope: Map<string, string | null>,
+    collected: Map<string, PugVariable>,
+    mixinDefs: Map<string, { params: string[]; body: PugAstNode[] }>,
+    depth: number,
+  ): void {
+    if (!node || typeof node !== 'object') return;
+    const recurse = (child: any) => {
+      if (!child) return;
+      if (Array.isArray(child.nodes)) this.collectNodes(child.nodes, scope, collected, mixinDefs, depth);
+      else if (child.type) this.collectNode(child, scope, collected, mixinDefs, depth);
+    };
+
+    switch (node.type) {
+      case 'Tag':
+      case 'InterpolatedTag':
+        for (const attr of node.attrs ?? []) {
+          if (typeof attr.val !== 'string') continue;
+          if (/^["'\d]/.test(attr.val)) continue;
+          this.collectExpr(attr.val, scope, collected);
         }
-      }
-    }
-  }
+        for (const ab of node.attributeBlocks ?? []) {
+          if (typeof ab === 'string') this.collectExpr(ab, scope, collected);
+        }
+        recurse(node.block);
+        return;
 
-  private extractFromCode(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
-    if (typeof node.val !== 'string') return;
+      case 'Code':
+        if (typeof node.val === 'string') {
+          if (node.buffer) {
+            this.collectExpr(node.val, scope, collected);
+          } else {
+            for (const m of node.val.matchAll(/(?:var|let|const)\s+(\w+)/g)) scope.set(m[1], null);
+          }
+        }
+        recurse(node.block);
+        return;
 
-    if (node.buffer) {
-      const identifiers = this.extractIdentifiers(node.val);
-      for (const id of identifiers) {
-        const remapped = this.remapIdentifier(id, localVars, eachVarMap);
-        if (remapped) this.addVariable(collected, remapped);
-      }
-    } else {
-      const varDeclMatch = node.val.match(/(?:var|let|const)\s+(\w+)/);
-      if (varDeclMatch) {
-        localVars.add(varDeclMatch[1]);
-      }
-    }
-  }
+      case 'Text':
+        if (typeof node.val === 'string') {
+          for (const expr of this.extractInterpolationExpressions(node.val)) this.collectExpr(expr, scope, collected);
+        }
+        return;
 
-  private extractFromText(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
-    if (typeof node.val !== 'string') return;
+      case 'Conditional':
+        if (typeof node.test === 'string') {
+          const bare = node.test.trim().replace(/^!\s*/, '');
+          const barePath = IDENTIFIER_CHAIN_RE.test(bare) ? this.resolveId(bare, scope) : null;
+          if (barePath) this.addVariable(collected, barePath, this.inferType(barePath.split('.').pop()!.replace('[]', ''), true));
+          else this.collectExpr(node.test, scope, collected);
+        }
+        recurse(node.consequent);
+        recurse(node.alternate);
+        return;
 
-    const expressions = this.extractInterpolationExpressions(node.val);
-    for (const expr of expressions) {
-      const identifiers = this.extractIdentifiers(expr);
-      for (const id of identifiers) {
-        const remapped = this.remapIdentifier(id, localVars, eachVarMap);
-        if (remapped) this.addVariable(collected, remapped);
+      case 'Case':
+        if (typeof node.expr === 'string') this.collectExpr(node.expr, scope, collected);
+        recurse(node.block);
+        return;
+
+      case 'When':
+        if (typeof node.expr === 'string' && node.expr !== 'default') this.collectExpr(node.expr, scope, collected);
+        recurse(node.block);
+        return;
+
+      case 'While':
+        if (typeof node.test === 'string') this.collectExpr(node.test, scope, collected);
+        recurse(node.block);
+        return;
+
+      case 'Each':
+      case 'EachOf': {
+        const objPath = typeof node.obj === 'string' && IDENTIFIER_CHAIN_RE.test(node.obj.trim())
+          ? this.resolveId(node.obj.trim(), scope)
+          : null;
+        if (objPath) this.addVariable(collected, objPath, 'array');
+        else if (typeof node.obj === 'string') this.collectExpr(node.obj, scope, collected);
+        const inner = new Map(scope);
+        if (node.val) inner.set(node.val, objPath ? objPath + '[]' : null);
+        if (node.key) inner.set(node.key, null);
+        if (node.block?.nodes) this.collectNodes(node.block.nodes, inner, collected, mixinDefs, depth);
+        recurse(node.alternate);
+        return;
       }
+
+      case 'Mixin': {
+        if (node.call !== true) return; // definitions are expanded where they're called
+        const args = typeof node.args === 'string' ? this.splitArgs(node.args) : [];
+        const resolved: (string | null)[] = args.map((arg) => {
+          const trimmed = arg.trim();
+          if (IDENTIFIER_CHAIN_RE.test(trimmed)) return this.resolveId(trimmed, scope);
+          this.collectExpr(trimmed, scope, collected);
+          return null;
+        });
+        const def = mixinDefs.get(node.name ?? '');
+        if (def && depth < 12) {
+          const inner = new Map<string, string | null>();
+          def.params.forEach((param, i) => inner.set(param, resolved[i] ?? null));
+          this.collectNodes(def.body, inner, collected, mixinDefs, depth + 1);
+        }
+        // Added after the body so members found there (`user.name`) make it an object, not a string.
+        for (const path of resolved) if (path) this.addVariable(collected, path);
+        recurse(node.block);
+        return;
+      }
+
+      default:
+        recurse(node.block);
+        if (Array.isArray(node.nodes)) this.collectNodes(node.nodes, scope, collected, mixinDefs, depth);
     }
   }
 
@@ -383,145 +424,6 @@ export class PugParserService {
     return expressions;
   }
 
-  private extractFromCase(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
-    if (typeof node.expr !== 'string') return;
-    const identifiers = this.extractIdentifiers(node.expr);
-    for (const id of identifiers) {
-      const remapped = this.remapIdentifier(id, localVars, eachVarMap);
-      if (remapped) this.addVariable(collected, remapped);
-    }
-  }
-
-  private extractFromConditional(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>, eachVarMap: Map<string, string>): void {
-    const test = (node as PugAstNode & { test?: string }).test;
-    if (typeof test !== 'string') return;
-    const identifiers = this.extractIdentifiers(test);
-    for (const id of identifiers) {
-      const remapped = this.remapIdentifier(id, localVars, eachVarMap);
-      if (remapped) this.addVariable(collected, remapped);
-    }
-  }
-
-  private remapIdentifier(id: string, localVars: Set<string>, eachVarMap: Map<string, string>): string | null {
-    const parts = id.split('.');
-    const firstName = parts[0];
-
-    if (!localVars.has(firstName)) {
-      if (BUILTINS.has(firstName) || PUG_KEYWORDS.has(firstName) || HTML_TAGS.has(firstName)) {
-        return null;
-      }
-      return id;
-    }
-
-    const arrayPath = eachVarMap.get(firstName);
-    if (!arrayPath) {
-      if (parts.length === 1) return null;
-      return id;
-    }
-
-    if (parts.length === 1) {
-      return arrayPath + '[]';
-    }
-
-    return arrayPath + '[]' + '.' + parts.slice(1).join('.');
-  }
-
-  private extractFromEach(node: PugAstNode, collected: Map<string, PugVariable>, _localVars: Set<string>): void {
-    const obj = (node as PugAstNode & { obj?: string }).obj;
-    if (typeof obj === 'string') {
-      this.addVariable(collected, obj);
-    }
-  }
-
-  private extractFromMixinDef(node: PugAstNode, collected: Map<string, PugVariable>, localVars: Set<string>): void {
-    if (typeof node.args === 'string' && node.args.trim()) {
-      const args = node.args.split(',');
-      for (const arg of args) {
-        const name = arg.trim().split('=')[0].trim();
-        if (name && IDENTIFIER_RE.test(name)) {
-          localVars.add(name);
-        }
-      }
-    }
-  }
-
-  private extractFromMixinCallArgs(
-    node: PugAstNode,
-    collected: Map<string, PugVariable>,
-    localVars: Set<string>,
-    eachVarMap: Map<string, string>,
-    mixinDefs: Map<string, { args: string[]; body: PugAstNode[] }>
-  ): void {
-    if (typeof node.args !== 'string' || !node.args.trim()) return;
-
-    const identifiers = this.extractIdentifiers(node.args);
-    for (const id of identifiers) {
-      const remapped = this.remapIdentifier(id, localVars, eachVarMap);
-      if (remapped) this.addVariable(collected, remapped, 'object');
-    }
-
-    const mixinName = node.name ?? '';
-    const def = mixinDefs.get(mixinName);
-    if (!def) return;
-
-    const callArgs = node.args.split(',').map(a => a.trim());
-    const paramMap = new Map<string, string>();
-    for (let i = 0; i < def.args.length && i < callArgs.length; i++) {
-      paramMap.set(def.args[i], callArgs[i]);
-    }
-
-    this.extractFromMixinBody(def.body, paramMap, collected, localVars, eachVarMap);
-  }
-
-  private extractFromMixinBody(
-    body: PugAstNode[],
-    paramMap: Map<string, string>,
-    collected: Map<string, PugVariable>,
-    parentLocalVars: Set<string>,
-    parentEachVarMap: Map<string, string>
-  ): void {
-    const bodyLocalVars = new Set(parentLocalVars);
-    const bodyEachVarMap = new Map(parentEachVarMap);
-
-    for (const [param] of paramMap) {
-      bodyLocalVars.add(param);
-    }
-
-    const walk = (node: PugAstNode) => {
-      switch (node.type) {
-        case 'Tag':
-          this.extractFromAttrs(node, collected, bodyLocalVars, bodyEachVarMap);
-          this.extractFromBlock(node, collected, bodyLocalVars, bodyEachVarMap);
-          break;
-        case 'Code':
-          this.extractFromCode(node, collected, bodyLocalVars, bodyEachVarMap);
-          break;
-        case 'Conditional':
-          this.extractFromConditional(node, collected, bodyLocalVars, bodyEachVarMap);
-          break;
-        case 'Each': {
-          const val = (node as PugAstNode & { val?: string }).val;
-          const obj = (node as PugAstNode & { obj?: string }).obj;
-          if (val) {
-            bodyLocalVars.add(val);
-            if (typeof obj === 'string') {
-              const parts = obj.split('.');
-              if (paramMap.has(parts[0])) {
-                parts[0] = paramMap.get(parts[0])!;
-              }
-              bodyEachVarMap.set(val, parts.join('.'));
-            }
-          }
-          break;
-        }
-      }
-    };
-
-    for (const node of body) {
-      this.walkAst(node, walk);
-    }
-  }
-
   private addVariable(collected: Map<string, PugVariable>, path: string, typeOverride?: DataType): void {
     if (collected.has(path)) return;
 
@@ -531,11 +433,9 @@ export class PugParserService {
 
     if (BUILTINS.has(name)) return;
     if (PUG_KEYWORDS.has(name)) return;
-    if (HTML_TAGS.has(name)) return;
     if (!IDENTIFIER_RE.test(name)) return;
 
-    const isArrayItem = path.includes('[]');
-    const type: DataType = typeOverride ?? (isArrayItem ? 'array' : this.inferType(name));
+    const type: DataType = typeOverride ?? this.inferType(name);
     const variable: PugVariable = {
       name,
       path,
@@ -618,7 +518,7 @@ export class PugParserService {
         const parts = fullIdent.split('.');
         const firstName = parts[0];
 
-        if (!BUILTINS.has(firstName) && !PUG_KEYWORDS.has(firstName) && !HTML_TAGS.has(firstName)) {
+        if (!BUILTINS.has(firstName) && !PUG_KEYWORDS.has(firstName)) {
           identifiers.push(fullIdent);
         }
         continue;
@@ -674,15 +574,17 @@ export class PugParserService {
 
   // --- Type Inference ---
 
-  private inferType(name: string): DataType {
+  /** `asCondition`: the value is only tested for truthiness, so default to boolean unless the name says otherwise. */
+  private inferType(name: string, asCondition = false): DataType {
     const lower = name.toLowerCase();
-    if (/^(is|has|show|hide|enable|disable|open|close|visible|hidden|active|checked|can|should|will|did|was)$/.test(lower)) return 'boolean';
-    if (/^(count|total|sum|amount|price|quantity|size|length|width|height|age|year|month|day|hour|min|sec|num|id|index|page|limit|offset|ratio|percent|rate)$/.test(lower)) return 'number';
-    if (/^(date|time|created|updated|timestamp|born|expires|deadline|start|end)$/.test(lower)) return 'date';
-    if (/^(url|link|href|src|image|img|avatar|icon|website|path)$/.test(lower)) return 'url';
-    if (/^(color|bg|background|foreground|border|shadow|opacity|gradient)$/.test(lower)) return 'color';
-    if (/^(items|list|products|tags|categories|options|results|entries|rows|data|elements|children|users|names|values|keys|records)$/.test(lower)) return 'array';
-    return 'string';
+    if (/^(is|has|can|should|will|did|was|es|tiene|esta|puede)[A-Z_0-9]/.test(name)) return 'boolean';
+    if (/^(is|has|show|hide|enable|disable|open|close|visible|hidden|active|checked|can|should|will|did|was|activo|activa|visible|oculto|habilitado|deshabilitado|destacado|publicado|disponible|verificado|premium|admin|enabled|disabled|selected|seleccionado|completado|done|featured|published|available|verified)$/.test(lower)) return 'boolean';
+    if (/^(count|total|sum|amount|price|quantity|size|length|width|height|age|year|month|day|hour|min|sec|num|id|index|page|limit|offset|ratio|percent|rate|edad|precio|cantidad|importe|anio|año|mes|dia|hora|stock|puntos|valoracion|nota|numero|tamano|ancho|alto|descuento)$/.test(lower)) return 'number';
+    if (/^(date|time|created|updated|timestamp|born|expires|deadline|start|end|fecha|nacimiento|creado|actualizado|caducidad|inicio|fin)$/.test(lower)) return 'date';
+    if (/^(url|link|href|src|image|img|avatar|icon|website|path|enlace|imagen|foto|web|sitio|icono)$/.test(lower)) return 'url';
+    if (/^(color|bg|background|foreground|border|shadow|opacity|gradient|fondo)$/.test(lower)) return 'color';
+    if (/^(items|list|products|tags|categories|options|results|entries|rows|data|elements|children|users|names|values|keys|records|lista|productos|etiquetas|categorias|opciones|resultados|filas|elementos|usuarios|nombres|valores)$/.test(lower)) return 'array';
+    return asCondition ? 'boolean' : 'string';
   }
 
   private defaultValue(type: DataType): unknown {

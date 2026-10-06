@@ -15,7 +15,8 @@ import { ProjectState } from '../state/project.state';
 import { PersistenceService } from './persistence.service';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
-import { resolvePugIncludes } from '../utils/pug-includes.util';
+import { buildDataSkeleton } from '../utils/data-skeleton.util';
+import { findEntryPath, resolveVirtualPath } from '../utils/pug-vfs.util';
 
 @Injectable({ providedIn: 'root' })
 export class OrchestratorService {
@@ -33,6 +34,7 @@ export class OrchestratorService {
 
   private codeChange$ = new Subject<string>();
   private isProcessing = false;
+  private recompileRequested = false;
   private initialDataLoaded = false;
 
   constructor() {
@@ -67,7 +69,12 @@ export class OrchestratorService {
   }
 
   private async processCode(code: string): Promise<void> {
-    if (this.isProcessing) return;
+    // A change that lands mid-compile (e.g. pasting a whole file) must not be dropped:
+    // remember it and recompile with the latest state once the current run finishes.
+    if (this.isProcessing) {
+      this.recompileRequested = true;
+      return;
+    }
     this.isProcessing = true;
     this.previewState.setLoading(true);
     this.parserState.setParsing(true);
@@ -75,14 +82,21 @@ export class OrchestratorService {
     try {
       const files = this.editorState.allFileContents();
       const activePath = this.editorState.activeTab()?.path;
+      const entryPath = findEntryPath(files, activePath);
+      if (!entryPath) {
+        this.previewState.updateCompiledResult({ html: '', css: '', errors: [], compilationTime: 0 });
+        return;
+      }
+      // The active tab's live content wins over the stored copy (it is the one being typed).
+      const entryCode = entryPath === activePath ? this.editorState.editorContent() : (files.get(entryPath) ?? '');
+      if (entryPath === activePath) files.set(entryPath, entryCode);
 
-      const rawParseResult = await this.parser.parse(code);
+      const rawParseResult = await this.parser.parse(entryCode, entryPath);
       if (rawParseResult.includes.length > 0) {
-        this.ensureIncludeFiles(rawParseResult.includes);
+        this.ensureIncludeFiles(rawParseResult.includes, entryPath);
       }
 
-      const resolvedCode = resolvePugIncludes(code, files, activePath);
-      const parseResult = await this.parser.parse(resolvedCode);
+      const parseResult = await this.parser.parse(entryCode, entryPath, files);
       this.parserState.updateFromParseResult(parseResult);
       this.parserState.setParsing(false);
 
@@ -114,7 +128,7 @@ export class OrchestratorService {
       }
 
       const data = this.dataState.data();
-      const compileResult = await this.compiler.compile(resolvedCode, data, activePath);
+      const compileResult = await this.compiler.compile(entryCode, data, entryPath, files);
 
       const scssResult = this.scssCompiler.compileAll(files);
       compileResult.css = scssResult.css;
@@ -154,6 +168,10 @@ export class OrchestratorService {
       this.isProcessing = false;
       this.previewState.setLoading(false);
       this.parserState.setParsing(false);
+      if (this.recompileRequested) {
+        this.recompileRequested = false;
+        void this.processCode(this.editorState.editorContent());
+      }
     }
   }
 
@@ -202,7 +220,8 @@ export class OrchestratorService {
 
   async clearDataWithKeys(): Promise<Record<string, unknown>> {
     const files = this.editorState.allFileContents();
-    const variables = await this.parser.parseAllFiles(files);
+    const entryPath = findEntryPath(files, this.editorState.activeTab()?.path);
+    const variables = await this.parser.parseProject(files, entryPath);
     if (variables.length === 0) return {};
     return this.buildDataFromVariables(variables);
   }
@@ -269,78 +288,26 @@ export class OrchestratorService {
     return candidate;
   }
 
-  private ensureIncludeFiles(includes: string[]): void {
+  private ensureIncludeFiles(includes: string[], fromPath: string): void {
     let changed = false;
     const files = this.editorState.files();
     for (const includePath of includes) {
-      const path = includePath.startsWith('/') ? includePath : '/' + includePath;
-      if (!files.has(path)) {
-        const name = path.split('/').pop() ?? 'unknown.pug';
-        this.editorState.files.update((f) => { f.set(path, ''); return f; });
-        this.terminalState.addEntry('info', 'Files', `Created missing include: ${name}`);
-        changed = true;
-      }
+      if (resolveVirtualPath(includePath, fromPath, files)) continue;
+      const dir = fromPath.substring(0, fromPath.lastIndexOf('/') + 1);
+      let path = includePath.startsWith('/') ? includePath : dir + includePath;
+      if (!/\.[a-z0-9]+$/i.test(path)) path += '.pug';
+      const name = path.split('/').pop() ?? 'unknown.pug';
+      this.editorState.files.update((f) => { f.set(path, ''); return f; });
+      this.terminalState.addEntry('info', 'Files', `Created missing include: ${name}`);
+      changed = true;
     }
     if (changed) {
-      this.projectState.setProject(
-        this.projectState.projectName(),
-        this.editorState.files()
-      );
+      this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     }
   }
 
   private buildDataFromVariables(variables: PugVariable[]): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    for (const v of variables) {
-      if (v.path.includes('[]')) {
-        this.setArrayValue(data, v.path, v.defaultValue);
-      } else {
-        this.setNestedValue(data, v.path, v.defaultValue);
-      }
-    }
-    return data;
-  }
-
-  private setArrayValue(data: Record<string, unknown>, path: string, value: unknown): void {
-    const parts = path.split('.');
-    let arrayPathParts: string[] = [];
-    let itemPathParts: string[] = [];
-    let foundArray = false;
-
-    for (const part of parts) {
-      if (part.includes('[]')) {
-        arrayPathParts.push(part.replace('[]', ''));
-        foundArray = true;
-      } else if (foundArray) {
-        itemPathParts.push(part);
-      } else {
-        arrayPathParts.push(part);
-      }
-    }
-
-    const arrayPath = arrayPathParts.join('.');
-    if (!Array.isArray(this.getNestedValue(data, arrayPath))) {
-      this.setNestedValue(data, arrayPath, []);
-    }
-
-    const arr = this.getNestedValue(data, arrayPath) as unknown[];
-    if (itemPathParts.length > 0 && arr.length === 0) {
-      const item: Record<string, unknown> = {};
-      this.setNestedValue(item, itemPathParts.join('.'), value);
-      arr.push(item);
-    } else if (itemPathParts.length > 0 && arr.length > 0) {
-      this.setNestedValue(arr[0] as Record<string, unknown>, itemPathParts.join('.'), value);
-    }
-  }
-
-  private getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-    const keys = path.split('.');
-    let current: any = obj;
-    for (const key of keys) {
-      if (current === null || current === undefined) return undefined;
-      current = current[key];
-    }
-    return current;
+    return buildDataSkeleton(variables);
   }
 
   /** Merges `source` into `target`, filling in only keys missing from `target` (recursing into plain objects). Never touches arrays or primitives already present. Returns whether anything changed. */
@@ -360,6 +327,13 @@ export class OrchestratorService {
       if (bothPlainObjects) {
         if (this.deepMergeMissing(targetValue as Record<string, unknown>, sourceValue as Record<string, unknown>)) {
           changed = true;
+        }
+      } else if (Array.isArray(sourceValue) && Array.isArray(targetValue) && sourceValue[0] !== null && typeof sourceValue[0] === 'object' && !Array.isArray(sourceValue[0])) {
+        // New fields the template reads on array items must exist on every existing item.
+        for (const item of targetValue) {
+          if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+            if (this.deepMergeMissing(item as Record<string, unknown>, sourceValue[0] as Record<string, unknown>)) changed = true;
+          }
         }
       }
     }
