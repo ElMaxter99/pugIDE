@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   input,
   output,
+  computed,
 } from '@angular/core';
 import { ContextMenuAction } from '../../../core/models/index';
 
@@ -13,7 +14,7 @@ import { ContextMenuAction } from '../../../core/models/index';
   template: `
     @if (isOpen()) {
       <div class="context-overlay" (click)="close()"></div>
-      <div class="context-menu" [style.left.px]="positionX()" [style.top.px]="positionY()">
+      <div class="context-menu" [style.left.px]="clampedX()" [style.top.px]="clampedY()">
         @for (item of items(); track item.label) {
           @if (item.separator) {
             <div class="context-separator"></div>
@@ -24,7 +25,7 @@ import { ContextMenuAction } from '../../../core/models/index';
               [disabled]="item.disabled"
               (click)="onAction(item)">
               @if (item.icon) {
-                <span class="context-icon">{{ item.icon }}</span>
+                <span class="context-icon material-symbols-outlined">{{ item.icon }}</span>
               }
               <span class="context-label">{{ item.label }}</span>
               @if (item.children) {
@@ -46,7 +47,8 @@ import { ContextMenuAction } from '../../../core/models/index';
     .context-menu {
       position: fixed;
       z-index: 1000;
-      min-width: 180px;
+      min-width: 190px;
+      max-width: calc(100vw - 16px);
       background: var(--bg-secondary);
       border: 1px solid var(--border-color);
       border-radius: 6px;
@@ -60,11 +62,11 @@ import { ContextMenuAction } from '../../../core/models/index';
       align-items: center;
       gap: 8px;
       width: 100%;
-      padding: 6px 12px;
+      padding: 7px 12px;
       border: none;
       background: none;
       color: var(--text-primary);
-      font-size: 12px;
+      font-size: 13px;
       cursor: pointer;
       text-align: left;
       font-family: inherit;
@@ -81,9 +83,13 @@ import { ContextMenuAction } from '../../../core/models/index';
     }
 
     .context-icon {
-      width: 16px;
+      width: 18px;
+      height: 18px;
+      overflow: hidden;
       text-align: center;
-      font-size: 11px;
+      font-size: 18px;
+      line-height: 18px;
+      flex-shrink: 0;
     }
 
     .context-label {
@@ -113,6 +119,13 @@ export class ContextMenuComponent {
   positionY = input(0);
   isOpen = input(false);
   actionSelected = output<string>();
+
+  /** Keeps the menu inside the viewport (approximate size: 200px wide, 34px per row). */
+  clampedX = computed(() => Math.max(8, Math.min(this.positionX(), window.innerWidth - 208)));
+  clampedY = computed(() => {
+    const height = this.items().length * 34 + 8;
+    return Math.max(8, Math.min(this.positionY(), window.innerHeight - height - 8));
+  });
 
   close(): void {
     this.actionSelected.emit('');
