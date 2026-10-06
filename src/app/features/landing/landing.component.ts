@@ -153,9 +153,36 @@ import { PersistenceService } from '../../core/services/persistence.service';
           </div>
         </section>
       </main>
+
+      <footer class="landing-footer">
+        <p>
+          PugIDE &copy; 2026
+          <a href="https://github.com/ElMaxter99" target="_blank" rel="noopener noreferrer">ElMaxter99</a>
+          &middot; Licencia
+          <a href="https://github.com/ElMaxter99/pugIDE/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT</a>
+          &middot; Uso libre y gratuito, con mención al autor.
+        </p>
+        <a class="footer-repo" href="https://github.com/ElMaxter99/pugIDE" target="_blank" rel="noopener noreferrer">
+          Ver repositorio original en GitHub
+        </a>
+      </footer>
     </div>
   `,
   styles: [`
+    .landing-footer {
+      position: relative;
+      z-index: 1;
+      padding: 32px 24px 40px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-secondary, var(--text-primary));
+      border-top: 1px solid var(--border-subtle, var(--border-color));
+    }
+    .landing-footer p { margin: 0 0 8px; }
+    .landing-footer a { color: var(--accent-color); text-decoration: none; }
+    .landing-footer a:hover { text-decoration: underline; }
+    .footer-repo { font-weight: 600; }
+
     .landing-root {
       min-height: 100vh;
       background: var(--bg-surface);
