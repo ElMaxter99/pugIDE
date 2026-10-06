@@ -1,6 +1,12 @@
 {
   "name": "pug-ide",
-  "version": "0.0.1",
+  "version": "0.0.2",
+  "license": "MIT",
+  "author": "ElMaxter99 (https://github.com/ElMaxter99)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ElMaxter99/pugIDE.git"
+  },
   "description": "PugIDE - Visual Pug/Jade development environment with smart data generation",
   "type": "module",
   "scripts": {
