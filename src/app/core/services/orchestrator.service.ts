@@ -15,6 +15,7 @@ import { ProjectState } from '../state/project.state';
 import { PersistenceService } from './persistence.service';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
+import { buildDataSkeleton } from '../utils/data-skeleton.util';
 import { findEntryPath, resolveVirtualPath } from '../utils/pug-vfs.util';
 
 @Injectable({ providedIn: 'root' })
@@ -306,57 +307,7 @@ export class OrchestratorService {
   }
 
   private buildDataFromVariables(variables: PugVariable[]): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
-    for (const v of variables) {
-      if (v.path.includes('[]')) {
-        this.setArrayValue(data, v.path, v.defaultValue);
-      } else {
-        this.setNestedValue(data, v.path, v.defaultValue);
-      }
-    }
-    return data;
-  }
-
-  private setArrayValue(data: Record<string, unknown>, path: string, value: unknown): void {
-    const parts = path.split('.');
-    let arrayPathParts: string[] = [];
-    let itemPathParts: string[] = [];
-    let foundArray = false;
-
-    for (const part of parts) {
-      if (part.includes('[]')) {
-        arrayPathParts.push(part.replace('[]', ''));
-        foundArray = true;
-      } else if (foundArray) {
-        itemPathParts.push(part);
-      } else {
-        arrayPathParts.push(part);
-      }
-    }
-
-    const arrayPath = arrayPathParts.join('.');
-    if (!Array.isArray(this.getNestedValue(data, arrayPath))) {
-      this.setNestedValue(data, arrayPath, []);
-    }
-
-    const arr = this.getNestedValue(data, arrayPath) as unknown[];
-    if (itemPathParts.length > 0 && arr.length === 0) {
-      const item: Record<string, unknown> = {};
-      this.setNestedValue(item, itemPathParts.join('.'), value);
-      arr.push(item);
-    } else if (itemPathParts.length > 0 && arr.length > 0) {
-      this.setNestedValue(arr[0] as Record<string, unknown>, itemPathParts.join('.'), value);
-    }
-  }
-
-  private getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-    const keys = path.split('.');
-    let current: any = obj;
-    for (const key of keys) {
-      if (current === null || current === undefined) return undefined;
-      current = current[key];
-    }
-    return current;
+    return buildDataSkeleton(variables);
   }
 
   /** Merges `source` into `target`, filling in only keys missing from `target` (recursing into plain objects). Never touches arrays or primitives already present. Returns whether anything changed. */
@@ -376,6 +327,13 @@ export class OrchestratorService {
       if (bothPlainObjects) {
         if (this.deepMergeMissing(targetValue as Record<string, unknown>, sourceValue as Record<string, unknown>)) {
           changed = true;
+        }
+      } else if (Array.isArray(sourceValue) && Array.isArray(targetValue) && sourceValue[0] !== null && typeof sourceValue[0] === 'object' && !Array.isArray(sourceValue[0])) {
+        // New fields the template reads on array items must exist on every existing item.
+        for (const item of targetValue) {
+          if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+            if (this.deepMergeMissing(item as Record<string, unknown>, sourceValue[0] as Record<string, unknown>)) changed = true;
+          }
         }
       }
     }

@@ -127,5 +127,39 @@ import { readFileSync, readdirSync } from 'node:fs';
   const inTree = JSON.stringify(a.ProjectState.fileTree()).includes('_mixins.pug');
   check('13 missing include regenerated on compile', a.EditorState.files().has('/a/_mixins.pug') && inTree, 'files=' + [...a.EditorState.files().keys()] + ' tree=' + inTree);
 }
+
+// 14. user's usuarioCard example: typed, sensible empty data
+{
+  const a = await run({
+    '/main.pug': 'html\n  body\n    h1 Usuarios\n    include a/_mixins.pug\n    each usuario in usuarios\n      +usuarioCard(usuario)\n',
+    '/a/_mixins.pug': `mixin usuarioCard(usuario)
+  article.usuario
+    h2= usuario.nombre
+    p
+      strong Edad:
+      |  #{usuario.edad} años
+    p
+      if usuario.activo
+        |  Activo
+      else
+        |  Inactivo
+    .direccion
+      p Ciudad: #{usuario.direccion.ciudad}
+      p País: #{usuario.direccion.pais}
+    ul
+      each habilidad in usuario.habilidades
+        li= habilidad
+`,
+  }, '/main.pug');
+  const want = { usuarios: [{ nombre: '', edad: 0, activo: false, direccion: { ciudad: '', pais: '' }, habilidades: [''] }] };
+  check('14 skeleton', JSON.stringify(a.DataState.data()) === JSON.stringify(want) || JSON.stringify(Object.entries(a.DataState.data().usuarios[0]).sort()) === JSON.stringify(Object.entries(want.usuarios[0]).sort()), JSON.stringify(a.DataState.data()));
+  check('14 compiles', !errs(a), errs(a));
+  // adding a new field in the mixin extends existing items instead of being ignored
+  a.DataState.setData({ usuarios: [{ nombre: 'Ana', edad: 3, activo: true, direccion: { ciudad: 'X', pais: 'Y' }, habilidades: ['js'] }, { nombre: 'Luis' }] });
+  a.EditorState.files.update((f) => { f.set('/a/_mixins.pug', f.get('/a/_mixins.pug') + '    p= usuario.email\n'); return f; });
+  await a.orch.manualCompile();
+  const us = a.DataState.data().usuarios;
+  check('14 new field added to every item, values kept', us.every((u) => 'email' in u) && us[0].nombre === 'Ana', JSON.stringify(us));
+}
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

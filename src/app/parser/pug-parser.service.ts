@@ -333,7 +333,12 @@ export class PugParserService {
         return;
 
       case 'Conditional':
-        if (typeof node.test === 'string') this.collectExpr(node.test, scope, collected);
+        if (typeof node.test === 'string') {
+          const bare = node.test.trim().replace(/^!\s*/, '');
+          const barePath = IDENTIFIER_CHAIN_RE.test(bare) ? this.resolveId(bare, scope) : null;
+          if (barePath) this.addVariable(collected, barePath, this.inferType(barePath.split('.').pop()!.replace('[]', ''), true));
+          else this.collectExpr(node.test, scope, collected);
+        }
         recurse(node.consequent);
         recurse(node.alternate);
         return;
@@ -430,8 +435,7 @@ export class PugParserService {
     if (PUG_KEYWORDS.has(name)) return;
     if (!IDENTIFIER_RE.test(name)) return;
 
-    const isArrayItem = path.includes('[]');
-    const type: DataType = typeOverride ?? (isArrayItem ? 'array' : this.inferType(name));
+    const type: DataType = typeOverride ?? this.inferType(name);
     const variable: PugVariable = {
       name,
       path,
@@ -570,15 +574,17 @@ export class PugParserService {
 
   // --- Type Inference ---
 
-  private inferType(name: string): DataType {
+  /** `asCondition`: the value is only tested for truthiness, so default to boolean unless the name says otherwise. */
+  private inferType(name: string, asCondition = false): DataType {
     const lower = name.toLowerCase();
-    if (/^(is|has|show|hide|enable|disable|open|close|visible|hidden|active|checked|can|should|will|did|was)$/.test(lower)) return 'boolean';
-    if (/^(count|total|sum|amount|price|quantity|size|length|width|height|age|year|month|day|hour|min|sec|num|id|index|page|limit|offset|ratio|percent|rate)$/.test(lower)) return 'number';
-    if (/^(date|time|created|updated|timestamp|born|expires|deadline|start|end)$/.test(lower)) return 'date';
-    if (/^(url|link|href|src|image|img|avatar|icon|website|path)$/.test(lower)) return 'url';
-    if (/^(color|bg|background|foreground|border|shadow|opacity|gradient)$/.test(lower)) return 'color';
-    if (/^(items|list|products|tags|categories|options|results|entries|rows|data|elements|children|users|names|values|keys|records)$/.test(lower)) return 'array';
-    return 'string';
+    if (/^(is|has|can|should|will|did|was|es|tiene|esta|puede)[A-Z_0-9]/.test(name)) return 'boolean';
+    if (/^(is|has|show|hide|enable|disable|open|close|visible|hidden|active|checked|can|should|will|did|was|activo|activa|visible|oculto|habilitado|deshabilitado|destacado|publicado|disponible|verificado|premium|admin|enabled|disabled|selected|seleccionado|completado|done|featured|published|available|verified)$/.test(lower)) return 'boolean';
+    if (/^(count|total|sum|amount|price|quantity|size|length|width|height|age|year|month|day|hour|min|sec|num|id|index|page|limit|offset|ratio|percent|rate|edad|precio|cantidad|importe|anio|año|mes|dia|hora|stock|puntos|valoracion|nota|numero|tamano|ancho|alto|descuento)$/.test(lower)) return 'number';
+    if (/^(date|time|created|updated|timestamp|born|expires|deadline|start|end|fecha|nacimiento|creado|actualizado|caducidad|inicio|fin)$/.test(lower)) return 'date';
+    if (/^(url|link|href|src|image|img|avatar|icon|website|path|enlace|imagen|foto|web|sitio|icono)$/.test(lower)) return 'url';
+    if (/^(color|bg|background|foreground|border|shadow|opacity|gradient|fondo)$/.test(lower)) return 'color';
+    if (/^(items|list|products|tags|categories|options|results|entries|rows|data|elements|children|users|names|values|keys|records|lista|productos|etiquetas|categorias|opciones|resultados|filas|elementos|usuarios|nombres|valores)$/.test(lower)) return 'array';
+    return asCondition ? 'boolean' : 'string';
   }
 
   private defaultValue(type: DataType): unknown {
