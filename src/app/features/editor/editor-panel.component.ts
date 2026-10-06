@@ -73,6 +73,12 @@ declare const monaco: any;
       pointer-events: none;
     }
 
+    :host ::ng-deep .pug-include-link {
+      text-decoration: underline;
+      cursor: pointer;
+      color: #4fc1ff !important;
+    }
+
     .empty-editor {
       position: absolute;
       inset: 0;
@@ -277,16 +283,40 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
 
     this.editorReady.set(true);
 
-    // Click-to-navigate for include/extends lines
+    // Ctrl/Cmd+click on an include/extends path navigates (like VS Code); a plain click just places the cursor.
+    const linkDecorations = this.editor.createDecorationsCollection([]);
+    const pathRange = (lineNumber: number, column: number) => {
+      const model = this.editor.getModel();
+      if (!model) return null;
+      const line: string = model.getLineContent(lineNumber);
+      const m = line.match(/^(\s*(?:include|extends)\s+)(['"]?)([^'"]+?)\2\s*$/);
+      if (!m) return null;
+      const start = m[1].length + m[2].length + 1;
+      const end = start + m[3].length;
+      if (column < start || column > end) return null;
+      return { rawPath: m[3].trim(), range: new monaco.Range(lineNumber, start, lineNumber, end) };
+    };
+    const clearLink = () => linkDecorations.clear();
+
+    this.editor.onMouseMove((e: any) => {
+      const pos = e.target?.position;
+      const ctrl = e.event?.ctrlKey || e.event?.metaKey;
+      const hit = pos && ctrl ? pathRange(pos.lineNumber, pos.column) : null;
+      if (!hit) return clearLink();
+      linkDecorations.set([{ range: hit.range, options: { inlineClassName: 'pug-include-link' } }]);
+    });
+    this.editor.onMouseLeave(clearLink);
+    this.editor.onKeyUp(clearLink);
+
     this.editor.onMouseDown((e: any) => {
+      if (!(e.event?.ctrlKey || e.event?.metaKey)) return;
       const pos = e.target?.position;
       if (!pos) return;
-      const model = this.editor.getModel();
-      if (!model) return;
-      const line = model.getLineContent(pos.lineNumber);
-      const incMatch = line.match(/^\s*(?:include|extends)\s+['"]?([^'"]+)/);
-      if (!incMatch) return;
-      const rawPath = incMatch[1].trim();
+      const hit = pathRange(pos.lineNumber, pos.column);
+      if (!hit) return;
+      e.event.preventDefault?.();
+      clearLink();
+      const rawPath = hit.rawPath;
       const files = this.editorState.files();
       const fromPath = this.editorState.activeTab()?.path;
       let path: string = resolveVirtualPath(rawPath, fromPath, files) ?? '';
