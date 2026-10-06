@@ -115,5 +115,17 @@ import { readFileSync, readdirSync } from 'node:fs';
   await a.orch.manualCompile();
   check('12 user data rendered', html(a).includes('Hola') && html(a).includes('Ana'), html(a).slice(0, 120));
 }
+
+// 13. deleting an include and saving the entry regenerates it (and shows in the tree)
+{
+  const a = await run({
+    '/main.pug': 'html\n  body\n    include a/_mixins.pug\n    each u in us\n      +card(u)\n',
+    '/a/_mixins.pug': 'mixin card(u)\n  p= u.name\n',
+  }, '/main.pug');
+  a.orch.deleteFile('/a/_mixins.pug');
+  await a.orch.manualCompile();
+  const inTree = JSON.stringify(a.ProjectState.fileTree()).includes('_mixins.pug');
+  check('13 missing include regenerated on compile', a.EditorState.files().has('/a/_mixins.pug') && inTree, 'files=' + [...a.EditorState.files().keys()] + ' tree=' + inTree);
+}
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

@@ -361,7 +361,20 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     if (currentModel && currentModel.uri.scheme !== 'inmemory') {
       const currentPath = currentModel.uri.path;
       const currentContent = currentModel.getValue();
-      this.editorState.files.update((f) => { f.set(currentPath, currentContent); return f; });
+      // Only write back files that still exist: after a delete, the old model is still the
+      // current one here and writing it back would resurrect the file as an invisible ghost.
+      if (this.editorState.files().has(currentPath)) {
+        this.editorState.files.update((f) => { f.set(currentPath, currentContent); return f; });
+      }
+    }
+
+    // Drop Monaco models of files that were deleted so a recreated file starts clean.
+    const liveFiles = this.editorState.files();
+    for (const [path, m] of Array.from(this.models.entries())) {
+      if (!liveFiles.has(path) && m !== this.editor.getModel()) {
+        m.dispose();
+        this.models.delete(path);
+      }
     }
 
     const lang = langMap[tab.type] ?? 'plaintext';
