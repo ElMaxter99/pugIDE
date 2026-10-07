@@ -65,7 +65,7 @@ export function resolveIncludePath(
     else parts.push(seg);
   }
   const base = '/' + parts.join('/');
-  const candidates = HAS_EXT_RE.test(base) ? [base] : [base + '.pug', base + '.jade', base];
+  const candidates = HAS_EXT_RE.test(base) ? [base] : [base + '.pug', base + '.jade', base, base + '/index.pug'];
   // Legacy fallback used by the include resolver: path relative to project root.
   candidates.push('/' + ref.replace(/^\/+/, ''));
   for (const c of candidates) if (files.has(c)) return { path: c, exists: true };
