@@ -147,6 +147,7 @@ export class MainLayoutComponent implements OnInit {
 
     effect(() => {
       this.editorState.files();
+      this.editorState.contentVersion();
       this.editorState.openTabs();
       this.editorState.activeTab();
       this.projectState.projectName();

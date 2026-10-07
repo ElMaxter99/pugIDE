@@ -102,3 +102,12 @@ import { readFileSync, readdirSync } from 'node:fs';
   check('15 missing ./asdqwe created as /asdqwe.pug, junk paths ignored', JSON.stringify(keys) === JSON.stringify(['/asdqwe.pug', '/main.pug', '/mixins.pug']), keys.join(','));
 }
 
+
+// 18. cada edición sube contentVersion (el autoguardado depende de él: `files` se muta en sitio y no notifica)
+{
+  const a = await run({ '/index.pug': 'p x\n' }, '/index.pug');
+  const v0 = a.EditorState.contentVersion();
+  a.orch.onCodeChange('p x\np y\n');
+  a.orch.onCodeChange('p x\np y\np z\n');
+  check('18 contentVersion sube en cada edicion', a.EditorState.contentVersion() === v0 + 2, String(a.EditorState.contentVersion()));
+}
