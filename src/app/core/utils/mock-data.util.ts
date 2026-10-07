@@ -235,6 +235,11 @@ function isPlaceholder(v: unknown): boolean {
   return v === '' || v === null || v === undefined || v === 0 || v === false;
 }
 
+/** Valor que `mockifyData` da a una hoja de texto vacia en `path` (para reconocer mocks automaticos sin editar). */
+export function mockLeaf(key: string, path: string, opts: Pick<MockOptions, 'seed' | 'locale'> = {}): unknown {
+  return mockValue(key, { rng: createRng(`${opts.seed ?? 1}:${path}`), locale: opts.locale ?? 'es', hint: 'string', path });
+}
+
 /**
  * Devuelve una copia de `data` con las hojas sustituidas por valores de ejemplo. Cada hoja usa un PRNG
  * derivado de (semilla, ruta), asi anadir campos no cambia los demas y la misma semilla es reproducible.

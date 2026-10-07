@@ -6,6 +6,8 @@ import { TerminalState } from '../state/terminal.state';
 import { OrchestratorService } from './orchestrator.service';
 import { AssetState, AssetFile } from '../state/asset.state';
 import { ASSET_EXT_RE, mimeForPath } from '../utils/asset.util';
+import { DataState } from '../state/data.state';
+import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
 
 const TEXT_FILE_RE = /\.(pug|jade|scss|sass|css|json|js|html|htm|md|txt)$/i;
 
@@ -21,6 +23,7 @@ export class ProjectIoService {
   private terminalState = inject(TerminalState);
   private orchestrator = inject(OrchestratorService);
   private assetState = inject(AssetState);
+  private dataState = inject(DataState);
 
   get supportsFileSystemAccess(): boolean {
     return typeof (window as any).showDirectoryPicker === 'function';
@@ -52,7 +55,13 @@ export class ProjectIoService {
     for (const a of this.assetState.assets().values()) {
       await this.writeFileToDirectory(dirHandle, a.path, a.data);
     }
+    await this.writeFileToDirectory(dirHandle, DATASETS_PATH, this.datasetsText());
     this.terminalState.addEntry('success', 'Export', `Exported ${files.size + this.assetState.assets().size} file(s) to disk.`);
+  }
+
+  /** Juegos de datos del proyecto, como `/.pugide/datasets.json` (no es un archivo del proyecto). */
+  private datasetsText(): string {
+    return serializeDatasets(this.dataState.snapshotDatasets());
   }
 
   private async writeFileToDirectory(root: any, path: string, content: string | Uint8Array): Promise<void> {
@@ -74,6 +83,7 @@ export class ProjectIoService {
       zipInput[path.replace(/^\//, '')] = strToU8(content);
     }
     for (const a of this.assetState.assets().values()) zipInput[a.path.replace(/^\//, '')] = a.data;
+    zipInput[DATASETS_PATH.replace(/^\//, '')] = strToU8(this.datasetsText());
     const zipped = zipSync(zipInput, { level: 6 });
     const blob = new Blob([zipped as BlobPart], { type: 'application/zip' });
     const url = URL.createObjectURL(blob);
@@ -135,10 +145,16 @@ export class ProjectIoService {
   }
 
   private finishImport(files: Map<string, string>, projectName: string, assets: AssetFile[] = []): void {
+    const datasetsText = files.get(DATASETS_PATH);
+    files.delete(DATASETS_PATH);
+    const datasets = datasetsText === undefined ? null : parseDatasetsFile(datasetsText);
+    if (datasetsText !== undefined && !datasets) {
+      this.terminalState.addEntry('warning', 'Import', `${DATASETS_PATH} no es válido: se ignoran los juegos de datos.`);
+    }
     if (files.size === 0) {
       this.terminalState.addEntry('warning', 'Import', 'No supported files found to import.');
       return;
     }
-    this.orchestrator.loadProject(files, projectName || 'Imported Project', assets);
+    this.orchestrator.loadProject(files, projectName || 'Imported Project', assets, datasets);
   }
 }
