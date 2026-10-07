@@ -41,6 +41,7 @@ export class PugCompilerService {
     data: Record<string, unknown> = {},
     entryPath?: string,
     files?: Map<string, string>,
+    functionStubs: string[] = [],
   ): Promise<CompileResult> {
     const start = performance.now();
     const errors: CompileError[] = [];
@@ -73,7 +74,13 @@ export class PugCompilerService {
 
         const source = files && entryPath ? normalizeIncludes(code, entryPath, files) : code;
         const compiledFn = bundle.compile(source, opts);
-        html = compiledFn(data);
+        // Templates often call helpers the host app provides (`t('KEY')`, `formatDate(x)`).
+        // JSON data can't hold functions, so give them an identity-like stub for the preview.
+        const locals: Record<string, unknown> = { ...data };
+        for (const name of functionStubs) {
+          if (typeof locals[name] !== 'function') locals[name] = (...args: unknown[]) => args[0] ?? '';
+        }
+        html = compiledFn(locals);
       }
     } catch (err: unknown) {
       const error = err as { message?: string; line?: number; column?: number };

@@ -36,6 +36,23 @@ const PUG_KEYWORDS = new Set([
   'append', 'prepend', 'doctype', 'xml',
 ]);
 
+/** JS reserved words that can show up in `- code` and inline function expressions; never data. */
+const JS_KEYWORDS = new Set([
+  'function', 'return', 'var', 'let', 'const', 'new', 'typeof', 'instanceof', 'void', 'delete',
+  'this', 'of', 'for', 'do', 'switch', 'break', 'continue', 'throw', 'try', 'catch', 'finally',
+  'class', 'async', 'await', 'yield',
+]);
+
+const ARRAY_METHODS = new Set([
+  'slice', 'map', 'filter', 'forEach', 'join', 'some', 'every', 'find', 'findIndex', 'reduce',
+  'concat', 'sort', 'reverse', 'push', 'flatMap', 'flat',
+]);
+const NUMBER_METHODS = new Set(['toFixed', 'toLocaleString', 'toPrecision']);
+const DATE_METHODS = new Set(['toISOString', 'toLocaleDateString', 'getFullYear', 'getTime', 'getMonth', 'getDate']);
+
+/** A data reference found in an expression, with a type hint taken from how it is used (`rows.length` → array). */
+interface ExprRef { id: string; hint?: DataType }
+
 const IDENTIFIER_RE = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 const IDENTIFIER_CHAIN_RE = /^[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*$/;
 
@@ -54,6 +71,11 @@ export class PugParserService {
   private linkFn: LinkFn | null = null;
   private initialized = false;
   private initPromise: Promise<void> | null = null;
+
+  /** `- var x = ...` names seen in the project (JS `var` is function-wide, so includes and mixins see them) → data path they alias, or null for plain locals. */
+  private declared = new Map<string, string | null>();
+  /** Free functions called by expressions of the last extraction (`t('KEY')`). */
+  private calledFns = new Set<string>();
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -145,6 +167,7 @@ export class PugParserService {
     }
 
     const variables = ast ? this.extractVariables(ast) : [];
+    const calledFunctions = ast ? [...this.calledFns] : [];
     const mixins = ast ? this.extractMixins(ast) : [];
     const includes = ast ? this.extractIncludes(ast) : [];
     const extendsPath = ast ? this.extractExtends(ast) : undefined;
@@ -155,6 +178,7 @@ export class PugParserService {
       mixins,
       includes,
       extendsPath,
+      calledFunctions,
       errors,
       compilationTime: performance.now() - start,
     };
@@ -213,10 +237,16 @@ export class PugParserService {
   private extractVariables(ast: PugAstNode): PugVariable[] {
     const collected = new Map<string, PugVariable>();
     const mixinDefs = new Map<string, { params: string[]; body: PugAstNode[] }>();
+    this.declared = new Map();
+    this.calledFns = new Set();
 
     this.walkAst(ast, (node) => {
       if (node.type === 'Mixin' && node.call !== true && node.name) {
         mixinDefs.set(node.name, { params: this.mixinParams(node.args), body: node.block?.nodes ?? [] });
+      }
+      // Locals declared anywhere are not data, even when a mixin body reads them before the declaration is visited.
+      if (node.type === 'Code' && node.buffer !== true && typeof node.val === 'string') {
+        for (const { name } of this.parseDeclarations(node.val)) this.declared.set(name, null);
       }
     });
 
@@ -232,7 +262,7 @@ export class PugParserService {
   }
 
   /** Splits a call/definition argument list on top-level commas (ignores commas in strings and brackets). */
-  private splitArgs(args: string): string[] {
+  private splitArgs(args: string, separator = ','): string[] {
     const out: string[] = [];
     let depth = 0;
     let quote = '';
@@ -248,19 +278,20 @@ export class PugParserService {
       if (ch === '"' || ch === "'" || ch === '`') { quote = ch; cur += ch; continue; }
       if ('([{'.includes(ch)) depth++;
       else if (')]}'.includes(ch)) depth--;
-      if (ch === ',' && depth === 0) { out.push(cur); cur = ''; continue; }
+      if (ch === separator && depth === 0) { out.push(cur); cur = ''; continue; }
       cur += ch;
     }
     if (cur.trim()) out.push(cur);
     return out;
   }
 
-  /** Maps an identifier chain through the local aliases; null when it's not (derived from) project data. */
+  /** Maps an identifier chain through the local aliases / project locals; null when it's not (derived from) project data. */
   private resolveId(id: string, aliases: Map<string, string | null>): string | null {
     const parts = id.split('.');
     const first = parts[0];
-    if (aliases.has(first)) {
-      const base = aliases.get(first);
+    const map = aliases.has(first) ? aliases : this.declared.has(first) ? this.declared : null;
+    if (map) {
+      const base = map.get(first);
       if (!base) return null;
       return parts.length === 1 ? base : base + '.' + parts.slice(1).join('.');
     }
@@ -269,9 +300,55 @@ export class PugParserService {
   }
 
   private collectExpr(expr: string, aliases: Map<string, string | null>, collected: Map<string, PugVariable>): void {
-    for (const id of this.extractIdentifiers(expr)) {
+    const { refs, calls } = this.scanExpr(expr);
+    for (const fn of calls) {
+      if (!aliases.has(fn) && !this.declared.has(fn)) this.calledFns.add(fn);
+    }
+    for (const { id, hint } of refs) {
       const path = this.resolveId(id, aliases);
-      if (path) this.addVariable(collected, path);
+      if (!path) continue;
+      const name = path.split('.').pop()!.replace('[]', '');
+      // A usage hint only decides the type when the name itself doesn't say anything.
+      this.addVariable(collected, path, hint && this.inferType(name) === 'string' ? hint : undefined);
+    }
+  }
+
+  /**
+   * Splits `- var a = 1, b = x.y; foo(b)` style code into declarators (top-level `var/let/const`
+   * only; declarations inside function bodies are locals of that function) and other statements.
+   */
+  private parseDeclarations(code: string): { name: string; init: string }[] {
+    const out: { name: string; init: string }[] = [];
+    for (const stmt of this.splitArgs(code, ';')) {
+      const m = stmt.match(/^\s*(?:var|let|const)\s+([\s\S]*)$/);
+      if (!m) continue;
+      for (const decl of this.splitArgs(m[1])) {
+        const eq = decl.indexOf('=');
+        const name = (eq < 0 ? decl : decl.slice(0, eq)).trim();
+        if (IDENTIFIER_RE.test(name)) out.push({ name, init: eq < 0 ? '' : decl.slice(eq + 1).trim() });
+      }
+    }
+    return out;
+  }
+
+  /** Unbuffered code (`- ...`): declarations register locals (aliasing data when initialised from it); everything else is read. */
+  private collectStatements(code: string, scope: Map<string, string | null>, collected: Map<string, PugVariable>): void {
+    for (const stmt of this.splitArgs(code, ';')) {
+      const m = stmt.match(/^\s*(?:var|let|const)\s+([\s\S]*)$/);
+      if (!m) {
+        if (stmt.trim()) this.collectExpr(stmt, scope, collected);
+        continue;
+      }
+      for (const { name, init } of this.parseDeclarations(stmt)) {
+        let alias: string | null = null;
+        if (init && IDENTIFIER_CHAIN_RE.test(init)) {
+          alias = this.resolveId(init, scope);
+          if (alias) this.addVariable(collected, alias);
+        } else if (init) {
+          this.collectExpr(init, scope, collected);
+        }
+        this.declared.set(name, alias);
+      }
     }
   }
 
@@ -306,7 +383,6 @@ export class PugParserService {
       case 'InterpolatedTag':
         for (const attr of node.attrs ?? []) {
           if (typeof attr.val !== 'string') continue;
-          if (/^["'\d]/.test(attr.val)) continue;
           this.collectExpr(attr.val, scope, collected);
         }
         for (const ab of node.attributeBlocks ?? []) {
@@ -320,7 +396,7 @@ export class PugParserService {
           if (node.buffer) {
             this.collectExpr(node.val, scope, collected);
           } else {
-            for (const m of node.val.matchAll(/(?:var|let|const)\s+(\w+)/g)) scope.set(m[1], null);
+            this.collectStatements(node.val, scope, collected);
           }
         }
         recurse(node.block);
@@ -360,11 +436,14 @@ export class PugParserService {
 
       case 'Each':
       case 'EachOf': {
-        const objPath = typeof node.obj === 'string' && IDENTIFIER_CHAIN_RE.test(node.obj.trim())
-          ? this.resolveId(node.obj.trim(), scope)
-          : null;
+        const objExpr = typeof node.obj === 'string' ? node.obj.trim() : '';
+        // `each x in rows` and `each x in rows.slice(a, b)` (also filter/sort/…) both iterate the data array `rows`.
+        const source = IDENTIFIER_CHAIN_RE.test(objExpr)
+          ? objExpr
+          : objExpr.match(/^([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.(?:slice|filter|sort|reverse|concat)\s*\(/)?.[1] ?? null;
+        const objPath = source ? this.resolveId(source, scope) : null;
         if (objPath) this.addVariable(collected, objPath, 'array');
-        else if (typeof node.obj === 'string') this.collectExpr(node.obj, scope, collected);
+        if (objExpr && source !== objExpr) this.collectExpr(objExpr, scope, collected);
         const inner = new Map(scope);
         if (node.val) inner.set(node.val, objPath ? objPath + '[]' : null);
         if (node.key) inner.set(node.key, null);
@@ -425,7 +504,15 @@ export class PugParserService {
   }
 
   private addVariable(collected: Map<string, PugVariable>, path: string, typeOverride?: DataType): void {
-    if (collected.has(path)) return;
+    const existing = collected.get(path);
+    if (existing) {
+      // First sighting was a plain read; a later usage (`.length`, `each`) tells what it really is.
+      if (typeOverride && typeOverride !== 'string' && existing.isLeaf && existing.type === 'string') {
+        existing.type = typeOverride;
+        existing.defaultValue = this.defaultValue(typeOverride);
+      }
+      return;
+    }
 
     const rawParts = path.split('.');
     const lastRaw = rawParts[rawParts.length - 1];
@@ -450,7 +537,17 @@ export class PugParserService {
     if (rawParts.length > 1) {
       for (let i = 1; i < rawParts.length; i++) {
         const parentPath = rawParts.slice(0, i).join('.');
-        if (!collected.has(parentPath)) {
+        const existingParent = collected.get(parentPath);
+        if (existingParent) {
+          // Something was read as a plain value, but its members are read too: it's a container.
+          if (existingParent.isLeaf) {
+            existingParent.isLeaf = false;
+            if (existingParent.type !== 'array') {
+              existingParent.type = 'object';
+              existingParent.defaultValue = {};
+            }
+          }
+        } else {
           const rawParent = rawParts[i - 1];
           const parentName = rawParent.replace('[]', '');
           const parentIsArray = rawParent.includes('[]');
@@ -470,24 +567,50 @@ export class PugParserService {
 
   // --- Expression Identifier Extraction ---
 
-  private extractIdentifiers(expr: string): string[] {
-    const identifiers: string[] = [];
+  /**
+   * Finds the data references of a JS expression: identifier chains that are neither strings,
+   * object-literal keys, property accesses after `)`/`]`, function parameters, keywords nor
+   * builtins. Method calls (`rows.slice(…)`) yield the object (`rows`) with a type hint; calls
+   * to free functions (`t('KEY')`) are reported separately.
+   */
+  private scanExpr(expr: string): { refs: ExprRef[]; calls: string[] } {
+    const refs: ExprRef[] = [];
+    const calls: string[] = [];
+    const locals = this.expressionLocals(expr);
+    const prevSig = (idx: number): string => {
+      let k = idx - 1;
+      while (k >= 0 && /\s/.test(expr[k])) k--;
+      return k >= 0 ? expr[k] : '';
+    };
+    const nextSigIdx = (idx: number): number => {
+      let k = idx;
+      while (k < expr.length && /\s/.test(expr[k])) k++;
+      return k;
+    };
     let i = 0;
 
     while (i < expr.length) {
       const ch = expr[i];
 
-      if (ch === '"' || ch === "'" || ch === '`') {
+      if (ch === '"' || ch === "'") {
         i = this.skipString(expr, i, ch);
         continue;
       }
 
-      if (ch === '/' && i + 1 < expr.length && expr[i + 1] === '/') {
-        break;
+      if (ch === '`') {
+        i = this.scanTemplate(expr, i, refs, calls);
+        continue;
       }
 
-      if (ch === '/' && i + 1 < expr.length && expr[i + 1] === '*') {
+      if (ch === '/' && expr[i + 1] === '/') break;
+
+      if (ch === '/' && expr[i + 1] === '*') {
         i = this.skipBlockComment(expr, i);
+        continue;
+      }
+
+      if (ch === '/' && (prevSig(i) === '' || '(,=:[!&|?{};+-*%<>~^'.includes(prevSig(i)))) {
+        i = this.skipRegex(expr, i);
         continue;
       }
 
@@ -498,28 +621,54 @@ export class PugParserService {
 
       if (/[a-zA-Z_$]/.test(ch)) {
         const start = i;
-        while (i < expr.length && /[a-zA-Z0-9_$]/.test(expr[i])) {
-          i++;
-        }
-        const word = expr.slice(start, i);
+        while (i < expr.length && /[a-zA-Z0-9_$]/.test(expr[i])) i++;
+        // `obj.method(…).other` — what follows a dot is a property, not data.
+        if (prevSig(start) === '.') continue;
 
-        while (i < expr.length && expr[i] === '.') {
-          i++;
-          if (i < expr.length && /[a-zA-Z_$]/.test(expr[i])) {
-            while (i < expr.length && /[a-zA-Z0-9_$]/.test(expr[i])) {
-              i++;
-            }
+        while (i < expr.length && (expr[i] === '.' || (expr[i] === '?' && expr[i + 1] === '.'))) {
+          const dot = expr[i] === '.' ? i : i + 1;
+          if (/[a-zA-Z_$]/.test(expr[dot + 1] ?? '')) {
+            i = dot + 1;
+            while (i < expr.length && /[a-zA-Z0-9_$]/.test(expr[i])) i++;
           } else {
             break;
           }
         }
 
-        const fullIdent = expr.slice(start, i);
-        const parts = fullIdent.split('.');
-        const firstName = parts[0];
+        const parts = expr.slice(start, i).replace(/\?/g, '').split('.');
+        const first = parts[0];
 
-        if (!BUILTINS.has(firstName) && !PUG_KEYWORDS.has(firstName)) {
-          identifiers.push(fullIdent);
+        if (first === 'function') {
+          // `function name(` — the name is not data (parameters are filtered through `locals`).
+          const k = nextSigIdx(i);
+          if (/[a-zA-Z_$]/.test(expr[k] ?? '')) {
+            i = k;
+            while (i < expr.length && /[a-zA-Z0-9_$]/.test(expr[i])) i++;
+          }
+          continue;
+        }
+        if (JS_KEYWORDS.has(first) || PUG_KEYWORDS.has(first) || BUILTINS.has(first) || locals.has(first)) continue;
+
+        const p = prevSig(start);
+        const nextIdx = nextSigIdx(i);
+        // `{ length: n }` — an object-literal key.
+        if (parts.length === 1 && (p === '{' || p === ',') && expr[nextIdx] === ':') continue;
+
+        if (expr[nextIdx] === '(') {
+          if (parts.length === 1) {
+            calls.push(first);
+          } else {
+            const method = parts.pop()!;
+            const hint: DataType | undefined = ARRAY_METHODS.has(method) ? 'array'
+              : NUMBER_METHODS.has(method) ? 'number'
+              : DATE_METHODS.has(method) ? 'date'
+              : undefined;
+            refs.push({ id: parts.join('.'), hint });
+          }
+        } else if (parts.length > 1 && parts[parts.length - 1] === 'length') {
+          refs.push({ id: parts.slice(0, -1).join('.'), hint: 'array' });
+        } else {
+          refs.push({ id: parts.join('.') });
         }
         continue;
       }
@@ -527,7 +676,63 @@ export class PugParserService {
       i++;
     }
 
-    return identifiers;
+    return { refs, calls };
+  }
+
+  /** Names bound inside the expression itself: function / arrow parameters and `var|let|const` declarations. */
+  private expressionLocals(expr: string): Set<string> {
+    const locals = new Set<string>();
+    const addParams = (list: string) => {
+      for (const raw of list.split(',')) {
+        const name = raw.trim().replace(/^\.\.\./, '').split('=')[0].trim();
+        if (IDENTIFIER_RE.test(name)) locals.add(name);
+      }
+    };
+    for (const m of expr.matchAll(/function\s*[\w$]*\s*\(([^)]*)\)/g)) addParams(m[1]);
+    for (const m of expr.matchAll(/\(([^()]*)\)\s*=>/g)) addParams(m[1]);
+    for (const m of expr.matchAll(/([A-Za-z_$][\w$]*)\s*=>/g)) locals.add(m[1]);
+    for (const m of expr.matchAll(/\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)/g)) locals.add(m[1]);
+    return locals;
+  }
+
+  /** Template literal: skips the text, scans each `${…}` as an expression. Returns the index after the closing backtick. */
+  private scanTemplate(expr: string, start: number, refs: ExprRef[], calls: string[]): number {
+    let i = start + 1;
+    while (i < expr.length) {
+      if (expr[i] === '\\') { i += 2; continue; }
+      if (expr[i] === '`') return i + 1;
+      if (expr[i] === '$' && expr[i + 1] === '{') {
+        let depth = 1;
+        let j = i + 2;
+        while (j < expr.length && depth > 0) {
+          if (expr[j] === '{') depth++;
+          else if (expr[j] === '}') depth--;
+          if (depth > 0) j++;
+        }
+        const inner = this.scanExpr(expr.slice(i + 2, j));
+        refs.push(...inner.refs);
+        calls.push(...inner.calls);
+        i = j + 1;
+        continue;
+      }
+      i++;
+    }
+    return i;
+  }
+
+  private skipRegex(expr: string, start: number): number {
+    let i = start + 1;
+    let inClass = false;
+    while (i < expr.length) {
+      const c = expr[i];
+      if (c === '\\') { i += 2; continue; }
+      if (c === '[') inClass = true;
+      else if (c === ']') inClass = false;
+      else if (c === '/' && !inClass) { i++; break; }
+      i++;
+    }
+    while (i < expr.length && /[a-z]/i.test(expr[i])) i++;
+    return i;
   }
 
   private skipString(expr: string, start: number, quote: string): number {

@@ -171,5 +171,22 @@ import { readFileSync, readdirSync } from 'node:fs';
   const keys = [...a.EditorState.files().keys()].sort();
   check('15 missing ./asdqwe created as /asdqwe.pug, junk paths ignored', JSON.stringify(keys) === JSON.stringify(['/asdqwe.pug', '/main.pug', '/mixins.pug']), keys.join(','));
 }
+
+// 16. real-world report: top-level `- var` helpers, `var reported = pdfData.reported` alias, i18n `t('KEY')`
+//     calls, inline functions / object literals / Array.from, rows.slice(...) iteration
+{
+  const d = new URL('./fixtures/allianz/', import.meta.url).pathname;
+  const a = await run({
+    '/index.pug': readFileSync(d + 'index.pug', 'utf8'),
+    '/mixins.pug': readFileSync(d + 'mixins.pug', 'utf8'),
+  }, '/index.pug');
+  const data = a.DataState.data();
+  const rep = data.pdfData?.reported;
+  check('16 compiles without errors', !errs(a), errs(a));
+  check('16 data root is only pdfData (no JS junk)', JSON.stringify(Object.keys(data)) === '["pdfData"]', Object.keys(data).join(','));
+  check('16 reported shape', rep && 'exercise' in rep && 'fullName' in rep.declaredClient && Array.isArray(rep.rows) && Array.isArray(rep.dividends), JSON.stringify(data));
+  check('16 row items typed', rep.rows[0] && 'fundName' in rep.rows[0] && 'gain' in rep.rows[0] && typeof rep.rows[0].participations === 'number', JSON.stringify(rep?.rows));
+  check('16 t() stubbed to the key, table rendered', html(a).includes('FISCAL_REPORT_ALLIANZ.TITLE') && html(a).includes('<table'), html(a).slice(0, 200));
+}
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

@@ -70,6 +70,8 @@ export interface ParseResult {
   mixins: PugMixin[];
   includes: string[];
   extendsPath?: string;
+  /** Free functions the template calls (`t('KEY')`, `formatDate(x)`…) that are not declared in it; the compiler stubs them. */
+  calledFunctions: string[];
   errors: ParseError[];
   compilationTime: number;
 }

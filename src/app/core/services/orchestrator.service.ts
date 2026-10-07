@@ -132,7 +132,7 @@ export class OrchestratorService {
       }
 
       const data = this.dataState.data();
-      const compileResult = await this.compiler.compile(entryCode, data, entryPath, files);
+      const compileResult = await this.compiler.compile(entryCode, data, entryPath, files, parseResult.calledFunctions);
 
       const scssResult = this.scssCompiler.compileAll(files);
       compileResult.css = scssResult.css;
