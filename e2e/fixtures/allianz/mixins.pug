@@ -1,0 +1,118 @@
+- var fmtMoney = function (value) { var n = Number(value || 0); if (!isFinite(n)) { n = 0; } return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+- var fmtAmount = function (value) { var n = Number(value || 0); if (!isFinite(n)) { n = 0; } return fmtMoney(n) + ' €'; };
+- var CHUNK_ROWS = 8;
+
+mixin azBand()
+  img.az-band(src="/images/pdf/allianz/header.png", alt="Allianz")
+
+mixin azEquityLines()
+  span.az-ml= 'Valor del'
+  span.az-ml= 'Patrimonio'
+  span.az-ml= 'a 31/12'
+
+mixin azSharesLines()
+  span.az-ml
+  span.az-ml= 'Participaciones'
+  span.az-ml= '31/12'
+
+mixin azTableHead()
+  colgroup
+    col(style="width:16.5%")
+    col(style="width:1.0%")
+  thead
+    tr.az-hr1
+      td(colspan="1")
+      td.az-sh(colspan="2")
+        span.az-grpl= t('FISCAL_REPORT_ALLIANZ.GROUP_SAVINGS_BASE')
+      td.az-sh(colspan="2")
+        span.az-grpl= t('FISCAL_REPORT_ALLIANZ.GROUP_DECLARANT_ENTITY')
+    tr.az-hr2
+      td.az-c(colspan="2")= t('FISCAL_REPORT_ALLIANZ.COL_FUND')
+      td.az-r(colspan="1")= ' ' + t('FISCAL_REPORT_ALLIANZ.COL_ISIN')
+      td.az-c(colspan="1")= '  ' + t('FISCAL_REPORT_ALLIANZ.COL_RETENTION')
+      td(colspan="1")
+        +azEquityLines()
+      td(colspan="2")
+        +azSharesLines()
+
+mixin azRow(azRow)
+  tr.az-tr
+    td.az-c(colspan="2")= azRow.fundName
+    td.az-c.az-isin(colspan="1")= azRow.isin
+    td.az-sh.az-c(colspan="1")= fmtAmount(azRow.gain)
+    td.az-sh.az-c(colspan="1")= fmtAmount(azRow.loss)
+    td.az-c(colspan="1")= fmtAmount(azRow.retention)
+    td.az-r(colspan="1")= azRow.equity === null || azRow.equity === undefined ? '' : fmtAmount(azRow.equity)
+    td.az-r(colspan="2")= azRow.participations === null || azRow.participations === undefined ? '' : azRow.participations.toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 6 })
+    td.az-sh.az-c(colspan="1")= azRow.declarantName
+    td.az-sh.az-c.az-nif(colspan="1")= azRow.declarantNif
+
+mixin azTable(rows)
+  - var chunkCount = Math.ceil(rows.length / CHUNK_ROWS);
+  each ch in Array.from({ length: chunkCount }, function (_, i) { return i; })
+    .az-table-wrap
+      if ch > 0
+        +azBand()
+      table.az-table
+        +azTableHead()
+        tbody
+          each azRow in rows.slice(ch * CHUNK_ROWS, (ch + 1) * CHUNK_ROWS)
+            +azRow(azRow)
+
+mixin azCover(reported)
+  .az-cover
+    +azBand()
+    p.az-title
+      span= t('FISCAL_REPORT_ALLIANZ.TITLE')
+      span.az-title-blue= ' ' + (reported.exercise || '')
+    p.az-greet= t('FISCAL_REPORT_ALLIANZ.GREETING')
+    p.az-field= reported.declaredClient.fullName
+    p
+    p.az-field= reported.declaredClient.idCard
+
+mixin azDividendRow(azDividend)
+  tr.az-tr
+    td.az-c= azDividend.fundName
+    td.az-c.az-isin= azDividend.isin
+    td.az-c= azDividend.cifIic
+    td.az-r= fmtAmount(azDividend.gross)
+    td.az-r= (azDividend.retentionPct === null || azDividend.retentionPct === undefined ? '' : azDividend.retentionPct.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %')
+
+mixin azDividendTable(dividends)
+  - var chunkCount = Math.ceil(dividends.length / CHUNK_ROWS);
+  each ch in Array.from({ length: chunkCount }, function (_, i) { return i; })
+    .az-table-wrap
+      table.az-table
+        tbody
+          each azDividend in dividends.slice(ch * CHUNK_ROWS, (ch + 1) * CHUNK_ROWS)
+            +azDividendRow(azDividend)
+
+mixin azFinancial(reported)
+  .az-financial
+    +azBand()
+    p.az-section= t('FISCAL_REPORT_ALLIANZ.SECTION_TITLE')
+    if !reported.rows || !reported.rows.length
+      p.az-intro= t('FISCAL_REPORT_ALLIANZ.NO_DATA')
+    else
+      +azTable(reported.rows)
+
+mixin azDividends(reported)
+  if reported.dividends && reported.dividends.length
+    .az-financial
+      +azBand()
+      p.az-section= t('FISCAL_REPORT_ALLIANZ.B3_TITLE')
+      +azDividendTable(reported.dividends)
+
+mixin azClose(reported)
+  .az-close
+    +azBand()
+    p.az-note= t('FISCAL_REPORT_ALLIANZ.FOOTER_NATIONAL_NOTE')
+    p.az-sp9!= '&nbsp;'
+    .az-brands
+      img.az-footer-logo(src="/images/pdf/allianz/logo.jpeg", alt="Allianz")
+
+mixin azBody(reported)
+  +azCover(reported)
+  +azFinancial(reported)
+  +azDividends(reported)
+  +azClose(reported)

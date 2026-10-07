@@ -4,9 +4,16 @@
 
   <header class="landing-topbar">
     <span class="logo">PugIDE</span>
+    <div class="topbar-actions">
+      <a class="credit-link" href="https://github.com/ElMaxter99/pugIDE" target="_blank" rel="noopener noreferrer"
+         title="Código original en GitHub · Licencia MIT · Uso libre con mención al autor">
+        <span class="credit-text">MIT &middot; por ElMaxter99</span>
+        <span class="material-symbols-outlined credit-icon">code</span>
+      </a>
     <button class="theme-btn" (click)="toggleTheme()" [attr.aria-label]="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'">
       <span class="material-symbols-outlined">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
     </button>
+    </div>
   </header>
 
   <main class="landing-main">
@@ -142,4 +149,5 @@ each item in items
       </div>
     </section>
   </main>
+
 </div>

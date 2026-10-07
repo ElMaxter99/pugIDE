@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CompileResult, CompileError } from '../core/models/index';
+import { createTranslator, TRANSLATE_FNS } from '../core/utils/i18n.util';
+import { createPugFilePlugin, normalizeIncludes } from '../core/utils/pug-vfs.util';
 
 function getPugBundle(): any {
   return (self as any).pugBundle;
@@ -36,9 +38,11 @@ export class PugCompilerService {
   }
 
   async compile(
-    resolvedCode: string,
+    code: string,
     data: Record<string, unknown> = {},
-    activeFilePath?: string,
+    entryPath?: string,
+    files?: Map<string, string>,
+    functionStubs: string[] = [],
   ): Promise<CompileResult> {
     const start = performance.now();
     const errors: CompileError[] = [];
@@ -61,13 +65,34 @@ export class PugCompilerService {
           doctype: 'html',
           self: false,
         };
-        if (activeFilePath) {
-          opts['filename'] = activeFilePath;
+        if (entryPath) {
+          opts['filename'] = entryPath;
           opts['basedir'] = '/';
         }
+        if (files) {
+          opts['plugins'] = [createPugFilePlugin(files)];
+        }
 
-        const compiledFn = bundle.compile(resolvedCode, opts);
-        html = compiledFn(data);
+        const source = files && entryPath ? normalizeIncludes(code, entryPath, files) : code;
+        const compiledFn = bundle.compile(source, opts);
+        // Templates call helpers the host app provides (`t('KEY')`, `i18n.t('KEY')`, `formatDate(x)`).
+        // JSON data can't hold functions: translators read `data.translations`, other helpers echo their first argument.
+        const locals: Record<string, unknown> = { ...data };
+        const translate = createTranslator(data);
+        const identity = (...args: unknown[]) => args[0] ?? '';
+        for (const name of functionStubs) {
+          const parts = name.split('.');
+          const last = parts.pop()!;
+          const fn = TRANSLATE_FNS.has(last) ? translate : identity;
+          let holder = locals;
+          for (const part of parts) {
+            const cur = holder[part];
+            holder[part] = { ...(cur !== null && typeof cur === 'object' ? (cur as object) : {}) };
+            holder = holder[part] as Record<string, unknown>;
+          }
+          if (typeof holder[last] !== 'function') holder[last] = fn;
+        }
+        html = compiledFn(locals);
       }
     } catch (err: unknown) {
       const error = err as { message?: string; line?: number; column?: number };

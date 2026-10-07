@@ -1,3 +1,18 @@
+.topbar-actions { display: flex; align-items: center; gap: 12px; }
+.credit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary, var(--text-primary));
+  opacity: 0.7;
+  text-decoration: none;
+  transition: opacity 0.2s, color 0.2s;
+}
+.credit-link:hover { opacity: 1; color: var(--accent-color); }
+.credit-icon { font-size: 18px; }
+@media (max-width: 520px) { .credit-text { display: none; } }
+
 .landing-root {
   min-height: 100vh;
   background: var(--bg-surface);
@@ -284,9 +299,9 @@
   opacity: 0.2;
 }
 .w-full { width: 100%; }
-.w-3\\/4 { width: 75%; }
-.w-5\\/6 { width: 83.333%; }
-.w-1\\/2 { width: 50%; }
+.w-3\/4 { width: 75%; }
+.w-5\/6 { width: 83.333%; }
+.w-1\/2 { width: 50%; }
 
 .mock-main {
   flex: 1;
