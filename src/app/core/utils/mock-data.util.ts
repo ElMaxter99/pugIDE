@@ -36,6 +36,18 @@ const pick = <T>(rng: Rng, list: readonly T[]): T => list[Math.floor(rng() * lis
 const int = (rng: Rng, min: number, max: number): number => min + Math.floor(rng() * (max - min + 1));
 const pad = (n: number, len = 2): string => String(n).padStart(len, '0');
 
+/** Texto generico de relleno (lorem ipsum): igual en es/en; los campos con significado (nombre, email...) siguen usando datos reales. */
+const LOREM_WORDS = ['lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing', 'elit', 'sed', 'do', 'eiusmod', 'tempor', 'incididunt', 'ut', 'labore', 'dolore', 'magna', 'aliqua', 'enim', 'minim', 'veniam', 'quis', 'nostrud', 'exercitation', 'ullamco', 'laboris', 'nisi', 'aliquip', 'commodo', 'consequat'];
+const LOREM_TITLES = ['Lorem ipsum dolor sit amet', 'Consectetur adipiscing elit', 'Sed do eiusmod tempor', 'Ut labore et dolore magna', 'Quis nostrud exercitation', 'Duis aute irure dolor'];
+const LOREM_SENTENCES = [
+  'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+  'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
+  'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
+  'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+  'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+  'Curabitur pretium tincidunt lacus, nulla gravida orci a odio.',
+];
+
 interface Lexicon {
   first: string[];
   last: string[];
@@ -57,8 +69,8 @@ const ES: Lexicon = {
   countries: ['España', 'México', 'Argentina', 'Colombia', 'Chile', 'Perú', 'Portugal'],
   streets: ['Calle Mayor', 'Avenida de la Constitución', 'Calle del Sol', 'Paseo de Gracia', 'Calle Alcalá', 'Plaza España'],
   companies: ['Soluciones Aurora', 'Grupo Mediterráneo', 'Tecnologías Norte', 'Industrias Levante', 'Estudio Brújula'],
-  words: ['proyecto', 'servicio', 'calidad', 'equipo', 'cliente', 'solución', 'diseño', 'proceso', 'resultado', 'mejora', 'cuenta', 'plan', 'oferta', 'producto', 'gestión', 'entrega'],
-  titles: ['Bienvenido a nuestro servicio', 'Descubre las novedades', 'Tu pedido en camino', 'Resumen de la cuenta', 'Oferta de temporada', 'Nuevo informe disponible'],
+  words: LOREM_WORDS,
+  titles: LOREM_TITLES,
   domains: ['ejemplo.es', 'correo.com', 'empresa.es', 'mail.org'],
   statuses: ['activo', 'pendiente', 'completado', 'en revisión'],
   phone: (r) => `+34 6${int(r, 0, 9)}${int(r, 0, 9)} ${pad(int(r, 0, 99))} ${pad(int(r, 0, 99))} ${pad(int(r, 0, 99))}`,
@@ -71,8 +83,8 @@ const EN: Lexicon = {
   countries: ['United Kingdom', 'United States', 'Canada', 'Australia', 'Ireland', 'New Zealand'],
   streets: ['Main Street', 'Oak Avenue', 'Park Lane', 'High Street', 'Maple Road', 'Station Road'],
   companies: ['Northwind Labs', 'Bright Harbor', 'Acme Works', 'Summit Group', 'Blue Orchard'],
-  words: ['project', 'service', 'quality', 'team', 'customer', 'solution', 'design', 'process', 'result', 'update', 'account', 'plan', 'offer', 'product', 'delivery', 'support'],
-  titles: ['Welcome to our service', 'Discover what is new', 'Your order is on its way', 'Account summary', 'Seasonal offer', 'A new report is available'],
+  words: LOREM_WORDS,
+  titles: LOREM_TITLES,
   domains: ['example.com', 'mail.com', 'company.org', 'inbox.net'],
   statuses: ['active', 'pending', 'completed', 'in review'],
   phone: (r) => `+1 (${int(r, 200, 989)}) ${int(r, 200, 989)}-${pad(int(r, 0, 9999), 4)}`,
@@ -83,10 +95,10 @@ const LEX: Record<MockLocale, Lexicon> = { es: ES, en: EN };
 const capitalize = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const slug = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '');
 
-export function mockSentence(rng: Rng, locale: MockLocale, words = int(rng, 6, 12)): string {
-  const lex = LEX[locale];
+export function mockSentence(rng: Rng, _locale: MockLocale, words?: number): string {
+  if (words === undefined) return pick(rng, LOREM_SENTENCES);
   const out: string[] = [];
-  for (let i = 0; i < words; i++) out.push(pick(rng, lex.words));
+  for (let i = 0; i < words; i++) out.push(LOREM_WORDS[(Math.floor(rng() * LOREM_WORDS.length) + i) % LOREM_WORDS.length]);
   return capitalize(out.join(' ')) + '.';
 }
 
