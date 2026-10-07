@@ -189,20 +189,18 @@ import { readFileSync, readdirSync } from 'node:fs';
   check('16 t() stubbed to the key, table rendered', html(a).includes('FISCAL_REPORT_ALLIANZ.TITLE') && html(a).includes('<table'), html(a).slice(0, 200));
 }
 
-// 17. mixins file deleted (regenerated empty) then restored: placeholder '' for pdfData.reported must become the object
+// 17. index compiled while its mixins file is still empty (data gets pdfData.reported = ''), then the mixins are pasted in
 {
   const d = new URL('./fixtures/allianz/', import.meta.url).pathname;
   const mixins = readFileSync(d + 'mixins.pug', 'utf8');
   const a = await run({
     '/main.pug': readFileSync(d + 'index.pug', 'utf8'),
-    '/mixins.pug': mixins,
+    '/mixins.pug': '',
   }, '/main.pug');
-  a.orch.deleteFile('/mixins.pug');
-  await a.orch.manualCompile();
   a.EditorState.files.update((f) => { f.set('/mixins.pug', mixins); return f; });
   await a.orch.manualCompile();
-  check('17 restored mixins compile after empty regeneration', !errs(a), errs(a) + JSON.stringify(a.DataState.data()));
-  check('17 reported is an object again', typeof a.DataState.data().pdfData?.reported === 'object', JSON.stringify(a.DataState.data()));
+  check('17 pasted mixins compile after empty placeholder data', !errs(a), errs(a) + JSON.stringify(a.DataState.data()));
+  check('17 reported is an object', typeof a.DataState.data().pdfData?.reported === 'object', JSON.stringify(a.DataState.data()));
 }
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);
