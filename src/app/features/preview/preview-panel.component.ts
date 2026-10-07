@@ -599,7 +599,16 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
       injected.textContent = `@page { size: ${size.width}px ${size.height}px; margin: 0; }`;
       doc.head.appendChild(injected);
     }
-    win.addEventListener('afterprint', () => injected?.remove(), { once: true });
+    // The on-screen page-break emulation adds margins that would stack with the real print breaks.
+    resetPagination(doc);
+    win.addEventListener(
+      'afterprint',
+      () => {
+        injected?.remove();
+        this.reflow();
+      },
+      { once: true },
+    );
     win.focus();
     win.print();
   }
