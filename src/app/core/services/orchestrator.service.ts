@@ -16,7 +16,7 @@ import { PersistenceService } from './persistence.service';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
 import { buildDataSkeleton } from '../utils/data-skeleton.util';
-import { findEntryPath, resolveVirtualPath } from '../utils/pug-vfs.util';
+import { findEntryPath, normalize, resolveVirtualPath } from '../utils/pug-vfs.util';
 
 @Injectable({ providedIn: 'root' })
 export class OrchestratorService {
@@ -294,7 +294,7 @@ export class OrchestratorService {
     for (const includePath of includes) {
       if (resolveVirtualPath(includePath, fromPath, files)) continue;
       const dir = fromPath.substring(0, fromPath.lastIndexOf('/') + 1);
-      let path = includePath.startsWith('/') ? includePath : dir + includePath;
+      let path = normalize(includePath.startsWith('/') ? includePath : dir + includePath);
       if (!/\.[a-z0-9]+$/i.test(path)) path += '.pug';
       const name = path.split('/').pop() ?? 'unknown.pug';
       this.editorState.files.update((f) => { f.set(path, ''); return f; });
