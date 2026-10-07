@@ -21,7 +21,8 @@
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
-    "prebuild": "node scripts/validate-build.js"
+    "prebuild": "node scripts/validate-build.js",
+    "test:unit": "node test/unit/build.mjs && node --test test/unit/*.test.mjs"
   },
   "private": true,
   "dependencies": {
