@@ -254,5 +254,20 @@ import { readFileSync, readdirSync } from 'node:fs';
   const d = rotatePageSize(detectPageSize('<p>x</p>'));
   check('21 default A4 horizontal rotates to vertical', d.width === 794 && d.label.includes('vertical'), JSON.stringify(d));
 }
+// 22. External / local stylesheet references
+{
+  const a = await run({
+    '/index.pug': "doctype html\nhtml\n  head\n    link(rel='stylesheet' href='https://cdn.example.com/lib.css')\n    link(rel='stylesheet' href='styles/main.css')\n    link(rel='stylesheet' href='nope.css')\n  body\n    p hi\n",
+    '/styles/main.css': "@import url('https://fonts.example.com/f.css');\n@import 'base';\n.a { color: red; }\n",
+    '/styles/_base.scss': '.base { margin: 0; }\n',
+    '/other.css': '.other { color: blue; }\n',
+  }, '/index.pug');
+  const h = html(a);
+  check('22 remote link kept', h.includes('href="https://cdn.example.com/lib.css"'), h);
+  check('22 local link inlined', !h.includes('href="styles/main.css"') && h.includes('data-href="/styles/main.css"') && h.includes('.a {') && h.includes('.base {'), h);
+  check('22 remote @import hoisted first', h.indexOf('@import url("https://fonts.example.com/f.css")') !== -1 && h.indexOf('@import') < h.indexOf('.a {'), h);
+  check('22 imported partial not duplicated', h.split('.base {').length === 2, h);
+  check('22 unlinked project css still injected', h.includes('.other {'), h);
+}
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

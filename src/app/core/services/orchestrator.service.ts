@@ -15,6 +15,7 @@ import { ProjectState } from '../state/project.state';
 import { PersistenceService } from './persistence.service';
 import { AssetState, AssetFile } from '../state/asset.state';
 import { AssetStorageService } from './asset-storage.service';
+import { inlineLocalStylesheets } from '../utils/style-refs.util';
 import { ASSET_EXT_RE, mimeForPath, refToPath, rewriteRefs } from '../utils/asset.util';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
@@ -141,7 +142,21 @@ export class OrchestratorService {
       const data = this.dataState.data();
       const compileResult = await this.compiler.compile(entryCode, data, entryPath, files, parseResult.calledFunctions);
 
-      const scssResult = this.scssCompiler.compileAll(files);
+      // `<link rel="stylesheet" href="local.css">` becomes an inline <style>; the rest of the project styles are still injected.
+      const linkErrors: { path: string; message: string }[] = [];
+      let linked = new Set<string>();
+      if (compileResult.html) {
+        const inlined = inlineLocalStylesheets(compileResult.html, files, (p) => {
+          const r = this.scssCompiler.compileFile(p, files);
+          linkErrors.push(...r.errors);
+          return r;
+        });
+        compileResult.html = inlined.html;
+        linked = inlined.used;
+        for (const m of inlined.missing) linkErrors.push({ path: m, message: 'Hoja de estilos referenciada no encontrada en el proyecto' });
+      }
+      const scssResult = this.scssCompiler.compileAll(files, linked);
+      scssResult.errors.push(...linkErrors);
       compileResult.css = scssResult.css;
       if (scssResult.css) {
         compileResult.html = injectIntoHead(compileResult.html, `<style>\n${scssResult.css}\n</style>`);
