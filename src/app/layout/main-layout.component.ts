@@ -195,7 +195,13 @@ html(lang="es")
     title PugIDE
   body
     h1 Hola, #{nombre}
-    p Empieza a editar tu plantilla Pug y los datos aqui.`;
+    p Empieza a editar tu plantilla Pug y los datos aqui.
+    include ./mixins`;
+
+    const defaultMixins = `//- Define aqui tus mixins y usalos en main.pug con +nombre(args)
+mixin saludo(nombre)
+  p Hola, #{nombre}
+`;
 
     this.editorState.openTabs.set([]);
     this.editorState.activeTabId.set(null);
@@ -203,6 +209,7 @@ html(lang="es")
     this.editorState.files.set(new Map());
 
     this.editorState.openFile('/main.pug', 'main.pug', 'pug', defaultPug);
+    this.editorState.files.update((m) => { m.set('/mixins.pug', defaultMixins); return m; });
     this.projectState.setProject('MiProyecto', this.editorState.files());
     this.dataState.setInitialData({ nombre: 'Mundo' });
     this.orchestrator.markDataInitialized();

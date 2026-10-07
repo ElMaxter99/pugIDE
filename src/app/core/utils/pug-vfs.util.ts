@@ -23,7 +23,7 @@ function dirname(path: string): string {
   return i <= 0 ? '/' : path.slice(0, i);
 }
 
-function normalize(path: string): string {
+export function normalize(path: string): string {
   const out: string[] = [];
   for (const part of path.split('/')) {
     if (part === '' || part === '.') continue;

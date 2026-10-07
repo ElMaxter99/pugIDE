@@ -649,13 +649,15 @@ export class PugParserService {
   private extractIncludes(ast: PugAstNode): string[] {
     const includes: string[] = [];
     this.walkAst(ast, (node) => {
-      if (node.type !== 'Include') return;
+      // Pug parses extension-less includes (`include ./foo`) as RawInclude; we treat them as .pug partials.
+      if (node.type !== 'Include' && node.type !== 'RawInclude') return;
       const raw: unknown = node.file;
-      if (raw != null && typeof raw === 'object' && 'path' in raw) {
-        includes.push((raw as FileReference).path);
-      } else if (typeof raw === 'string') {
-        includes.push(raw);
-      }
+      const path = raw != null && typeof raw === 'object' && 'path' in raw
+        ? (raw as FileReference).path
+        : typeof raw === 'string' ? raw : null;
+      if (!path) return;
+      if (node.type === 'RawInclude' && /\.[a-z0-9]+$/i.test(path)) return;
+      includes.push(path);
     });
     return includes;
   }
