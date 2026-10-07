@@ -1,6 +1,12 @@
 {
   "name": "pug-ide",
-  "version": "0.0.1",
+  "version": "0.0.3",
+  "license": "MIT",
+  "author": "ElMaxter99 (https://github.com/ElMaxter99)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ElMaxter99/pugIDE.git"
+  },
   "description": "PugIDE - Visual Pug/Jade development environment with smart data generation",
   "type": "module",
   "scripts": {
@@ -10,6 +16,7 @@
     "watch": "ng build --watch",
     "test": "ng test",
     "lint": "ng lint",
+    "test:e2e": "node e2e/build.mjs && node e2e/scenarios.mjs",
     "bundle:pug": "node scripts/bundle-pug.mjs",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
@@ -18,15 +25,16 @@
   },
   "private": true,
   "dependencies": {
-    "@angular/animations": "20.3.27",
-    "@angular/common": "20.3.27",
-    "@angular/compiler": "20.3.27",
-    "@angular/core": "20.3.27",
-    "@angular/forms": "20.3.27",
-    "@angular/platform-browser": "20.3.27",
-    "@angular/router": "20.3.27",
+    "@angular/animations": "20.3.33",
+    "@angular/common": "20.3.33",
+    "@angular/compiler": "20.3.33",
+    "@angular/core": "20.3.33",
+    "@angular/forms": "20.3.33",
+    "@angular/platform-browser": "20.3.33",
+    "@angular/router": "20.3.33",
     "@vercel/analytics": "^2.0.1",
     "fflate": "^0.8.3",
+    "less": "^4.9.1",
     "prettier": "^3.4.0",
     "pug": "^3.0.4",
     "pug-lexer": "^5.0.1",
@@ -36,13 +44,13 @@
     "zone.js": "^0.15.0"
   },
   "devDependencies": {
-    "@angular/build": "20.3.27",
-    "@angular/cli": "20.3.27",
-    "@angular/compiler-cli": "20.3.27",
+    "@angular/build": "20.3.38",
+    "@angular/cli": "20.3.38",
+    "@angular/compiler-cli": "20.3.33",
     "@types/node": "^22.0.0",
     "assert": "^2.1.0",
     "path-browserify": "^1.0.1",
-    "sass": "^1.80.0",
+    "sass": "^1.105.1",
     "typescript": "~5.8.3",
     "vite-plugin-node-polyfills": "^0.28.0"
   }

@@ -59,3 +59,7 @@ interface ParserBundle {
 
 declare const pugBundle: PugBundle;
 declare const parserBundle: ParserBundle;
+
+declare module 'less/lib/less/index.js';
+declare module 'less/lib/less/environment/abstract-file-manager.js';
+declare module 'less/lib/less/environment/abstract-plugin-loader.js';

@@ -16,6 +16,8 @@ import { ProjectIoService } from '../../../core/services/project-io.service';
 import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
 import { ContextMenuAction } from '../../../core/models/index';
+import { AssetState } from '../../../core/state/asset.state';
+import { isFontPath } from '../../../core/utils/asset.util';
 import { getFileIcon } from '../../../core/utils/file-icon.util';
 import { APP_VERSION } from '../../../core/models/version.token';
 
@@ -54,6 +56,9 @@ type PendingAction =
               <button class="add-btn" (click)="onExportClick()" title="Export project (folder or .zip)">
                 <span class="material-symbols-outlined" style="font-size: 16px;">download</span>
               </button>
+              <button class="add-btn" (click)="pickAssets()" title="Subir imágenes, fuentes o estilos (.css, .scss, .less)">
+                <span class="material-symbols-outlined" style="font-size: 16px;">add_photo_alternate</span>
+              </button>
               <button class="add-btn" (click)="showNewFileDialog()" title="New file">
                 <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
               </button>
@@ -65,6 +70,13 @@ type PendingAction =
             accept=".zip"
             style="display: none"
             (change)="onZipFileSelected($event)" />
+          <input
+            #assetInput
+            type="file"
+            multiple
+            accept="image/*,.svg,.woff,.woff2,.ttf,.otf,.eot,.css,.scss,.sass,.less"
+            style="display: none"
+            (change)="onAssetsSelected($event)" />
           <div class="workspace-info">
             <div class="workspace-avatar">P</div>
             <div class="workspace-text">
@@ -74,7 +86,27 @@ type PendingAction =
           </div>
         </div>
 
-        <div class="file-tree">
+        @if (assetState.missing().length > 0) {
+          <div class="missing-assets">
+            <p class="missing-title">
+              <span class="material-symbols-outlined" style="font-size: 14px;">broken_image</span>
+              Faltan {{ assetState.missing().length }} archivo(s)
+            </p>
+            @for (path of assetState.missing(); track path) {
+              <button class="missing-row" [title]="'Subir ' + path" (click)="pickAssets(path)">
+                <span class="missing-path">{{ path }}</span>
+                <span class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
+              </button>
+            }
+          </div>
+        }
+
+        <div
+          class="file-tree"
+          [class.drop-active]="dragOver()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="dragOver.set(false)"
+          (drop)="onDrop($event)">
           @for (node of projectState.fileTree(); track node.path) {
             <ng-container *ngTemplateOutlet="fileNode; context: { $implicit: node, level: 0 }"></ng-container>
           }
@@ -114,6 +146,34 @@ type PendingAction =
     </ng-template>
   `,
   styles: [`
+    .missing-assets {
+      margin: 0 12px 8px;
+      padding: 8px;
+      border: 1px solid var(--warning-color, #e5a50a);
+      border-radius: var(--radius);
+      background: var(--bg-surface-container);
+    }
+    .missing-title {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 4px;
+      color: var(--warning-color, #e5a50a);
+    }
+    .missing-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      width: 100%;
+      padding: 2px 4px;
+      color: var(--text-secondary);
+      border-radius: 3px;
+      text-align: left;
+    }
+    .missing-row:hover { background: var(--bg-surface-variant); color: var(--text-primary); }
+    .missing-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
+    .file-tree.drop-active { outline: 2px dashed var(--accent-color); outline-offset: -4px; }
     :host {
       display: flex;
       height: 100%;
@@ -306,8 +366,12 @@ export class SidebarComponent {
   private orchestrator = inject(OrchestratorService);
   protected projectIo = inject(ProjectIoService);
   protected version = inject(APP_VERSION);
+  protected assetState = inject(AssetState);
+  protected dragOver = signal(false);
+  private assetTarget: string | undefined;
 
   @ViewChild('zipInput') private zipInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('assetInput') private assetInput!: ElementRef<HTMLInputElement>;
 
   protected dialogOpen = signal(false);
   protected dialogConfig = signal<DialogConfig>({
@@ -327,13 +391,46 @@ export class SidebarComponent {
   protected contextMenuItems = signal<ContextMenuAction[]>([]);
   private contextMenuTarget: FileNode | null = null;
 
+  /** `target`: exact path a missing reference asks for; without it the file is matched by name or goes to /assets/. */
+  pickAssets(target?: string): void {
+    this.assetTarget = target;
+    this.assetInput.nativeElement.multiple = !target;
+    this.assetInput.nativeElement.click();
+  }
+
+  async onAssetsSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    const target = this.assetTarget;
+    this.assetTarget = undefined;
+    if (files.length > 0) await this.orchestrator.addAssets(files, target);
+  }
+
+  onDragOver(event: DragEvent): void {
+    if (!event.dataTransfer?.types.includes('Files')) return;
+    event.preventDefault();
+    this.dragOver.set(true);
+  }
+
+  async onDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    this.dragOver.set(false);
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length > 0) await this.orchestrator.addAssets(files);
+  }
+
   fileIcon(node: FileNode): string {
+    if (node.isAsset) return isFontPath(node.name) ? 'font_download' : 'image';
     return getFileIcon(getFileType(node.name));
   }
 
   onNodeClick(node: FileNode): void {
     if (node.type === 'directory') {
       this.projectState.toggleDir(node.path);
+    } else if (node.isAsset) {
+      const url = this.assetState.urlFor(node.path);
+      if (url) window.open(url, '_blank');
     } else {
       this.openFile(node);
     }
@@ -451,6 +548,11 @@ export class SidebarComponent {
     const items: ContextMenuAction[] = [];
     if (node.type === 'directory') {
       items.push({ label: 'New File', icon: 'note_add', action: 'newFile' });
+    } else if (node.isAsset) {
+      items.push(
+        { label: 'Rename', icon: 'edit', action: 'rename' },
+        { label: 'Delete', icon: 'delete', action: 'delete' },
+      );
     } else {
       items.push(
         { label: 'Rename', icon: 'edit', action: 'rename' },

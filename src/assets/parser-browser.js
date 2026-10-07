@@ -12419,13 +12419,895 @@
     }
   });
 
+  // src/assets/fs-shim.cjs
+  var require_fs_shim = __commonJS({
+    "src/assets/fs-shim.cjs"(exports, module) {
+      "use strict";
+      var pugFs = globalThis.__pugFs;
+      module.exports = {
+        readFileSync: function(path, options) {
+          if (pugFs && pugFs.readFileSync) return pugFs.readFileSync(path, options);
+          if (globalThis.__pugReadFile) return globalThis.__pugReadFile(path, options);
+          return "";
+        },
+        readSync: function() {
+          return 0;
+        },
+        existsSync: function(path) {
+          if (pugFs && pugFs.existsSync) return pugFs.existsSync(path);
+          if (globalThis.__pugReadFile) return true;
+          return false;
+        },
+        statSync: function() {
+          return { isFile: function() {
+            return true;
+          }, isDirectory: function() {
+            return false;
+          } };
+        },
+        readdirSync: function() {
+          return [];
+        },
+        writeFileSync: function() {
+        },
+        openSync: function() {
+          return 0;
+        },
+        closeSync: function() {
+        },
+        createReadStream: function() {
+          return { on: function() {
+            return this;
+          }, pipe: function() {
+          } };
+        },
+        createWriteStream: function() {
+          return { on: function() {
+            return this;
+          }, write: function() {
+          } };
+        }
+      };
+    }
+  });
+
+  // node_modules/path-browserify/index.js
+  var require_path_browserify = __commonJS({
+    "node_modules/path-browserify/index.js"(exports, module) {
+      "use strict";
+      function assertPath(path) {
+        if (typeof path !== "string") {
+          throw new TypeError("Path must be a string. Received " + JSON.stringify(path));
+        }
+      }
+      function normalizeStringPosix(path, allowAboveRoot) {
+        var res = "";
+        var lastSegmentLength = 0;
+        var lastSlash = -1;
+        var dots = 0;
+        var code;
+        for (var i = 0; i <= path.length; ++i) {
+          if (i < path.length)
+            code = path.charCodeAt(i);
+          else if (code === 47)
+            break;
+          else
+            code = 47;
+          if (code === 47) {
+            if (lastSlash === i - 1 || dots === 1) {
+            } else if (lastSlash !== i - 1 && dots === 2) {
+              if (res.length < 2 || lastSegmentLength !== 2 || res.charCodeAt(res.length - 1) !== 46 || res.charCodeAt(res.length - 2) !== 46) {
+                if (res.length > 2) {
+                  var lastSlashIndex = res.lastIndexOf("/");
+                  if (lastSlashIndex !== res.length - 1) {
+                    if (lastSlashIndex === -1) {
+                      res = "";
+                      lastSegmentLength = 0;
+                    } else {
+                      res = res.slice(0, lastSlashIndex);
+                      lastSegmentLength = res.length - 1 - res.lastIndexOf("/");
+                    }
+                    lastSlash = i;
+                    dots = 0;
+                    continue;
+                  }
+                } else if (res.length === 2 || res.length === 1) {
+                  res = "";
+                  lastSegmentLength = 0;
+                  lastSlash = i;
+                  dots = 0;
+                  continue;
+                }
+              }
+              if (allowAboveRoot) {
+                if (res.length > 0)
+                  res += "/..";
+                else
+                  res = "..";
+                lastSegmentLength = 2;
+              }
+            } else {
+              if (res.length > 0)
+                res += "/" + path.slice(lastSlash + 1, i);
+              else
+                res = path.slice(lastSlash + 1, i);
+              lastSegmentLength = i - lastSlash - 1;
+            }
+            lastSlash = i;
+            dots = 0;
+          } else if (code === 46 && dots !== -1) {
+            ++dots;
+          } else {
+            dots = -1;
+          }
+        }
+        return res;
+      }
+      function _format(sep, pathObject) {
+        var dir = pathObject.dir || pathObject.root;
+        var base = pathObject.base || (pathObject.name || "") + (pathObject.ext || "");
+        if (!dir) {
+          return base;
+        }
+        if (dir === pathObject.root) {
+          return dir + base;
+        }
+        return dir + sep + base;
+      }
+      var posix = {
+        // path.resolve([from ...], to)
+        resolve: function resolve() {
+          var resolvedPath = "";
+          var resolvedAbsolute = false;
+          var cwd;
+          for (var i = arguments.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+            var path;
+            if (i >= 0)
+              path = arguments[i];
+            else {
+              if (cwd === void 0)
+                cwd = process.cwd();
+              path = cwd;
+            }
+            assertPath(path);
+            if (path.length === 0) {
+              continue;
+            }
+            resolvedPath = path + "/" + resolvedPath;
+            resolvedAbsolute = path.charCodeAt(0) === 47;
+          }
+          resolvedPath = normalizeStringPosix(resolvedPath, !resolvedAbsolute);
+          if (resolvedAbsolute) {
+            if (resolvedPath.length > 0)
+              return "/" + resolvedPath;
+            else
+              return "/";
+          } else if (resolvedPath.length > 0) {
+            return resolvedPath;
+          } else {
+            return ".";
+          }
+        },
+        normalize: function normalize(path) {
+          assertPath(path);
+          if (path.length === 0) return ".";
+          var isAbsolute = path.charCodeAt(0) === 47;
+          var trailingSeparator = path.charCodeAt(path.length - 1) === 47;
+          path = normalizeStringPosix(path, !isAbsolute);
+          if (path.length === 0 && !isAbsolute) path = ".";
+          if (path.length > 0 && trailingSeparator) path += "/";
+          if (isAbsolute) return "/" + path;
+          return path;
+        },
+        isAbsolute: function isAbsolute(path) {
+          assertPath(path);
+          return path.length > 0 && path.charCodeAt(0) === 47;
+        },
+        join: function join() {
+          if (arguments.length === 0)
+            return ".";
+          var joined;
+          for (var i = 0; i < arguments.length; ++i) {
+            var arg = arguments[i];
+            assertPath(arg);
+            if (arg.length > 0) {
+              if (joined === void 0)
+                joined = arg;
+              else
+                joined += "/" + arg;
+            }
+          }
+          if (joined === void 0)
+            return ".";
+          return posix.normalize(joined);
+        },
+        relative: function relative(from, to) {
+          assertPath(from);
+          assertPath(to);
+          if (from === to) return "";
+          from = posix.resolve(from);
+          to = posix.resolve(to);
+          if (from === to) return "";
+          var fromStart = 1;
+          for (; fromStart < from.length; ++fromStart) {
+            if (from.charCodeAt(fromStart) !== 47)
+              break;
+          }
+          var fromEnd = from.length;
+          var fromLen = fromEnd - fromStart;
+          var toStart = 1;
+          for (; toStart < to.length; ++toStart) {
+            if (to.charCodeAt(toStart) !== 47)
+              break;
+          }
+          var toEnd = to.length;
+          var toLen = toEnd - toStart;
+          var length = fromLen < toLen ? fromLen : toLen;
+          var lastCommonSep = -1;
+          var i = 0;
+          for (; i <= length; ++i) {
+            if (i === length) {
+              if (toLen > length) {
+                if (to.charCodeAt(toStart + i) === 47) {
+                  return to.slice(toStart + i + 1);
+                } else if (i === 0) {
+                  return to.slice(toStart + i);
+                }
+              } else if (fromLen > length) {
+                if (from.charCodeAt(fromStart + i) === 47) {
+                  lastCommonSep = i;
+                } else if (i === 0) {
+                  lastCommonSep = 0;
+                }
+              }
+              break;
+            }
+            var fromCode = from.charCodeAt(fromStart + i);
+            var toCode = to.charCodeAt(toStart + i);
+            if (fromCode !== toCode)
+              break;
+            else if (fromCode === 47)
+              lastCommonSep = i;
+          }
+          var out = "";
+          for (i = fromStart + lastCommonSep + 1; i <= fromEnd; ++i) {
+            if (i === fromEnd || from.charCodeAt(i) === 47) {
+              if (out.length === 0)
+                out += "..";
+              else
+                out += "/..";
+            }
+          }
+          if (out.length > 0)
+            return out + to.slice(toStart + lastCommonSep);
+          else {
+            toStart += lastCommonSep;
+            if (to.charCodeAt(toStart) === 47)
+              ++toStart;
+            return to.slice(toStart);
+          }
+        },
+        _makeLong: function _makeLong(path) {
+          return path;
+        },
+        dirname: function dirname(path) {
+          assertPath(path);
+          if (path.length === 0) return ".";
+          var code = path.charCodeAt(0);
+          var hasRoot = code === 47;
+          var end = -1;
+          var matchedSlash = true;
+          for (var i = path.length - 1; i >= 1; --i) {
+            code = path.charCodeAt(i);
+            if (code === 47) {
+              if (!matchedSlash) {
+                end = i;
+                break;
+              }
+            } else {
+              matchedSlash = false;
+            }
+          }
+          if (end === -1) return hasRoot ? "/" : ".";
+          if (hasRoot && end === 1) return "//";
+          return path.slice(0, end);
+        },
+        basename: function basename(path, ext) {
+          if (ext !== void 0 && typeof ext !== "string") throw new TypeError('"ext" argument must be a string');
+          assertPath(path);
+          var start = 0;
+          var end = -1;
+          var matchedSlash = true;
+          var i;
+          if (ext !== void 0 && ext.length > 0 && ext.length <= path.length) {
+            if (ext.length === path.length && ext === path) return "";
+            var extIdx = ext.length - 1;
+            var firstNonSlashEnd = -1;
+            for (i = path.length - 1; i >= 0; --i) {
+              var code = path.charCodeAt(i);
+              if (code === 47) {
+                if (!matchedSlash) {
+                  start = i + 1;
+                  break;
+                }
+              } else {
+                if (firstNonSlashEnd === -1) {
+                  matchedSlash = false;
+                  firstNonSlashEnd = i + 1;
+                }
+                if (extIdx >= 0) {
+                  if (code === ext.charCodeAt(extIdx)) {
+                    if (--extIdx === -1) {
+                      end = i;
+                    }
+                  } else {
+                    extIdx = -1;
+                    end = firstNonSlashEnd;
+                  }
+                }
+              }
+            }
+            if (start === end) end = firstNonSlashEnd;
+            else if (end === -1) end = path.length;
+            return path.slice(start, end);
+          } else {
+            for (i = path.length - 1; i >= 0; --i) {
+              if (path.charCodeAt(i) === 47) {
+                if (!matchedSlash) {
+                  start = i + 1;
+                  break;
+                }
+              } else if (end === -1) {
+                matchedSlash = false;
+                end = i + 1;
+              }
+            }
+            if (end === -1) return "";
+            return path.slice(start, end);
+          }
+        },
+        extname: function extname(path) {
+          assertPath(path);
+          var startDot = -1;
+          var startPart = 0;
+          var end = -1;
+          var matchedSlash = true;
+          var preDotState = 0;
+          for (var i = path.length - 1; i >= 0; --i) {
+            var code = path.charCodeAt(i);
+            if (code === 47) {
+              if (!matchedSlash) {
+                startPart = i + 1;
+                break;
+              }
+              continue;
+            }
+            if (end === -1) {
+              matchedSlash = false;
+              end = i + 1;
+            }
+            if (code === 46) {
+              if (startDot === -1)
+                startDot = i;
+              else if (preDotState !== 1)
+                preDotState = 1;
+            } else if (startDot !== -1) {
+              preDotState = -1;
+            }
+          }
+          if (startDot === -1 || end === -1 || // We saw a non-dot character immediately before the dot
+          preDotState === 0 || // The (right-most) trimmed path component is exactly '..'
+          preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
+            return "";
+          }
+          return path.slice(startDot, end);
+        },
+        format: function format(pathObject) {
+          if (pathObject === null || typeof pathObject !== "object") {
+            throw new TypeError('The "pathObject" argument must be of type Object. Received type ' + typeof pathObject);
+          }
+          return _format("/", pathObject);
+        },
+        parse: function parse(path) {
+          assertPath(path);
+          var ret = { root: "", dir: "", base: "", ext: "", name: "" };
+          if (path.length === 0) return ret;
+          var code = path.charCodeAt(0);
+          var isAbsolute = code === 47;
+          var start;
+          if (isAbsolute) {
+            ret.root = "/";
+            start = 1;
+          } else {
+            start = 0;
+          }
+          var startDot = -1;
+          var startPart = 0;
+          var end = -1;
+          var matchedSlash = true;
+          var i = path.length - 1;
+          var preDotState = 0;
+          for (; i >= start; --i) {
+            code = path.charCodeAt(i);
+            if (code === 47) {
+              if (!matchedSlash) {
+                startPart = i + 1;
+                break;
+              }
+              continue;
+            }
+            if (end === -1) {
+              matchedSlash = false;
+              end = i + 1;
+            }
+            if (code === 46) {
+              if (startDot === -1) startDot = i;
+              else if (preDotState !== 1) preDotState = 1;
+            } else if (startDot !== -1) {
+              preDotState = -1;
+            }
+          }
+          if (startDot === -1 || end === -1 || // We saw a non-dot character immediately before the dot
+          preDotState === 0 || // The (right-most) trimmed path component is exactly '..'
+          preDotState === 1 && startDot === end - 1 && startDot === startPart + 1) {
+            if (end !== -1) {
+              if (startPart === 0 && isAbsolute) ret.base = ret.name = path.slice(1, end);
+              else ret.base = ret.name = path.slice(startPart, end);
+            }
+          } else {
+            if (startPart === 0 && isAbsolute) {
+              ret.name = path.slice(1, startDot);
+              ret.base = path.slice(1, end);
+            } else {
+              ret.name = path.slice(startPart, startDot);
+              ret.base = path.slice(startPart, end);
+            }
+            ret.ext = path.slice(startDot, end);
+          }
+          if (startPart > 0) ret.dir = path.slice(0, startPart - 1);
+          else if (isAbsolute) ret.dir = "/";
+          return ret;
+        },
+        sep: "/",
+        delimiter: ":",
+        win32: null,
+        posix: null
+      };
+      posix.posix = posix;
+      module.exports = posix;
+    }
+  });
+
+  // node_modules/pug-walk/index.js
+  var require_pug_walk = __commonJS({
+    "node_modules/pug-walk/index.js"(exports, module) {
+      "use strict";
+      module.exports = walkAST;
+      function walkAST(ast, before, after, options) {
+        if (after && typeof after === "object" && typeof options === "undefined") {
+          options = after;
+          after = null;
+        }
+        options = options || { includeDependencies: false };
+        var parents = options.parents = options.parents || [];
+        var replace = function replace2(replacement) {
+          if (Array.isArray(replacement) && !replace2.arrayAllowed) {
+            throw new Error(
+              "replace() can only be called with an array if the last parent is a Block or NamedBlock"
+            );
+          }
+          ast = replacement;
+        };
+        replace.arrayAllowed = parents[0] && (/^(Named)?Block$/.test(parents[0].type) || parents[0].type === "RawInclude" && ast.type === "IncludeFilter");
+        if (before) {
+          var result = before(ast, replace);
+          if (result === false) {
+            return ast;
+          } else if (Array.isArray(ast)) {
+            return walkAndMergeNodes(ast);
+          }
+        }
+        parents.unshift(ast);
+        switch (ast.type) {
+          case "NamedBlock":
+          case "Block":
+            ast.nodes = walkAndMergeNodes(ast.nodes);
+            break;
+          case "Case":
+          case "Filter":
+          case "Mixin":
+          case "Tag":
+          case "InterpolatedTag":
+          case "When":
+          case "Code":
+          case "While":
+            if (ast.block) {
+              ast.block = walkAST(ast.block, before, after, options);
+            }
+            break;
+          case "Each":
+            if (ast.block) {
+              ast.block = walkAST(ast.block, before, after, options);
+            }
+            if (ast.alternate) {
+              ast.alternate = walkAST(ast.alternate, before, after, options);
+            }
+            break;
+          case "EachOf":
+            if (ast.block) {
+              ast.block = walkAST(ast.block, before, after, options);
+            }
+            break;
+          case "Conditional":
+            if (ast.consequent) {
+              ast.consequent = walkAST(ast.consequent, before, after, options);
+            }
+            if (ast.alternate) {
+              ast.alternate = walkAST(ast.alternate, before, after, options);
+            }
+            break;
+          case "Include":
+            walkAST(ast.block, before, after, options);
+            walkAST(ast.file, before, after, options);
+            break;
+          case "Extends":
+            walkAST(ast.file, before, after, options);
+            break;
+          case "RawInclude":
+            ast.filters = walkAndMergeNodes(ast.filters);
+            walkAST(ast.file, before, after, options);
+            break;
+          case "Attrs":
+          case "BlockComment":
+          case "Comment":
+          case "Doctype":
+          case "IncludeFilter":
+          case "MixinBlock":
+          case "YieldBlock":
+          case "Text":
+            break;
+          case "FileReference":
+            if (options.includeDependencies && ast.ast) {
+              walkAST(ast.ast, before, after, options);
+            }
+            break;
+          default:
+            throw new Error("Unexpected node type " + ast.type);
+            break;
+        }
+        parents.shift();
+        after && after(ast, replace);
+        return ast;
+        function walkAndMergeNodes(nodes) {
+          return nodes.reduce(function(nodes2, node) {
+            var result2 = walkAST(node, before, after, options);
+            if (Array.isArray(result2)) {
+              return nodes2.concat(result2);
+            } else {
+              return nodes2.concat([result2]);
+            }
+          }, []);
+        }
+      }
+    }
+  });
+
+  // node_modules/pug-load/index.js
+  var require_pug_load = __commonJS({
+    "node_modules/pug-load/index.js"(exports, module) {
+      "use strict";
+      var fs = require_fs_shim();
+      var path = require_path_browserify();
+      var walk = require_pug_walk();
+      var assign = require_object_assign();
+      module.exports = load;
+      function load(ast, options) {
+        options = getOptions(options);
+        ast = JSON.parse(JSON.stringify(ast));
+        return walk(ast, function(node) {
+          if (node.str === void 0) {
+            if (node.type === "Include" || node.type === "RawInclude" || node.type === "Extends") {
+              var file = node.file;
+              if (file.type !== "FileReference") {
+                throw new Error('Expected file.type to be "FileReference"');
+              }
+              var path2, str, raw;
+              try {
+                path2 = options.resolve(file.path, file.filename, options);
+                file.fullPath = path2;
+                raw = options.read(path2, options);
+                str = raw.toString("utf8");
+              } catch (ex) {
+                ex.message += "\n    at " + node.filename + " line " + node.line;
+                throw ex;
+              }
+              file.str = str;
+              file.raw = raw;
+              if (node.type === "Extends" || node.type === "Include") {
+                file.ast = load.string(
+                  str,
+                  assign({}, options, {
+                    filename: path2
+                  })
+                );
+              }
+            }
+          }
+        });
+      }
+      load.string = function loadString(src, options) {
+        options = assign(getOptions(options), {
+          src
+        });
+        var tokens = options.lex(src, options);
+        var ast = options.parse(tokens, options);
+        return load(ast, options);
+      };
+      load.file = function loadFile(filename, options) {
+        options = assign(getOptions(options), {
+          filename
+        });
+        var str = options.read(filename).toString("utf8");
+        return load.string(str, options);
+      };
+      load.resolve = function resolve(filename, source, options) {
+        filename = filename.trim();
+        if (filename[0] !== "/" && !source)
+          throw new Error(
+            'the "filename" option is required to use includes and extends with "relative" paths'
+          );
+        if (filename[0] === "/" && !options.basedir)
+          throw new Error(
+            'the "basedir" option is required to use includes and extends with "absolute" paths'
+          );
+        filename = path.join(
+          filename[0] === "/" ? options.basedir : path.dirname(source.trim()),
+          filename
+        );
+        return filename;
+      };
+      load.read = function read(filename, options) {
+        return fs.readFileSync(filename);
+      };
+      load.validateOptions = function validateOptions(options) {
+        if (typeof options !== "object") {
+          throw new TypeError("options must be an object");
+        }
+        if (typeof options.lex !== "function") {
+          throw new TypeError("options.lex must be a function");
+        }
+        if (typeof options.parse !== "function") {
+          throw new TypeError("options.parse must be a function");
+        }
+        if (options.resolve && typeof options.resolve !== "function") {
+          throw new TypeError("options.resolve must be a function");
+        }
+        if (options.read && typeof options.read !== "function") {
+          throw new TypeError("options.read must be a function");
+        }
+      };
+      function getOptions(options) {
+        load.validateOptions(options);
+        return assign(
+          {
+            resolve: load.resolve,
+            read: load.read
+          },
+          options
+        );
+      }
+    }
+  });
+
+  // node_modules/pug-linker/index.js
+  var require_pug_linker = __commonJS({
+    "node_modules/pug-linker/index.js"(exports, module) {
+      "use strict";
+      var assert = require_assert();
+      var walk = require_pug_walk();
+      function error() {
+        throw require_lib().apply(null, arguments);
+      }
+      module.exports = link;
+      function link(ast) {
+        assert(
+          ast.type === "Block",
+          "The top level element should always be a block"
+        );
+        var extendsNode = null;
+        if (ast.nodes.length) {
+          var hasExtends = ast.nodes[0].type === "Extends";
+          checkExtendPosition(ast, hasExtends);
+          if (hasExtends) {
+            extendsNode = ast.nodes.shift();
+          }
+        }
+        ast = applyIncludes(ast);
+        ast.declaredBlocks = findDeclaredBlocks(ast);
+        if (extendsNode) {
+          var mixins = [];
+          var expectedBlocks = [];
+          ast.nodes.forEach(function addNode(node) {
+            if (node.type === "NamedBlock") {
+              expectedBlocks.push(node);
+            } else if (node.type === "Block") {
+              node.nodes.forEach(addNode);
+            } else if (node.type === "Mixin" && node.call === false) {
+              mixins.push(node);
+            } else {
+              error(
+                "UNEXPECTED_NODES_IN_EXTENDING_ROOT",
+                "Only named blocks and mixins can appear at the top level of an extending template",
+                node
+              );
+            }
+          });
+          var parent = link(extendsNode.file.ast);
+          extend(parent.declaredBlocks, ast);
+          var foundBlockNames = [];
+          walk(parent, function(node) {
+            if (node.type === "NamedBlock") {
+              foundBlockNames.push(node.name);
+            }
+          });
+          expectedBlocks.forEach(function(expectedBlock) {
+            if (foundBlockNames.indexOf(expectedBlock.name) === -1) {
+              error(
+                "UNEXPECTED_BLOCK",
+                "Unexpected block " + expectedBlock.name,
+                expectedBlock
+              );
+            }
+          });
+          Object.keys(ast.declaredBlocks).forEach(function(name) {
+            parent.declaredBlocks[name] = ast.declaredBlocks[name];
+          });
+          parent.nodes = mixins.concat(parent.nodes);
+          parent.hasExtends = true;
+          return parent;
+        }
+        return ast;
+      }
+      function findDeclaredBlocks(ast) {
+        var definitions = {};
+        walk(ast, function before(node) {
+          if (node.type === "NamedBlock" && node.mode === "replace") {
+            definitions[node.name] = definitions[node.name] || [];
+            definitions[node.name].push(node);
+          }
+        });
+        return definitions;
+      }
+      function flattenParentBlocks(parentBlocks, accumulator) {
+        accumulator = accumulator || [];
+        parentBlocks.forEach(function(parentBlock) {
+          if (parentBlock.parents) {
+            flattenParentBlocks(parentBlock.parents, accumulator);
+          }
+          accumulator.push(parentBlock);
+        });
+        return accumulator;
+      }
+      function extend(parentBlocks, ast) {
+        var stack = {};
+        walk(
+          ast,
+          function before(node) {
+            if (node.type === "NamedBlock") {
+              if (stack[node.name] === node.name) {
+                return node.ignore = true;
+              }
+              stack[node.name] = node.name;
+              var parentBlockList = parentBlocks[node.name] ? flattenParentBlocks(parentBlocks[node.name]) : [];
+              if (parentBlockList.length) {
+                node.parents = parentBlockList;
+                parentBlockList.forEach(function(parentBlock) {
+                  switch (node.mode) {
+                    case "append":
+                      parentBlock.nodes = parentBlock.nodes.concat(node.nodes);
+                      break;
+                    case "prepend":
+                      parentBlock.nodes = node.nodes.concat(parentBlock.nodes);
+                      break;
+                    case "replace":
+                      parentBlock.nodes = node.nodes;
+                      break;
+                  }
+                });
+              }
+            }
+          },
+          function after(node) {
+            if (node.type === "NamedBlock" && !node.ignore) {
+              delete stack[node.name];
+            }
+          }
+        );
+      }
+      function applyIncludes(ast, child) {
+        return walk(
+          ast,
+          function before(node, replace) {
+            if (node.type === "RawInclude") {
+              replace({ type: "Text", val: node.file.str.replace(/\r/g, "") });
+            }
+          },
+          function after(node, replace) {
+            if (node.type === "Include") {
+              var childAST = link(node.file.ast);
+              if (childAST.hasExtends) {
+                childAST = removeBlocks(childAST);
+              }
+              replace(applyYield(childAST, node.block));
+            }
+          }
+        );
+      }
+      function removeBlocks(ast) {
+        return walk(ast, function(node, replace) {
+          if (node.type === "NamedBlock") {
+            replace({
+              type: "Block",
+              nodes: node.nodes
+            });
+          }
+        });
+      }
+      function applyYield(ast, block) {
+        if (!block || !block.nodes.length) return ast;
+        var replaced = false;
+        ast = walk(ast, null, function(node, replace) {
+          if (node.type === "YieldBlock") {
+            replaced = true;
+            node.type = "Block";
+            node.nodes = [block];
+          }
+        });
+        function defaultYieldLocation(node) {
+          var res = node;
+          for (var i = 0; i < node.nodes.length; i++) {
+            if (node.nodes[i].textOnly) continue;
+            if (node.nodes[i].type === "Block") {
+              res = defaultYieldLocation(node.nodes[i]);
+            } else if (node.nodes[i].block && node.nodes[i].block.nodes.length) {
+              res = defaultYieldLocation(node.nodes[i].block);
+            }
+          }
+          return res;
+        }
+        if (!replaced) {
+          defaultYieldLocation(ast).nodes.push(block);
+        }
+        return ast;
+      }
+      function checkExtendPosition(ast, hasExtends) {
+        var legitExtendsReached = false;
+        walk(ast, function(node) {
+          if (node.type === "Extends") {
+            if (hasExtends && !legitExtendsReached) {
+              legitExtendsReached = true;
+            } else {
+              error(
+                "EXTENDS_NOT_FIRST",
+                'Declaration of template inheritance ("extends") should be the first thing in the file. There can only be one extends statement per file.',
+                node
+              );
+            }
+          }
+        });
+      }
+    }
+  });
+
   // src/assets/parser-entry.cjs
   var require_parser_entry = __commonJS({
     "src/assets/parser-entry.cjs"() {
       try {
         lexer = require_pug_lexer();
         parser = require_pug_parser();
-        self.parserBundle = { lexer, parse: parser };
+        load = require_pug_load();
+        link = require_pug_linker();
+        self.parserBundle = { lexer, parse: parser, load, link };
       } catch (e) {
         self.parserBundle = { lexer: function() {
           throw new Error("Parser bundle init error: " + (e.message || e));
@@ -12435,6 +13317,8 @@
       }
       var lexer;
       var parser;
+      var load;
+      var link;
     }
   });
   require_parser_entry();

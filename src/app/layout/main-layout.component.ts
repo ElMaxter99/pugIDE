@@ -12,6 +12,7 @@ import { OrchestratorService } from '../core/services/orchestrator.service';
 import { EditorState } from '../core/state/editor.state';
 import { PreviewState } from '../core/state/preview.state';
 import { TerminalState } from '../core/state/terminal.state';
+import { AssetState } from '../core/state/asset.state';
 import { DataState } from '../core/state/data.state';
 import { ProjectState } from '../core/state/project.state';
 import { PreferencesState } from '../core/services/preferences.state';
@@ -104,6 +105,8 @@ export class MainLayoutComponent implements OnInit {
   private projectState = inject(ProjectState);
   private preferences = inject(PreferencesState);
   private persistence = inject(PersistenceService);
+  private assetState = inject(AssetState);
+  private assetTimer: ReturnType<typeof setTimeout> | null = null;
 
   private restoringSession = false;
   private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -114,6 +117,12 @@ export class MainLayoutComponent implements OnInit {
     effect(() => {
       const t = this.preferences.theme();
       document.documentElement.classList.toggle('light-mode', t === 'light');
+    });
+
+    effect(() => {
+      this.assetState.assets();
+      if (this.assetTimer) clearTimeout(this.assetTimer);
+      this.assetTimer = setTimeout(() => void this.orchestrator.saveAssets(), 800);
     });
 
     effect(() => {
@@ -134,6 +143,7 @@ export class MainLayoutComponent implements OnInit {
 
     const isDemo = this.route.snapshot.queryParamMap.get('demo') === 'true';
     if (isDemo) {
+      this.orchestrator.markAssetsReady();
       this.loadDemoProject();
       return;
     }
@@ -142,6 +152,7 @@ export class MainLayoutComponent implements OnInit {
     if (saved && Object.keys(saved.files).length > 0) {
       this.restoreSession(saved);
     } else {
+      this.orchestrator.markAssetsReady();
       this.loadEmptyProject();
     }
   }
@@ -167,8 +178,8 @@ export class MainLayoutComponent implements OnInit {
 
     this.projectState.setProject(saved.projectName, this.editorState.files());
     this.orchestrator.markDataInitialized();
-    this.previewState.setDevice('Desktop', 1200, 800);
     this.terminalState.addEntry('info', 'PugIDE', 'Restored your previous session.');
+    void this.orchestrator.restoreAssets();
     this.orchestrator.manualCompile();
     this.restoringSession = false;
   }
@@ -195,7 +206,13 @@ html(lang="es")
     title PugIDE
   body
     h1 Hola, #{nombre}
-    p Empieza a editar tu plantilla Pug y los datos aqui.`;
+    p Empieza a editar tu plantilla Pug y los datos aqui.
+    include ./mixins`;
+
+    const defaultMixins = `//- Define aqui tus mixins y usalos en main.pug con +nombre(args)
+mixin saludo(nombre)
+  p Hola, #{nombre}
+`;
 
     this.editorState.openTabs.set([]);
     this.editorState.activeTabId.set(null);
@@ -203,6 +220,7 @@ html(lang="es")
     this.editorState.files.set(new Map());
 
     this.editorState.openFile('/main.pug', 'main.pug', 'pug', defaultPug);
+    this.editorState.files.update((m) => { m.set('/mixins.pug', defaultMixins); return m; });
     this.projectState.setProject('MiProyecto', this.editorState.files());
     this.dataState.setInitialData({ nombre: 'Mundo' });
     this.orchestrator.markDataInitialized();
@@ -224,10 +242,17 @@ html(lang="es")
       fetch('assets/demo/demo-data.json').then(r => r.json()),
     ]);
 
+    const [demoCss, logoSvg] = await Promise.all([
+      fetch('assets/demo/styles/demo.css').then(r => r.text()),
+      fetch('assets/demo/images/logo.svg').then(r => r.arrayBuffer()),
+    ]);
+    this.assetState.replaceAll([{ path: '/images/logo.svg', mime: 'image/svg+xml', data: new Uint8Array(logoSvg) }]);
+
     const files: Array<{ path: string; name: string; content: string }> = [
       { path: '/main.pug', name: 'main.pug', content: mainPug },
       { path: '/components/card.pug', name: 'card.pug', content: cardPug },
       { path: '/components/navbar.pug', name: 'navbar.pug', content: navbarPug },
+      { path: '/styles/demo.css', name: 'demo.css', content: demoCss },
     ];
 
     this.editorState.openFile(files[0].path, files[0].name, 'pug', files[0].content);
