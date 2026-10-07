@@ -63,8 +63,7 @@ export class OrchestratorService {
   }
 
   async initialize(): Promise<void> {
-    await this.parser.initialize();
-    await this.compiler.initialize();
+    await Promise.all([this.parser.initialize(), this.compiler.initialize()]);
     this.terminalState.addEntry('info', 'PugIDE', 'PugIDE initialized successfully');
   }
 

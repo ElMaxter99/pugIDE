@@ -1,0 +1,155 @@
+<div class="landing-root" [class.light-mode]="!isDark">
+  <div class="bg-glow top-left"></div>
+  <div class="bg-glow bottom-right"></div>
+
+  <header class="landing-topbar">
+    <span class="logo">PugIDE</span>
+    <div class="topbar-actions">
+      <a class="credit-link" href="https://github.com/ElMaxter99/pugIDE" target="_blank" rel="noopener noreferrer"
+         title="Código original en GitHub · Licencia MIT · Uso libre con mención al autor">
+        <span class="credit-text">MIT &middot; por ElMaxter99</span>
+        <span class="material-symbols-outlined credit-icon">code</span>
+      </a>
+    <button class="theme-btn" (click)="toggleTheme()" [attr.aria-label]="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'">
+      <span class="material-symbols-outlined">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
+    </button>
+    </div>
+  </header>
+
+  <main class="landing-main">
+    <section class="hero-section">
+      <div class="version-badge">
+        <span class="version-dot"></span>
+        <span class="version-text">Version {{ version }}</span>
+      </div>
+
+      <h1 class="hero-title">
+        Desarrollo visual para <span class="text-gradient">Pug/Jade</span>, sin fricciones.
+      </h1>
+
+      <p class="hero-desc">
+        Detecta variables, genera mocks y previsualiza en tiempo real.
+        La herramienta definitiva para desarrolladores frontend que buscan velocidad y precisi&oacute;n.
+      </p>
+
+      <p class="privacy-note">100% local, sin cuenta, sin subir tu c&oacute;digo.</p>
+
+      <div class="hero-actions" [class.tight]="hasSavedSession">
+        @if (hasSavedSession) {
+          <button class="btn btn-primary" (click)="goToIde()">
+            Continuar sesi&oacute;n anterior
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+          <button class="btn btn-secondary" (click)="startNewSession()">
+            Empezar sesi&oacute;n nueva
+          </button>
+        } @else {
+          <button class="btn btn-primary" (click)="goToIde()">
+            Empezar a crear
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+          <button class="btn btn-secondary" (click)="goToDemo()">
+            Ver demo interactiva
+          </button>
+        }
+      </div>
+
+      @if (hasSavedSession) {
+        <button class="demo-link" (click)="goToDemo()">Ver demo interactiva</button>
+      }
+
+      <div class="hero-visual">
+        <div class="visual-glow"></div>
+        <div class="visual-frame">
+          <div class="visual-inner">
+            <div class="mock-sidebar">
+              <div class="mock-dots">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+              </div>
+              <div class="mock-lines">
+                <div class="line w-full"></div>
+                <div class="line w-3/4"></div>
+                <div class="line w-5/6"></div>
+                <div class="line w-1/2"></div>
+              </div>
+            </div>
+            <div class="mock-main">
+              <div class="code-overlay">
+                <pre><span class="token-keyword">main</span>.container
+  <span class="token-keyword">h1</span><span class="token-operator">=</span> title
+  <span class="token-keyword">ul</span>.list
+each item in items
+  <span class="token-keyword">li</span>.item<span class="token-operator">=</span> item.name</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features-section">
+      <h2 class="section-title">Potencia tu flujo de trabajo</h2>
+      <p class="section-desc">Herramientas dise&ntilde;adas para la precisi&oacute;n del frontend.</p>
+
+      <div class="features-grid">
+        <div class="feature-card wide">
+          <div class="feature-icon">
+            <span class="material-symbols-outlined">edit_note</span>
+          </div>
+          <h3 class="feature-title">Smart Data Editor</h3>
+          <p class="feature-desc">Adi&oacute;s a los JSON manuales. Generamos formularios autom&aacute;ticos basados en la detecci&oacute;n inteligente de variables en tu c&oacute;digo Pug.</p>
+          <div class="feature-preview">
+            <div class="preview-header">
+              <span class="preview-label">VARIABLES DETECTADAS</span>
+              <span class="material-symbols-outlined sync-icon">sync</span>
+            </div>
+            <div class="preview-row">
+              <span class="preview-key">title</span>
+              <span class="preview-value">"PugIDE Rocks"</span>
+            </div>
+            <div class="preview-row">
+              <span class="preview-key">count</span>
+              <span class="preview-value">42</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature-card tall">
+          <div class="feature-icon round">
+            <span class="material-symbols-outlined">bolt</span>
+          </div>
+          <h3 class="feature-title">Vista Previa en Tiempo Real</h3>
+          <p class="feature-desc">Mira el resultado al instante, sin esperas. Cada cambio en tu c&oacute;digo se refleja instant&aacute;neamente en el canvas de previsualizaci&oacute;n.</p>
+        </div>
+
+        <div class="feature-card full">
+          <div class="feature-icon">
+            <span class="material-symbols-outlined">account_tree</span>
+          </div>
+          <div class="feature-content">
+            <div>
+              <h3 class="feature-title">JSON Tree &amp; Mocking</h3>
+              <p class="feature-desc">Visualiza estructuras complejas y genera datos de prueba con un solo clic. PugIDE entiende tus arrays y objetos anidados para poblar tu UI en segundos.</p>
+              <button class="mock-btn" (click)="goToDemo()">
+                Explorar sistema de mocks
+                <span class="material-symbols-outlined">chevron_right</span>
+              </button>
+            </div>
+            <div class="mock-code-panel">
+              <pre>{{ '{' }}<br>  "users": [<br>    &#123; "id": 1, "name": "John Doe" &#125;,<br>    &#123; "id": 2, "name": "Jane Smith" &#125;<br>  ]<br>{{ '}' }}</pre>
+              <div class="mock-overlay-btn">
+                <button class="btn btn-tertiary" (click)="goToDemo()">
+                  <span class="material-symbols-outlined">casino</span>
+                  Generate Mock
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+</div>
