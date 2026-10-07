@@ -3,6 +3,7 @@ import { FileType } from '../models/tab.model';
 const ICONS: Record<FileType, string> = {
   pug: 'code',
   scss: 'palette',
+  less: 'palette',
   json: 'data_object',
   javascript: 'javascript',
   html: 'html',

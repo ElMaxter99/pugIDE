@@ -15,9 +15,16 @@ import { PersistenceService } from '../../core/services/persistence.service';
 
       <header class="landing-topbar">
         <span class="logo">PugIDE</span>
+        <div class="topbar-actions">
+          <a class="credit-link" href="https://github.com/ElMaxter99/pugIDE" target="_blank" rel="noopener noreferrer"
+             title="Código original en GitHub · Licencia MIT · Uso libre con mención al autor">
+            <span class="credit-text">MIT &middot; por ElMaxter99</span>
+            <span class="material-symbols-outlined credit-icon">code</span>
+          </a>
         <button class="theme-btn" (click)="toggleTheme()" [attr.aria-label]="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'">
           <span class="material-symbols-outlined">{{ isDark ? 'light_mode' : 'dark_mode' }}</span>
         </button>
+        </div>
       </header>
 
       <main class="landing-main">
@@ -155,9 +162,25 @@ import { PersistenceService } from '../../core/services/persistence.service';
           </div>
         </section>
       </main>
+
     </div>
   `,
   styles: [`
+    .topbar-actions { display: flex; align-items: center; gap: 12px; }
+    .credit-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary, var(--text-primary));
+      opacity: 0.7;
+      text-decoration: none;
+      transition: opacity 0.2s, color 0.2s;
+    }
+    .credit-link:hover { opacity: 1; color: var(--accent-color); }
+    .credit-icon { font-size: 18px; }
+    @media (max-width: 520px) { .credit-text { display: none; } }
+
     .landing-root {
       min-height: 100vh;
       background: var(--bg-surface);

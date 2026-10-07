@@ -141,6 +141,7 @@ export class StatusbarComponent {
     switch (tab?.type) {
       case 'pug': return 'Pug/Sass';
       case 'scss': return 'Pug/Sass';
+      case 'less': return 'Less';
       case 'json': return 'JSON';
       case 'javascript': return 'JavaScript';
       case 'html': return 'HTML';

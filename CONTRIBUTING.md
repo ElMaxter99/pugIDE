@@ -10,7 +10,7 @@ PugIDE es 100% local: no se añaden backends ni envíos de código del usuario a
 
 1. Haz un fork y crea una rama (`feat/...`, `fix/...`, `docs/...`).
 2. `npm install`, `npm start`.
-3. Antes de abrir el PR: `npm run lint`, `npm test` y `npm run build:prod`.
+3. Antes de abrir el PR: `npm run build:prod` y `npm run test:e2e`.
 4. Commits pequeños y descriptivos (`feat(data): ...`, `fix(parser): ...`).
 5. Abre un PR explicando qué cambia y por qué.
 

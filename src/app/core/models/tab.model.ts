@@ -7,7 +7,7 @@ export interface Tab {
   icon?: string;
 }
 
-export type FileType = 'pug' | 'scss' | 'json' | 'javascript' | 'html' | 'css' | 'unknown';
+export type FileType = 'pug' | 'scss' | 'less' | 'json' | 'javascript' | 'html' | 'css' | 'unknown';
 
 export function getFileType(filename: string): FileType {
   const ext = filename.split('.').pop()?.toLowerCase();
@@ -18,6 +18,8 @@ export function getFileType(filename: string): FileType {
     case 'scss':
     case 'sass':
       return 'scss';
+    case 'less':
+      return 'less';
     case 'json':
       return 'json';
     case 'js':

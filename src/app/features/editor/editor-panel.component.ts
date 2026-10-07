@@ -13,6 +13,8 @@ import { TabsComponent } from '../../shared/components/tabs/tabs.component';
 import { EditorState } from '../../core/state/editor.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { getFileType } from '../../core/models/tab.model';
+import { resolveVirtualPath } from '../../core/utils/pug-vfs.util';
+import { TerminalState } from '../../core/state/terminal.state';
 import { PreferencesState } from '../../core/services/preferences.state';
 
 declare const monaco: any;
@@ -72,6 +74,12 @@ declare const monaco: any;
       pointer-events: none;
     }
 
+    :host ::ng-deep .pug-include-link {
+      text-decoration: underline;
+      cursor: pointer;
+      color: #4fc1ff !important;
+    }
+
     .empty-editor {
       position: absolute;
       inset: 0;
@@ -108,6 +116,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   protected editorState = inject(EditorState);
   private orchestrator = inject(OrchestratorService);
   private preferences = inject(PreferencesState);
+  private terminalState = inject(TerminalState);
 
   private editor: any = null;
   private updateDisposable: { dispose(): void } | null = null;
@@ -257,8 +266,15 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     });
 
     this.updateDisposable = this.editor.onDidChangeModelContent(() => {
-      const content = this.editor.getModel()?.getValue() ?? '';
-      this.orchestrator.onCodeChange(content);
+      // Monaco swallows exceptions thrown here and can stop accepting edits (e.g. paste) without
+      // any trace, so catch them and surface them in the terminal instead.
+      try {
+        const content = this.editor.getModel()?.getValue() ?? '';
+        this.orchestrator.onCodeChange(content);
+      } catch (err) {
+        console.error('[PugIDE] Error handling editor change', err);
+        this.terminalState.addEntry('error', 'Editor', `Error handling editor change: ${(err as Error)?.message ?? err}`);
+      }
     });
 
     this.cursorDisposable = this.editor.onDidChangeCursorPosition((e: any) => {
@@ -276,19 +292,49 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
 
     this.editorReady.set(true);
 
-    // Click-to-navigate for include/extends lines
+    // Ctrl/Cmd+click on an include/extends path navigates (like VS Code); a plain click just places the cursor.
+    const linkDecorations = this.editor.createDecorationsCollection([]);
+    const pathRange = (lineNumber: number, column: number) => {
+      const model = this.editor.getModel();
+      if (!model) return null;
+      const line: string = model.getLineContent(lineNumber);
+      const m = line.match(/^(\s*(?:include|extends)\s+)(['"]?)([^'"]+?)\2\s*$/);
+      if (!m) return null;
+      const start = m[1].length + m[2].length + 1;
+      const end = start + m[3].length;
+      if (column < start || column > end) return null;
+      return { rawPath: m[3].trim(), range: new monaco.Range(lineNumber, start, lineNumber, end) };
+    };
+    const clearLink = () => linkDecorations.clear();
+
+    this.editor.onMouseMove((e: any) => {
+      const pos = e.target?.position;
+      const ctrl = e.event?.ctrlKey || e.event?.metaKey;
+      const hit = pos && ctrl ? pathRange(pos.lineNumber, pos.column) : null;
+      if (!hit) return clearLink();
+      linkDecorations.set([{ range: hit.range, options: { inlineClassName: 'pug-include-link' } }]);
+    });
+    this.editor.onMouseLeave(clearLink);
+    this.editor.onKeyUp(clearLink);
+
     this.editor.onMouseDown((e: any) => {
+      if (!(e.event?.ctrlKey || e.event?.metaKey)) return;
       const pos = e.target?.position;
       if (!pos) return;
-      const model = this.editor.getModel();
-      if (!model) return;
-      const line = model.getLineContent(pos.lineNumber);
-      const incMatch = line.match(/^\s*(?:include|extends)\s+['"]?([^'"]+)/);
-      if (!incMatch) return;
-      const rawPath = incMatch[1].trim();
-      const path = rawPath.startsWith('/') ? rawPath : '/' + rawPath;
-      const name = path.split('/').pop() ?? 'file';
+      const hit = pathRange(pos.lineNumber, pos.column);
+      if (!hit) return;
+      e.event.preventDefault?.();
+      clearLink();
+      const rawPath = hit.rawPath;
       const files = this.editorState.files();
+      const fromPath = this.editorState.activeTab()?.path;
+      let path: string = resolveVirtualPath(rawPath, fromPath, files) ?? '';
+      if (!path) {
+        const dir = fromPath ? fromPath.substring(0, fromPath.lastIndexOf('/') + 1) : '/';
+        path = rawPath.startsWith('/') ? rawPath : dir + rawPath;
+        if (!/\.[a-z0-9]+$/i.test(path)) path += '.pug';
+      }
+      const name = path.split('/').pop() ?? 'file';
       if (!files.has(path)) {
         this.orchestrator.addFile(path, name);
         return;
@@ -312,6 +358,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     const langMap: Record<string, string> = {
       pug: 'pug',
       scss: 'scss',
+      less: 'less',
       json: 'json',
       javascript: 'javascript',
       html: 'html',
@@ -324,7 +371,20 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     if (currentModel && currentModel.uri.scheme !== 'inmemory') {
       const currentPath = currentModel.uri.path;
       const currentContent = currentModel.getValue();
-      this.editorState.files.update((f) => { f.set(currentPath, currentContent); return f; });
+      // Only write back files that still exist: after a delete, the old model is still the
+      // current one here and writing it back would resurrect the file as an invisible ghost.
+      if (this.editorState.files().has(currentPath)) {
+        this.editorState.files.update((f) => { f.set(currentPath, currentContent); return f; });
+      }
+    }
+
+    // Drop Monaco models of files that were deleted so a recreated file starts clean.
+    const liveFiles = this.editorState.files();
+    for (const [path, m] of Array.from(this.models.entries())) {
+      if (!liveFiles.has(path) && m !== this.editor.getModel()) {
+        m.dispose();
+        this.models.delete(path);
+      }
     }
 
     const lang = langMap[tab.type] ?? 'plaintext';
