@@ -14,3 +14,10 @@ export { detectPageSize, defaultPageSize } from '../src/app/core/utils/page-size
 export { AssetState } from '../src/app/core/state/asset.state';
 export { AssetStorageService } from '../src/app/core/services/asset-storage.service';
 export { rotatePageSize } from '../src/app/core/utils/page-size.util';
+export { findPugSource } from '../src/app/core/utils/pug-source-map.util';
+export { INSPECTOR_SCRIPT } from '../src/app/core/utils/inspector-script.util';
+export { DEVICE_PRESETS } from '../src/app/core/utils/device-presets.util';
+export { ProjectIoService } from '../src/app/core/services/project-io.service';
+export { encodeShare, decodeShare, buildShareUrl, payloadFromHash, SHARE_URL_WARN_LENGTH } from '../src/app/core/utils/share.util';
+export { mockifyData } from '../src/app/core/utils/mock-data.util';
+export { parseDatasetsFile, serializeDatasets } from '../src/app/core/utils/datasets.util';

@@ -17,6 +17,7 @@ import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
 import { ContextMenuAction } from '../../../core/models/index';
 import { AssetState } from '../../../core/state/asset.state';
+import { PreferencesState } from '../../../core/services/preferences.state';
 import { isFontPath } from '../../../core/utils/asset.util';
 import { getFileIcon } from '../../../core/utils/file-icon.util';
 import { APP_VERSION } from '../../../core/models/version.token';
@@ -33,7 +34,7 @@ type PendingAction =
   imports: [CommonModule, DialogComponent, ContextMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <aside class="sidebar">
+    <aside class="sidebar" [class.collapsed]="preferences.sidebarCollapsed()">
       <app-dialog
         [config]="dialogConfig()"
         [isOpen]="dialogOpen()"
@@ -45,11 +46,18 @@ type PendingAction =
         [positionX]="contextMenuX()"
         [positionY]="contextMenuY()"
         (actionSelected)="onContextAction($event)" />
+      <button class="rail-btn" (click)="preferences.toggleSidebar()" title="Mostrar Workspace" aria-label="Mostrar Workspace">
+        <span class="material-symbols-outlined" style="font-size: 18px;">left_panel_open</span>
+        <span class="rail-label">Workspace</span>
+      </button>
       <div class="sidebar-inner">
         <div class="workspace-header">
           <div class="workspace-label-row">
             <span class="workspace-label">Workspace</span>
             <div class="workspace-actions">
+              <button class="add-btn" (click)="preferences.toggleSidebar()" title="Colapsar Workspace" aria-label="Colapsar Workspace">
+                <span class="material-symbols-outlined" style="font-size: 16px;">left_panel_close</span>
+              </button>
               <button class="add-btn" (click)="onImportClick()" title="Import project (folder or .zip)">
                 <span class="material-symbols-outlined" style="font-size: 16px;">upload</span>
               </button>
@@ -185,6 +193,31 @@ type PendingAction =
       background: var(--bg-surface-container-low);
       border-right: 1px solid var(--border-color);
       height: 100%;
+    }
+
+    .sidebar.collapsed {
+      width: 40px;
+      min-width: 40px;
+    }
+    .sidebar.collapsed .sidebar-inner { display: none; }
+    .rail-btn { display: none; }
+    .sidebar.collapsed .rail-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 12px 0;
+      color: var(--text-secondary);
+    }
+    .rail-btn:hover { color: var(--text-primary); background: var(--bg-surface-variant); }
+    .rail-label {
+      writing-mode: vertical-rl;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .sidebar-inner {
@@ -367,6 +400,7 @@ export class SidebarComponent {
   protected projectIo = inject(ProjectIoService);
   protected version = inject(APP_VERSION);
   protected assetState = inject(AssetState);
+  protected preferences = inject(PreferencesState);
   protected dragOver = signal(false);
   private assetTarget: string | undefined;
 

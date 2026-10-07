@@ -16,6 +16,10 @@ import { paginateDocument, resetPagination } from '../../core/utils/paginate.uti
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { InspectorState } from '../../core/state/inspector.state';
+import { DEVICE_PRESETS, findDevicePreset, ColorSchemeSim } from '../../core/utils/device-presets.util';
+import { EditorState } from '../../core/state/editor.state';
+import { TerminalState } from '../../core/state/terminal.state';
+import { findPugSource } from '../../core/utils/pug-source-map.util';
 import { InspectorPanelComponent } from '../inspector/inspector-panel.component';
 
 @Component({
@@ -34,14 +38,23 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
           <div class="device-switcher">
             <button
               class="device-btn"
-              [class.active]="previewState.deviceName() === 'Desktop'"
-              (click)="setDevice('Desktop', 1200, 800)">
+              title="Escritorio"
+              [class.active]="!previewState.isPdf() && deviceKind() === 'desktop'"
+              (click)="selectDevice('Desktop')">
               <span class="material-symbols-outlined" style="font-size: 16px;">desktop_windows</span>
             </button>
             <button
               class="device-btn"
-              [class.active]="previewState.deviceName() === 'Mobile'"
-              (click)="setDevice('Mobile', 375, 812)">
+              title="Tablet"
+              [class.active]="!previewState.isPdf() && deviceKind() === 'tablet'"
+              (click)="selectDevice('Tablet')">
+              <span class="material-symbols-outlined" style="font-size: 16px;">tablet_mac</span>
+            </button>
+            <button
+              class="device-btn"
+              title="Movil"
+              [class.active]="!previewState.isPdf() && deviceKind() === 'mobile'"
+              (click)="selectDevice('Mobile')">
               <span class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
             </button>
             <button
@@ -54,6 +67,24 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
           </div>
         </div>
         <div class="preview-header-right">
+          @if (!previewState.isPdf()) {
+            <select class="zoom-select device-select" title="Dispositivo" [value]="previewState.deviceName()" (change)="selectDevice($any($event.target).value)">
+              @for (d of presets; track d.name) {
+                <option [value]="d.name">{{ d.name }} ({{ d.width }}x{{ d.height }})</option>
+              }
+            </select>
+            @if (deviceKind() !== 'desktop') {
+              <button class="preview-action" title="Girar" (click)="rotateDevice()">
+                <span class="material-symbols-outlined" style="font-size: 18px;">screen_rotation</span>
+              </button>
+            }
+          }
+          <button class="preview-action" [class.active]="previewState.colorScheme() !== 'auto'" [title]="'Modo de color simulado: ' + previewState.colorScheme()" (click)="cycleColorScheme()">
+            <span class="material-symbols-outlined" style="font-size: 18px;">{{ schemeIcon() }}</span>
+          </button>
+          <button class="preview-action" title="Auditoria de accesibilidad (resultados en la terminal)" (click)="runA11y()">
+            <span class="material-symbols-outlined" style="font-size: 18px;">accessibility_new</span>
+          </button>
           <select class="zoom-select" title="Zoom" [value]="zoomValue()" (change)="onZoom($any($event.target).value)">
             <option value="fit">Ajustar ({{ scalePercent() }}%)</option>
             <option value="50">50%</option>
@@ -143,16 +174,19 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
 
     .preview-header {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      height: 36px;
-      padding: 0 16px;
+      gap: 4px 12px;
+      min-height: 36px;
+      padding: 4px 16px;
       border-bottom: 1px solid var(--border-color);
       background: var(--bg-surface-container);
       flex-shrink: 0;
     }
 
     .preview-header-left {
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: 16px;
@@ -209,7 +243,8 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
     }
 
     .preview-header-right {
-      flex-shrink: 0;
+      flex-wrap: wrap;
+      margin-left: auto;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -295,6 +330,8 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       white-space: nowrap;
     }
 
+    .device-select { max-width: 150px; }
+
     .zoom-select {
       height: 24px;
       font-family: var(--font-mono);
@@ -362,6 +399,14 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   protected inspectorState = inject(InspectorState);
   private orchestrator = inject(OrchestratorService);
   private preferences = inject(PreferencesState);
+  private editorState = inject(EditorState);
+  private terminal = inject(TerminalState);
+  protected readonly presets = DEVICE_PRESETS;
+  protected readonly deviceKind = computed(() => findDevicePreset(this.previewState.deviceName())?.kind ?? 'desktop');
+  protected readonly schemeIcon = computed(() => {
+    const m = this.previewState.colorScheme();
+    return m === 'dark' ? 'dark_mode' : m === 'light' ? 'light_mode' : 'contrast';
+  });
   private lastBlobUrl: string | null = null;
   private canvasObserver: ResizeObserver | null = null;
   private contentObserver: ResizeObserver | null = null;
@@ -401,12 +446,19 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   private messageListener = (e: MessageEvent): void => {
     if (e.source !== this.previewFrame?.nativeElement.contentWindow) return;
     if (e.data?.source === 'pugide-inspector') {
+      const loc = this.locatePug(e.data.sig);
       this.inspectorState.selectElement({
         tagName: e.data.tagName,
         attrs: e.data.attrs ?? {},
         htmlLine: e.data.htmlLine,
+        pugLine: loc?.line,
+        pugPath: loc?.path,
+        pugApproximate: loc?.approximate,
         children: [],
       });
+      if (loc) this.editorState.revealLine(loc.path, loc.line);
+    } else if (e.data?.source === 'pugide-a11y') {
+      this.reportA11y(e.data.issues ?? []);
     }
   };
 
@@ -434,7 +486,66 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
       );
     });
 
+    effect(() => {
+      this.previewState.colorScheme();
+      untracked(() => this.postColorScheme());
+    });
+
     window.addEventListener('message', this.messageListener);
+  }
+
+  private locatePug(sig: any) {
+    const entry = this.previewState.entryPath();
+    if (!sig || !entry) return null;
+    const files = this.editorState.allFileContents();
+    const code = this.editorState.activeTab()?.path === entry ? this.editorState.editorContent() : (files.get(entry) ?? '');
+    return findPugSource(code, files, entry, sig);
+  }
+
+  private postColorScheme(): void {
+    const mode = this.previewState.colorScheme();
+    this.previewFrame?.nativeElement.contentWindow?.postMessage(
+      { source: 'pugide-color-scheme', scheme: mode === 'auto' ? null : mode },
+      window.location.origin
+    );
+  }
+
+  cycleColorScheme(): void {
+    const order: ColorSchemeSim[] = ['auto', 'light', 'dark'];
+    const next = order[(order.indexOf(this.previewState.colorScheme()) + 1) % order.length];
+    this.previewState.colorScheme.set(next);
+  }
+
+  selectDevice(name: string): void {
+    const d = findDevicePreset(name);
+    if (d) this.setDevice(d.name, d.width, d.height);
+  }
+
+  rotateDevice(): void {
+    this.setDevice(this.previewState.deviceName(), this.previewState.deviceHeight(), this.previewState.deviceWidth());
+  }
+
+  runA11y(): void {
+    const win = this.previewFrame?.nativeElement.contentWindow;
+    if (!win || !this.previewState.compiledHtml()) {
+      this.terminal.addEntry('warning', 'A11y', 'No hay vista previa compilada que auditar.');
+      return;
+    }
+    this.terminal.isVisible.set(true);
+    win.postMessage({ source: 'pugide-a11y-run' }, window.location.origin);
+  }
+
+  private reportA11y(issues: any[]): void {
+    if (issues.length === 0) {
+      this.terminal.addEntry('success', 'A11y', 'Auditoria basica: sin problemas detectados (contraste, alt, labels, encabezados).');
+      return;
+    }
+    this.terminal.addEntry('info', 'A11y', `Auditoria basica: ${issues.length} problema(s).`);
+    for (const i of issues) {
+      const loc = this.locatePug(i.sig);
+      const where = loc ? ` (${loc.path}:${loc.line}${loc.approximate ? ' ~' : ''})` : i.htmlLine ? ` (HTML linea ${i.htmlLine})` : '';
+      this.terminal.addEntry(i.severity === 'error' ? 'error' : 'warning', 'A11y', `[${i.rule}] ${i.message} <${i.element}>${where}`);
+    }
   }
 
   ngAfterViewInit(): void {
@@ -451,6 +562,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   onIframeLoad(): void {
     this.observeContent();
+    this.postColorScheme();
     this.previewFrame?.nativeElement.contentWindow?.postMessage(
       { source: 'pugide-inspector-toggle', active: this.inspectorState.isActive() },
       window.location.origin
@@ -494,7 +606,8 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   private restoreDevice(): void {
     const saved = this.preferences.previewDevice();
-    if (saved === 'Mobile') this.previewState.setDevice('Mobile', 375, 812);
+    const preset = findDevicePreset(saved);
+    if (preset) this.previewState.setDevice(preset.name, preset.width, preset.height);
     else if (saved === 'PDF') this.previewState.setDevice('PDF', 0, 0);
   }
 

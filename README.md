@@ -2,7 +2,7 @@
 
 Entorno de desarrollo visual para **Pug/Jade**: detecta variables, genera datos de prueba (mocks) y previsualiza el resultado en tiempo real, todo en el navegador.
 
-![Versión](https://img.shields.io/badge/version-0.0.3-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
+![Versión](https://img.shields.io/badge/version-0.0.4-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
 
 ## Capturas
 
@@ -23,7 +23,35 @@ Editor de código, árbol de datos y vista previa en vivo, con un proyecto demo 
 - Vista previa en vivo (escritorio / móvil) con auto-compilación.
 - Consola con errores, warnings e info de compilación.
 - Importar / exportar el proyecto.
+- Autocompletado de variables detectadas y mixins del proyecto (`+` lista mixins con sus argumentos).
+- Ir a la definición de `include` / `extends` / `+mixin` con Ctrl+clic o F12.
+- Búsqueda en todo el proyecto con Ctrl+Shift+F (abre el archivo en la línea).
+- Formato de Pug (Shift+Alt+F). Limitación: Prettier no soporta Pug de serie y `@prettier/plugin-pug` no se incluye, así que el formateador es propio y solo normaliza indentación/espacios/líneas en blanco (no reordena ni reajusta atributos; los bloques de texto crudo conservan su indentación relativa).
 - Modo demo: abre `/ide?demo=true` para cargar un proyecto de ejemplo completo.
+
+- Estilos CSS, SCSS/Sass y Less compilados en el navegador; `<link>` locales y `@import`/`@use` entre archivos.
+- Preview en modo PDF / página impresa (lee `@page { size }`, cuenta páginas, imprimir o guardar como PDF).
+- Traducciones: las claves `t('CLAVE.ANIDADA')` generan automáticamente campos editables en los datos.
+- Assets locales (imágenes y fuentes) que subes al proyecto y se guardan en tu navegador.
+
+## Privacidad
+
+**Nada sale de tu navegador.** No hay backend, ni cuenta, ni subida de código. El proyecto se guarda en el `localStorage` de tu navegador y los assets en IndexedDB. Si borras los datos del sitio, lo pierdes: exporta tus proyectos.
+
+## Importar y exportar
+
+- **Exportar**: a una carpeta de tu disco (File System Access API, p. ej. Chrome/Edge) o, si no está disponible, como `.zip`. Incluye los assets.
+- **Importar**: desde una carpeta o un `.zip`; las rutas se conservan.
+- Se importan archivos de texto (`.pug`, `.jade`, `.scss`, `.sass`, `.css`, `.json`, `.js`, `.html`, `.htm`, `.md`, `.txt`) e imágenes/fuentes como assets; el resto se ignora.
+
+## Limitaciones conocidas
+
+- `localStorage` tiene cuota (~5 MB): proyectos de texto muy grandes pueden no guardarse (se avisa).
+- Importar/exportar a carpeta no funciona en Firefox/Safari (se usa `.zip`).
+- El preview PDF emula la paginación; el resultado final puede variar según el navegador al imprimir.
+- No hay sincronización entre dispositivos ni colaboración.
+
+Más detalle técnico en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); para colaborar, [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Desarrollo
 

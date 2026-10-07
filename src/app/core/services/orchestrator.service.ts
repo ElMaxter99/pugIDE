@@ -20,6 +20,9 @@ import { ASSET_EXT_RE, mimeForPath, refToPath, rewriteRefs } from '../utils/asse
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
 import { buildDataSkeleton } from '../utils/data-skeleton.util';
+import { errorifyData, mockifyData, mockLeaf } from '../utils/mock-data.util';
+import { DatasetKind, DatasetsFile } from '../utils/datasets.util';
+import { inferData } from '../utils/schema-infer.util';
 import { buildTranslationSkeleton, TRANSLATIONS_KEY } from '../utils/i18n.util';
 import { findEntryPath, normalize, resolveVirtualPath } from '../utils/pug-vfs.util';
 
@@ -63,8 +66,7 @@ export class OrchestratorService {
   }
 
   async initialize(): Promise<void> {
-    await this.parser.initialize();
-    await this.compiler.initialize();
+    await Promise.all([this.parser.initialize(), this.compiler.initialize()]);
     this.terminalState.addEntry('info', 'PugIDE', 'PugIDE initialized successfully');
   }
 
@@ -99,6 +101,7 @@ export class OrchestratorService {
         this.previewState.updateCompiledResult({ html: '', css: '', errors: [], compilationTime: 0 });
         return;
       }
+      this.previewState.entryPath.set(entryPath);
       // The active tab's live content wins over the stored copy (it is the one being typed).
       const entryCode = entryPath === activePath ? this.editorState.editorContent() : (files.get(entryPath) ?? '');
       if (entryPath === activePath) files.set(entryPath, entryCode);
@@ -113,21 +116,27 @@ export class OrchestratorService {
       this.parserState.setParsing(false);
 
       if (!this.initialDataLoaded && Object.keys(this.dataState.data()).length === 0) {
-        const data = this.buildDataFromVariables(parseResult.variables, parseResult.translationKeys);
+        const data = this.skeletonForActiveDataset(parseResult.variables, parseResult.translationKeys);
         if (Object.keys(data).length > 0) {
           this.dataState.setInitialData(data);
           this.initialDataLoaded = true;
         }
       }
 
-      const skeleton = this.buildDataFromVariables(parseResult.variables, parseResult.translationKeys);
+      const skeleton = this.skeletonForActiveDataset(parseResult.variables, parseResult.translationKeys);
       const patchedData = structuredClone(this.dataState.data());
-      if (this.deepMergeMissing(patchedData, skeleton)) {
+      const ds = this.dataState.activeDataset();
+      const mockOpts = { seed: ds?.seed ?? 1, locale: this.dataState.locale() };
+      // Un texto de ejemplo autogenerado cede su sitio si el template pasa a leer sus miembros; un valor editado no.
+      const isAutoLeaf = ds?.kind === 'empty' || ds?.kind === 'error' ? undefined
+        : (path: string, v: unknown) => typeof v === 'string' && v === mockLeaf(path.split('.').pop() ?? path, path, mockOpts);
+      // El juego "Error" conserva nulos a propósito: no se sustituyen por objetos al autocompletar.
+      if (this.deepMergeMissing(patchedData, skeleton, ds?.kind !== 'error', isAutoLeaf)) {
         this.dataState.patchMissingData(patchedData);
         this.terminalState.addEntry(
           'info',
           'Data',
-          'Se han creado propiedades vacías por defecto para nuevas referencias del template. Revisa el editor de datos para rellenarlas.'
+          'Se han creado datos de ejemplo para nuevas referencias del template. Revisa el editor de datos para ajustarlos.'
         );
       }
 
@@ -289,11 +298,12 @@ export class OrchestratorService {
       files: Object.fromEntries(files),
       openTabPaths: this.editorState.openTabs().map((t) => t.path),
       activeTabPath: this.editorState.activeTab()?.path ?? null,
+      datasets: this.dataState.snapshotDatasets(),
     });
   }
 
   /** Replaces the whole in-memory project (used by import) and recompiles from scratch. */
-  loadProject(files: Map<string, string>, projectName: string, assets: AssetFile[] = []): void {
+  loadProject(files: Map<string, string>, projectName: string, assets: AssetFile[] = [], datasets?: DatasetsFile | null, data?: Record<string, unknown> | null): void {
     this.assetState.replaceAll(assets);
     this.editorState.openTabs.set([]);
     this.editorState.activeTabId.set(null);
@@ -302,7 +312,9 @@ export class OrchestratorService {
     this.editorState.bumpResetToken();
 
     this.projectState.setProject(projectName, files);
-    this.dataState.setInitialData({});
+    if (datasets) this.dataState.restoreDatasets(datasets);
+    else this.dataState.resetDatasets();
+    this.dataState.setInitialData(datasets ? this.dataState.data() : (data ?? {}));
     this.initialDataLoaded = false;
 
     const firstPugPath = Array.from(files.keys()).find((p) => p.endsWith('.pug')) ?? Array.from(files.keys())[0];
@@ -331,6 +343,75 @@ export class OrchestratorService {
     const { variables, translationKeys } = await this.parser.parseProject(files, entryPath);
     if (variables.length === 0 && translationKeys.length === 0) return {};
     return this.buildDataFromVariables(variables, translationKeys);
+  }
+
+  /** Esqueleto de datos que faltan: con mocks realistas, salvo en los juegos "Vacío" (sin mocks) y "Error" (nulos). */
+  private skeletonForActiveDataset(variables: PugVariable[], translationKeys: string[]): Record<string, unknown> {
+    const skeleton = this.buildDataFromVariables(variables, translationKeys);
+    const ds = this.dataState.activeDataset();
+    if (ds?.kind === 'empty') return skeleton;
+    if (ds?.kind === 'error') return errorifyData(skeleton);
+    return mockifyData(skeleton, { seed: ds?.seed ?? 1, locale: this.dataState.locale() });
+  }
+
+  /** Datos con todas las claves que usa el template (las del usuario se conservan). */
+  private async currentShape(): Promise<Record<string, unknown>> {
+    const base = structuredClone(this.dataState.data());
+    this.deepMergeMissing(base, await this.clearDataWithKeys());
+    return base;
+  }
+
+  /** Crea un juego de datos nuevo (Vacío, Lleno, Error o copia personalizada del actual) y lo activa. */
+  async createDataset(kind: Exclude<DatasetKind, 'default'>, name?: string): Promise<void> {
+    const seed = this.randomSeed();
+    const locale = this.dataState.locale();
+    let data: Record<string, unknown>;
+    let label: string;
+    if (kind === 'empty') { data = await this.clearDataWithKeys(); label = 'Vacío'; }
+    else if (kind === 'full') { data = mockifyData(await this.currentShape(), { seed, locale, arrayLength: 3 }); label = 'Lleno'; }
+    else if (kind === 'error') { data = errorifyData(await this.clearDataWithKeys()); label = 'Error'; }
+    else { data = structuredClone(this.dataState.data()); label = 'Personalizado'; }
+    this.dataState.addDataset(name?.trim() || label, data, seed, kind);
+    this.onDataChange();
+  }
+
+  switchDataset(id: string): void {
+    this.dataState.switchDataset(id);
+    this.onDataChange();
+  }
+
+  deleteDataset(id: string): boolean {
+    const ok = this.dataState.removeDataset(id);
+    if (ok) this.onDataChange();
+    return ok;
+  }
+
+  duplicateDataset(id: string): void {
+    if (this.dataState.duplicateDataset(id)) this.onDataChange();
+  }
+
+  /** Sustituye los valores del juego activo por datos de ejemplo nuevos (con undo). */
+  async regenerateMocks(seed = this.randomSeed()): Promise<void> {
+    const shape = await this.currentShape();
+    this.dataState.setData(mockifyData(shape, { seed, locale: this.dataState.locale() }));
+    this.dataState.setSeed(seed);
+    this.onDataChange();
+  }
+
+  setMockLocale(locale: 'es' | 'en'): void {
+    this.dataState.locale.set(locale);
+  }
+
+  /** Importa un JSON de ejemplo, un JSON Schema o un OpenAPI como un juego de datos nuevo. Devuelve el origen detectado. */
+  importDataDocument(doc: unknown, label: string, seed = this.randomSeed()): { source: string; warnings: string[] } {
+    const res = inferData(doc, { fill: true, seed, locale: this.dataState.locale() });
+    this.dataState.addDataset(`Importado: ${label}`, res.data, seed, 'custom');
+    this.onDataChange();
+    return { source: res.source, warnings: res.warnings };
+  }
+
+  private randomSeed(): number {
+    return Math.floor(Math.random() * 2147483647);
   }
 
   addFile(path: string, name: string, content = ''): void {
@@ -442,7 +523,7 @@ export class OrchestratorService {
   }
 
   /** Merges `source` into `target`, filling in only keys missing from `target` (recursing into plain objects). Never touches arrays or primitives already present. Returns whether anything changed. */
-  private deepMergeMissing(target: Record<string, unknown>, source: Record<string, unknown>): boolean {
+  private deepMergeMissing(target: Record<string, unknown>, source: Record<string, unknown>, replacePlaceholders = true, isAutoLeaf?: (path: string, v: unknown) => boolean, prefix = ''): boolean {
     let changed = false;
     for (const key of Object.keys(source)) {
       const sourceValue = source[key];
@@ -452,8 +533,9 @@ export class OrchestratorService {
         continue;
       }
       const targetValue = target[key];
+      const path = prefix ? `${prefix}.${key}` : key;
       // An untouched placeholder ('' / null) read as a plain value earlier must give way once the template reads its members.
-      if ((targetValue === '' || targetValue === null) && sourceValue !== null && typeof sourceValue === 'object') {
+      if (replacePlaceholders && (targetValue === '' || targetValue === null || isAutoLeaf?.(path, targetValue)) && sourceValue !== null && typeof sourceValue === 'object') {
         target[key] = sourceValue;
         changed = true;
         continue;
@@ -462,16 +544,16 @@ export class OrchestratorService {
         sourceValue !== null && typeof sourceValue === 'object' && !Array.isArray(sourceValue) &&
         targetValue !== null && typeof targetValue === 'object' && !Array.isArray(targetValue);
       if (bothPlainObjects) {
-        if (this.deepMergeMissing(targetValue as Record<string, unknown>, sourceValue as Record<string, unknown>)) {
+        if (this.deepMergeMissing(targetValue as Record<string, unknown>, sourceValue as Record<string, unknown>, replacePlaceholders, isAutoLeaf, path)) {
           changed = true;
         }
       } else if (Array.isArray(sourceValue) && Array.isArray(targetValue) && sourceValue[0] !== null && typeof sourceValue[0] === 'object' && !Array.isArray(sourceValue[0])) {
         // New fields the template reads on array items must exist on every existing item.
-        for (const item of targetValue) {
+        targetValue.forEach((item, i) => {
           if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
-            if (this.deepMergeMissing(item as Record<string, unknown>, sourceValue[0] as Record<string, unknown>)) changed = true;
+            if (this.deepMergeMissing(item as Record<string, unknown>, sourceValue[0] as Record<string, unknown>, replacePlaceholders, isAutoLeaf, `${path}.${i}`)) changed = true;
           }
-        }
+        });
       }
     }
     return changed;

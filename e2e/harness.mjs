@@ -18,7 +18,7 @@ export async function makeApp(files, openPath) {
   const S = await import('./.build/services.mjs');
   const { createEnvironmentInjector, Injector: Inj } = await import('@angular/core');
   const root = Inj.create({ providers: [] });
-  const names = ['EditorState','ParserState','PreviewState','DataState','TerminalState','PersistenceService','AssetState','AssetStorageService','PreferencesState','ProjectState','PugParserService','PugCompilerService','ScssCompilerService','OrchestratorService'];
+  const names = ['EditorState','ParserState','PreviewState','DataState','TerminalState','PersistenceService','AssetState','AssetStorageService','PreferencesState','ProjectState','PugParserService','PugCompilerService','ScssCompilerService','OrchestratorService','ProjectIoService'];
   const env = createEnvironmentInjector(names.map((n) => ({ provide: S[n], useFactory: () => (n === 'PreferencesState' ? new S[n](env.get(S.PersistenceService)) : new S[n]()) })), root);
   const app = {};
   runInInjectionContext(env, () => { for (const n of names) app[n] = env.get(S[n]); });

@@ -1,6 +1,6 @@
 {
   "name": "pug-ide",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "license": "MIT",
   "author": "ElMaxter99 (https://github.com/ElMaxter99)",
   "repository": {
@@ -16,12 +16,13 @@
     "watch": "ng build --watch",
     "test": "ng test",
     "lint": "ng lint",
-    "test:e2e": "node e2e/build.mjs && node e2e/scenarios.mjs",
+    "test:e2e": "node --test e2e/editor-utils.test.ts && node e2e/build.mjs && node e2e/scenarios.mjs",
     "bundle:pug": "node scripts/bundle-pug.mjs",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
-    "prebuild": "node scripts/validate-build.js"
+    "prebuild": "node scripts/validate-build.js",
+    "test:unit": "node test/unit/build.mjs && node --test test/unit/*.test.mjs"
   },
   "private": true,
   "dependencies": {
@@ -32,6 +33,7 @@
     "@angular/forms": "20.3.33",
     "@angular/platform-browser": "20.3.33",
     "@angular/router": "20.3.33",
+    "@angular/service-worker": "^20.3.33",
     "@vercel/analytics": "^2.0.1",
     "fflate": "^0.8.3",
     "less": "^4.9.1",
@@ -48,10 +50,13 @@
     "@angular/cli": "20.3.38",
     "@angular/compiler-cli": "20.3.33",
     "@types/node": "^22.0.0",
+    "angular-eslint": "^22.5.0",
     "assert": "^2.1.0",
+    "eslint": "^9.39.5",
     "path-browserify": "^1.0.1",
     "sass": "^1.105.1",
     "typescript": "~5.8.3",
+    "typescript-eslint": "^8.71.1",
     "vite-plugin-node-polyfills": "^0.28.0"
   }
 }

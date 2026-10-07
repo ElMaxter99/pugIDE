@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { AppPreferences } from '../models/index';
+import type { DatasetsFile } from '../utils/datasets.util';
 
 const STORAGE_KEY = 'pug-ide-preferences';
 const PROJECT_KEY = 'pug-ide-project';
@@ -9,6 +10,8 @@ export interface ProjectSessionState {
   files: Record<string, string>;
   openTabPaths: string[];
   activeTabPath: string | null;
+  /** Juegos de datos del proyecto (opcional: sesiones antiguas no lo tienen). */
+  datasets?: DatasetsFile;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -26,6 +29,8 @@ export class PersistenceService {
     autoCompile: true,
     previewDevice: 'Desktop',
     zoom: 100,
+    sidebarCollapsed: false,
+    dataCollapsed: false,
   };
 
   loadPreferences(): AppPreferences {

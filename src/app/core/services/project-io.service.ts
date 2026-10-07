@@ -6,6 +6,13 @@ import { TerminalState } from '../state/terminal.state';
 import { OrchestratorService } from './orchestrator.service';
 import { AssetState, AssetFile } from '../state/asset.state';
 import { ASSET_EXT_RE, mimeForPath } from '../utils/asset.util';
+import { DataState } from '../state/data.state';
+import { PreviewState } from '../state/preview.state';
+import {
+  SHARE_URL_WARN_LENGTH, SharePayload, ShareDecodeError, buildShareUrl, decodeShare, encodeShare,
+} from '../utils/share.util';
+import { buildStandaloneHtml, bytesToDataUri } from '../utils/export-html.util';
+import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
 
 const TEXT_FILE_RE = /\.(pug|jade|scss|sass|css|json|js|html|htm|md|txt)$/i;
 
@@ -21,6 +28,8 @@ export class ProjectIoService {
   private terminalState = inject(TerminalState);
   private orchestrator = inject(OrchestratorService);
   private assetState = inject(AssetState);
+  private dataState = inject(DataState);
+  private previewState = inject(PreviewState);
 
   get supportsFileSystemAccess(): boolean {
     return typeof (window as any).showDirectoryPicker === 'function';
@@ -52,7 +61,13 @@ export class ProjectIoService {
     for (const a of this.assetState.assets().values()) {
       await this.writeFileToDirectory(dirHandle, a.path, a.data);
     }
+    await this.writeFileToDirectory(dirHandle, DATASETS_PATH, this.datasetsText());
     this.terminalState.addEntry('success', 'Export', `Exported ${files.size + this.assetState.assets().size} file(s) to disk.`);
+  }
+
+  /** Juegos de datos del proyecto, como `/.pugide/datasets.json` (no es un archivo del proyecto). */
+  private datasetsText(): string {
+    return serializeDatasets(this.dataState.snapshotDatasets());
   }
 
   private async writeFileToDirectory(root: any, path: string, content: string | Uint8Array): Promise<void> {
@@ -74,6 +89,7 @@ export class ProjectIoService {
       zipInput[path.replace(/^\//, '')] = strToU8(content);
     }
     for (const a of this.assetState.assets().values()) zipInput[a.path.replace(/^\//, '')] = a.data;
+    zipInput[DATASETS_PATH.replace(/^\//, '')] = strToU8(this.datasetsText());
     const zipped = zipSync(zipInput, { level: 6 });
     const blob = new Blob([zipped as BlobPart], { type: 'application/zip' });
     const url = URL.createObjectURL(blob);
@@ -135,10 +151,74 @@ export class ProjectIoService {
   }
 
   private finishImport(files: Map<string, string>, projectName: string, assets: AssetFile[] = []): void {
+    const datasetsText = files.get(DATASETS_PATH);
+    files.delete(DATASETS_PATH);
+    const datasets = datasetsText === undefined ? null : parseDatasetsFile(datasetsText);
+    if (datasetsText !== undefined && !datasets) {
+      this.terminalState.addEntry('warning', 'Import', `${DATASETS_PATH} no es válido: se ignoran los juegos de datos.`);
+    }
     if (files.size === 0) {
       this.terminalState.addEntry('warning', 'Import', 'No supported files found to import.');
       return;
     }
-    this.orchestrator.loadProject(files, projectName || 'Imported Project', assets);
+    this.orchestrator.loadProject(files, projectName || 'Imported Project', assets, datasets);
+  }
+
+  /**
+   * Enlace compartible del proyecto (archivos de texto + datos, comprimidos en el hash de la URL).
+   * Los assets binarios (imágenes y fuentes) no se incluyen.
+   */
+  buildShareLink(base: string): { url: string; length: number; tooLong: boolean } {
+    const files = new Map(this.editorState.allFileContents());
+    const active = this.editorState.activeTab()?.path;
+    if (active && files.has(active)) files.set(active, this.editorState.editorContent()); // lo que se está escribiendo
+    const payload = encodeShare(this.projectState.projectName(), files, this.dataState.data());
+    const url = buildShareUrl(base, payload);
+    return { url, length: url.length, tooLong: url.length > SHARE_URL_WARN_LENGTH };
+  }
+
+  /** Decodifica un payload de enlace; en caso de error lo anota en el terminal y devuelve null. */
+  parseShare(payload: string): SharePayload | null {
+    try {
+      return decodeShare(payload);
+    } catch (err) {
+      const msg = err instanceof ShareDecodeError ? err.message : 'No se pudo leer el enlace.';
+      this.terminalState.addEntry('error', 'Compartir', `${msg} Se ignora el enlace.`);
+      return null;
+    }
+  }
+
+  loadShared(shared: SharePayload): void {
+    this.orchestrator.loadProject(shared.files, shared.projectName, [], null, shared.data);
+    this.terminalState.addEntry('info', 'Compartir', 'Proyecto cargado desde un enlace (sin imágenes ni fuentes).');
+  }
+
+  /** HTML renderizado autocontenido (sin inspector ni atributos data-pugide-*, assets locales como data URI). */
+  buildStandaloneHtml(): string {
+    const map = new Map<string, string>();
+    for (const a of this.assetState.assets().values()) {
+      const url = this.assetState.urlFor(a.path);
+      if (url) map.set(url, bytesToDataUri(a.data, a.mime));
+    }
+    return buildStandaloneHtml(this.previewState.compiledHtml(), map);
+  }
+
+  exportHtml(): boolean {
+    if (!this.previewState.compiledHtml()) {
+      this.terminalState.addEntry('warning', 'Exportar HTML', 'No hay HTML renderizado que exportar.');
+      return false;
+    }
+    const blob = new Blob([this.buildStandaloneHtml()], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const fileName = `${this.projectState.projectName() || 'pug-project'}.html`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    this.terminalState.addEntry('success', 'Exportar HTML', `HTML exportado como ${fileName}.`);
+    return true;
   }
 }
