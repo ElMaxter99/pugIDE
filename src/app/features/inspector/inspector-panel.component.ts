@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   inject,
 } from '@angular/core';
+import { EditorState } from '../../core/state/editor.state';
 import { InspectorState } from '../../core/state/inspector.state';
 
 @Component({
@@ -47,9 +48,15 @@ import { InspectorState } from '../../core/state/inspector.state';
               @if (inspectorState.selectedElement()!.pugLine !== undefined) {
                 <div class="prop-row">
                   <span class="prop-label">Pug Line</span>
-                  <span class="prop-value">
-                    {{ inspectorState.selectedElement()!.pugLine }}
+                  <span class="prop-value clickable" title="Ir a la linea Pug (mapeo aproximado)" (click)="goToPug()">
+                    {{ pugLabel() }}
                   </span>
+                </div>
+              }
+              @if (inspectorState.selectedElement()!.pugLine === undefined) {
+                <div class="prop-row">
+                  <span class="prop-label">Pug Line</span>
+                  <span class="prop-value">sin origen Pug</span>
                 </div>
               }
               @if (inspectorState.selectedElement()!.htmlLine !== undefined) {
@@ -232,6 +239,20 @@ import { InspectorState } from '../../core/state/inspector.state';
 })
 export class InspectorPanelComponent {
   protected inspectorState = inject(InspectorState);
+
+  private editorState = inject(EditorState);
+
+  pugLabel(): string {
+    const n = this.inspectorState.selectedElement();
+    if (!n || n.pugLine === undefined) return '';
+    const file = (n.pugPath ?? '').split('/').pop();
+    return `${n.pugApproximate ? '~' : ''}${file}:${n.pugLine}`;
+  }
+
+  goToPug(): void {
+    const n = this.inspectorState.selectedElement();
+    if (n?.pugLine !== undefined && n.pugPath) this.editorState.revealLine(n.pugPath, n.pugLine);
+  }
 
   getAttributeEntries(): [string, string][] {
     const node = this.inspectorState.selectedElement();
