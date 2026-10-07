@@ -18,3 +18,16 @@
 }
 .external-demo p { margin: 0; }
 .external-demo code { background: rgba(255, 255, 255, 0.2); color: #fff; padding: 2px 6px; border-radius: 3px; }
+
+/* Hueco de 240x160 para la imagen que subes tú: object-fit la recorta sin deformarla. */
+.upload-slot {
+  display: block;
+  width: 240px;
+  height: 160px;
+  object-fit: cover;
+  border: 2px dashed #3498db;
+  border-radius: 10px;
+  background: #eaf4fc;
+  color: #2980b9;
+  font-size: 13px;
+}
