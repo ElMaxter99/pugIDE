@@ -1,3 +1,6 @@
+# Serena (no versionar)
+.serena/
+
 # Dependencies
 /node_modules
 
