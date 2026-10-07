@@ -10,3 +10,4 @@ export { PugParserService } from '../src/app/parser/pug-parser.service';
 export { PugCompilerService } from '../src/app/compiler/pug-compiler.service';
 export { ScssCompilerService } from '../src/app/compiler/scss-compiler.service';
 export { OrchestratorService } from '../src/app/core/services/orchestrator.service';
+export { detectPageSize, defaultPageSize } from '../src/app/core/utils/page-size.util';

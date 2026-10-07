@@ -215,5 +215,17 @@ import { readFileSync, readdirSync } from 'node:fs';
   await a.orch.manualCompile();
   check('18 filled translations rendered (+ params, empty -> key)', html(a).includes('>Informe<') && html(a).includes('Hola Ana') && html(a).includes('PAGE.EMPTY') && html(a).includes('title="Ir"'), html(a));
 }
+// 19. PDF preview: page size read from the template's @page rule
+{
+  const { detectPageSize } = await import('./.build/services.mjs');
+  const pt = detectPageSize('<style>@page { size: 841.9pt 595.3pt; margin: 0; }</style>');
+  check('19 @page in pt -> A4 landscape px', pt.source === 'css' && pt.width === 1123 && pt.height === 794, JSON.stringify(pt));
+  const kw = detectPageSize('<style>@page{size:A4 landscape}</style>');
+  check('19 @page keyword A4 landscape', kw.width === 1123 && kw.height === 794 && kw.label.startsWith('A4'), JSON.stringify(kw));
+  const mm = detectPageSize('<style>@page { margin:0; size: 210mm 297mm }</style>');
+  check('19 @page in mm portrait', mm.width === 794 && mm.height === 1123, JSON.stringify(mm));
+  const none = detectPageSize('<p>x</p>', 'portrait');
+  check('19 no @page -> default A4 portrait', none.source === 'default' && none.width === 794 && none.height === 1123, JSON.stringify(none));
+}
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);
