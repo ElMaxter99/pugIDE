@@ -36,6 +36,8 @@ import { PersistenceService } from '../../core/services/persistence.service';
             La herramienta definitiva para desarrolladores frontend que buscan velocidad y precisi&oacute;n.
           </p>
 
+          <p class="privacy-note">100% local, sin cuenta, sin subir tu c&oacute;digo.</p>
+
           <div class="hero-actions" [class.tight]="hasSavedSession">
             @if (hasSavedSession) {
               <button class="btn btn-primary" (click)="goToIde()">
@@ -291,6 +293,14 @@ import { PersistenceService } from '../../core/services/persistence.service';
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+    }
+
+    .privacy-note {
+      font-family: 'Geist', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin: -24px 0 32px;
     }
 
     .hero-desc {
