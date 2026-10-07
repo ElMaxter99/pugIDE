@@ -1,5 +1,5 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { Tab, FileType } from '../models/tab.model';
+import { Tab, FileType, getFileType } from '../models/tab.model';
 
 @Injectable({ providedIn: 'root' })
 export class EditorState {
@@ -10,6 +10,9 @@ export class EditorState {
   readonly files = signal<Map<string, string>>(new Map());
   /** Bumped whenever the whole project is replaced (e.g. import), so the editor can drop stale Monaco models. */
   readonly resetToken = signal(0);
+  /** Ask the editor to open `path` and reveal `line` (1-based); `seq` makes repeated requests distinct. */
+  readonly revealRequest = signal<{ path: string; line: number; seq: number } | null>(null);
+  private revealSeq = 0;
 
   readonly activeTab = computed(() => {
     const id = this.activeTabId();
@@ -152,6 +155,12 @@ export class EditorState {
     this.openTabs.update((tabs) =>
       tabs.map((t) => (t.path === oldPath ? { ...t, path: newPath, name: newName } : t))
     );
+  }
+
+  revealLine(path: string, line: number): void {
+    const name = path.split('/').pop() ?? path;
+    this.openFile(path, name, getFileType(name), this.files().get(path) ?? '');
+    this.revealRequest.set({ path, line, seq: ++this.revealSeq });
   }
 
   bumpResetToken(): void {

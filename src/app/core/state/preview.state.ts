@@ -1,13 +1,18 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { CompileResult, CompileError } from '../models/index';
+import { ColorSchemeSim } from '../utils/device-presets.util';
 import { detectPageSize, isLandscape, rotatePageSize } from '../utils/page-size.util';
 
 @Injectable({ providedIn: 'root' })
 export class PreviewState {
   readonly compiledHtml = signal('');
   readonly isLoading = signal(false);
-  readonly deviceWidth = signal(1200);
-  readonly deviceHeight = signal(800);
+  readonly deviceWidth = signal(1440);
+  readonly deviceHeight = signal(900);
+  /** Simulated prefers-color-scheme inside the preview iframe (`auto` = real OS setting). */
+  readonly colorScheme = signal<ColorSchemeSim>('auto');
+  /** Entry pug file of the last compile; origin for the inspector's Pug line mapping. */
+  readonly entryPath = signal<string | null>(null);
   readonly deviceName = signal('Desktop');
   readonly errors = signal<CompileError[]>([]);
   readonly compilationTime = signal(0);

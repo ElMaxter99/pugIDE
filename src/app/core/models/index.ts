@@ -120,6 +120,10 @@ export interface TerminalEntry {
 export interface InspectorNode {
   tagName: string;
   pugLine?: number;
+  /** Pug file the line belongs to (may be an included file). */
+  pugPath?: string;
+  /** The Pug mapping is a best guess (loops, conditionals, mixins). */
+  pugApproximate?: boolean;
   htmlLine?: number;
   attrs: Record<string, string>;
   children: InspectorNode[];

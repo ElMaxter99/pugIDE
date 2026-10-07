@@ -187,6 +187,14 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     });
 
     effect(() => {
+      const req = this.editorState.revealRequest();
+      this.editorState.activeTab();
+      if (!req) return;
+      // The model switch for a newly activated tab happens in the effect above; reveal right after it.
+      setTimeout(() => this.revealLine(req.path, req.line), 0);
+    });
+
+    effect(() => {
       const token = this.editorState.resetToken();
       if (token !== this.lastResetToken) {
         this.lastResetToken = token;
@@ -575,6 +583,23 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       hit: m.text.substr(m.column - 1, m.length),
       post: m.text.substring(m.column - 1 + m.length, m.column - 1 + m.length + 80),
     };
+  }
+
+  private revealDecorations: string[] = [];
+
+  private revealLine(path: string, line: number): void {
+    const model = this.editor?.getModel();
+    if (!model || model.uri.path !== path) return;
+    const ln = Math.min(Math.max(1, line), model.getLineCount());
+    this.editor.revealLineInCenter(ln);
+    this.editor.setPosition({ lineNumber: ln, column: model.getLineFirstNonWhitespaceColumn(ln) || 1 });
+    this.editor.focus();
+    this.revealDecorations = this.editor.deltaDecorations(this.revealDecorations, [
+      { range: new monaco.Range(ln, 1, ln, 1), options: { isWholeLine: true, className: 'pugide-reveal-line' } },
+    ]);
+    setTimeout(() => {
+      this.revealDecorations = this.editor?.deltaDecorations(this.revealDecorations, []) ?? [];
+    }, 1500);
   }
 
   private disposeAllModels(): void {

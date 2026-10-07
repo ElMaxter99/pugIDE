@@ -99,6 +99,7 @@ export class OrchestratorService {
         this.previewState.updateCompiledResult({ html: '', css: '', errors: [], compilationTime: 0 });
         return;
       }
+      this.previewState.entryPath.set(entryPath);
       // The active tab's live content wins over the stored copy (it is the one being typed).
       const entryCode = entryPath === activePath ? this.editorState.editorContent() : (files.get(entryPath) ?? '');
       if (entryPath === activePath) files.set(entryPath, entryCode);
