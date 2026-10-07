@@ -15,6 +15,7 @@ import { ProjectState } from '../state/project.state';
 import { PersistenceService } from './persistence.service';
 import { AssetState, AssetFile } from '../state/asset.state';
 import { AssetStorageService } from './asset-storage.service';
+import { inlineLocalStylesheets, isStylePath } from '../utils/style-refs.util';
 import { ASSET_EXT_RE, mimeForPath, refToPath, rewriteRefs } from '../utils/asset.util';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
@@ -141,7 +142,21 @@ export class OrchestratorService {
       const data = this.dataState.data();
       const compileResult = await this.compiler.compile(entryCode, data, entryPath, files, parseResult.calledFunctions);
 
-      const scssResult = this.scssCompiler.compileAll(files);
+      // `<link rel="stylesheet" href="local.css">` becomes an inline <style>; the rest of the project styles are still injected.
+      const linkErrors: { path: string; message: string }[] = [];
+      let linked = new Set<string>();
+      if (compileResult.html) {
+        const inlined = await inlineLocalStylesheets(compileResult.html, files, async (p) => {
+          const r = await this.scssCompiler.compileFile(p, files);
+          linkErrors.push(...r.errors);
+          return r;
+        });
+        compileResult.html = inlined.html;
+        linked = inlined.used;
+        for (const m of inlined.missing) linkErrors.push({ path: m, message: 'Hoja de estilos referenciada no encontrada en el proyecto' });
+      }
+      const scssResult = await this.scssCompiler.compileAll(files, linked);
+      scssResult.errors.push(...linkErrors);
       compileResult.css = scssResult.css;
       if (scssResult.css) {
         compileResult.html = injectIntoHead(compileResult.html, `<style>\n${scssResult.css}\n</style>`);
@@ -216,8 +231,14 @@ export class OrchestratorService {
   async addAssets(files: File[], targetPath?: string): Promise<void> {
     const added: string[] = [];
     for (const file of files) {
+      if (isStylePath(file.name)) {
+        const path = targetPath ?? '/styles/' + file.name.replace(/\s+/g, '-');
+        this.addFile(path, path.split('/').pop()!, await file.text());
+        added.push(path);
+        continue;
+      }
       if (!targetPath && !ASSET_EXT_RE.test(file.name)) {
-        this.terminalState.addEntry('warning', 'Assets', `${file.name}: tipo no soportado (imágenes y fuentes).`);
+        this.terminalState.addEntry('warning', 'Assets', `${file.name}: tipo no soportado (imágenes, fuentes y hojas de estilo).`);
         continue;
       }
       const data = new Uint8Array(await file.arrayBuffer());

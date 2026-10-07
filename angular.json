@@ -19,6 +19,7 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
+            "allowedCommonJsDependencies": ["parse-node-version"],
             "outputPath": "dist/pug-ide",
             "index": "src/index.html",
             "browser": "src/main.ts",
