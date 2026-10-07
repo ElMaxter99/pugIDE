@@ -124,6 +124,16 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
           <span class="pdf-size">{{ pageCount() }} {{ pageCount() === 1 ? 'página' : 'páginas' }}</span>
         </div>
       }
+      @if (previewState.hasErrors()) {
+        <div class="compile-error" role="alert">
+          <span class="material-symbols-outlined" style="font-size: 16px;">error</span>
+          <span class="compile-error-text">
+            <strong>{{ previewState.errors().length === 1 ? 'Error de compilación' : previewState.errors().length + ' errores de compilación' }}:</strong>
+            {{ previewState.errors()[0].message }}
+          </span>
+          <button class="compile-error-btn" (click)="terminal.isVisible.set(true)">Ver terminal</button>
+        </div>
+      }
       <div class="preview-viewport">
         <div class="preview-canvas" #canvas>
           <div class="checkerboard"></div>
@@ -362,6 +372,33 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       transform-origin: 0 0;
     }
 
+    .compile-error {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(255, 82, 82, 0.12);
+      border-bottom: 1px solid rgba(255, 82, 82, 0.4);
+      color: #ff8a80;
+      font-size: 12px;
+    }
+    .compile-error-text {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .compile-error-btn {
+      background: transparent;
+      border: 1px solid currentColor;
+      border-radius: 4px;
+      color: inherit;
+      font-size: 11px;
+      padding: 2px 8px;
+      cursor: pointer;
+    }
+
     .loading-overlay {
       position: absolute;
       inset: 0;
@@ -400,7 +437,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   private orchestrator = inject(OrchestratorService);
   private preferences = inject(PreferencesState);
   private editorState = inject(EditorState);
-  private terminal = inject(TerminalState);
+  protected terminal = inject(TerminalState);
   protected readonly presets = DEVICE_PRESETS;
   protected readonly deviceKind = computed(() => findDevicePreset(this.previewState.deviceName())?.kind ?? 'desktop');
   protected readonly schemeIcon = computed(() => {
@@ -466,7 +503,8 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     this.restoreDevice();
     effect(() => {
       const html = this.previewState.compiledHtml();
-      if (html && this.previewFrame) {
+      // Un html vacío (plantilla borrada) también se muestra: si no, el preview se quedaría con el render anterior.
+      if (this.previewFrame) {
         this.updatePreview(html);
       }
     });

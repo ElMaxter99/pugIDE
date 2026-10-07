@@ -12,6 +12,11 @@ export class EditorState {
   readonly resetToken = signal(0);
   /** Ask the editor to open `path` and reveal `line` (1-based); `seq` makes repeated requests distinct. */
   readonly revealRequest = signal<{ path: string; line: number; seq: number } | null>(null);
+  /**
+   * Sube con cada edición del contenido. `files` se muta en sitio (misma referencia), así que su signal
+   * no notifica: el autoguardado depende de este contador para no perder lo escrito o pegado.
+   */
+  readonly contentVersion = signal(0);
   private revealSeq = 0;
 
   readonly activeTab = computed(() => {
@@ -82,6 +87,7 @@ export class EditorState {
 
   updateContent(content: string): void {
     this.editorContent.set(content);
+    this.contentVersion.update((v) => v + 1);
     const activeId = this.activeTabId();
     if (activeId) {
       const active = this.openTabs().find((t) => t.id === activeId);
