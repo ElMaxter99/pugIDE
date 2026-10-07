@@ -48,10 +48,13 @@
     "@angular/cli": "20.3.38",
     "@angular/compiler-cli": "20.3.33",
     "@types/node": "^22.0.0",
+    "angular-eslint": "^22.5.0",
     "assert": "^2.1.0",
+    "eslint": "^9.39.5",
     "path-browserify": "^1.0.1",
     "sass": "^1.105.1",
     "typescript": "~5.8.3",
+    "typescript-eslint": "^8.71.1",
     "vite-plugin-node-polyfills": "^0.28.0"
   }
 }
