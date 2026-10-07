@@ -6,6 +6,12 @@ import { TerminalState } from '../state/terminal.state';
 import { OrchestratorService } from './orchestrator.service';
 import { AssetState, AssetFile } from '../state/asset.state';
 import { ASSET_EXT_RE, mimeForPath } from '../utils/asset.util';
+import { DataState } from '../state/data.state';
+import { PreviewState } from '../state/preview.state';
+import {
+  SHARE_URL_WARN_LENGTH, SharePayload, ShareDecodeError, buildShareUrl, decodeShare, encodeShare,
+} from '../utils/share.util';
+import { buildStandaloneHtml, bytesToDataUri } from '../utils/export-html.util';
 
 const TEXT_FILE_RE = /\.(pug|jade|scss|sass|css|json|js|html|htm|md|txt)$/i;
 
@@ -21,6 +27,8 @@ export class ProjectIoService {
   private terminalState = inject(TerminalState);
   private orchestrator = inject(OrchestratorService);
   private assetState = inject(AssetState);
+  private dataState = inject(DataState);
+  private previewState = inject(PreviewState);
 
   get supportsFileSystemAccess(): boolean {
     return typeof (window as any).showDirectoryPicker === 'function';
@@ -140,5 +148,63 @@ export class ProjectIoService {
       return;
     }
     this.orchestrator.loadProject(files, projectName || 'Imported Project', assets);
+  }
+
+  /**
+   * Enlace compartible del proyecto (archivos de texto + datos, comprimidos en el hash de la URL).
+   * Los assets binarios (imágenes y fuentes) no se incluyen.
+   */
+  buildShareLink(base: string): { url: string; length: number; tooLong: boolean } {
+    const files = new Map(this.editorState.allFileContents());
+    const active = this.editorState.activeTab()?.path;
+    if (active && files.has(active)) files.set(active, this.editorState.editorContent()); // lo que se está escribiendo
+    const payload = encodeShare(this.projectState.projectName(), files, this.dataState.data());
+    const url = buildShareUrl(base, payload);
+    return { url, length: url.length, tooLong: url.length > SHARE_URL_WARN_LENGTH };
+  }
+
+  /** Decodifica un payload de enlace; en caso de error lo anota en el terminal y devuelve null. */
+  parseShare(payload: string): SharePayload | null {
+    try {
+      return decodeShare(payload);
+    } catch (err) {
+      const msg = err instanceof ShareDecodeError ? err.message : 'No se pudo leer el enlace.';
+      this.terminalState.addEntry('error', 'Compartir', `${msg} Se ignora el enlace.`);
+      return null;
+    }
+  }
+
+  loadShared(shared: SharePayload): void {
+    this.orchestrator.loadProject(shared.files, shared.projectName, [], shared.data);
+    this.terminalState.addEntry('info', 'Compartir', 'Proyecto cargado desde un enlace (sin imágenes ni fuentes).');
+  }
+
+  /** HTML renderizado autocontenido (sin inspector ni atributos data-pugide-*, assets locales como data URI). */
+  buildStandaloneHtml(): string {
+    const map = new Map<string, string>();
+    for (const a of this.assetState.assets().values()) {
+      const url = this.assetState.urlFor(a.path);
+      if (url) map.set(url, bytesToDataUri(a.data, a.mime));
+    }
+    return buildStandaloneHtml(this.previewState.compiledHtml(), map);
+  }
+
+  exportHtml(): boolean {
+    if (!this.previewState.compiledHtml()) {
+      this.terminalState.addEntry('warning', 'Exportar HTML', 'No hay HTML renderizado que exportar.');
+      return false;
+    }
+    const blob = new Blob([this.buildStandaloneHtml()], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const fileName = `${this.projectState.projectName() || 'pug-project'}.html`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    this.terminalState.addEntry('success', 'Exportar HTML', `HTML exportado como ${fileName}.`);
+    return true;
   }
 }

@@ -293,7 +293,7 @@ export class OrchestratorService {
   }
 
   /** Replaces the whole in-memory project (used by import) and recompiles from scratch. */
-  loadProject(files: Map<string, string>, projectName: string, assets: AssetFile[] = []): void {
+  loadProject(files: Map<string, string>, projectName: string, assets: AssetFile[] = [], data: Record<string, unknown> = {}): void {
     this.assetState.replaceAll(assets);
     this.editorState.openTabs.set([]);
     this.editorState.activeTabId.set(null);
@@ -302,7 +302,7 @@ export class OrchestratorService {
     this.editorState.bumpResetToken();
 
     this.projectState.setProject(projectName, files);
-    this.dataState.setInitialData({});
+    this.dataState.setInitialData(data);
     this.initialDataLoaded = false;
 
     const firstPugPath = Array.from(files.keys()).find((p) => p.endsWith('.pug')) ?? Array.from(files.keys())[0];

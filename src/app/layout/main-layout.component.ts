@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, HostListener, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, OnInit, HostListener, effect, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { TopbarComponent } from '../shared/components/topbar/topbar.component';
 import { SidebarComponent } from '../shared/components/sidebar/sidebar.component';
@@ -17,6 +17,9 @@ import { DataState } from '../core/state/data.state';
 import { ProjectState } from '../core/state/project.state';
 import { PreferencesState } from '../core/services/preferences.state';
 import { PersistenceService, ProjectSessionState } from '../core/services/persistence.service';
+import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dialog.component';
+import { ProjectIoService } from '../core/services/project-io.service';
+import { SharePayload, payloadFromHash } from '../core/utils/share.util';
 import { getFileType } from '../core/models/tab.model';
 
 @Component({
@@ -30,6 +33,7 @@ import { getFileType } from '../core/models/tab.model';
     SmartDataEditorComponent,
     PreviewPanelComponent,
     TerminalPanelComponent,
+    DialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -49,6 +53,11 @@ import { getFileType } from '../core/models/tab.model';
         }
       </div>
       <app-statusbar />
+      <app-dialog
+        [config]="shareDialog"
+        [isOpen]="shareDialogOpen()"
+        (confirmed)="onShareConfirm()"
+        (cancelled)="onShareCancel()" />
     </div>
   `,
   styles: [`
@@ -106,6 +115,16 @@ export class MainLayoutComponent implements OnInit {
   private preferences = inject(PreferencesState);
   private persistence = inject(PersistenceService);
   private assetState = inject(AssetState);
+  private projectIo = inject(ProjectIoService);
+  protected shareDialogOpen = signal(false);
+  protected shareDialog: DialogConfig = {
+    title: 'Abrir proyecto compartido',
+    message: 'Este enlace contiene un proyecto. Si lo abres, reemplazará tu sesión guardada en este navegador (proyecto actual, archivos e imágenes). ¿Continuar?',
+    confirmText: 'Reemplazar y abrir',
+    cancelText: 'Mantener mi sesión',
+    type: 'confirm',
+  };
+  private pendingShare: SharePayload | null = null;
   private assetTimer: ReturnType<typeof setTimeout> | null = null;
 
   private restoringSession = false;
@@ -149,12 +168,45 @@ export class MainLayoutComponent implements OnInit {
     }
 
     const saved = this.persistence.loadProjectState();
-    if (saved && Object.keys(saved.files).length > 0) {
+    const hasSaved = !!saved && Object.keys(saved.files).length > 0;
+    const sharedPayload = payloadFromHash(location.hash);
+    const shared = sharedPayload !== null ? this.projectIo.parseShare(sharedPayload) : null;
+    if (sharedPayload !== null && !shared) this.clearShareHash();
+    if (shared && !hasSaved) {
+      this.orchestrator.markAssetsReady();
+      this.projectIo.loadShared(shared);
+      this.clearShareHash();
+      return;
+    }
+    if (shared) this.pendingShare = shared; // se decide en el diálogo; mientras tanto se restaura la sesión
+
+    if (saved && hasSaved) {
       this.restoreSession(saved);
     } else {
       this.orchestrator.markAssetsReady();
       this.loadEmptyProject();
     }
+  }
+
+  onShareConfirm(): void {
+    this.shareDialogOpen.set(false);
+    if (this.pendingShare) {
+      this.projectIo.loadShared(this.pendingShare);
+      this.pendingShare = null;
+    }
+    this.clearShareHash();
+  }
+
+  onShareCancel(): void {
+    this.shareDialogOpen.set(false);
+    this.pendingShare = null;
+    this.clearShareHash();
+  }
+
+  private clearShareHash(): void {
+    try {
+      history.replaceState(null, '', location.pathname + location.search);
+    } catch { /* ignore */ }
   }
 
   private restoreSession(saved: ProjectSessionState): void {
@@ -182,6 +234,7 @@ export class MainLayoutComponent implements OnInit {
     void this.orchestrator.restoreAssets();
     this.orchestrator.manualCompile();
     this.restoringSession = false;
+    if (this.pendingShare) this.shareDialogOpen.set(true);
   }
 
   @HostListener('window:keydown', ['$event'])
