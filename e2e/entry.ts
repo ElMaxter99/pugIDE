@@ -19,3 +19,5 @@ export { INSPECTOR_SCRIPT } from '../src/app/core/utils/inspector-script.util';
 export { DEVICE_PRESETS } from '../src/app/core/utils/device-presets.util';
 export { ProjectIoService } from '../src/app/core/services/project-io.service';
 export { encodeShare, decodeShare, buildShareUrl, payloadFromHash, SHARE_URL_WARN_LENGTH } from '../src/app/core/utils/share.util';
+export { mockifyData } from '../src/app/core/utils/mock-data.util';
+export { parseDatasetsFile, serializeDatasets } from '../src/app/core/utils/datasets.util';

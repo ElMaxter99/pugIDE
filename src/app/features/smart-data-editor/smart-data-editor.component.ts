@@ -12,6 +12,7 @@ import { DataState } from '../../core/state/data.state';
 import { ParserState } from '../../core/state/parser.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { TerminalState } from '../../core/state/terminal.state';
+import type { DatasetKind } from '../../core/utils/datasets.util';
 
 interface TreeNode {
   key: string;
@@ -51,6 +52,47 @@ interface TreeNode {
             <span class="mock-label">Dejar objeto vacío</span>
           </button>
         </div>
+      </div>
+
+      <div class="dataset-bar" role="toolbar" aria-label="Juegos de datos">
+        <select class="ds-select" aria-label="Juego de datos activo" title="Juego de datos activo"
+                (change)="switchDataset($any($event.target).value)">
+          @for (d of dataState.datasetOptions(); track d.id) {
+            <option [value]="d.id" [selected]="d.id === dataState.activeId()">{{ d.name }}</option>
+          }
+        </select>
+        <select class="ds-select ds-new" aria-label="Crear juego de datos" title="Crear un juego de datos nuevo"
+                (change)="createDataset($any($event.target))">
+          <option value="" selected>+ Nuevo…</option>
+          <option value="empty">Vacío</option>
+          <option value="full">Lleno</option>
+          <option value="error">Error</option>
+          <option value="custom">Copia personalizada</option>
+        </select>
+        <button class="icon-btn" (click)="renameDataset()" title="Renombrar juego de datos" aria-label="Renombrar juego de datos">
+          <span class="material-symbols-outlined" style="font-size: 16px;">edit</span>
+        </button>
+        <button class="icon-btn" (click)="duplicateDataset()" title="Duplicar juego de datos" aria-label="Duplicar juego de datos">
+          <span class="material-symbols-outlined" style="font-size: 16px;">file_copy</span>
+        </button>
+        <button class="icon-btn" [disabled]="dataState.datasets().length <= 1" (click)="deleteDataset()" title="Borrar juego de datos" aria-label="Borrar juego de datos">
+          <span class="material-symbols-outlined" style="font-size: 16px;">delete_forever</span>
+        </button>
+        <span class="ds-spacer"></span>
+        <select class="ds-select ds-locale" aria-label="Idioma de los datos de ejemplo" title="Idioma de los datos de ejemplo"
+                (change)="setLocale($any($event.target).value)">
+          <option value="es" [selected]="dataState.locale() === 'es'">es</option>
+          <option value="en" [selected]="dataState.locale() === 'en'">en</option>
+        </select>
+        <button class="mock-btn" (click)="regenerate()" title="Rellenar con datos de ejemplo nuevos (se puede deshacer)">
+          <span class="material-symbols-outlined" style="font-size: 14px;">casino</span>
+          <span class="mock-label">Regenerar</span>
+        </button>
+        <button class="mock-btn" (click)="importInput.click()" title="Importar un JSON, JSON Schema u OpenAPI como juego de datos nuevo">
+          <span class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
+          <span class="mock-label">Importar</span>
+        </button>
+        <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
       </div>
 
       @if (!jsonRawMode()) {
@@ -252,6 +294,32 @@ interface TreeNode {
 
     .icon-btn:disabled:hover {
       background: none;
+    }
+
+    .dataset-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 4px 12px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-surface-container-low);
+      flex-shrink: 0;
+    }
+
+    .ds-spacer {
+      flex: 1;
+    }
+
+    .ds-select {
+      background: var(--bg-surface-variant);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 6px;
+      max-width: 160px;
     }
 
     .tree-view {
@@ -601,6 +669,85 @@ export class SmartDataEditorComponent {
       this.jsonError.set(null);
     }
     this.expandedPaths.set(new Set(['']));
+  }
+
+  /** Tras cambiar los datos por otra vía, el modo JSON y los nodos abiertos deben reflejar el estado actual. */
+  private refreshAfterDatasetChange(): void {
+    if (this.jsonRawMode() && this.jsonArea) {
+      const json = JSON.stringify(this.dataState.data(), null, 2);
+      this.jsonArea.nativeElement.value = json;
+      this.rawJsonContent.set(json);
+      this.jsonError.set(null);
+    }
+    this.expandedPaths.set(new Set(['', ...Object.keys(this.dataState.data())]));
+  }
+
+  switchDataset(id: string): void {
+    this.applyJsonIfDirty();
+    this.orchestrator.switchDataset(id);
+    this.refreshAfterDatasetChange();
+  }
+
+  /** Guarda lo escrito en el modo JSON antes de cambiar de juego, para no perderlo. */
+  private applyJsonIfDirty(): void {
+    if (this.jsonRawMode() && !this.jsonError()) this.applyJson();
+  }
+
+  async createDataset(select: HTMLSelectElement): Promise<void> {
+    const kind = select.value as Exclude<DatasetKind, 'default'> | '';
+    select.value = '';
+    if (!kind) return;
+    this.applyJsonIfDirty();
+    await this.orchestrator.createDataset(kind);
+    this.refreshAfterDatasetChange();
+  }
+
+  renameDataset(): void {
+    const current = this.dataState.activeDataset();
+    const name = window.prompt('Nuevo nombre del juego de datos', current?.name ?? '');
+    if (name && current) this.dataState.renameDataset(current.id, name);
+  }
+
+  duplicateDataset(): void {
+    this.applyJsonIfDirty();
+    this.orchestrator.duplicateDataset(this.dataState.activeId());
+    this.refreshAfterDatasetChange();
+  }
+
+  deleteDataset(): void {
+    const current = this.dataState.activeDataset();
+    if (!current || !window.confirm(`¿Borrar el juego de datos "${current.name}"?`)) return;
+    this.orchestrator.deleteDataset(current.id);
+    this.refreshAfterDatasetChange();
+  }
+
+  setLocale(locale: string): void {
+    this.orchestrator.setMockLocale(locale === 'en' ? 'en' : 'es');
+  }
+
+  async regenerate(): Promise<void> {
+    this.applyJsonIfDirty();
+    await this.orchestrator.regenerateMocks();
+    this.refreshAfterDatasetChange();
+    this.terminalState.addEntry('success', 'DataEditor', 'Datos de ejemplo regenerados (puedes deshacer).');
+  }
+
+  async importFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      const doc = JSON.parse(await file.text());
+      this.applyJsonIfDirty();
+      const { source, warnings } = this.orchestrator.importDataDocument(doc, file.name.replace(/\.json$/i, ''));
+      const label = source === 'openapi' ? 'OpenAPI' : source === 'json-schema' ? 'JSON Schema' : 'JSON';
+      this.terminalState.addEntry('success', 'DataEditor', `Importado ${file.name} (${label}) como juego de datos nuevo.`);
+      for (const w of warnings) this.terminalState.addEntry('warning', 'DataEditor', w);
+      this.refreshAfterDatasetChange();
+    } catch (e: unknown) {
+      this.terminalState.addEntry('error', 'DataEditor', `No se pudo importar ${file.name}: ${(e as Error).message}`);
+    }
   }
 
   isNodeExpanded(path: string): boolean {

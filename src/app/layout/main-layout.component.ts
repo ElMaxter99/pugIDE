@@ -21,6 +21,7 @@ import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dial
 import { ProjectIoService } from '../core/services/project-io.service';
 import { SharePayload, payloadFromHash } from '../core/utils/share.util';
 import { getFileType } from '../core/models/tab.model';
+import { parseDatasetsFile } from '../core/utils/datasets.util';
 
 @Component({
   selector: 'app-main-layout',
@@ -149,6 +150,10 @@ export class MainLayoutComponent implements OnInit {
       this.editorState.openTabs();
       this.editorState.activeTab();
       this.projectState.projectName();
+      this.dataState.data();
+      this.dataState.datasets();
+      this.dataState.activeId();
+      this.dataState.locale();
       if (this.restoringSession) return;
 
       if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
@@ -229,6 +234,8 @@ export class MainLayoutComponent implements OnInit {
     }
 
     this.projectState.setProject(saved.projectName, this.editorState.files());
+    const savedDatasets = saved.datasets ? parseDatasetsFile(saved.datasets) : null;
+    if (savedDatasets) this.dataState.restoreDatasets(savedDatasets);
     this.orchestrator.markDataInitialized();
     this.terminalState.addEntry('info', 'PugIDE', 'Restored your previous session.');
     void this.orchestrator.restoreAssets();

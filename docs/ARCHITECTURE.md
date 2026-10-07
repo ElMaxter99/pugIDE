@@ -31,6 +31,12 @@
 5. **Assets**: `applyAssets` reescribe referencias locales a imágenes/fuentes hacia URLs `blob:` de los archivos subidos; los que faltan se avisan en el terminal y en `AssetState.missing`.
 6. **Preview**: se anotan las líneas del HTML (`annotateHtmlLines`), se inyecta el script del inspector y se publica en `PreviewState`, que alimenta el iframe. Errores y tiempos van a `TerminalState`.
 
+## Juegos de datos, mocks e importación de esquemas
+
+- `DataState` guarda varios **juegos de datos** por proyecto (`Por defecto`, `Vacío`, `Lleno`, `Error` y personalizados); el activo es `data`. Se crean/cambian/renombran/duplican/borran desde el selector del editor de datos (`OrchestratorService.createDataset` etc.). Viajan en la sesión (`ProjectSessionState.datasets`) y en el export/import como `/.pugide/datasets.json` (zip o carpeta; no es un archivo del proyecto). Utilidades puras en `core/utils/datasets.util.ts`.
+- `core/utils/mock-data.util.ts`: mocks realistas por nombre de campo y tipo (es/en) con PRNG con semilla (`createRng`), derivado de (semilla, ruta) para que sean reproducibles y estables. Se usan al crear datos que faltan (salvo en `Vacío`, sin mocks, y `Error`, con nulos) y en el botón **Regenerar**. Las imágenes son SVG `data:` (sin red).
+- `core/utils/schema-infer.util.ts`: infiere datos desde un JSON de ejemplo, JSON Schema u OpenAPI sencillo (`$ref` local, `allOf`, `enum`, `format`...); el botón **Importar** crea un juego nuevo.
+
 ## Preview PDF
 
 Además de dispositivos (escritorio/móvil), el preview tiene modo **PDF / página impresa**: lee el tamaño de `@page { size }` (A4 por defecto), emula saltos de página con `page-size.util` y `paginate.util`, muestra el número de páginas y permite imprimir o guardar como PDF con el diálogo del navegador (`onPrint`). No se genera ningún PDF en servidor.
@@ -49,7 +55,7 @@ Además de dispositivos (escritorio/móvil), el preview tiene modo **PDF / pági
 
 ## Tests
 
-`npm run test:e2e` (carpeta `e2e/`, con fixtures de proyectos reales).
+`npm run test:e2e` (carpeta `e2e/`, con fixtures de proyectos reales; un módulo por tema en `e2e/scenarios/`) y `npm run test:unit` (`test/unit/`, `node:test`, utilidades puras).
 
 ## Convenciones
 
