@@ -329,6 +329,12 @@ export class OrchestratorService {
         continue;
       }
       const targetValue = target[key];
+      // An untouched placeholder ('' / null) read as a plain value earlier must give way once the template reads its members.
+      if ((targetValue === '' || targetValue === null) && sourceValue !== null && typeof sourceValue === 'object') {
+        target[key] = sourceValue;
+        changed = true;
+        continue;
+      }
       const bothPlainObjects =
         sourceValue !== null && typeof sourceValue === 'object' && !Array.isArray(sourceValue) &&
         targetValue !== null && typeof targetValue === 'object' && !Array.isArray(targetValue);
