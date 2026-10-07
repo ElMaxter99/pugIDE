@@ -4,6 +4,7 @@ import {
   inject,
   effect,
   signal,
+  untracked,
   computed,
   AfterViewInit,
   ViewChild,
@@ -11,6 +12,7 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { PreferencesState } from '../../core/services/preferences.state';
+import { paginateDocument, resetPagination } from '../../core/utils/paginate.util';
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { InspectorState } from '../../core/state/inspector.state';
@@ -417,6 +419,13 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
       }
     });
 
+    // Re-flow when switching to/from PDF or when the sheet size / orientation changes.
+    effect(() => {
+      this.previewState.isPdf();
+      this.previewState.pageSize();
+      untracked(() => this.reflow());
+    });
+
     effect(() => {
       const active = this.inspectorState.isActive();
       this.previewFrame?.nativeElement.contentWindow?.postMessage(
@@ -494,10 +503,32 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     this.contentObserver?.disconnect();
     const doc = this.previewFrame?.nativeElement.contentDocument;
     if (!doc?.body) return;
-    const measure = () => this.contentHeight.set(Math.max(doc.body.scrollHeight, doc.body.offsetHeight));
-    measure();
-    this.contentObserver = new ResizeObserver(measure);
+    this.reflow();
+    this.contentObserver = new ResizeObserver(() => {
+      // Images / fonts finishing late move everything below them: paginate again when the height changed.
+      if (doc.body.scrollHeight !== this.paginatedHeight) this.reflow();
+      else this.measure();
+    });
     this.contentObserver.observe(doc.body);
+    // Web fonts change text metrics after load; paginate again once they are in.
+    void doc.fonts?.ready.then(() => this.reflow());
+  }
+
+  private paginatedHeight = -1;
+
+  private measure(): void {
+    const body = this.previewFrame?.nativeElement.contentDocument?.body;
+    if (body) this.contentHeight.set(Math.max(body.scrollHeight, body.offsetHeight));
+  }
+
+  /** PDF: emulate page breaks inside the preview document; other devices show the plain flow. */
+  private reflow(): void {
+    const doc = this.previewFrame?.nativeElement.contentDocument;
+    if (!doc?.body) return;
+    resetPagination(doc);
+    if (this.previewState.isPdf()) paginateDocument(doc, this.previewState.pageSize().height);
+    this.paginatedHeight = doc.body.scrollHeight;
+    this.measure();
   }
 
   onReload(): void {

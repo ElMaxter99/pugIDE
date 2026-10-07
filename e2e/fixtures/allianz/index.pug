@@ -8,6 +8,9 @@ html
       @font-face { font-family: 'Allianz Neo'; font-style: normal; font-weight: 300; src: url('/fonts/allianz-neo/AllianzNeoW04-Light.woff2') format('woff2'), url('/fonts/allianz-neo/AllianzNeoW04-Light.woff') format('woff'); }
       body { font-family: 'Allianz Neo', 'Calibri', sans-serif; font-size: 11pt; color: #1E1E1E; line-height: normal; padding: 0 51.05pt; }
       .az-cover, .az-financial, .az-close { padding: 0; }
+      .az-financial, .az-close { page-break-before: always; }
+      .az-table-wrap { overflow: hidden; page-break-inside: avoid; text-align: center; }
+      .az-table-wrap + .az-table-wrap { page-break-before: always; }
       .az-table .az-tr td { height: 23.9pt; font-size: 7pt; color: #414141; vertical-align: middle; page-break-inside: avoid; border: none; border-bottom: 1pt solid #003781; }
       .az-sh { background-color: #DFEFF2; }
   body
