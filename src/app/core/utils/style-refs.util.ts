@@ -1,7 +1,7 @@
 /** Helpers to follow stylesheet references: `<link rel="stylesheet">` and CSS/SCSS `@import`. */
 import { refToPath, isLocalRef } from './asset.util';
 
-const STYLE_EXT = ['.scss', '.sass', '.css'];
+const STYLE_EXT = ['.scss', '.sass', '.less', '.css'];
 const IMPORT_RE = /@import\s+(?:url\(\s*(["']?)([^"')]+)\1\s*\)|(["'])([^"']+)\3)\s*([^;]*);?/gi;
 const LINK_RE = /<link\b[^>]*>/gi;
 
@@ -80,22 +80,24 @@ function stylesheetHref(tag: string): string | null {
  * Replaces `<link rel="stylesheet" href="local.css">` by an inline `<style>` with the compiled file,
  * so the preview shows project stylesheets without a web server. Remote links are left untouched.
  */
-export function inlineLocalStylesheets(
+export async function inlineLocalStylesheets(
   html: string,
   files: Map<string, string>,
-  compile: (path: string) => { css: string; used: Set<string> },
-): { html: string; used: Set<string>; missing: string[] } {
+  compile: (path: string) => Promise<{ css: string; used: Set<string> }>,
+): Promise<{ html: string; used: Set<string>; missing: string[] }> {
   const used = new Set<string>();
   const missing: string[] = [];
-  const out = html.replace(LINK_RE, (tag) => {
+  const cache = new Map<string, string>();
+  const tags = [...new Set(html.match(LINK_RE) ?? [])];
+  for (const tag of tags) {
     const href = stylesheetHref(tag);
-    if (href === null || !isLocalRef(href)) return tag;
+    if (href === null || !isLocalRef(href)) continue;
     const target = resolveStyleFile(href, '/index.pug', files);
-    if (!target) { missing.push(refToPath(href)); return tag; }
-    const r = compile(target);
+    if (!target) { missing.push(refToPath(href)); continue; }
+    const r = await compile(target);
     used.add(target);
     r.used.forEach((u) => used.add(u));
-    return `<style data-href="${target}">\n${r.css}\n</style>`;
-  });
-  return { html: out, used, missing };
+    cache.set(tag, `<style data-href="${target}">\n${r.css}\n</style>`);
+  }
+  return { html: html.replace(LINK_RE, (tag) => cache.get(tag) ?? tag), used, missing };
 }

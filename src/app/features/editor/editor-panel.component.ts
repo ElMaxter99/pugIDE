@@ -358,6 +358,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     const langMap: Record<string, string> = {
       pug: 'pug',
       scss: 'scss',
+      less: 'less',
       json: 'json',
       javascript: 'javascript',
       html: 'html',

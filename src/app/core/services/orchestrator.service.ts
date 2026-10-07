@@ -146,8 +146,8 @@ export class OrchestratorService {
       const linkErrors: { path: string; message: string }[] = [];
       let linked = new Set<string>();
       if (compileResult.html) {
-        const inlined = inlineLocalStylesheets(compileResult.html, files, (p) => {
-          const r = this.scssCompiler.compileFile(p, files);
+        const inlined = await inlineLocalStylesheets(compileResult.html, files, async (p) => {
+          const r = await this.scssCompiler.compileFile(p, files);
           linkErrors.push(...r.errors);
           return r;
         });
@@ -155,7 +155,7 @@ export class OrchestratorService {
         linked = inlined.used;
         for (const m of inlined.missing) linkErrors.push({ path: m, message: 'Hoja de estilos referenciada no encontrada en el proyecto' });
       }
-      const scssResult = this.scssCompiler.compileAll(files, linked);
+      const scssResult = await this.scssCompiler.compileAll(files, linked);
       scssResult.errors.push(...linkErrors);
       compileResult.css = scssResult.css;
       if (scssResult.css) {

@@ -269,5 +269,21 @@ import { readFileSync, readdirSync } from 'node:fs';
   check('22 imported partial not duplicated', h.split('.base {').length === 2, h);
   check('22 unlinked project css still injected', h.includes('.other {'), h);
 }
+// 23. Real preprocessors: SCSS (@use/@import/mixins/math), indented Sass, Less (@import, vars, mixins)
+{
+  const a = await run({
+    '/index.pug': "doctype html\nhtml\n  head\n    link(rel='stylesheet' href='styles/app.scss')\n    link(rel='stylesheet' href='styles/legacy.sass')\n    link(rel='stylesheet' href='styles/theme.less')\n  body\n    p hi\n",
+    '/styles/app.scss': "@use 'sass:math';\n@import 'vars';\n@mixin pad($n) { padding: $n * 2px; }\n.s { @include pad(3); width: math.div(10px, 2); color: $c; &:hover { color: blue; } }\n",
+    '/styles/_vars.scss': '$c: red;\n',
+    '/styles/legacy.sass': '$x: 4px\n.ind\n  margin: $x\n  .deep\n    top: $x * 2\n',
+    '/styles/theme.less': "@import 'colors';\n.mix(@a) { border: @a solid; }\n.l { .mix(1px); color: @brand; .n { width: (2px + 3px); } }\n",
+    '/styles/colors.less': '@brand: #123456;\n',
+  }, '/index.pug');
+  const h = html(a);
+  check('23 scss compiled (use/import/mixin/math)', h.includes('padding: 6px') && h.includes('width: 5px') && h.includes('color: red') && h.includes('.s:hover'), h + errs(a) + JSON.stringify(a.TerminalState.entries().slice(-3)));
+  check('23 sass indented compiled', h.includes('.ind .deep') && h.includes('top: 8px'), h);
+  check('23 less compiled (import/var/mixin)', h.includes('border: 1px solid') && h.includes('#123456') && h.includes('.l .n') && h.includes('width: 5px'), h);
+  check('23 no <link> to local preprocessors left', !h.includes('<link'), h);
+}
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);
