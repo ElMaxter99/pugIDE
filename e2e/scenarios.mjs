@@ -161,5 +161,15 @@ import { readFileSync, readdirSync } from 'node:fs';
   const us = a.DataState.data().usuarios;
   check('14 new field added to every item, values kept', us.every((u) => 'email' in u) && us[0].nombre === 'Ana', JSON.stringify(us));
 }
+
+// 15. extension-less include of a missing file is created on save (not while auto-compiling), ./ is normalized
+{
+  const a = await run({
+    '/main.pug': 'html\n  body\n    include ./mixins\n    include ./asdqwe\n    include ./\n',
+    '/mixins.pug': 'mixin a()\n  p x\n',
+  }, '/main.pug');
+  const keys = [...a.EditorState.files().keys()].sort();
+  check('15 missing ./asdqwe created as /asdqwe.pug, junk paths ignored', JSON.stringify(keys) === JSON.stringify(['/asdqwe.pug', '/main.pug', '/mixins.pug']), keys.join(','));
+}
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

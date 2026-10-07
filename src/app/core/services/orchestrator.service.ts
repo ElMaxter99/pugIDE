@@ -35,6 +35,7 @@ export class OrchestratorService {
   private codeChange$ = new Subject<string>();
   private isProcessing = false;
   private recompileRequested = false;
+  private createMissingRequested = false;
   private initialDataLoaded = false;
 
   constructor() {
@@ -48,7 +49,8 @@ export class OrchestratorService {
   private setupAutoCompile(): void {
     this.codeChange$.pipe(debounceTime(300)).subscribe(async (code) => {
       if (!this.preferences.autoCompile()) return;
-      await this.processCode(code);
+      // Auto-compile never creates files: half-typed paths ("./as") would litter the workspace.
+      await this.processCode(code, false);
     });
   }
 
@@ -65,14 +67,16 @@ export class OrchestratorService {
 
   async manualCompile(): Promise<void> {
     const code = this.editorState.editorContent();
-    await this.processCode(code);
+    await this.processCode(code, true);
   }
 
-  private async processCode(code: string): Promise<void> {
+  /** `createMissing`: generate files for includes that don't exist yet (only on explicit save/compile). */
+  private async processCode(code: string, createMissing: boolean): Promise<void> {
     // A change that lands mid-compile (e.g. pasting a whole file) must not be dropped:
     // remember it and recompile with the latest state once the current run finishes.
     if (this.isProcessing) {
       this.recompileRequested = true;
+      this.createMissingRequested ||= createMissing;
       return;
     }
     this.isProcessing = true;
@@ -92,7 +96,7 @@ export class OrchestratorService {
       if (entryPath === activePath) files.set(entryPath, entryCode);
 
       const rawParseResult = await this.parser.parse(entryCode, entryPath);
-      if (rawParseResult.includes.length > 0) {
+      if (createMissing && rawParseResult.includes.length > 0) {
         this.ensureIncludeFiles(rawParseResult.includes, entryPath);
       }
 
@@ -170,7 +174,9 @@ export class OrchestratorService {
       this.parserState.setParsing(false);
       if (this.recompileRequested) {
         this.recompileRequested = false;
-        void this.processCode(this.editorState.editorContent());
+        const create = this.createMissingRequested;
+        this.createMissingRequested = false;
+        void this.processCode(this.editorState.editorContent(), create);
       }
     }
   }
@@ -296,7 +302,9 @@ export class OrchestratorService {
       const dir = fromPath.substring(0, fromPath.lastIndexOf('/') + 1);
       let path = normalize(includePath.startsWith('/') ? includePath : dir + includePath);
       if (!/\.[a-z0-9]+$/i.test(path)) path += '.pug';
-      const name = path.split('/').pop() ?? 'unknown.pug';
+      const name = path.split('/').pop() ?? '';
+      // Skip incomplete paths such as "./", "." or "dir/" (still being typed).
+      if (!/[^./]/.test(name.replace(/\.pug$/i, ''))) continue;
       this.editorState.files.update((f) => { f.set(path, ''); return f; });
       this.terminalState.addEntry('info', 'Files', `Created missing include: ${name}`);
       changed = true;

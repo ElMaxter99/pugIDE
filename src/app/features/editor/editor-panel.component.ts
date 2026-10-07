@@ -14,6 +14,7 @@ import { EditorState } from '../../core/state/editor.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { getFileType } from '../../core/models/tab.model';
 import { resolveVirtualPath } from '../../core/utils/pug-vfs.util';
+import { TerminalState } from '../../core/state/terminal.state';
 import { PreferencesState } from '../../core/services/preferences.state';
 
 declare const monaco: any;
@@ -115,6 +116,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   protected editorState = inject(EditorState);
   private orchestrator = inject(OrchestratorService);
   private preferences = inject(PreferencesState);
+  private terminalState = inject(TerminalState);
 
   private editor: any = null;
   private updateDisposable: { dispose(): void } | null = null;
@@ -264,8 +266,15 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     });
 
     this.updateDisposable = this.editor.onDidChangeModelContent(() => {
-      const content = this.editor.getModel()?.getValue() ?? '';
-      this.orchestrator.onCodeChange(content);
+      // Monaco swallows exceptions thrown here and can stop accepting edits (e.g. paste) without
+      // any trace, so catch them and surface them in the terminal instead.
+      try {
+        const content = this.editor.getModel()?.getValue() ?? '';
+        this.orchestrator.onCodeChange(content);
+      } catch (err) {
+        console.error('[PugIDE] Error handling editor change', err);
+        this.terminalState.addEntry('error', 'Editor', `Error handling editor change: ${(err as Error)?.message ?? err}`);
+      }
     });
 
     this.cursorDisposable = this.editor.onDidChangeCursorPosition((e: any) => {
