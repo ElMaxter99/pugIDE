@@ -174,16 +174,19 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
 
     .preview-header {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      height: 36px;
-      padding: 0 16px;
+      gap: 4px 12px;
+      min-height: 36px;
+      padding: 4px 16px;
       border-bottom: 1px solid var(--border-color);
       background: var(--bg-surface-container);
       flex-shrink: 0;
     }
 
     .preview-header-left {
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: 16px;
@@ -240,7 +243,8 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
     }
 
     .preview-header-right {
-      flex-shrink: 0;
+      flex-wrap: wrap;
+      margin-left: auto;
       display: flex;
       align-items: center;
       gap: 8px;

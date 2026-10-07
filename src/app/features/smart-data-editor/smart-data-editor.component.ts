@@ -9,6 +9,7 @@ import {
   ElementRef,
 } from '@angular/core';
 import { DataState } from '../../core/state/data.state';
+import { PreferencesState } from '../../core/services/preferences.state';
 import { ParserState } from '../../core/state/parser.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { TerminalState } from '../../core/state/terminal.state';
@@ -30,11 +31,19 @@ interface TreeNode {
   selector: 'app-smart-data-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class.collapsed]': 'preferences.dataCollapsed()' },
   template: `
+    <button class="rail-btn" (click)="preferences.toggleData()" title="Mostrar Data" aria-label="Mostrar Data">
+      <span class="material-symbols-outlined" style="font-size: 18px;">right_panel_open</span>
+      <span class="rail-label">Data</span>
+    </button>
     <section class="data-section">
       <div class="data-header">
         <span class="data-title">Data</span>
         <div class="data-actions">
+          <button class="icon-btn" (click)="preferences.toggleData()" title="Colapsar Data" aria-label="Colapsar Data">
+            <span class="material-symbols-outlined" style="font-size: 16px;">right_panel_close</span>
+          </button>
           <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Switch to visual tree (Ctrl+Shift+J)' : 'Switch to JSON editor (Ctrl+Shift+J)'">
             <span class="mode-label">{{ jsonRawMode() ? 'JSON' : 'Tree' }}</span>
           </button>
@@ -215,6 +224,32 @@ interface TreeNode {
       background: var(--bg-surface-container-low);
     }
 
+    :host(.collapsed) {
+      flex: 0 0 40px;
+      min-width: 40px;
+      width: 40px;
+    }
+    :host(.collapsed) .data-section { display: none; }
+    .rail-btn { display: none; }
+    :host(.collapsed) .rail-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 12px 0;
+      color: var(--text-secondary);
+    }
+    .rail-btn:hover { color: var(--text-primary); background: var(--bg-surface-variant); }
+    .rail-label {
+      writing-mode: vertical-rl;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
     .data-section {
       display: flex;
       flex-direction: column;
@@ -224,10 +259,12 @@ interface TreeNode {
 
     .data-header {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      height: 36px;
-      padding: 0 16px;
+      gap: 4px 8px;
+      min-height: 36px;
+      padding: 4px 16px;
       border-bottom: 1px solid var(--border-color);
       background: var(--bg-surface-container);
       flex-shrink: 0;
@@ -244,11 +281,14 @@ interface TreeNode {
 
     .data-actions {
       display: flex;
+      flex-wrap: wrap;
+      margin-left: auto;
       align-items: center;
       gap: 8px;
     }
 
     .mock-btn {
+      white-space: nowrap;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -555,6 +595,7 @@ interface TreeNode {
 })
 export class SmartDataEditorComponent {
   dataState = inject(DataState);
+  preferences = inject(PreferencesState);
   parserState = inject(ParserState);
   private orchestrator = inject(OrchestratorService);
   private terminalState = inject(TerminalState);

@@ -13,6 +13,8 @@ export class PreferencesState {
   readonly autoCompile = signal(true);
   readonly previewDevice = signal('Desktop');
   readonly zoom = signal(100);
+  readonly sidebarCollapsed = signal(false);
+  readonly dataCollapsed = signal(false);
   readonly monacoTheme = computed(() =>
     this.theme() === 'dark' ? 'vs-dark' : 'vs-light'
   );
@@ -32,6 +34,8 @@ export class PreferencesState {
     this.autoCompile.set(prefs.autoCompile);
     this.previewDevice.set(prefs.previewDevice);
     this.zoom.set(prefs.zoom);
+    this.sidebarCollapsed.set(!!prefs.sidebarCollapsed);
+    this.dataCollapsed.set(!!prefs.dataCollapsed);
   }
 
   update(partial: Partial<AppPreferences>): void {
@@ -44,7 +48,17 @@ export class PreferencesState {
     if (partial.autoCompile !== undefined) this.autoCompile.set(partial.autoCompile);
     if (partial.previewDevice !== undefined) this.previewDevice.set(partial.previewDevice);
     if (partial.zoom !== undefined) this.zoom.set(partial.zoom);
+    if (partial.sidebarCollapsed !== undefined) this.sidebarCollapsed.set(partial.sidebarCollapsed);
+    if (partial.dataCollapsed !== undefined) this.dataCollapsed.set(partial.dataCollapsed);
     this.persistence.savePreferences(partial);
+  }
+
+  toggleSidebar(): void {
+    this.update({ sidebarCollapsed: !this.sidebarCollapsed() });
+  }
+
+  toggleData(): void {
+    this.update({ dataCollapsed: !this.dataCollapsed() });
   }
 
   toggleTheme(): void {

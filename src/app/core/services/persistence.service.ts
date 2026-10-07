@@ -29,6 +29,8 @@ export class PersistenceService {
     autoCompile: true,
     previewDevice: 'Desktop',
     zoom: 100,
+    sidebarCollapsed: false,
+    dataCollapsed: false,
   };
 
   loadPreferences(): AppPreferences {

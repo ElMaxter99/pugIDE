@@ -139,6 +139,8 @@ export interface AppPreferences {
   autoCompile: boolean;
   previewDevice: string;
   zoom: number;
+  sidebarCollapsed: boolean;
+  dataCollapsed: boolean;
 }
 
 export interface ContextMenuAction {
