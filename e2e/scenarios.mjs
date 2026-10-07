@@ -285,5 +285,17 @@ import { readFileSync, readdirSync } from 'node:fs';
   check('23 less compiled (import/var/mixin)', h.includes('border: 1px solid') && h.includes('#123456') && h.includes('.l .n') && h.includes('width: 5px'), h);
   check('23 no <link> to local preprocessors left', !h.includes('<link'), h);
 }
+// 24. Uploading a stylesheet and an image (demo flow)
+{
+  const a = await run({
+    '/index.pug': "doctype html\nhtml\n  head\n    link(rel='stylesheet' href='styles/up.css')\n  body\n    img(src='images/pic.png')\n",
+  }, '/index.pug');
+  check('24 missing stylesheet reported', errs(a).includes('up.css') || JSON.stringify(a.TerminalState.entries()).includes('up.css'), errs(a));
+  await a.orch.addAssets([new File(['.up { color: teal; }'], 'up.css', { type: 'text/css' }), new File([new Uint8Array([137, 80, 78, 71])], 'pic.png', { type: 'image/png' })]);
+  await sleep(500);
+  const h = html(a);
+  check('24 uploaded css inlined via <link>', h.includes('data-href="/styles/up.css"') && h.includes('.up {'), h);
+  check('24 uploaded image served', h.includes('src="blob:') , h);
+}
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

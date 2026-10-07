@@ -56,7 +56,7 @@ type PendingAction =
               <button class="add-btn" (click)="onExportClick()" title="Export project (folder or .zip)">
                 <span class="material-symbols-outlined" style="font-size: 16px;">download</span>
               </button>
-              <button class="add-btn" (click)="pickAssets()" title="Subir imágenes / fuentes">
+              <button class="add-btn" (click)="pickAssets()" title="Subir imágenes, fuentes o estilos (.css, .scss, .less)">
                 <span class="material-symbols-outlined" style="font-size: 16px;">add_photo_alternate</span>
               </button>
               <button class="add-btn" (click)="showNewFileDialog()" title="New file">
@@ -74,7 +74,7 @@ type PendingAction =
             #assetInput
             type="file"
             multiple
-            accept="image/*,.svg,.woff,.woff2,.ttf,.otf,.eot"
+            accept="image/*,.svg,.woff,.woff2,.ttf,.otf,.eot,.css,.scss,.sass,.less"
             style="display: none"
             (change)="onAssetsSelected($event)" />
           <div class="workspace-info">

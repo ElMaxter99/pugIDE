@@ -15,7 +15,7 @@ import { ProjectState } from '../state/project.state';
 import { PersistenceService } from './persistence.service';
 import { AssetState, AssetFile } from '../state/asset.state';
 import { AssetStorageService } from './asset-storage.service';
-import { inlineLocalStylesheets } from '../utils/style-refs.util';
+import { inlineLocalStylesheets, isStylePath } from '../utils/style-refs.util';
 import { ASSET_EXT_RE, mimeForPath, refToPath, rewriteRefs } from '../utils/asset.util';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
@@ -231,8 +231,14 @@ export class OrchestratorService {
   async addAssets(files: File[], targetPath?: string): Promise<void> {
     const added: string[] = [];
     for (const file of files) {
+      if (isStylePath(file.name)) {
+        const path = targetPath ?? '/styles/' + file.name.replace(/\s+/g, '-');
+        this.addFile(path, path.split('/').pop()!, await file.text());
+        added.push(path);
+        continue;
+      }
       if (!targetPath && !ASSET_EXT_RE.test(file.name)) {
-        this.terminalState.addEntry('warning', 'Assets', `${file.name}: tipo no soportado (imágenes y fuentes).`);
+        this.terminalState.addEntry('warning', 'Assets', `${file.name}: tipo no soportado (imágenes, fuentes y hojas de estilo).`);
         continue;
       }
       const data = new Uint8Array(await file.arrayBuffer());

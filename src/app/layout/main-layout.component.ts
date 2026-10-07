@@ -242,10 +242,17 @@ mixin saludo(nombre)
       fetch('assets/demo/demo-data.json').then(r => r.json()),
     ]);
 
+    const [demoCss, logoSvg] = await Promise.all([
+      fetch('assets/demo/styles/demo.css').then(r => r.text()),
+      fetch('assets/demo/images/logo.svg').then(r => r.arrayBuffer()),
+    ]);
+    this.assetState.replaceAll([{ path: '/images/logo.svg', mime: 'image/svg+xml', data: new Uint8Array(logoSvg) }]);
+
     const files: Array<{ path: string; name: string; content: string }> = [
       { path: '/main.pug', name: 'main.pug', content: mainPug },
       { path: '/components/card.pug', name: 'card.pug', content: cardPug },
       { path: '/components/navbar.pug', name: 'navbar.pug', content: navbarPug },
+      { path: '/styles/demo.css', name: 'demo.css', content: demoCss },
     ];
 
     this.editorState.openFile(files[0].path, files[0].name, 'pug', files[0].content);
