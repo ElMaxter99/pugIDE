@@ -72,6 +72,8 @@ export interface ParseResult {
   extendsPath?: string;
   /** Free functions the template calls (`t('KEY')`, `formatDate(x)`…) that are not declared in it; the compiler stubs them. */
   calledFunctions: string[];
+  /** Literal translation keys passed to `t('A.B')` / `i18n.t('A.B')`. */
+  translationKeys: string[];
   errors: ParseError[];
   compilationTime: number;
 }

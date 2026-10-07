@@ -16,6 +16,7 @@ import { PersistenceService } from './persistence.service';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
 import { buildDataSkeleton } from '../utils/data-skeleton.util';
+import { buildTranslationSkeleton, TRANSLATIONS_KEY } from '../utils/i18n.util';
 import { findEntryPath, normalize, resolveVirtualPath } from '../utils/pug-vfs.util';
 
 @Injectable({ providedIn: 'root' })
@@ -105,14 +106,14 @@ export class OrchestratorService {
       this.parserState.setParsing(false);
 
       if (!this.initialDataLoaded && Object.keys(this.dataState.data()).length === 0) {
-        const data = this.buildDataFromVariables(parseResult.variables);
+        const data = this.buildDataFromVariables(parseResult.variables, parseResult.translationKeys);
         if (Object.keys(data).length > 0) {
           this.dataState.setInitialData(data);
           this.initialDataLoaded = true;
         }
       }
 
-      const skeleton = this.buildDataFromVariables(parseResult.variables);
+      const skeleton = this.buildDataFromVariables(parseResult.variables, parseResult.translationKeys);
       const patchedData = structuredClone(this.dataState.data());
       if (this.deepMergeMissing(patchedData, skeleton)) {
         this.dataState.patchMissingData(patchedData);
@@ -227,9 +228,9 @@ export class OrchestratorService {
   async clearDataWithKeys(): Promise<Record<string, unknown>> {
     const files = this.editorState.allFileContents();
     const entryPath = findEntryPath(files, this.editorState.activeTab()?.path);
-    const variables = await this.parser.parseProject(files, entryPath);
-    if (variables.length === 0) return {};
-    return this.buildDataFromVariables(variables);
+    const { variables, translationKeys } = await this.parser.parseProject(files, entryPath);
+    if (variables.length === 0 && translationKeys.length === 0) return {};
+    return this.buildDataFromVariables(variables, translationKeys);
   }
 
   addFile(path: string, name: string, content = ''): void {
@@ -314,8 +315,16 @@ export class OrchestratorService {
     }
   }
 
-  private buildDataFromVariables(variables: PugVariable[]): Record<string, unknown> {
-    return buildDataSkeleton(variables);
+  private buildDataFromVariables(variables: PugVariable[], translationKeys: string[] = []): Record<string, unknown> {
+    const data = buildDataSkeleton(variables);
+    if (translationKeys.length > 0) {
+      const existing = data[TRANSLATIONS_KEY];
+      data[TRANSLATIONS_KEY] = {
+        ...(existing !== null && typeof existing === 'object' && !Array.isArray(existing) ? (existing as object) : {}),
+        ...buildTranslationSkeleton(translationKeys),
+      };
+    }
+    return data;
   }
 
   /** Merges `source` into `target`, filling in only keys missing from `target` (recursing into plain objects). Never touches arrays or primitives already present. Returns whether anything changed. */

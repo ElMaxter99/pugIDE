@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { CompileResult, CompileError } from '../core/models/index';
+import { createTranslator, TRANSLATE_FNS } from '../core/utils/i18n.util';
 import { createPugFilePlugin, normalizeIncludes } from '../core/utils/pug-vfs.util';
 
 function getPugBundle(): any {
@@ -74,11 +75,22 @@ export class PugCompilerService {
 
         const source = files && entryPath ? normalizeIncludes(code, entryPath, files) : code;
         const compiledFn = bundle.compile(source, opts);
-        // Templates often call helpers the host app provides (`t('KEY')`, `formatDate(x)`).
-        // JSON data can't hold functions, so give them an identity-like stub for the preview.
+        // Templates call helpers the host app provides (`t('KEY')`, `i18n.t('KEY')`, `formatDate(x)`).
+        // JSON data can't hold functions: translators read `data.translations`, other helpers echo their first argument.
         const locals: Record<string, unknown> = { ...data };
+        const translate = createTranslator(data);
+        const identity = (...args: unknown[]) => args[0] ?? '';
         for (const name of functionStubs) {
-          if (typeof locals[name] !== 'function') locals[name] = (...args: unknown[]) => args[0] ?? '';
+          const parts = name.split('.');
+          const last = parts.pop()!;
+          const fn = TRANSLATE_FNS.has(last) ? translate : identity;
+          let holder = locals;
+          for (const part of parts) {
+            const cur = holder[part];
+            holder[part] = { ...(cur !== null && typeof cur === 'object' ? (cur as object) : {}) };
+            holder = holder[part] as Record<string, unknown>;
+          }
+          if (typeof holder[last] !== 'function') holder[last] = fn;
         }
         html = compiledFn(locals);
       }

@@ -9,6 +9,7 @@ import {
   DataType,
 } from '../core/models/index';
 import { createPugFilePlugin, normalizeIncludes } from '../core/utils/pug-vfs.util';
+import { TRANSLATE_FNS, TRANSLATION_KEY_RE, TRANSLATOR_OBJECT_RE } from '../core/utils/i18n.util';
 import { TerminalState } from '../core/state/terminal.state';
 
 interface FileReference {
@@ -76,6 +77,8 @@ export class PugParserService {
   private declared = new Map<string, string | null>();
   /** Free functions called by expressions of the last extraction (`t('KEY')`). */
   private calledFns = new Set<string>();
+  /** Literal keys of translator calls of the last extraction. */
+  private translationKeys = new Set<string>();
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -114,15 +117,19 @@ export class PugParserService {
   }
 
   /** Variables the whole project reads, starting from its entry template (includes/extends followed natively). */
-  async parseProject(files: Map<string, string>, entryPath: string | null): Promise<PugVariable[]> {
+  async parseProject(
+    files: Map<string, string>,
+    entryPath: string | null,
+  ): Promise<{ variables: PugVariable[]; translationKeys: string[] }> {
     await this.initialize();
-    if (!entryPath || !this.lexerFn || !this.parserFn) return [];
+    if (!entryPath || !this.lexerFn || !this.parserFn) return { variables: [], translationKeys: [] };
     try {
       const ast = this.buildLinkedAst(files.get(entryPath) ?? '', entryPath, files);
-      return this.extractVariables(ast);
+      const variables = this.extractVariables(ast);
+      return { variables, translationKeys: [...this.translationKeys] };
     } catch (err) {
       this.terminalState.addEntry('warning', 'Parser', `Skipped ${entryPath}: ${(err as Error).message ?? 'parse error'}`);
-      return [];
+      return { variables: [], translationKeys: [] };
     }
   }
 
@@ -168,6 +175,7 @@ export class PugParserService {
 
     const variables = ast ? this.extractVariables(ast) : [];
     const calledFunctions = ast ? [...this.calledFns] : [];
+    const translationKeys = ast ? [...this.translationKeys] : [];
     const mixins = ast ? this.extractMixins(ast) : [];
     const includes = ast ? this.extractIncludes(ast) : [];
     const extendsPath = ast ? this.extractExtends(ast) : undefined;
@@ -179,6 +187,7 @@ export class PugParserService {
       includes,
       extendsPath,
       calledFunctions,
+      translationKeys,
       errors,
       compilationTime: performance.now() - start,
     };
@@ -239,6 +248,7 @@ export class PugParserService {
     const mixinDefs = new Map<string, { params: string[]; body: PugAstNode[] }>();
     this.declared = new Map();
     this.calledFns = new Set();
+    this.translationKeys = new Set();
 
     this.walkAst(ast, (node) => {
       if (node.type === 'Mixin' && node.call !== true && node.name) {
@@ -300,10 +310,12 @@ export class PugParserService {
   }
 
   private collectExpr(expr: string, aliases: Map<string, string | null>, collected: Map<string, PugVariable>): void {
-    const { refs, calls } = this.scanExpr(expr);
+    const { refs, calls, keys } = this.scanExpr(expr);
     for (const fn of calls) {
-      if (!aliases.has(fn) && !this.declared.has(fn)) this.calledFns.add(fn);
+      const root = fn.split('.')[0];
+      if (!aliases.has(root) && !this.declared.has(root)) this.calledFns.add(fn);
     }
+    for (const key of keys) this.translationKeys.add(key);
     for (const { id, hint } of refs) {
       const path = this.resolveId(id, aliases);
       if (!path) continue;
@@ -573,9 +585,10 @@ export class PugParserService {
    * builtins. Method calls (`rows.slice(…)`) yield the object (`rows`) with a type hint; calls
    * to free functions (`t('KEY')`) are reported separately.
    */
-  private scanExpr(expr: string): { refs: ExprRef[]; calls: string[] } {
+  private scanExpr(expr: string): { refs: ExprRef[]; calls: string[]; keys: string[] } {
     const refs: ExprRef[] = [];
     const calls: string[] = [];
+    const keys: string[] = [];
     const locals = this.expressionLocals(expr);
     const prevSig = (idx: number): string => {
       let k = idx - 1;
@@ -598,7 +611,7 @@ export class PugParserService {
       }
 
       if (ch === '`') {
-        i = this.scanTemplate(expr, i, refs, calls);
+        i = this.scanTemplate(expr, i, refs, calls, keys);
         continue;
       }
 
@@ -655,7 +668,14 @@ export class PugParserService {
         if (parts.length === 1 && (p === '{' || p === ',') && expr[nextIdx] === ':') continue;
 
         if (expr[nextIdx] === '(') {
-          if (parts.length === 1) {
+          const lastPart = parts[parts.length - 1];
+          const isTranslator = TRANSLATE_FNS.has(lastPart)
+            && (parts.length === 1 || TRANSLATOR_OBJECT_RE.test(parts[parts.length - 2]));
+          if (isTranslator) {
+            calls.push(parts.join('.'));
+            const lit = expr.slice(nextIdx).match(/^\(\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/);
+            if (lit && !lit[2].includes('${') && TRANSLATION_KEY_RE.test(lit[2])) keys.push(lit[2]);
+          } else if (parts.length === 1) {
             calls.push(first);
           } else {
             const method = parts.pop()!;
@@ -676,7 +696,7 @@ export class PugParserService {
       i++;
     }
 
-    return { refs, calls };
+    return { refs, calls, keys };
   }
 
   /** Names bound inside the expression itself: function / arrow parameters and `var|let|const` declarations. */
@@ -696,7 +716,7 @@ export class PugParserService {
   }
 
   /** Template literal: skips the text, scans each `${…}` as an expression. Returns the index after the closing backtick. */
-  private scanTemplate(expr: string, start: number, refs: ExprRef[], calls: string[]): number {
+  private scanTemplate(expr: string, start: number, refs: ExprRef[], calls: string[], keys: string[]): number {
     let i = start + 1;
     while (i < expr.length) {
       if (expr[i] === '\\') { i += 2; continue; }
@@ -712,6 +732,7 @@ export class PugParserService {
         const inner = this.scanExpr(expr.slice(i + 2, j));
         refs.push(...inner.refs);
         calls.push(...inner.calls);
+        keys.push(...inner.keys);
         i = j + 1;
         continue;
       }
