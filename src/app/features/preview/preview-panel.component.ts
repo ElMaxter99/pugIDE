@@ -3,10 +3,16 @@ import {
   ChangeDetectionStrategy,
   inject,
   effect,
+  signal,
+  untracked,
+  computed,
+  AfterViewInit,
   ViewChild,
   ElementRef,
   OnDestroy,
 } from '@angular/core';
+import { PreferencesState } from '../../core/services/preferences.state';
+import { paginateDocument, resetPagination } from '../../core/utils/paginate.util';
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { InspectorState } from '../../core/state/inspector.state';
@@ -38,9 +44,27 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
               (click)="setDevice('Mobile', 375, 812)">
               <span class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
             </button>
+            <button
+              class="device-btn"
+              [class.active]="previewState.isPdf()"
+              title="PDF / página impresa"
+              (click)="setDevice('PDF', 0, 0)">
+              <span class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
+            </button>
           </div>
         </div>
         <div class="preview-header-right">
+          <select class="zoom-select" title="Zoom" [value]="zoomValue()" (change)="onZoom($any($event.target).value)">
+            <option value="fit">Ajustar ({{ scalePercent() }}%)</option>
+            <option value="50">50%</option>
+            <option value="75">75%</option>
+            <option value="100">100%</option>
+          </select>
+          @if (previewState.isPdf()) {
+            <button class="preview-action" title="Imprimir / Guardar como PDF" (click)="onPrint()">
+              <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
+            </button>
+          }
           <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspect Element" (click)="inspectorState.toggleInspector()">
             <span class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
           </button>
@@ -52,22 +76,45 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
           </button>
         </div>
       </div>
+      @if (previewState.isPdf()) {
+        <div class="pdf-bar">
+          <span class="pdf-size" [title]="previewState.pageSize().source === 'css' ? 'Tamaño leído de @page { size }' : 'Sin @page en la plantilla: A4 por defecto'">
+            {{ previewState.pageSize().label }} · {{ previewState.pageSize().width }}×{{ previewState.pageSize().height }}px
+            @if (previewState.pageSize().source === 'default') { <em>(por defecto)</em> } @else if (previewState.pageSize().source === 'manual') { <em>(girado)</em> }
+          </span>
+          <div class="device-switcher">
+            <button class="device-btn" [class.active]="isLandscape()" title="Horizontal" (click)="setOrientation('landscape')">
+              <span class="material-symbols-outlined" style="font-size: 16px;">crop_landscape</span>
+            </button>
+            <button class="device-btn" [class.active]="!isLandscape()" title="Vertical" (click)="setOrientation('portrait')">
+              <span class="material-symbols-outlined" style="font-size: 16px;">crop_portrait</span>
+            </button>
+          </div>
+          <span class="pdf-size">{{ pageCount() }} {{ pageCount() === 1 ? 'página' : 'páginas' }}</span>
+        </div>
+      }
       <div class="preview-viewport">
-        <div class="preview-canvas">
+        <div class="preview-canvas" #canvas>
           <div class="checkerboard"></div>
           @if (previewState.isLoading()) {
             <div class="loading-overlay">
               <div class="spinner"></div>
             </div>
           }
-          <iframe
-            #previewFrame
-            class="preview-iframe"
-            sandbox="allow-scripts allow-same-origin"
-            [style.width.px]="previewState.deviceWidth()"
-            [style.height.px]="previewState.deviceHeight()"
-            (load)="onIframeLoad()">
-          </iframe>
+          <div class="frame-wrap" [style.width.px]="frameWidth() * scale()" [style.height.px]="frameHeight() * scale()">
+            <iframe
+              #previewFrame
+              class="preview-iframe"
+              sandbox="allow-scripts allow-same-origin allow-modals"
+              [style.width.px]="frameWidth()"
+              [style.height.px]="frameHeight()"
+              [style.transform]="'scale(' + scale() + ')'"
+              (load)="onIframeLoad()">
+            </iframe>
+            @if (previewState.isPdf()) {
+              <div class="page-guides" [style.background-size]="'100% ' + (previewState.pageSize().height * scale()) + 'px'"></div>
+            }
+          </div>
         </div>
         @if (inspectorState.isActive()) {
           <div class="inspector-dock">
@@ -162,6 +209,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
     }
 
     .preview-header-right {
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -208,10 +256,53 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       min-width: 0;
       overflow: auto;
       display: flex;
-      align-items: center;
-      justify-content: center;
       padding: 32px;
       position: relative;
+    }
+
+    /* margin:auto centres without clipping the top/left when the frame overflows. */
+    .frame-wrap {
+      position: relative;
+      margin: auto;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+
+    .page-guides {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      background-image: linear-gradient(to bottom, transparent calc(100% - 2px), rgba(255, 64, 129, 0.75) calc(100% - 2px));
+      background-repeat: repeat-y;
+    }
+
+    .pdf-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 4px 16px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-surface-container-low);
+      flex-shrink: 0;
+    }
+
+    .pdf-size {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .zoom-select {
+      height: 24px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      background: var(--bg-surface-container-low);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
     }
 
     .checkerboard {
@@ -228,10 +319,10 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       border-radius: var(--radius-lg);
       background: white;
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      position: relative;
-      z-index: 1;
-      max-width: 100%;
-      max-height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
     }
 
     .loading-overlay {
@@ -263,13 +354,50 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
     }
   `],
 })
-export class PreviewPanelComponent implements OnDestroy {
+export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   @ViewChild('previewFrame') previewFrame!: ElementRef<HTMLIFrameElement>;
+  @ViewChild('canvas') canvas!: ElementRef<HTMLElement>;
 
   previewState = inject(PreviewState);
   protected inspectorState = inject(InspectorState);
   private orchestrator = inject(OrchestratorService);
+  private preferences = inject(PreferencesState);
   private lastBlobUrl: string | null = null;
+  private canvasObserver: ResizeObserver | null = null;
+  private contentObserver: ResizeObserver | null = null;
+
+  private readonly canvasSize = signal({ width: 0, height: 0 });
+  /** Rendered height of the PDF document's content, measured inside the iframe. */
+  private readonly contentHeight = signal(0);
+
+  protected readonly frameWidth = computed(() =>
+    this.previewState.isPdf() ? this.previewState.pageSize().width : this.previewState.deviceWidth());
+
+  /** PDF: as many whole pages as the content needs, so the frame ends on a page boundary. */
+  protected readonly pageCount = computed(() => {
+    const page = this.previewState.pageSize().height;
+    return Math.max(1, Math.ceil(this.contentHeight() / page));
+  });
+
+  protected readonly frameHeight = computed(() =>
+    this.previewState.isPdf() ? this.pageCount() * this.previewState.pageSize().height : this.previewState.deviceHeight());
+
+  protected readonly scale = computed(() => {
+    const mode = this.previewState.zoomMode();
+    if (mode !== 'fit') return mode / 100;
+    const { width, height } = this.canvasSize();
+    if (!width || !height) return 1;
+    const availW = Math.max(width - 64, 100);
+    const availH = Math.max(height - 64, 100);
+    // A PDF scrolls vertically (many pages), so it only has to fit the width.
+    const s = this.previewState.isPdf()
+      ? availW / this.frameWidth()
+      : Math.min(availW / this.frameWidth(), availH / this.frameHeight());
+    return Math.min(1, s);
+  });
+
+  protected readonly scalePercent = computed(() => Math.round(this.scale() * 100));
+  protected readonly zoomValue = computed(() => String(this.previewState.zoomMode()));
   private messageListener = (e: MessageEvent): void => {
     if (e.source !== this.previewFrame?.nativeElement.contentWindow) return;
     if (e.data?.source === 'pugide-inspector') {
@@ -283,11 +411,19 @@ export class PreviewPanelComponent implements OnDestroy {
   };
 
   constructor() {
+    this.restoreDevice();
     effect(() => {
       const html = this.previewState.compiledHtml();
       if (html && this.previewFrame) {
         this.updatePreview(html);
       }
+    });
+
+    // Re-flow when switching to/from PDF or when the sheet size / orientation changes.
+    effect(() => {
+      this.previewState.isPdf();
+      this.previewState.pageSize();
+      untracked(() => this.reflow());
     });
 
     effect(() => {
@@ -301,11 +437,20 @@ export class PreviewPanelComponent implements OnDestroy {
     window.addEventListener('message', this.messageListener);
   }
 
+  ngAfterViewInit(): void {
+    const el = this.canvas.nativeElement;
+    this.canvasObserver = new ResizeObserver(() => this.canvasSize.set({ width: el.clientWidth, height: el.clientHeight }));
+    this.canvasObserver.observe(el);
+  }
+
   ngOnDestroy(): void {
+    this.canvasObserver?.disconnect();
+    this.contentObserver?.disconnect();
     window.removeEventListener('message', this.messageListener);
   }
 
   onIframeLoad(): void {
+    this.observeContent();
     this.previewFrame?.nativeElement.contentWindow?.postMessage(
       { source: 'pugide-inspector-toggle', active: this.inspectorState.isActive() },
       window.location.origin
@@ -314,6 +459,76 @@ export class PreviewPanelComponent implements OnDestroy {
 
   setDevice(name: string, width: number, height: number): void {
     this.previewState.setDevice(name, width, height);
+    this.preferences.update({ previewDevice: name });
+  }
+
+  protected isLandscape(): boolean {
+    const { width, height } = this.previewState.pageSize();
+    return width >= height;
+  }
+
+  setOrientation(o: 'landscape' | 'portrait'): void {
+    this.previewState.pdfOrientation.set(o);
+  }
+
+  onZoom(value: string): void {
+    this.previewState.zoomMode.set(value === 'fit' ? 'fit' : Number(value));
+  }
+
+  /** Prints just the preview document; `@page` of the template (or the shown A4 fallback) sets the sheet. */
+  onPrint(): void {
+    const win = this.previewFrame?.nativeElement.contentWindow;
+    const doc = win?.document;
+    if (!win || !doc) return;
+    let injected: HTMLStyleElement | null = null;
+    const size = this.previewState.pageSize();
+    if (size.source !== 'css') {
+      injected = doc.createElement('style');
+      injected.textContent = `@page { size: ${size.width}px ${size.height}px; margin: 0; }`;
+      doc.head.appendChild(injected);
+    }
+    win.addEventListener('afterprint', () => injected?.remove(), { once: true });
+    win.focus();
+    win.print();
+  }
+
+  private restoreDevice(): void {
+    const saved = this.preferences.previewDevice();
+    if (saved === 'Mobile') this.previewState.setDevice('Mobile', 375, 812);
+    else if (saved === 'PDF') this.previewState.setDevice('PDF', 0, 0);
+  }
+
+  /** Tracks the document height inside the iframe (same-origin blob) so the PDF view shows whole pages. */
+  private observeContent(): void {
+    this.contentObserver?.disconnect();
+    const doc = this.previewFrame?.nativeElement.contentDocument;
+    if (!doc?.body) return;
+    this.reflow();
+    this.contentObserver = new ResizeObserver(() => {
+      // Images / fonts finishing late move everything below them: paginate again when the height changed.
+      if (doc.body.scrollHeight !== this.paginatedHeight) this.reflow();
+      else this.measure();
+    });
+    this.contentObserver.observe(doc.body);
+    // Web fonts change text metrics after load; paginate again once they are in.
+    void doc.fonts?.ready.then(() => this.reflow());
+  }
+
+  private paginatedHeight = -1;
+
+  private measure(): void {
+    const body = this.previewFrame?.nativeElement.contentDocument?.body;
+    if (body) this.contentHeight.set(Math.max(body.scrollHeight, body.offsetHeight));
+  }
+
+  /** PDF: emulate page breaks inside the preview document; other devices show the plain flow. */
+  private reflow(): void {
+    const doc = this.previewFrame?.nativeElement.contentDocument;
+    if (!doc?.body) return;
+    resetPagination(doc);
+    if (this.previewState.isPdf()) paginateDocument(doc, this.previewState.pageSize().height);
+    this.paginatedHeight = doc.body.scrollHeight;
+    this.measure();
   }
 
   onReload(): void {

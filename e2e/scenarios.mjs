@@ -171,5 +171,88 @@ import { readFileSync, readdirSync } from 'node:fs';
   const keys = [...a.EditorState.files().keys()].sort();
   check('15 missing ./asdqwe created as /asdqwe.pug, junk paths ignored', JSON.stringify(keys) === JSON.stringify(['/asdqwe.pug', '/main.pug', '/mixins.pug']), keys.join(','));
 }
+
+// 16. real-world report: top-level `- var` helpers, `var reported = pdfData.reported` alias, i18n `t('KEY')`
+//     calls, inline functions / object literals / Array.from, rows.slice(...) iteration
+{
+  const d = new URL('./fixtures/allianz/', import.meta.url).pathname;
+  const a = await run({
+    '/index.pug': readFileSync(d + 'index.pug', 'utf8'),
+    '/mixins.pug': readFileSync(d + 'mixins.pug', 'utf8'),
+  }, '/index.pug');
+  const data = a.DataState.data();
+  const rep = data.pdfData?.reported;
+  check('16 compiles without errors', !errs(a), errs(a));
+  check('16 data root is pdfData + translations (no JS junk)', JSON.stringify(Object.keys(data).sort()) === '["pdfData","translations"]', Object.keys(data).join(','));
+  check('16 reported shape', rep && 'exercise' in rep && 'fullName' in rep.declaredClient && Array.isArray(rep.rows) && Array.isArray(rep.dividends), JSON.stringify(data));
+  check('16 row items typed', rep.rows[0] && 'fundName' in rep.rows[0] && 'gain' in rep.rows[0] && typeof rep.rows[0].participations === 'number', JSON.stringify(rep?.rows));
+  check('16 t() stubbed to the key, table rendered', html(a).includes('FISCAL_REPORT_ALLIANZ.TITLE') && html(a).includes('<table'), html(a).slice(0, 200));
+}
+
+// 17. index compiled while its mixins file is still empty (data gets pdfData.reported = ''), then the mixins are pasted in
+{
+  const d = new URL('./fixtures/allianz/', import.meta.url).pathname;
+  const mixins = readFileSync(d + 'mixins.pug', 'utf8');
+  const a = await run({
+    '/main.pug': readFileSync(d + 'index.pug', 'utf8'),
+    '/mixins.pug': '',
+  }, '/main.pug');
+  a.EditorState.files.update((f) => { f.set('/mixins.pug', mixins); return f; });
+  await a.orch.manualCompile();
+  check('17 pasted mixins compile after empty placeholder data', !errs(a), errs(a) + JSON.stringify(a.DataState.data()));
+  check('17 reported is an object', typeof a.DataState.data().pdfData?.reported === 'object', JSON.stringify(a.DataState.data()));
+}
+// 18. translations: t('A.B') and i18n.t('A.B') keys land in data.translations (nested) and the preview uses the values
+{
+  const a = await run({
+    '/index.pug': "html\n  body\n    h1= t('PAGE.TITLE')\n    p= i18n.t('PAGE.INTRO', { name: user.name })\n    p #{t('PAGE.EMPTY')}\n    a(title=t('PAGE.LINK'))\n",
+  }, '/index.pug');
+  const d = a.DataState.data();
+  check('18 keys nested under translations', d.translations?.PAGE && ['TITLE', 'INTRO', 'EMPTY', 'LINK'].every((k) => k in d.translations.PAGE), JSON.stringify(d));
+  check('18 i18n / t not data, user.name is', !('i18n' in d) && !('t' in d) && 'name' in d.user, JSON.stringify(d));
+  check('18 untranslated falls back to key', html(a).includes('PAGE.TITLE') && !errs(a), errs(a) + html(a));
+  a.DataState.setData({ ...d, translations: { PAGE: { TITLE: 'Informe', INTRO: 'Hola {{name}}', EMPTY: '', LINK: 'Ir' } }, user: { name: 'Ana' } });
+  await a.orch.manualCompile();
+  check('18 filled translations rendered (+ params, empty -> key)', html(a).includes('>Informe<') && html(a).includes('Hola Ana') && html(a).includes('PAGE.EMPTY') && html(a).includes('title="Ir"'), html(a));
+}
+// 19. PDF preview: page size read from the template's @page rule
+{
+  const { detectPageSize } = await import('./.build/services.mjs');
+  const pt = detectPageSize('<style>@page { size: 841.9pt 595.3pt; margin: 0; }</style>');
+  check('19 @page in pt -> A4 landscape px', pt.source === 'css' && pt.width === 1123 && pt.height === 794, JSON.stringify(pt));
+  const kw = detectPageSize('<style>@page{size:A4 landscape}</style>');
+  check('19 @page keyword A4 landscape', kw.width === 1123 && kw.height === 794 && kw.label.startsWith('A4'), JSON.stringify(kw));
+  const mm = detectPageSize('<style>@page { margin:0; size: 210mm 297mm }</style>');
+  check('19 @page in mm portrait', mm.width === 794 && mm.height === 1123, JSON.stringify(mm));
+  const none = detectPageSize('<p>x</p>', 'portrait');
+  check('19 no @page -> default A4 portrait', none.source === 'default' && none.width === 794 && none.height === 1123, JSON.stringify(none));
+}
+// 20. assets: missing refs are reported, uploads land at the requested path, previews use blob: URLs
+{
+  const a = await run({
+    '/index.pug': "html\n  head\n    style.\n      @font-face { font-family: X; src: url('/fonts/x/Light.woff2') format('woff2'); }\n  body\n    img(src='/images/pdf/header.png')\n    img(src='logo.jpeg?v=1')\n    img(src='https://example.com/a.png')\n    a(href='/about') about\n",
+  }, '/index.pug');
+  check('20 missing refs listed (local images/fonts only)', JSON.stringify(a.AssetState.missing()) === JSON.stringify(['/fonts/x/Light.woff2', '/images/pdf/header.png', '/logo.jpeg']), JSON.stringify(a.AssetState.missing()));
+  const bytes = new Uint8Array([137, 80, 78, 71]);
+  await a.orch.addAssets([new File([bytes], 'header.png'), new File([bytes], 'Light.woff2'), new File([bytes], 'other.png'), new File([bytes], 'notes.txt')]);
+  check('20 matched by name to the requested paths', a.AssetState.has('/images/pdf/header.png') && a.AssetState.has('/fonts/x/Light.woff2') && a.AssetState.has('/assets/other.png') && !a.AssetState.paths().some((p) => p.endsWith('.txt')), a.AssetState.paths().join(','));
+  check('20 html uses blob: urls, one still missing', html(a).includes('src="blob:') && html(a).includes("url(blob:") || html(a).includes("url('blob:"), html(a).slice(0, 400));
+  check('20 remote + page links untouched', html(a).includes('https://example.com/a.png') && html(a).includes('href="/about"'), html(a));
+  check('20 only logo still missing', JSON.stringify(a.AssetState.missing()) === '["/logo.jpeg"]', JSON.stringify(a.AssetState.missing()));
+  await a.orch.addAssets([new File([bytes], 'whatever.jpeg')], '/logo.jpeg');
+  check('20 explicit target path satisfies it', a.AssetState.missing().length === 0, JSON.stringify(a.AssetState.missing()));
+  a.orch.deleteFile('/images/pdf/header.png');
+  await sleep(500);
+  check('20 deleting an asset makes it missing again', a.AssetState.missing().includes('/images/pdf/header.png'), JSON.stringify(a.AssetState.missing()));
+}
+// 21. PDF orientation: rotating swaps the sheet sides and the label
+{
+  const { detectPageSize, rotatePageSize } = await import('./.build/services.mjs');
+  const land = detectPageSize('<style>@page { size: 841.9pt 595.3pt }</style>');
+  const port = rotatePageSize(land);
+  check('21 rotate swaps sides + mm label', port.width === 794 && port.height === 1123 && port.label.includes('210×297') && port.source === 'manual', JSON.stringify(port));
+  const d = rotatePageSize(detectPageSize('<p>x</p>'));
+  check('21 default A4 horizontal rotates to vertical', d.width === 794 && d.label.includes('vertical'), JSON.stringify(d));
+}
 console.log(fails ? `\n${fails} FAILED` : '\nall passed');
 process.exit(fails ? 1 : 0);

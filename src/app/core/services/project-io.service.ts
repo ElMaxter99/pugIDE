@@ -4,6 +4,8 @@ import { EditorState } from '../state/editor.state';
 import { ProjectState } from '../state/project.state';
 import { TerminalState } from '../state/terminal.state';
 import { OrchestratorService } from './orchestrator.service';
+import { AssetState, AssetFile } from '../state/asset.state';
+import { ASSET_EXT_RE, mimeForPath } from '../utils/asset.util';
 
 const TEXT_FILE_RE = /\.(pug|jade|scss|sass|css|json|js|html|htm|md|txt)$/i;
 
@@ -18,6 +20,7 @@ export class ProjectIoService {
   private projectState = inject(ProjectState);
   private terminalState = inject(TerminalState);
   private orchestrator = inject(OrchestratorService);
+  private assetState = inject(AssetState);
 
   get supportsFileSystemAccess(): boolean {
     return typeof (window as any).showDirectoryPicker === 'function';
@@ -25,7 +28,7 @@ export class ProjectIoService {
 
   async exportProject(): Promise<void> {
     const files = this.editorState.files();
-    if (files.size === 0) {
+    if (files.size === 0 && this.assetState.assets().size === 0) {
       this.terminalState.addEntry('warning', 'Export', 'Nothing to export — the project has no files.');
       return;
     }
@@ -46,10 +49,13 @@ export class ProjectIoService {
     for (const [path, content] of files) {
       await this.writeFileToDirectory(dirHandle, path, content);
     }
-    this.terminalState.addEntry('success', 'Export', `Exported ${files.size} file(s) to disk.`);
+    for (const a of this.assetState.assets().values()) {
+      await this.writeFileToDirectory(dirHandle, a.path, a.data);
+    }
+    this.terminalState.addEntry('success', 'Export', `Exported ${files.size + this.assetState.assets().size} file(s) to disk.`);
   }
 
-  private async writeFileToDirectory(root: any, path: string, content: string): Promise<void> {
+  private async writeFileToDirectory(root: any, path: string, content: string | Uint8Array): Promise<void> {
     const parts = path.split('/').filter(Boolean);
     const fileName = parts.pop()!;
     let dir = root;
@@ -67,6 +73,7 @@ export class ProjectIoService {
     for (const [path, content] of files) {
       zipInput[path.replace(/^\//, '')] = strToU8(content);
     }
+    for (const a of this.assetState.assets().values()) zipInput[a.path.replace(/^\//, '')] = a.data;
     const zipped = zipSync(zipInput, { level: 6 });
     const blob = new Blob([zipped as BlobPart], { type: 'application/zip' });
     const url = URL.createObjectURL(blob);
@@ -78,7 +85,7 @@ export class ProjectIoService {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    this.terminalState.addEntry('success', 'Export', `Exported ${files.size} file(s) as ${fileName}.`);
+    this.terminalState.addEntry('success', 'Export', `Exported ${files.size + this.assetState.assets().size} file(s) as ${fileName}.`);
   }
 
   async importFromDirectory(): Promise<void> {
@@ -86,22 +93,26 @@ export class ProjectIoService {
     try {
       const dirHandle: any = await (window as any).showDirectoryPicker({ mode: 'read' });
       const files = new Map<string, string>();
-      await this.readDirectoryRecursive(dirHandle, '', files);
-      this.finishImport(files, dirHandle.name);
+      const assets: AssetFile[] = [];
+      await this.readDirectoryRecursive(dirHandle, '', files, assets);
+      this.finishImport(files, dirHandle.name, assets);
     } catch (err) {
       if ((err as DOMException)?.name === 'AbortError') return;
       this.terminalState.addEntry('error', 'Import', `Import failed: ${(err as Error).message ?? err}`);
     }
   }
 
-  private async readDirectoryRecursive(dir: any, prefix: string, out: Map<string, string>): Promise<void> {
+  private async readDirectoryRecursive(dir: any, prefix: string, out: Map<string, string>, assets: AssetFile[]): Promise<void> {
     for await (const [name, handle] of dir.entries()) {
       const path = `${prefix}/${name}`;
       if (handle.kind === 'directory') {
-        await this.readDirectoryRecursive(handle, path, out);
+        await this.readDirectoryRecursive(handle, path, out, assets);
       } else if (TEXT_FILE_RE.test(name)) {
         const file = await handle.getFile();
         out.set(path, await file.text());
+      } else if (ASSET_EXT_RE.test(name)) {
+        const file = await handle.getFile();
+        assets.push({ path, mime: mimeForPath(path), data: new Uint8Array(await file.arrayBuffer()) });
       }
     }
   }
@@ -111,21 +122,23 @@ export class ProjectIoService {
       const buf = new Uint8Array(await file.arrayBuffer());
       const unzipped = unzipSync(buf);
       const files = new Map<string, string>();
+      const assets: AssetFile[] = [];
       for (const [name, data] of Object.entries(unzipped)) {
-        if (name.endsWith('/') || !TEXT_FILE_RE.test(name)) continue;
-        files.set('/' + name, strFromU8(data));
+        if (name.endsWith('/')) continue;
+        if (TEXT_FILE_RE.test(name)) files.set('/' + name, strFromU8(data));
+        else if (ASSET_EXT_RE.test(name)) assets.push({ path: '/' + name, mime: mimeForPath(name), data });
       }
-      this.finishImport(files, file.name.replace(/\.zip$/i, ''));
+      this.finishImport(files, file.name.replace(/\.zip$/i, ''), assets);
     } catch (err) {
       this.terminalState.addEntry('error', 'Import', `Could not read zip file: ${(err as Error).message ?? err}`);
     }
   }
 
-  private finishImport(files: Map<string, string>, projectName: string): void {
+  private finishImport(files: Map<string, string>, projectName: string, assets: AssetFile[] = []): void {
     if (files.size === 0) {
       this.terminalState.addEntry('warning', 'Import', 'No supported files found to import.');
       return;
     }
-    this.orchestrator.loadProject(files, projectName || 'Imported Project');
+    this.orchestrator.loadProject(files, projectName || 'Imported Project', assets);
   }
 }

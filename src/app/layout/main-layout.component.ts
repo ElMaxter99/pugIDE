@@ -12,6 +12,7 @@ import { OrchestratorService } from '../core/services/orchestrator.service';
 import { EditorState } from '../core/state/editor.state';
 import { PreviewState } from '../core/state/preview.state';
 import { TerminalState } from '../core/state/terminal.state';
+import { AssetState } from '../core/state/asset.state';
 import { DataState } from '../core/state/data.state';
 import { ProjectState } from '../core/state/project.state';
 import { PreferencesState } from '../core/services/preferences.state';
@@ -104,6 +105,8 @@ export class MainLayoutComponent implements OnInit {
   private projectState = inject(ProjectState);
   private preferences = inject(PreferencesState);
   private persistence = inject(PersistenceService);
+  private assetState = inject(AssetState);
+  private assetTimer: ReturnType<typeof setTimeout> | null = null;
 
   private restoringSession = false;
   private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -114,6 +117,12 @@ export class MainLayoutComponent implements OnInit {
     effect(() => {
       const t = this.preferences.theme();
       document.documentElement.classList.toggle('light-mode', t === 'light');
+    });
+
+    effect(() => {
+      this.assetState.assets();
+      if (this.assetTimer) clearTimeout(this.assetTimer);
+      this.assetTimer = setTimeout(() => void this.orchestrator.saveAssets(), 800);
     });
 
     effect(() => {
@@ -134,6 +143,7 @@ export class MainLayoutComponent implements OnInit {
 
     const isDemo = this.route.snapshot.queryParamMap.get('demo') === 'true';
     if (isDemo) {
+      this.orchestrator.markAssetsReady();
       this.loadDemoProject();
       return;
     }
@@ -142,6 +152,7 @@ export class MainLayoutComponent implements OnInit {
     if (saved && Object.keys(saved.files).length > 0) {
       this.restoreSession(saved);
     } else {
+      this.orchestrator.markAssetsReady();
       this.loadEmptyProject();
     }
   }
@@ -167,8 +178,8 @@ export class MainLayoutComponent implements OnInit {
 
     this.projectState.setProject(saved.projectName, this.editorState.files());
     this.orchestrator.markDataInitialized();
-    this.previewState.setDevice('Desktop', 1200, 800);
     this.terminalState.addEntry('info', 'PugIDE', 'Restored your previous session.');
+    void this.orchestrator.restoreAssets();
     this.orchestrator.manualCompile();
     this.restoringSession = false;
   }
