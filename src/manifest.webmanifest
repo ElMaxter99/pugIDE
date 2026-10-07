@@ -1,0 +1,19 @@
+{
+  "name": "PugIDE",
+  "short_name": "PugIDE",
+  "description": "A modern IDE for Pug (Jade) templates with live preview and smart data editor.",
+  "id": "/",
+  "start_url": "/ide",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#16111b",
+  "theme_color": "#16111b",
+  "categories": ["developer", "productivity"],
+  "icons": [
+    { "src": "assets/icons/pwa-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/pwa-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/pwa-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/PugIDE.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
