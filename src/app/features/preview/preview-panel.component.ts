@@ -78,13 +78,16 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
         <div class="pdf-bar">
           <span class="pdf-size" [title]="previewState.pageSize().source === 'css' ? 'Tamaño leído de @page { size }' : 'Sin @page en la plantilla: A4 por defecto'">
             {{ previewState.pageSize().label }} · {{ previewState.pageSize().width }}×{{ previewState.pageSize().height }}px
-            @if (previewState.pageSize().source === 'default') { <em>(por defecto)</em> }
+            @if (previewState.pageSize().source === 'default') { <em>(por defecto)</em> } @else if (previewState.pageSize().source === 'manual') { <em>(girado)</em> }
           </span>
-          @if (previewState.pageSize().source === 'default') {
-            <button class="device-btn" title="Girar página" (click)="toggleOrientation()">
-              <span class="material-symbols-outlined" style="font-size: 16px;">{{ previewState.pdfOrientation() === 'landscape' ? 'crop_landscape' : 'crop_portrait' }}</span>
+          <div class="device-switcher">
+            <button class="device-btn" [class.active]="isLandscape()" title="Horizontal" (click)="setOrientation('landscape')">
+              <span class="material-symbols-outlined" style="font-size: 16px;">crop_landscape</span>
             </button>
-          }
+            <button class="device-btn" [class.active]="!isLandscape()" title="Vertical" (click)="setOrientation('portrait')">
+              <span class="material-symbols-outlined" style="font-size: 16px;">crop_portrait</span>
+            </button>
+          </div>
           <span class="pdf-size">{{ pageCount() }} {{ pageCount() === 1 ? 'página' : 'páginas' }}</span>
         </div>
       }
@@ -450,8 +453,13 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     this.preferences.update({ previewDevice: name });
   }
 
-  toggleOrientation(): void {
-    this.previewState.pdfOrientation.update((o) => (o === 'landscape' ? 'portrait' : 'landscape'));
+  protected isLandscape(): boolean {
+    const { width, height } = this.previewState.pageSize();
+    return width >= height;
+  }
+
+  setOrientation(o: 'landscape' | 'portrait'): void {
+    this.previewState.pdfOrientation.set(o);
   }
 
   onZoom(value: string): void {
@@ -465,7 +473,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     if (!win || !doc) return;
     let injected: HTMLStyleElement | null = null;
     const size = this.previewState.pageSize();
-    if (size.source === 'default') {
+    if (size.source !== 'css') {
       injected = doc.createElement('style');
       injected.textContent = `@page { size: ${size.width}px ${size.height}px; margin: 0; }`;
       doc.head.appendChild(injected);

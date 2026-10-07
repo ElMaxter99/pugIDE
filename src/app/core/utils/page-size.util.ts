@@ -3,8 +3,8 @@ export interface PageSize {
   width: number;
   height: number;
   label: string;
-  /** `css`: read from the template's `@page { size }`; `default`: fallback A4. */
-  source: 'css' | 'default';
+  /** `css`: read from the template's `@page { size }`; `default`: fallback A4; `manual`: rotated by the user. */
+  source: 'css' | 'default' | 'manual';
 }
 
 const PX_PER_UNIT: Record<string, number> = {
@@ -27,6 +27,18 @@ const NAMED: Record<string, [number, number]> = {
   legal: [8.5 * 96, 14 * 96],
   ledger: [11 * 96, 17 * 96],
 };
+
+export function isLandscape(size: PageSize): boolean {
+  return size.width >= size.height;
+}
+
+/** Same sheet turned 90°: swaps the sides (and the `a×b mm` in the label). */
+export function rotatePageSize(size: PageSize): PageSize {
+  const label = size.label
+    .replace(/(\d+(?:\.\d+)?)×(\d+(?:\.\d+)?) mm/, '$2×$1 mm')
+    .replace(/horizontal|vertical/, (m) => (m === 'horizontal' ? 'vertical' : 'horizontal'));
+  return { width: size.height, height: size.width, label, source: 'manual' };
+}
 
 export function defaultPageSize(orientation: 'landscape' | 'portrait'): PageSize {
   const [w, h] = NAMED['a4'];

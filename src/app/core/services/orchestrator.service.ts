@@ -13,6 +13,9 @@ import { TerminalState } from '../state/terminal.state';
 import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
 import { PersistenceService } from './persistence.service';
+import { AssetState, AssetFile } from '../state/asset.state';
+import { AssetStorageService } from './asset-storage.service';
+import { ASSET_EXT_RE, mimeForPath, refToPath, rewriteRefs } from '../utils/asset.util';
 import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
 import { buildDataSkeleton } from '../utils/data-skeleton.util';
@@ -32,12 +35,15 @@ export class OrchestratorService {
   private preferences = inject(PreferencesState);
   private projectState = inject(ProjectState);
   private persistence = inject(PersistenceService);
+  private assetState = inject(AssetState);
+  private assetStorage = inject(AssetStorageService);
 
   private codeChange$ = new Subject<string>();
   private isProcessing = false;
   private recompileRequested = false;
   private createMissingRequested = false;
   private initialDataLoaded = false;
+  private assetsReady = false;
 
   constructor() {
     this.setupAutoCompile();
@@ -141,6 +147,7 @@ export class OrchestratorService {
         compileResult.html = injectIntoHead(compileResult.html, `<style>\n${scssResult.css}\n</style>`);
       }
       if (compileResult.html) {
+        compileResult.html = this.applyAssets(compileResult.html, files);
         compileResult.html = annotateHtmlLines(compileResult.html);
         compileResult.html = injectIntoBody(compileResult.html, `<script>${INSPECTOR_SCRIPT}</script>`);
       }
@@ -182,6 +189,77 @@ export class OrchestratorService {
     }
   }
 
+  /** Points local image / font references at the uploaded files (as `blob:` URLs) and tracks the ones still missing. */
+  private applyAssets(html: string, files: Map<string, string>): string {
+    const missing = new Set<string>();
+    const out = rewriteRefs(html, (ref) => {
+      const hit = this.assetState.resolve(ref);
+      if (hit) return this.assetState.urlFor(hit);
+      const path = refToPath(ref);
+      if (ASSET_EXT_RE.test(path) && !files.has(path)) missing.add(path);
+      return null;
+    });
+    const list = [...missing].sort();
+    if (list.join('|') !== this.assetState.missing().join('|')) {
+      this.assetState.missing.set(list);
+      if (list.length > 0) {
+        this.terminalState.addEntry('warning', 'Assets', `Faltan ${list.length} archivo(s) referenciados: ${list.join(', ')} — súbelos desde la barra lateral.`);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Stores uploaded images / fonts. Without `targetPath`, a file whose name matches a missing
+   * reference lands exactly at the path the template asks for; anything else goes to /assets/.
+   */
+  async addAssets(files: File[], targetPath?: string): Promise<void> {
+    const added: string[] = [];
+    for (const file of files) {
+      if (!targetPath && !ASSET_EXT_RE.test(file.name)) {
+        this.terminalState.addEntry('warning', 'Assets', `${file.name}: tipo no soportado (imágenes y fuentes).`);
+        continue;
+      }
+      const data = new Uint8Array(await file.arrayBuffer());
+      const name = file.name.toLowerCase();
+      const matches = this.assetState.missing().filter((p) => p.split('/').pop()!.toLowerCase() === name);
+      const paths = targetPath ? [targetPath] : matches.length ? matches : ['/assets/' + file.name.replace(/\s+/g, '-')];
+      for (const path of paths) {
+        this.assetState.add(path, data, mimeForPath(path));
+        added.push(path);
+      }
+    }
+    if (added.length === 0) return;
+    this.refreshTree();
+    this.terminalState.addEntry('success', 'Assets', `Añadido: ${added.join(', ')}`);
+    await this.manualCompile();
+  }
+
+  /** Reloads the assets saved by the previous session (IndexedDB). */
+  async restoreAssets(): Promise<void> {
+    const list = await this.assetStorage.load();
+    this.assetsReady = true;
+    if (list.length === 0) return;
+    this.assetState.replaceAll(list);
+    this.refreshTree();
+    await this.manualCompile();
+  }
+
+  /** Sessions that start without stored assets (demo, empty project) must not wipe them before a restore. */
+  markAssetsReady(): void {
+    this.assetsReady = true;
+  }
+
+  async saveAssets(): Promise<void> {
+    if (!this.assetsReady) return;
+    const ok = await this.assetStorage.save([...this.assetState.assets().values()]);
+    if (!ok) this.terminalState.addEntry('warning', 'Assets', 'No se pudieron guardar las imágenes en el navegador (almacenamiento lleno o bloqueado).');
+  }
+
+  private refreshTree(): void {
+    this.projectState.setAssetPaths(this.assetState.paths(), this.editorState.files());
+  }
+
   saveSession(): void {
     const files = this.editorState.files();
     if (files.size === 0) return;
@@ -194,7 +272,8 @@ export class OrchestratorService {
   }
 
   /** Replaces the whole in-memory project (used by import) and recompiles from scratch. */
-  loadProject(files: Map<string, string>, projectName: string): void {
+  loadProject(files: Map<string, string>, projectName: string, assets: AssetFile[] = []): void {
+    this.assetState.replaceAll(assets);
     this.editorState.openTabs.set([]);
     this.editorState.activeTabId.set(null);
     this.editorState.editorContent.set('');
@@ -244,6 +323,13 @@ export class OrchestratorService {
   }
 
   renameFile(oldPath: string, newPath: string): void {
+    if (this.assetState.has(oldPath)) {
+      this.assetState.rename(oldPath, newPath);
+      this.refreshTree();
+      this.terminalState.addEntry('info', 'Files', `Renamed ${oldPath} to ${newPath}`);
+      void this.manualCompile();
+      return;
+    }
     const files = this.editorState.files();
     const content = files.get(oldPath);
     if (content === undefined || oldPath === newPath || files.has(newPath)) return;
@@ -260,6 +346,13 @@ export class OrchestratorService {
   }
 
   deleteFile(path: string): void {
+    if (this.assetState.has(path)) {
+      this.assetState.remove(path);
+      this.refreshTree();
+      this.terminalState.addEntry('info', 'Files', `Deleted ${path}`);
+      void this.manualCompile();
+      return;
+    }
     const files = this.editorState.files();
     if (!files.has(path)) return;
     this.editorState.files.update((f) => { f.delete(path); return f; });

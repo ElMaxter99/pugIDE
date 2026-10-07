@@ -1,6 +1,6 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { CompileResult, CompileError } from '../models/index';
-import { detectPageSize } from '../utils/page-size.util';
+import { detectPageSize, isLandscape, rotatePageSize } from '../utils/page-size.util';
 
 @Injectable({ providedIn: 'root' })
 export class PreviewState {
@@ -14,10 +14,16 @@ export class PreviewState {
 
   /** `fit` scales the frame to the available space; a number is a fixed percentage. */
   readonly zoomMode = signal<'fit' | number>('fit');
-  readonly pdfOrientation = signal<'landscape' | 'portrait'>('landscape');
+  /** `null`: follow the template's `@page` (horizontal A4 when it declares none). */
+  readonly pdfOrientation = signal<'landscape' | 'portrait' | null>(null);
   readonly isPdf = computed(() => this.deviceName() === 'PDF');
   /** Print page of the template (`@page { size }`), A4 in the chosen orientation when it declares none. */
-  readonly pageSize = computed(() => detectPageSize(this.compiledHtml(), this.pdfOrientation()));
+  readonly pageSize = computed(() => {
+    const detected = detectPageSize(this.compiledHtml(), 'landscape');
+    const wanted = this.pdfOrientation();
+    if (!wanted || (wanted === 'landscape') === isLandscape(detected)) return detected;
+    return rotatePageSize(detected);
+  });
 
   readonly hasErrors = computed(() => this.errors().length > 0);
 
