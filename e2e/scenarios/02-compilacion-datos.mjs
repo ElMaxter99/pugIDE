@@ -80,8 +80,9 @@ import { readFileSync, readdirSync } from 'node:fs';
         li= habilidad
 `,
   }, '/main.pug');
-  const want = { usuarios: [{ nombre: '', edad: 0, activo: false, direccion: { ciudad: '', pais: '' }, habilidades: [''] }] };
-  check('14 skeleton', JSON.stringify(a.DataState.data()) === JSON.stringify(want) || JSON.stringify(Object.entries(a.DataState.data().usuarios[0]).sort()) === JSON.stringify(Object.entries(want.usuarios[0]).sort()), JSON.stringify(a.DataState.data()));
+  // Los datos que faltan se crean con mocks realistas por nombre y tipo (nombre/edad/activo/ciudad...).
+  const u0 = a.DataState.data().usuarios?.[0] ?? {};
+  check('14 skeleton typed with mocks', typeof u0.nombre === 'string' && u0.nombre !== '' && typeof u0.edad === 'number' && typeof u0.activo === 'boolean' && typeof u0.direccion?.ciudad === 'string' && u0.direccion.ciudad !== '' && Array.isArray(u0.habilidades) && u0.habilidades.length === 1, JSON.stringify(a.DataState.data()));
   check('14 compiles', !errs(a), errs(a));
   // adding a new field in the mixin extends existing items instead of being ignored
   a.DataState.setData({ usuarios: [{ nombre: 'Ana', edad: 3, activo: true, direccion: { ciudad: 'X', pais: 'Y' }, habilidades: ['js'] }, { nombre: 'Luis' }] });
