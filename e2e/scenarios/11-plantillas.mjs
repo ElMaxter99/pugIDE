@@ -13,6 +13,7 @@ import { check, run, html, errs } from '../lib.mjs';
     const body = out.replace(/<script[\s\S]*?<\/script>/g, '');
     check(`41 ${t.id}: compila sin errores`, out.length > 200 && !errs(app), errs(app));
     check(`41 ${t.id}: usa sus datos y traducciones`, !body.includes('undefined') && !body.includes('[object') && !/\b(INVOICE|EMAIL|REPORT)\.[A-Z_]+\b/.test(body), body.slice(0, 300));
+    check(`41 ${t.id}: no deja interpolaciones sin resolver`, !/#\{[^}]*\}/.test(body), (body.match(/#\{[^}]*\}/) || [])[0]);
     check(`41 ${t.id}: el CSS del proyecto llega al HTML`, /<style/.test(out));
     check(`41 ${t.id}: no genera avisos de datos que faltan`, !app.TerminalState.entries().some((e) => e.type === 'error'));
   }
