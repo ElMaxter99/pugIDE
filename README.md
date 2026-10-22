@@ -16,6 +16,12 @@ Editor de código, árbol de datos y vista previa en vivo, con un proyecto demo 
 
 ![IDE en modo demo](docs/screenshots/ide-demo.png)
 
+### Paleta de comandos (Ctrl/Cmd+K)
+
+Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de archivos.
+
+![Paleta de comandos](docs/screenshots/command-palette.png)
+
 ## Características
 
 - Editor Pug con resaltado de sintaxis (Monaco) y soporte multi-archivo (includes / componentes).
