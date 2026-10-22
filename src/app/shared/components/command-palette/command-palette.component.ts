@@ -1,4 +1,5 @@
-import { Component, ChangeDetectionStrategy, DestroyRef, computed, effect, inject, signal, ElementRef, viewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, DestroyRef, Injector, afterNextRender, computed, effect, inject, signal, ElementRef, viewChild } from '@angular/core';
+import { AnalyticsService } from '../../../core/services/analytics.service';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { ProjectIoService } from '../../../core/services/project-io.service';
 import { PreferencesState } from '../../../core/services/preferences.state';
@@ -75,9 +76,11 @@ export class CommandPaletteComponent {
   protected ui = inject(UiState);
   private orchestrator = inject(OrchestratorService);
   private projectIo = inject(ProjectIoService);
+  private analytics = inject(AnalyticsService);
   private preferences = inject(PreferencesState);
   private editorState = inject(EditorState);
   private previewState = inject(PreviewState);
+  private injector = inject(Injector);
   private searchInput = viewChild<ElementRef<HTMLInputElement>>('search');
 
   private restoreFocus: (() => void) | null = null;
@@ -101,6 +104,10 @@ export class CommandPaletteComponent {
       {
         group: 'Ajustes', keywords: 'formatear formato atributos orden', run: () => this.preferences.update({ sortAttributes: !this.preferences.sortAttributes() }),
         title: `Formato de Pug: ordenar atributos (${this.preferences.sortAttributes() ? 'activado' : 'desactivado'})`,
+      },
+      {
+        group: 'Ajustes', keywords: 'privacidad cookies telemetria visitas', run: () => this.analytics.toggle(),
+        title: `Privacidad: analítica anónima de visitas (${this.analytics.consent() === 'granted' ? 'permitida' : 'no permitida'})`,
       },
       { group: 'Ajustes', title: 'Alternar auto-compilación', keywords: 'autocompile', run: () => this.preferences.update({ autoCompile: !this.preferences.autoCompile() }) },
       { group: 'Ajustes', title: 'Mostrar u ocultar Workspace', run: () => this.preferences.toggleSidebar() },
@@ -127,6 +134,19 @@ export class CommandPaletteComponent {
   constructor() {
     // Ctrl/Cmd+K en fase de captura: llega antes que Monaco, que usa Ctrl+K como inicio de acordes.
     const onKeydown = (e: KeyboardEvent) => {
+      // Con la paleta abierta pero el foco aún fuera del buscador (los primeros ms tras Ctrl+K), las teclas no
+      // deben llegar al editor: se redirigen a la paleta.
+      if (this.ui.paletteOpen() && e.target !== this.searchInput()?.nativeElement && !(e.ctrlKey || e.metaKey)) {
+        e.stopPropagation();
+        if (e.key.length === 1) {
+          e.preventDefault();
+          this.onQuery(this.query() + e.key);
+        } else if (e.key === 'Backspace') {
+          e.preventDefault();
+          this.onQuery(this.query().slice(0, -1));
+        } else this.onKey(e);
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         e.stopPropagation();
@@ -139,12 +159,15 @@ export class CommandPaletteComponent {
     effect(() => {
       if (this.ui.paletteOpen()) {
         this.restoreFocus = rememberFocus();
-        this.query.set('');
+        // El foco va al buscador en cuanto se pinta, para no perder las primeras teclas (Ctrl+K y escribir de seguido).
+        afterNextRender(() => this.searchInput()?.nativeElement.focus(), { injector: this.injector });
+      } else {
+        this.query.set(''); // la consulta se reinicia al cerrar, no al abrir (así no pisa lo ya escrito)
         this.active.set(0);
-        setTimeout(() => this.searchInput()?.nativeElement.focus());
-      } else if (this.restoreFocus) {
-        this.restoreFocus();
-        this.restoreFocus = null;
+        if (this.restoreFocus) {
+          this.restoreFocus();
+          this.restoreFocus = null;
+        }
       }
     });
   }

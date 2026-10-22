@@ -1,4 +1,4 @@
-import { check, openApp, previewText, projectName, sleep } from '../lib.mjs';
+import { check, openApp, previewText, projectName, sleep, waitUntil } from '../lib.mjs';
 
 // Biblioteca de proyectos, plantillas y paleta de comandos
 export default async function (env) {
@@ -19,7 +19,8 @@ export default async function (env) {
 
   await trigger.click();
   await dialog.waitFor();
-  check('02 la biblioteca lista los dos proyectos', (await page.locator('.row').count()) === 2);
+  const rows = await waitUntil(async () => (await page.locator('.row').count()) === 2);
+  check('02 la biblioteca lista los dos proyectos', !!rows, String(await page.locator('.row').count()));
   await page.locator('.row:not(.current) button:has-text("Abrir")').click();
   await sleep(1500);
   check('02 abrir el otro proyecto lo carga', (await projectName(page)) === 'MiProyecto');
