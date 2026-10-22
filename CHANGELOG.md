@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.1.0] - 2026-10-22
+
 ### Cambiado
 - Limpieza de avisos de ESLint (variables sin uso, `inject()`, parámetros rest).
 
