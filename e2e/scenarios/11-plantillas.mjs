@@ -17,3 +17,16 @@ import { check, run, html, errs } from '../lib.mjs';
     check(`41 ${t.id}: no genera avisos de datos que faltan`, !app.TerminalState.entries().some((e) => e.type === 'error'));
   }
 }
+
+// 43. Avisos de calidad en el terminal (datos sin usar, peso del HTML)
+{
+  const app = await run({ '/main.pug': 'p= usado\n' }, '/main.pug', async (a) => {
+    a.DataState.setInitialData({ usado: 'x', sobrante: 1, otro: 2 });
+    await a.orch.manualCompile();
+  });
+  const hints = () => app.TerminalState.entries().filter((e) => e.source === 'Calidad');
+  check('43 avisa de los datos que no se usan', hints().some((e) => e.message.includes('sobrante') && e.message.includes('otro') && !e.message.includes('usado,')), JSON.stringify(hints()));
+  const n = hints().length;
+  await app.orch.manualCompile();
+  check('43 no repite el mismo aviso al recompilar', hints().length === n);
+}

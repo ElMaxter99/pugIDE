@@ -14,6 +14,7 @@ import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
 import { PersistenceService, ProjectSessionState } from './persistence.service';
 import { ProjectLibraryService } from './project-library.service';
+import { htmlWeightHints, newHints, unusedDataKeys, QualityHint } from '../utils/quality-hints.util';
 import { PROJECT_TEMPLATES } from '../utils/templates.util';
 import { DEFAULT_PROJECT_DATA, DEFAULT_PROJECT_NAME, defaultProjectFiles } from '../utils/default-project.util';
 import { AssetState, AssetFile } from '../state/asset.state';
@@ -54,6 +55,7 @@ export class OrchestratorService {
   private assetsReady = false;
   private libraryWarned = false;
   private fileOps: FileOp[] = [];
+  private hintKeys = new Set<string>();
   /** Descripción de la última operación de archivos que se puede deshacer (null si no hay). */
   readonly fileUndoLabel = signal<string | null>(null);
 
@@ -180,6 +182,7 @@ export class OrchestratorService {
       }
       if (compileResult.html) {
         compileResult.html = this.applyAssets(compileResult.html, files);
+        this.reportQualityHints(parseResult, data, compileResult.html);
         compileResult.html = annotateHtmlLines(compileResult.html);
         compileResult.html = injectIntoBody(compileResult.html, `<script>${INSPECTOR_SCRIPT}</script>`);
       }
@@ -219,6 +222,19 @@ export class OrchestratorService {
         void this.processCode(this.editorState.editorContent(), create);
       }
     }
+  }
+
+  /** Avisos no bloqueantes (datos sin usar, peso del HTML); cada uno se muestra una vez hasta que desaparece. */
+  private reportQualityHints(parseResult: { variables: PugVariable[]; errors: unknown[] }, data: Record<string, unknown>, html: string): void {
+    const hints: QualityHint[] = [...htmlWeightHints(html, new TextEncoder().encode(html).length)];
+    if (parseResult.errors.length === 0 && parseResult.variables.length > 0) {
+      const unused = unusedDataKeys(data, parseResult.variables.map((v) => v.path.split('.')[0]));
+      if (unused.length > 0) {
+        hints.push({ key: `unused:${unused.join(',')}`, severity: 'info', message: `Datos que la plantilla no parece usar: ${unused.join(', ')}.` });
+      }
+    }
+    for (const h of newHints(hints, this.hintKeys)) this.terminalState.addEntry(h.severity, 'Calidad', h.message);
+    this.hintKeys = new Set(hints.map((h) => h.key));
   }
 
   /** Points local image / font references at the uploaded files (as `blob:` URLs) and tracks the ones still missing. */
@@ -413,6 +429,7 @@ export class OrchestratorService {
     data?: Record<string, unknown> | null, opts: { id?: string; openTabPaths?: string[]; activeTabPath?: string | null } = {},
   ): void {
     this.fileOps = [];
+    this.hintKeys = new Set();
     this.fileUndoLabel.set(null);
     void this.saveToLibrary(); // guarda el proyecto que se va a reemplazar (el estado se captura ya, antes de cambiarlo)
     this.assetsReady = true;
