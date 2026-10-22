@@ -12,7 +12,8 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { PreferencesState } from '../../core/services/preferences.state';
-import { PageBreakIssue, findPageBreakIssues, paginateDocument, resetPagination } from '../../core/utils/paginate.util';
+import { PageBreakIssue, PageGeometry, documentContentHeight, findPageBreakIssues, pageGeometry, paginateDocument, resetPagination } from '../../core/utils/paginate.util';
+import { MARGIN_BOX_NAMES, boxesForPage, renderContent } from '../../core/utils/page-rules.util';
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { InspectorState } from '../../core/state/inspector.state';
@@ -160,6 +161,14 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
             </iframe>
             @if (previewState.isPdf()) {
               <div class="page-guides" [style.background-size]="'100% ' + (previewState.pageSize().height * scale()) + 'px'"></div>
+              @if (pageChrome().length) {
+                <div class="page-chrome" aria-hidden="true"
+                  [style.width.px]="frameWidth()" [style.height.px]="frameHeight()" [style.transform]="'scale(' + scale() + ')'">
+                  @for (b of pageChrome(); track b.id) {
+                    <div class="pg-box" [style]="b.style">{{ b.text }}</div>
+                  }
+                </div>
+              }
             }
           </div>
         </div>
@@ -346,6 +355,19 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       white-space: nowrap;
     }
 
+    .page-chrome {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      pointer-events: none;
+    }
+
+    .pg-box {
+      color: #000;
+      font: 16px 'Times New Roman', Times, serif;
+    }
+
     .pdf-warn { color: #e0a030; cursor: help; }
 
     .device-select { max-width: 150px; }
@@ -469,8 +491,52 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     return Math.max(1, Math.ceil(this.contentHeight() / page));
   });
 
+  /** Hoja con sus márgenes (`@page { margin }`): lo que se descuenta del área de contenido de cada página. */
+  private readonly geometry = computed<PageGeometry>(() =>
+    pageGeometry(this.previewState.pageSize().height, this.previewState.pageRules().margin));
+
   protected readonly frameHeight = computed(() =>
     this.previewState.isPdf() ? this.pageCount() * this.previewState.pageSize().height : this.previewState.deviceHeight());
+
+  /** Cajas de margen (cabeceras y pies) de cada página, ya posicionadas sobre la hoja. */
+  protected readonly pageChrome = computed(() => {
+    const rules = this.previewState.pageRules();
+    if (!this.previewState.isPdf() || !(Object.keys(rules.boxes).length || Object.keys(rules.firstBoxes).length)) return [];
+    const { width, height } = this.previewState.pageSize();
+    const m = rules.margin;
+    const third = Math.max(0, width - m.left - m.right) / 3;
+    const pages = this.pageCount();
+    const items: { id: string; text: string; style: Record<string, string> }[] = [];
+    for (let k = 0; k < pages; k++) {
+      const boxes = boxesForPage(rules, k);
+      for (const name of MARGIN_BOX_NAMES) {
+        const box = boxes[name];
+        if (!box?.content) continue;
+        const isTop = name.startsWith('top');
+        const col = name.endsWith('left') ? 0 : name.endsWith('center') ? 1 : 2;
+        const align = col === 0 ? 'left' : col === 1 ? 'center' : 'right';
+        const css = { ...rules.baseStyle, ...box.style };
+        const vertical = css['vertical-align'];
+        delete css['vertical-align'];
+        const style: Record<string, string> = {
+          position: 'absolute',
+          left: `${m.left + col * third}px`,
+          top: `${isTop ? k * height : (k + 1) * height - m.bottom}px`,
+          width: `${third}px`,
+          height: `${isTop ? m.top : m.bottom}px`,
+          display: 'flex',
+          'align-items': vertical === 'top' ? 'flex-start' : vertical === 'bottom' ? 'flex-end' : 'center',
+          'justify-content': col === 0 ? 'flex-start' : col === 1 ? 'center' : 'flex-end',
+          'text-align': align,
+          'box-sizing': 'border-box',
+          overflow: 'hidden',
+          ...css,
+        };
+        items.push({ id: `${k}-${name}`, text: renderContent(box.content, k + 1, pages), style });
+      }
+    }
+    return items;
+  });
 
   protected readonly scale = computed(() => {
     const mode = this.previewState.zoomMode();
@@ -521,6 +587,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     effect(() => {
       this.previewState.isPdf();
       this.previewState.pageSize();
+      this.previewState.pageRules();
       untracked(() => this.reflow());
     });
 
@@ -642,7 +709,9 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     const size = this.previewState.pageSize();
     if (size.source !== 'css') {
       injected = doc.createElement('style');
-      injected.textContent = `@page { size: ${size.width}px ${size.height}px; margin: 0; }`;
+      const m = this.previewState.pageRules().margin;
+      const hasMargins = m.top + m.right + m.bottom + m.left > 0; // los márgenes de la plantilla se respetan
+      injected.textContent = `@page { size: ${size.width}px ${size.height}px;${hasMargins ? '' : ' margin: 0;'} }`;
       doc.head.appendChild(injected);
     }
     // The on-screen page-break emulation adds margins that would stack with the real print breaks.
@@ -706,8 +775,8 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   private measure(): void {
-    const body = this.previewFrame?.nativeElement.contentDocument?.body;
-    if (body) this.contentHeight.set(Math.max(body.scrollHeight, body.offsetHeight));
+    const doc = this.previewFrame?.nativeElement.contentDocument;
+    if (doc?.body) this.contentHeight.set(documentContentHeight(doc, this.geometry()));
   }
 
   /** PDF: emulate page breaks inside the preview document; other devices show the plain flow. */
@@ -716,9 +785,9 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     if (!doc?.body) return;
     resetPagination(doc);
     if (this.previewState.isPdf()) {
-      const pageHeight = this.previewState.pageSize().height;
-      paginateDocument(doc, pageHeight);
-      this.reportPageIssues(findPageBreakIssues(doc, pageHeight));
+      const geometry = this.geometry();
+      paginateDocument(doc, geometry);
+      this.reportPageIssues(findPageBreakIssues(doc, geometry));
     } else if (this.pageIssues().length) {
       this.reportPageIssues([]);
     }

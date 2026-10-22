@@ -18,7 +18,7 @@ html(lang="es")
     header.top
       div
         h1= t('INVOICE.TITLE')
-        p.muted \\#{invoice.number} · #{invoice.date}
+        p.muted ##{invoice.number} · #{invoice.date}
       div.company
         strong= company.name
         p #{company.address}

@@ -1,6 +1,7 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { CompileResult, CompileError } from '../models/index';
 import { ColorSchemeSim } from '../utils/device-presets.util';
+import { parsePageRules } from '../utils/page-rules.util';
 import { detectPageSize, isLandscape, rotatePageSize } from '../utils/page-size.util';
 
 @Injectable({ providedIn: 'root' })
@@ -29,6 +30,9 @@ export class PreviewState {
     if (!wanted || (wanted === 'landscape') === isLandscape(detected)) return detected;
     return rotatePageSize(detected);
   });
+
+  /** Márgenes de página y cajas de margen (`@page { margin; @top-center { content } }`) del HTML renderizado. */
+  readonly pageRules = computed(() => parsePageRules(this.compiledHtml()));
 
   readonly hasErrors = computed(() => this.errors().length > 0);
 
