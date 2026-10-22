@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { debounceTime, Subject } from 'rxjs';
 import { PugParserService } from '../../parser/pug-parser.service';
 import { PugCompilerService } from '../../compiler/pug-compiler.service';
@@ -53,6 +53,9 @@ export class OrchestratorService {
   private initialDataLoaded = false;
   private assetsReady = false;
   private libraryWarned = false;
+  private fileOps: FileOp[] = [];
+  /** Descripción de la última operación de archivos que se puede deshacer (null si no hay). */
+  readonly fileUndoLabel = signal<string | null>(null);
 
   constructor() {
     this.setupAutoCompile();
@@ -409,6 +412,8 @@ export class OrchestratorService {
     files: Map<string, string>, projectName: string, assets: AssetFile[] = [], datasets?: DatasetsFile | null,
     data?: Record<string, unknown> | null, opts: { id?: string; openTabPaths?: string[]; activeTabPath?: string | null } = {},
   ): void {
+    this.fileOps = [];
+    this.fileUndoLabel.set(null);
     void this.saveToLibrary(); // guarda el proyecto que se va a reemplazar (el estado se captura ya, antes de cambiarlo)
     this.assetsReady = true;
     this.adoptProjectId(opts.id);
@@ -538,9 +543,39 @@ export class OrchestratorService {
     this.editorState.openFile(path, name, getFileType(name), content);
   }
 
-  renameFile(oldPath: string, newPath: string): void {
+  private pushFileOp(op: FileOp): void {
+    this.fileOps.push(op);
+    if (this.fileOps.length > 20) this.fileOps.shift();
+    this.fileUndoLabel.set(describeFileOp(op));
+  }
+
+  /** Deshace la última operación de borrado o renombrado de archivos. */
+  undoFileOp(): void {
+    const op = this.fileOps.pop();
+    this.fileUndoLabel.set(this.fileOps.length ? describeFileOp(this.fileOps[this.fileOps.length - 1]) : null);
+    if (!op) return;
+    if (op.kind === 'rename') {
+      this.renameFile(op.to, op.from, false);
+      return;
+    }
+    if (op.asset) {
+      this.assetState.add(op.asset.path, op.asset.data, op.asset.mime);
+      this.refreshTree();
+      void this.manualCompile();
+    } else if (op.content !== undefined && !this.editorState.files().has(op.path)) {
+      const content = op.content;
+      this.editorState.files.update((f) => { f.set(op.path, content); return f; });
+      this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+      this.editorState.openFile(op.path, op.path.split('/').pop() ?? op.path, getFileType(op.path), content);
+    }
+    this.terminalState.addEntry('info', 'Files', `Restaurado ${op.path}`);
+  }
+
+  renameFile(oldPath: string, newPath: string, record = true): void {
     if (this.assetState.has(oldPath)) {
+      if (this.assetState.has(newPath)) return;
       this.assetState.rename(oldPath, newPath);
+      if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });
       this.refreshTree();
       this.terminalState.addEntry('info', 'Files', `Renamed ${oldPath} to ${newPath}`);
       void this.manualCompile();
@@ -558,11 +593,14 @@ export class OrchestratorService {
     const name = newPath.split('/').pop() ?? newPath;
     this.editorState.renameOpenTab(oldPath, newPath, name);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+    if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });
     this.terminalState.addEntry('info', 'Files', `Renamed ${oldPath} to ${newPath}`);
   }
 
   deleteFile(path: string): void {
-    if (this.assetState.has(path)) {
+    const asset = this.assetState.assets().get(path);
+    if (asset) {
+      this.pushFileOp({ kind: 'delete', path, asset });
       this.assetState.remove(path);
       this.refreshTree();
       this.terminalState.addEntry('info', 'Files', `Deleted ${path}`);
@@ -571,6 +609,8 @@ export class OrchestratorService {
     }
     const files = this.editorState.files();
     if (!files.has(path)) return;
+    const live = this.editorState.activeTab()?.path === path ? this.editorState.editorContent() : files.get(path);
+    this.pushFileOp({ kind: 'delete', path, content: live ?? '' });
     this.editorState.files.update((f) => { f.delete(path); return f; });
     this.editorState.closeTabByPath(path);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
@@ -694,4 +734,12 @@ export function uniqueProjectName(base: string, existing: string[]): string {
   let n = 2;
   while (taken.has(`${base} (${n})`.toLowerCase())) n++;
   return `${base} (${n})`;
+}
+
+type FileOp =
+  | { kind: 'delete'; path: string; content?: string; asset?: AssetFile }
+  | { kind: 'rename'; from: string; to: string };
+
+function describeFileOp(op: FileOp): string {
+  return op.kind === 'delete' ? `Deshacer borrar ${op.path}` : `Deshacer renombrar ${op.from} → ${op.to}`;
 }
