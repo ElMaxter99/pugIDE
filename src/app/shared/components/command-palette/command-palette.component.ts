@@ -45,9 +45,9 @@ interface PaletteCommand {
               <li
                 role="option"
                 class="item"
-                [class.active]="i === active()"
-                [attr.aria-selected]="i === active()"
-                (mouseenter)="active.set(i)"
+                [class.active]="i === activeIndex()"
+                [attr.aria-selected]="i === activeIndex()"
+                (mousemove)="active.set(i)"
                 (click)="run(c)">
                 <span class="title">{{ c.title }}</span>
                 <span class="group">{{ c.group }}</span>
@@ -131,6 +131,9 @@ export class CommandPaletteComponent {
 
   protected results = computed(() => filterCommands(this.commands(), this.query()).slice(0, 60));
 
+  /** Elemento resaltado, siempre dentro de los resultados (al filtrar, el índice guardado puede quedar fuera). */
+  protected activeIndex = computed(() => Math.max(0, Math.min(this.active(), this.results().length - 1)));
+
   constructor() {
     // Ctrl/Cmd+K en fase de captura: llega antes que Monaco, que usa Ctrl+K como inicio de acordes.
     const onKeydown = (e: KeyboardEvent) => {
@@ -184,9 +187,9 @@ export class CommandPaletteComponent {
 
   protected onKey(e: KeyboardEvent): void {
     const n = this.results().length;
-    if (e.key === 'ArrowDown') { e.preventDefault(); this.active.set(n ? (this.active() + 1) % n : 0); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); this.active.set(n ? (this.active() - 1 + n) % n : 0); }
-    else if (e.key === 'Enter') { e.preventDefault(); const c = this.results()[this.active()]; if (c) this.run(c); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); this.active.set(n ? (this.activeIndex() + 1) % n : 0); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); this.active.set(n ? (this.activeIndex() - 1 + n) % n : 0); }
+    else if (e.key === 'Enter') { e.preventDefault(); const c = this.results()[this.activeIndex()]; if (c) this.run(c); }
     else if (e.key === 'Escape') { e.preventDefault(); this.close(); }
     else if (e.key === 'Tab') e.preventDefault(); // el único elemento enfocable es el buscador: el foco no sale
   }

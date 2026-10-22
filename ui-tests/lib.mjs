@@ -61,4 +61,4 @@ export const previewText = (page) =>
 
 /** Nombre del proyecto que muestra el botón de la barra superior. */
 export const projectName = async (page) =>
-  (await page.locator('button[title^="Abrir, crear"]').innerText()).replace('folder_open', '').trim();
+  (await page.locator('button[title^="Abrir, crear"]').innerText({ timeout: 1500 }).catch(() => '')).replace('folder_open', '').trim();
