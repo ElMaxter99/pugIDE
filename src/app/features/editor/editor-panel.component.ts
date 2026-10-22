@@ -222,7 +222,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   private loadMonaco(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (typeof (window as any).monaco !== 'undefined') {
         this.initEditor();
         resolve();

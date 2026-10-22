@@ -217,7 +217,7 @@ export class TabsComponent {
     }
   }
 
-  onDragOver(event: DragEvent, index: number): void {
+  onDragOver(event: DragEvent, _index: number): void {
     event.preventDefault();
     event.dataTransfer!.dropEffect = 'move';
   }

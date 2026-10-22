@@ -63,7 +63,7 @@
     g.require = function (id: string) {
       if (id === 'assert') return g.assert;
       if (id === 'util') return { format: function () { return ''; } };
-      if (id === 'path') return { join: function () { return Array.prototype.join.call(arguments, '/'); } };
+      if (id === 'path') return { join: function (...parts: string[]) { return parts.join('/'); } };
       if (id === 'fs') return {};
       if (id === 'buffer') return { Buffer: g.Buffer };
       throw new Error('Module not found: ' + id);

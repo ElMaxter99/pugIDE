@@ -415,7 +415,6 @@ export class OrchestratorService {
   }
 
   addFile(path: string, name: string, content = ''): void {
-    const activePath = this.editorState.activeTab()?.path;
     this.editorState.files.update((f) => { f.set(path, content); return f; });
     this.projectState.setProject(
       this.projectState.projectName(),

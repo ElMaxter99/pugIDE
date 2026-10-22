@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { AppPreferences } from '../models/index';
 import { PersistenceService } from './persistence.service';
 
@@ -19,7 +19,9 @@ export class PreferencesState {
     this.theme() === 'dark' ? 'vs-dark' : 'vs-light'
   );
 
-  constructor(private persistence: PersistenceService) {
+  private readonly persistence = inject(PersistenceService);
+
+  constructor() {
     this.load();
   }
 

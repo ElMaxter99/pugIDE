@@ -50,6 +50,7 @@ interface PugBundle {
   runtime: unknown;
 }
 
+// eslint-disable-next-line no-var
 declare var __pugReadFile: ((path: string, options?: { encoding?: string }) => string) | undefined;
 
 interface ParserBundle {
