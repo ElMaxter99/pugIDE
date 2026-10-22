@@ -30,6 +30,7 @@ parser -> datos -> orquestador -> compilador -> preview. Ver `src/app/core/servi
 - Componentes standalone con `ChangeDetectionStrategy.OnPush`; estado con signals en `core/state`.
 - Lógica de negocio en servicios (`core/services`, `parser`, `compiler`), no en componentes.
 - Utilidades puras en `core/utils`; modelos en `core/models`.
+- Iconos: Material Symbols autoalojados; al añadir uno nuevo ejecuta `npm run fonts:icons`.
 - Persistencia solo vía `PersistenceService` (localStorage) y `AssetStorageService` (IndexedDB), siempre con try/catch.
 - La licencia está en `LICENSE`: no modificarla.
 - Commits pequeños y descriptivos (estilo `feat(...)`, `fix(...)`, `docs: ...`).

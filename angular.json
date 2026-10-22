@@ -49,6 +49,8 @@
               }
             ],
             "styles": [
+              "node_modules/@fontsource-variable/geist/wght.css",
+              "node_modules/@fontsource-variable/jetbrains-mono/wght.css",
               "src/styles.scss"
             ],
             "scripts": []
