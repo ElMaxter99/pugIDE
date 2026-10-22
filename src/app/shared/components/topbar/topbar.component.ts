@@ -10,10 +10,13 @@ import { OrchestratorService } from '../../../core/services/orchestrator.service
 import { ProjectIoService } from '../../../core/services/project-io.service';
 import { TerminalState } from '../../../core/state/terminal.state';
 import { PreferencesState } from '../../../core/services/preferences.state';
+import { ProjectState } from '../../../core/state/project.state';
+import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.component';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
+  imports: [ProjectsDialogComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="topbar">
@@ -28,6 +31,10 @@ import { PreferencesState } from '../../../core/services/preferences.state';
       </div>
       <div class="topbar-right">
         <div class="topbar-actions">
+          <button class="text-btn" title="Abrir, crear, renombrar, duplicar o borrar proyectos guardados en este navegador" (click)="projectsOpen.set(true)">
+            <span class="material-symbols-outlined">folder_open</span>
+            {{ projectState.projectName() }}
+          </button>
           <button class="text-btn" title="Copiar un enlace con el proyecto (archivos, datos y assets pequeños)" (click)="onShare()">
             <span class="material-symbols-outlined">link</span>
             Compartir
@@ -63,6 +70,7 @@ import { PreferencesState } from '../../../core/services/preferences.state';
         </div>
       }
     </header>
+    <app-projects-dialog [isOpen]="projectsOpen()" (closed)="projectsOpen.set(false)" />
   `,
   styles: [`
     .topbar {
@@ -225,6 +233,8 @@ export class TopbarComponent {
   private router = inject(Router);
   protected projectIo = inject(ProjectIoService);
   private terminal = inject(TerminalState);
+  protected projectState = inject(ProjectState);
+  protected projectsOpen = signal(false);
   protected shareNotice = signal<{ text: string; warn: boolean; offerZip: boolean } | null>(null);
 
   goHome(): void {

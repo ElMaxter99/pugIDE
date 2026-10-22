@@ -33,10 +33,11 @@ Editor de código, árbol de datos y vista previa en vivo, con un proyecto demo 
 - Preview en modo PDF / página impresa (lee `@page { size }`, cuenta páginas, imprimir o guardar como PDF).
 - Traducciones: las claves `t('CLAVE.ANIDADA')` generan automáticamente campos editables en los datos.
 - Assets locales (imágenes y fuentes) que subes al proyecto y se guardan en tu navegador.
+- Varios proyectos guardados en tu navegador (botón con el nombre del proyecto en la barra superior): abrir, crear, renombrar, duplicar y borrar.
 
 ## Privacidad
 
-**Nada sale de tu navegador.** No hay backend, ni cuenta, ni subida de código. El proyecto se guarda en el `localStorage` de tu navegador y los assets en IndexedDB. Si borras los datos del sitio, lo pierdes: exporta tus proyectos.
+**Nada sale de tu navegador.** No hay backend, ni cuenta, ni subida de código. La sesión activa se guarda en el `localStorage` de tu navegador y, junto con todos tus proyectos y sus assets, en IndexedDB. Si borras los datos del sitio, lo pierdes: exporta tus proyectos.
 
 ## Importar y exportar
 
@@ -46,7 +47,7 @@ Editor de código, árbol de datos y vista previa en vivo, con un proyecto demo 
 
 ## Limitaciones conocidas
 
-- `localStorage` tiene cuota (~5 MB): proyectos de texto muy grandes pueden no guardarse (se avisa).
+- `localStorage` tiene cuota (~5 MB): si un proyecto de texto es muy grande no se guarda ahí (se avisa), pero la biblioteca de IndexedDB lo conserva y se recupera al volver.
 - Importar/exportar a carpeta no funciona en Firefox/Safari (se usa `.zip`).
 - El preview PDF emula la paginación; el resultado final puede variar según el navegador al imprimir.
 - No hay sincronización entre dispositivos ni colaboración.
