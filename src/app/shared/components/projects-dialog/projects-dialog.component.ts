@@ -1,8 +1,9 @@
-import { Component, ChangeDetectionStrategy, inject, input, output, signal, effect, untracked } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ElementRef, inject, input, output, signal, effect, untracked, viewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { ProjectLibraryService, ProjectSummary } from '../../../core/services/project-library.service';
 import { ProjectState } from '../../../core/state/project.state';
+import { rememberFocus, trapTab } from '../../../core/utils/focus-trap.util';
 import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
 
 /** Lista de proyectos guardados en el navegador: abrir, crear, renombrar, duplicar y borrar. */
@@ -14,7 +15,8 @@ import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
   template: `
     @if (isOpen()) {
       <div class="overlay" (click)="closed.emit()">
-        <div class="dialog" role="dialog" aria-label="Mis proyectos" (click)="$event.stopPropagation()" (keydown.escape)="closed.emit()">
+        <div #dlg class="dialog" role="dialog" aria-modal="true" aria-label="Mis proyectos" tabindex="-1"
+          (click)="$event.stopPropagation()" (keydown.escape)="closed.emit()" (keydown)="onKeydown($event)">
           <div class="header">
             <h3>Mis proyectos</h3>
             <button class="icon" title="Cerrar" aria-label="Cerrar" (click)="closed.emit()">&times;</button>
@@ -106,10 +108,27 @@ export class ProjectsDialogComponent {
   protected currentId = this.projectState.projectId;
   protected currentName = this.projectState.projectName;
 
+  private dialog = viewChild<ElementRef<HTMLElement>>('dlg');
+  private restoreFocus: (() => void) | null = null;
+
   constructor() {
     effect(() => {
-      if (this.isOpen()) untracked(() => void this.refresh());
+      if (this.isOpen()) {
+        untracked(() => {
+          this.restoreFocus = rememberFocus();
+          void this.refresh();
+          setTimeout(() => this.dialog()?.nativeElement.focus());
+        });
+      } else if (this.restoreFocus) {
+        this.restoreFocus();
+        this.restoreFocus = null;
+      }
     });
+  }
+
+  protected onKeydown(e: KeyboardEvent): void {
+    const dlg = this.dialog()?.nativeElement;
+    if (dlg) trapTab(e, dlg);
   }
 
   private async refresh(): Promise<void> {

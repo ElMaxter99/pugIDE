@@ -2,7 +2,7 @@
 
 Entorno de desarrollo visual para **Pug/Jade**: detecta variables, genera datos de prueba (mocks) y previsualiza el resultado en tiempo real, todo en el navegador.
 
-![Versión](https://img.shields.io/badge/version-0.2.0-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
+![Versión](https://img.shields.io/badge/version-0.3.0-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
 
 ## Capturas
 
@@ -15,6 +15,12 @@ Entorno de desarrollo visual para **Pug/Jade**: detecta variables, genera datos 
 Editor de código, árbol de datos y vista previa en vivo, con un proyecto demo cargado.
 
 ![IDE en modo demo](docs/screenshots/ide-demo.png)
+
+### Paleta de comandos (Ctrl/Cmd+K)
+
+Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de archivos.
+
+![Paleta de comandos](docs/screenshots/command-palette.png)
 
 ## Características
 

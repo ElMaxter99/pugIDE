@@ -5,7 +5,11 @@ import {
   output,
   signal,
   effect,
+  ElementRef,
+  viewChild,
+  untracked,
 } from '@angular/core';
+import { focusableElements, rememberFocus, trapTab } from '../../../core/utils/focus-trap.util';
 
 export interface DialogConfig {
   title: string;
@@ -25,7 +29,8 @@ export interface DialogConfig {
   template: `
     @if (isOpen()) {
       <div class="dialog-overlay" (click)="onCancel()">
-        <div class="dialog" (click)="$event.stopPropagation()">
+        <div #dlg class="dialog" role="dialog" aria-modal="true" [attr.aria-label]="config().title" tabindex="-1"
+          (click)="$event.stopPropagation()" (keydown.escape)="onCancel()" (keydown)="onKeydown($event)">
           <div class="dialog-header">
             <h3 class="dialog-title">{{ config().title }}</h3>
             <button class="dialog-close" (click)="onCancel()">
@@ -197,12 +202,33 @@ export class DialogComponent {
 
   inputValue = signal('');
 
+  private dialog = viewChild<ElementRef<HTMLElement>>('dlg');
+  private restoreFocus: (() => void) | null = null;
+
   constructor() {
     effect(() => {
       if (this.isOpen()) {
         this.inputValue.set(this.config().inputValue ?? '');
+        untracked(() => {
+          this.restoreFocus = rememberFocus();
+          // Con campo de texto, el foco va al campo; si no, al botón de confirmar.
+          setTimeout(() => {
+            const dlg = this.dialog()?.nativeElement;
+            const items = dlg ? focusableElements(dlg) : [];
+            const target = items.find((el) => el.tagName === 'INPUT') ?? items[items.length - 1] ?? dlg;
+            target?.focus();
+          });
+        });
+      } else if (this.restoreFocus) {
+        this.restoreFocus();
+        this.restoreFocus = null;
       }
     });
+  }
+
+  onKeydown(e: KeyboardEvent): void {
+    const dlg = this.dialog()?.nativeElement;
+    if (dlg) trapTab(e, dlg);
   }
 
   onConfirm(): void {

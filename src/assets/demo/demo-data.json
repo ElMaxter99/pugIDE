@@ -3,7 +3,7 @@
   "email": "carlos@email.com",
   "edad": 28,
   "activo": true,
-  "avatar": "https://i.pravatar.cc/64?u=1",
+  "avatar": "data:image/svg+xml;utf8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20fill='%236d28d9'/%3E%3Ccircle%20cx='32'%20cy='25'%20r='11'%20fill='%23ede9fe'/%3E%3Cpath%20d='M10%2058c2-13%2012-19%2022-19s20%206%2022%2019z'%20fill='%23ede9fe'/%3E%3C/svg%3E",
 
   "rol": "admin",
   "desactivado": false,

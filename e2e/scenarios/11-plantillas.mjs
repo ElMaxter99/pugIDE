@@ -31,3 +31,10 @@ import { check, run, html, errs } from '../lib.mjs';
   await app.orch.manualCompile();
   check('43 no repite el mismo aviso al recompilar', hints().length === n);
 }
+
+// 44. El proyecto demo no depende de la red (imágenes locales o data:)
+{
+  const { readFileSync } = await import('node:fs');
+  const demo = JSON.parse(readFileSync(new URL('../../src/assets/demo/demo-data.json', import.meta.url), 'utf8'));
+  check('44 el avatar del demo es un data: URI, sin red', typeof demo.avatar === 'string' && demo.avatar.startsWith('data:image/'), String(demo.avatar).slice(0, 60));
+}
