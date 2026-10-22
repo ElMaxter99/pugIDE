@@ -19,9 +19,11 @@ import { PreferencesState } from '../core/services/preferences.state';
 import { PersistenceService, ProjectSessionState } from '../core/services/persistence.service';
 import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dialog.component';
 import { ProjectIoService } from '../core/services/project-io.service';
+import { ProjectLibraryService } from '../core/services/project-library.service';
 import { SharePayload, payloadFromHash } from '../core/utils/share.util';
 import { getFileType } from '../core/models/tab.model';
 import { parseDatasetsFile } from '../core/utils/datasets.util';
+import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PROJECT_NAME } from '../core/utils/default-project.util';
 
 @Component({
   selector: 'app-main-layout',
@@ -117,6 +119,7 @@ export class MainLayoutComponent implements OnInit {
   private persistence = inject(PersistenceService);
   private assetState = inject(AssetState);
   private projectIo = inject(ProjectIoService);
+  private library = inject(ProjectLibraryService);
   protected shareDialogOpen = signal(false);
   protected shareDialog: DialogConfig = {
     title: 'Abrir proyecto compartido',
@@ -169,6 +172,7 @@ export class MainLayoutComponent implements OnInit {
     const isDemo = this.route.snapshot.queryParamMap.get('demo') === 'true';
     if (isDemo) {
       this.orchestrator.markAssetsReady();
+      this.orchestrator.adoptProjectId('demo');
       this.loadDemoProject();
       return;
     }
@@ -189,9 +193,25 @@ export class MainLayoutComponent implements OnInit {
     if (saved && hasSaved) {
       this.restoreSession(saved);
     } else {
-      this.orchestrator.markAssetsReady();
-      this.loadEmptyProject();
+      void this.startFresh();
     }
+  }
+
+  /**
+   * Sin sesión en localStorage (borrada, cuota excedida...): se intenta recuperar el proyecto activo de la
+   * biblioteca (IndexedDB); si tampoco está, empieza uno vacío.
+   */
+  private async startFresh(): Promise<void> {
+    const id = this.persistence.loadCurrentProjectId();
+    const snap = id ? await this.library.load(id) : null;
+    if (id && snap && Object.keys(snap.session.files).length > 0) {
+      this.restoreSession(snap.session);
+      this.orchestrator.useAssets(snap.assets);
+      return;
+    }
+    this.orchestrator.markAssetsReady();
+    this.orchestrator.adoptProjectId();
+    this.loadEmptyProject();
   }
 
   onShareConfirm(): void {
@@ -217,6 +237,7 @@ export class MainLayoutComponent implements OnInit {
 
   private restoreSession(saved: ProjectSessionState): void {
     this.restoringSession = true;
+    this.orchestrator.adoptProjectId(this.persistence.loadCurrentProjectId());
     this.editorState.openTabs.set([]);
     this.editorState.activeTabId.set(null);
     this.editorState.editorContent.set('');
@@ -259,31 +280,15 @@ export class MainLayoutComponent implements OnInit {
   }
 
   private loadEmptyProject(): void {
-    const defaultPug = `doctype html
-html(lang="es")
-  head
-    meta(charset="UTF-8")
-    meta(name="viewport" content="width=device-width, initial-scale=1.0")
-    title PugIDE
-  body
-    h1 Hola, #{nombre}
-    p Empieza a editar tu plantilla Pug y los datos aqui.
-    include ./mixins`;
-
-    const defaultMixins = `//- Define aqui tus mixins y usalos en main.pug con +nombre(args)
-mixin saludo(nombre)
-  p Hola, #{nombre}
-`;
-
     this.editorState.openTabs.set([]);
     this.editorState.activeTabId.set(null);
     this.editorState.editorContent.set('');
     this.editorState.files.set(new Map());
 
-    this.editorState.openFile('/main.pug', 'main.pug', 'pug', defaultPug);
-    this.editorState.files.update((m) => { m.set('/mixins.pug', defaultMixins); return m; });
-    this.projectState.setProject('MiProyecto', this.editorState.files());
-    this.dataState.setInitialData({ nombre: 'Mundo' });
+    this.editorState.openFile('/main.pug', 'main.pug', 'pug', DEFAULT_MAIN_PUG);
+    this.editorState.files.update((m) => { m.set('/mixins.pug', DEFAULT_MIXINS_PUG); return m; });
+    this.projectState.setProject(DEFAULT_PROJECT_NAME, this.editorState.files());
+    this.dataState.setInitialData({ ...DEFAULT_PROJECT_DATA });
     this.orchestrator.markDataInitialized();
     this.previewState.setDevice('Desktop', 1200, 800);
     this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');

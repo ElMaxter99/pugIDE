@@ -21,3 +21,5 @@ export { ProjectIoService } from '../src/app/core/services/project-io.service';
 export { encodeShare, decodeShare, buildShareUrl, payloadFromHash, SHARE_URL_WARN_LENGTH } from '../src/app/core/utils/share.util';
 export { mockifyData } from '../src/app/core/utils/mock-data.util';
 export { parseDatasetsFile, serializeDatasets } from '../src/app/core/utils/datasets.util';
+export { ProjectLibraryService, MemoryLibraryBackend } from '../src/app/core/services/project-library.service';
+export { uniqueProjectName } from '../src/app/core/services/orchestrator.service';

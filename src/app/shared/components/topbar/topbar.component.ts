@@ -10,10 +10,13 @@ import { OrchestratorService } from '../../../core/services/orchestrator.service
 import { ProjectIoService } from '../../../core/services/project-io.service';
 import { TerminalState } from '../../../core/state/terminal.state';
 import { PreferencesState } from '../../../core/services/preferences.state';
+import { ProjectState } from '../../../core/state/project.state';
+import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.component';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
+  imports: [ProjectsDialogComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="topbar">
@@ -28,7 +31,11 @@ import { PreferencesState } from '../../../core/services/preferences.state';
       </div>
       <div class="topbar-right">
         <div class="topbar-actions">
-          <button class="text-btn" title="Copiar un enlace con el proyecto (archivos y datos; sin imágenes ni fuentes)" (click)="onShare()">
+          <button class="text-btn" title="Abrir, crear, renombrar, duplicar o borrar proyectos guardados en este navegador" (click)="projectsOpen.set(true)">
+            <span class="material-symbols-outlined">folder_open</span>
+            {{ projectState.projectName() }}
+          </button>
+          <button class="text-btn" title="Copiar un enlace con el proyecto (archivos, datos y assets pequeños)" (click)="onShare()">
             <span class="material-symbols-outlined">link</span>
             Compartir
           </button>
@@ -54,11 +61,16 @@ import { PreferencesState } from '../../../core/services/preferences.state';
       </div>
       @if (shareNotice(); as n) {
         <div class="share-notice" [class.warn]="n.warn" role="status">
-          <span>{{ n.text }}</span>
+          <span>{{ n.text }}
+            @if (n.offerZip) {
+              <button class="notice-link" (click)="projectIo.downloadZip()">Descargar .zip completo</button>
+            }
+          </span>
           <button class="notice-close" title="Cerrar aviso" (click)="shareNotice.set(null)">&times;</button>
         </div>
       }
     </header>
+    <app-projects-dialog [isOpen]="projectsOpen()" (closed)="projectsOpen.set(false)" />
   `,
   styles: [`
     .topbar {
@@ -179,6 +191,14 @@ import { PreferencesState } from '../../../core/services/preferences.state';
       border-color: #e0a030;
     }
 
+    .notice-link {
+      display: block;
+      margin-top: 6px;
+      color: var(--accent-color);
+      font-size: 13px;
+      text-decoration: underline;
+    }
+
     .notice-close {
       color: var(--text-secondary);
       font-size: 18px;
@@ -211,9 +231,11 @@ export class TopbarComponent {
   protected preferences = inject(PreferencesState);
   private orchestrator = inject(OrchestratorService);
   private router = inject(Router);
-  private projectIo = inject(ProjectIoService);
+  protected projectIo = inject(ProjectIoService);
   private terminal = inject(TerminalState);
-  protected shareNotice = signal<{ text: string; warn: boolean } | null>(null);
+  protected projectState = inject(ProjectState);
+  protected projectsOpen = signal(false);
+  protected shareNotice = signal<{ text: string; warn: boolean; offerZip: boolean } | null>(null);
 
   goHome(): void {
     this.router.navigate(['/']);
@@ -234,7 +256,7 @@ export class TopbarComponent {
   }
 
   async onShare(): Promise<void> {
-    const { url, length, tooLong } = this.projectIo.buildShareLink(location.origin + '/ide');
+    const { url, length, tooLong, included, omitted } = this.projectIo.buildShareLink(location.origin + '/ide');
     let copied = true;
     try {
       await navigator.clipboard.writeText(url);
@@ -243,11 +265,12 @@ export class TopbarComponent {
     }
     let text = copied ? 'Enlace copiado al portapapeles.' : 'No se pudo copiar automáticamente: copia el enlace de la barra de direcciones.';
     if (!copied) history.replaceState(null, '', url);
-    text += ' No incluye imágenes ni fuentes subidas.';
+    if (included.length) text += ` Incluye ${included.length} asset(s) pequeño(s).`;
+    if (omitted.length) text += ` No caben en el enlace: ${omitted.join(', ')}.`;
     if (tooLong) {
       text += ` Aviso: el enlace es muy largo (${length} caracteres) y puede no funcionar en algunos navegadores o aplicaciones de mensajería. Considera exportar un .zip.`;
     }
-    this.shareNotice.set({ text, warn: tooLong || !copied });
+    this.shareNotice.set({ text, warn: tooLong || !copied || omitted.length > 0, offerZip: tooLong || omitted.length > 0 });
     this.terminal.addEntry(tooLong ? 'warning' : 'success', 'Compartir', text);
   }
 

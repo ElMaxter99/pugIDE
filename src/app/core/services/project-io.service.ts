@@ -9,7 +9,7 @@ import { ASSET_EXT_RE, mimeForPath } from '../utils/asset.util';
 import { DataState } from '../state/data.state';
 import { PreviewState } from '../state/preview.state';
 import {
-  SHARE_URL_WARN_LENGTH, SharePayload, ShareDecodeError, buildShareUrl, decodeShare, encodeShare,
+  SHARE_URL_WARN_LENGTH, SharePayload, ShareDecodeError, buildShareUrl, decodeShare, encodeShare, splitAssetsForShare,
 } from '../utils/share.util';
 import { buildStandaloneHtml, bytesToDataUri } from '../utils/export-html.util';
 import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
@@ -81,6 +81,14 @@ export class ProjectIoService {
     const writable = await fileHandle.createWritable();
     await writable.write(content);
     await writable.close();
+  }
+
+  /** Descarga siempre un .zip (aunque el navegador soporte carpetas): sirve para compartir el proyecto completo. */
+  downloadZip(): void {
+    const files = new Map(this.editorState.allFileContents());
+    const active = this.editorState.activeTab()?.path;
+    if (active && files.has(active)) files.set(active, this.editorState.editorContent());
+    this.exportToZip(files);
   }
 
   private exportToZip(files: Map<string, string>): void {
@@ -166,15 +174,22 @@ export class ProjectIoService {
 
   /**
    * Enlace compartible del proyecto (archivos de texto + datos, comprimidos en el hash de la URL).
-   * Los assets binarios (imágenes y fuentes) no se incluyen.
+   * Los assets pequeños (hasta `SHARE_MAX_ASSET_BYTES` en total) viajan dentro; el resto se devuelve en `omitted`.
    */
-  buildShareLink(base: string): { url: string; length: number; tooLong: boolean } {
+  buildShareLink(base: string): { url: string; length: number; tooLong: boolean; included: string[]; omitted: string[] } {
     const files = new Map(this.editorState.allFileContents());
     const active = this.editorState.activeTab()?.path;
     if (active && files.has(active)) files.set(active, this.editorState.editorContent()); // lo que se está escribiendo
-    const payload = encodeShare(this.projectState.projectName(), files, this.dataState.data());
+    const { included, omitted } = splitAssetsForShare(this.assetState.assets().values());
+    const payload = encodeShare(this.projectState.projectName(), files, this.dataState.data(), included);
     const url = buildShareUrl(base, payload);
-    return { url, length: url.length, tooLong: url.length > SHARE_URL_WARN_LENGTH };
+    return {
+      url,
+      length: url.length,
+      tooLong: url.length > SHARE_URL_WARN_LENGTH,
+      included: included.map((a) => a.path),
+      omitted: omitted.map((a) => a.path),
+    };
   }
 
   /** Decodifica un payload de enlace; en caso de error lo anota en el terminal y devuelve null. */
@@ -189,8 +204,13 @@ export class ProjectIoService {
   }
 
   loadShared(shared: SharePayload): void {
-    this.orchestrator.loadProject(shared.files, shared.projectName, [], null, shared.data);
-    this.terminalState.addEntry('info', 'Compartir', 'Proyecto cargado desde un enlace (sin imágenes ni fuentes).');
+    this.orchestrator.loadProject(shared.files, shared.projectName, shared.assets, null, shared.data);
+    const n = shared.assets.length;
+    this.terminalState.addEntry(
+      'info',
+      'Compartir',
+      n > 0 ? `Proyecto cargado desde un enlace (${n} asset${n === 1 ? '' : 's'} incluido${n === 1 ? '' : 's'}).` : 'Proyecto cargado desde un enlace (sin imágenes ni fuentes).',
+    );
   }
 
   /** HTML renderizado autocontenido (sin inspector ni atributos data-pugide-*, assets locales como data URI). */

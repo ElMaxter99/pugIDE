@@ -26,7 +26,7 @@ import { check, run, sleep, html } from '../lib.mjs';
   check('27 rechaza basura y caracteres invalidos', bad('!!!') && bad('abc') && bad(''));
   const { deflateSync, strToU8 } = await import('fflate');
   const enc = (o) => Buffer.from(deflateSync(strToU8(JSON.stringify(o)))).toString('base64url');
-  check('27 rechaza version, archivos vacios, tipos y rutas con ..', bad(enc({ v: 2, f: { '/a.pug': 'x' } })) && bad(enc({ v: 1, f: {} })) && bad(enc({ v: 1, f: { '/a.pug': 5 } })) && bad(enc({ v: 1, f: { '/../a.pug': 'x' } })) && bad(enc({ v: 1, f: { '/a.pug': 'x' }, d: [] })));
+  check('27 rechaza version, archivos vacios, tipos y rutas con ..', bad(enc({ v: 3, f: { '/a.pug': 'x' } })) && bad(enc({ v: 1, f: {} })) && bad(enc({ v: 1, f: { '/a.pug': 5 } })) && bad(enc({ v: 1, f: { '/../a.pug': 'x' } })) && bad(enc({ v: 1, f: { '/a.pug': 'x' }, d: [] })));
   check('27 rechaza bomba de descompresion', bad(enc({ v: 1, f: { '/a.pug': 'a'.repeat(6 * 1024 * 1024) } })));
   check('27 acepta sin datos y normaliza ruta', decodeShare(enc({ v: 1, f: { 'a.pug': 'p x' } })).files.has('/a.pug'));
   check('27 parseShare anota error en terminal y devuelve null', io.parseShare('zzz') === null && app.TerminalState.entries().some((e) => e.source === 'Compartir' && e.type === 'error'));
@@ -37,6 +37,16 @@ import { check, run, sleep, html } from '../lib.mjs';
   await sleep(50); await app2.orch.manualCompile();
   check('28 loadShared carga archivos, nombre y datos', app2.EditorState.files().has('/main.pug') && !app2.EditorState.files().has('/old.pug') && app2.DataState.data().titulo === 'Hola');
   check('28 el preview del proyecto cargado refleja los datos', html(app2).includes('<h1') && html(app2).includes('Hola'), html(app2).slice(0, 200));
+
+  // 28b. Assets pequeños viajan en el enlace; los grandes se omiten
+  check('28b el asset pequeño viaja en el enlace', link.included.includes('/img/a.png') && link.omitted.length === 0, JSON.stringify(link));
+  check('28b decodifica el asset con su mime', dec.assets.length === 1 && dec.assets[0].path === '/img/a.png' && dec.assets[0].mime === 'image/png' && dec.assets[0].data.length === 4);
+  check('28b loadShared restaura el asset', app2.AssetState.has('/img/a.png'));
+  app.AssetState.add('/img/big.png', new Uint8Array(70 * 1024), 'image/png');
+  const link2 = io.buildShareLink('https://x.test/ide');
+  check('28b el asset grande se omite y se avisa', link2.omitted.includes('/img/big.png') && link2.included.includes('/img/a.png'), JSON.stringify([link2.included, link2.omitted]));
+  check('28b enlace v1 antiguo sigue abriendo (sin assets)', decodeShare(enc({ v: 1, f: { '/a.pug': 'p x' } })).assets.length === 0);
+  check('28b rechaza assets con extensión o ruta no válidas', bad(enc({ v: 2, f: { '/a.pug': 'x' }, a: { '/x.exe': 'AAAA' } })) && bad(enc({ v: 2, f: { '/a.pug': 'x' }, a: { '/../x.png': 'AAAA' } })));
 
   // 29. Exportar HTML autocontenido
   const out = io.buildStandaloneHtml();

@@ -12,7 +12,9 @@ import { DataState } from '../state/data.state';
 import { TerminalState } from '../state/terminal.state';
 import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
-import { PersistenceService } from './persistence.service';
+import { PersistenceService, ProjectSessionState } from './persistence.service';
+import { ProjectLibraryService } from './project-library.service';
+import { DEFAULT_PROJECT_DATA, DEFAULT_PROJECT_NAME, defaultProjectFiles } from '../utils/default-project.util';
 import { AssetState, AssetFile } from '../state/asset.state';
 import { AssetStorageService } from './asset-storage.service';
 import { inlineLocalStylesheets, isStylePath } from '../utils/style-refs.util';
@@ -21,7 +23,7 @@ import { PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
 import { buildDataSkeleton } from '../utils/data-skeleton.util';
 import { errorifyData, mockifyData, mockLeaf } from '../utils/mock-data.util';
-import { DatasetKind, DatasetsFile } from '../utils/datasets.util';
+import { DatasetKind, DatasetsFile, parseDatasetsFile } from '../utils/datasets.util';
 import { inferData } from '../utils/schema-infer.util';
 import { buildTranslationSkeleton, TRANSLATIONS_KEY } from '../utils/i18n.util';
 import { findEntryPath, normalize, resolveVirtualPath } from '../utils/pug-vfs.util';
@@ -41,6 +43,7 @@ export class OrchestratorService {
   private persistence = inject(PersistenceService);
   private assetState = inject(AssetState);
   private assetStorage = inject(AssetStorageService);
+  private library = inject(ProjectLibraryService);
 
   private codeChange$ = new Subject<string>();
   private isProcessing = false;
@@ -48,6 +51,7 @@ export class OrchestratorService {
   private createMissingRequested = false;
   private initialDataLoaded = false;
   private assetsReady = false;
+  private libraryWarned = false;
 
   constructor() {
     this.setupAutoCompile();
@@ -275,6 +279,15 @@ export class OrchestratorService {
     await this.manualCompile();
   }
 
+  /** Usa estos assets (p. ej. los de la biblioteca cuando la sesión se recupera de ella) y recompila. */
+  useAssets(list: AssetFile[]): void {
+    this.assetsReady = true;
+    if (list.length === 0) return;
+    this.assetState.replaceAll(list);
+    this.refreshTree();
+    void this.manualCompile();
+  }
+
   /** Sessions that start without stored assets (demo, empty project) must not wipe them before a restore. */
   markAssetsReady(): void {
     this.assetsReady = true;
@@ -284,26 +297,117 @@ export class OrchestratorService {
     if (!this.assetsReady) return;
     const ok = await this.assetStorage.save([...this.assetState.assets().values()]);
     if (!ok) this.terminalState.addEntry('warning', 'Assets', 'No se pudieron guardar las imágenes en el navegador (almacenamiento lleno o bloqueado).');
+    await this.saveToLibrary();
+  }
+
+  /** Asigna el id del proyecto activo en la biblioteca (uno nuevo si no se indica) y lo recuerda. */
+  adoptProjectId(id?: string | null): string {
+    const value = id || this.library.newId();
+    this.projectState.projectId.set(value);
+    this.persistence.saveCurrentProjectId(value);
+    return value;
+  }
+
+  /** Guarda el proyecto activo en la biblioteca (IndexedDB), con sus assets. Espera a que los assets estén cargados. */
+  async saveToLibrary(): Promise<void> {
+    const id = this.projectState.projectId();
+    const session = this.buildSession();
+    if (!id || !session || !this.assetsReady) return;
+    const ok = await this.library.save(id, { session, assets: [...this.assetState.assets().values()] });
+    if (!ok && !this.libraryWarned) {
+      this.libraryWarned = true;
+      this.terminalState.addEntry('warning', 'Proyectos', 'No se pudo guardar el proyecto en la biblioteca del navegador (almacenamiento lleno o bloqueado).');
+    }
+  }
+
+  /** Abre un proyecto guardado en la biblioteca (guardando antes el actual). */
+  async openProject(id: string): Promise<boolean> {
+    if (id === this.projectState.projectId()) return true;
+    await this.saveToLibrary();
+    const snap = await this.library.load(id);
+    if (!snap || Object.keys(snap.session.files).length === 0) {
+      this.terminalState.addEntry('error', 'Proyectos', 'No se pudo abrir el proyecto: no está en la biblioteca.');
+      return false;
+    }
+    const { session } = snap;
+    this.loadProject(
+      new Map(Object.entries(session.files)), session.projectName, snap.assets,
+      session.datasets ? parseDatasetsFile(session.datasets) : null, null,
+      { id, openTabPaths: session.openTabPaths, activeTabPath: session.activeTabPath },
+    );
+    return true;
+  }
+
+  /** Crea un proyecto nuevo con la plantilla inicial (guardando antes el actual). */
+  async createProject(name?: string): Promise<void> {
+    await this.saveToLibrary();
+    const existing = (await this.library.list()).map((p) => p.name);
+    this.loadProject(defaultProjectFiles(), uniqueProjectName(name?.trim() || DEFAULT_PROJECT_NAME, existing), [], null, { ...DEFAULT_PROJECT_DATA });
+  }
+
+  /** Borra un proyecto de la biblioteca; si era el activo, abre el más reciente o crea uno nuevo. */
+  async deleteProject(id: string): Promise<void> {
+    const wasCurrent = id === this.projectState.projectId();
+    if (wasCurrent) this.projectState.projectId.set(null); // evita que el guardado previo al cambio lo vuelva a escribir
+    await this.library.remove(id);
+    if (!wasCurrent) return;
+    const next = (await this.library.list())[0];
+    if (!next || !(await this.openProject(next.id))) await this.createProject();
+  }
+
+  /** Cambia el nombre de un proyecto (el activo se renombra en memoria y se guarda con la sesión). */
+  async renameProject(id: string, name: string): Promise<void> {
+    const clean = name.trim();
+    if (!clean) return;
+    if (id === this.projectState.projectId()) {
+      this.projectState.projectName.set(clean);
+      this.saveSession();
+      await this.saveToLibrary();
+    } else {
+      await this.library.rename(id, clean);
+    }
+  }
+
+  /** Duplica un proyecto de la biblioteca (guardando antes el actual) y devuelve el id de la copia. */
+  async duplicateProject(id: string): Promise<string | null> {
+    await this.saveToLibrary();
+    const list = await this.library.list();
+    const source = list.find((p) => p.id === id);
+    if (!source) return null;
+    return this.library.duplicate(id, uniqueProjectName(`${source.name} (copia)`, list.map((p) => p.name)));
   }
 
   private refreshTree(): void {
     this.projectState.setAssetPaths(this.assetState.paths(), this.editorState.files());
   }
 
-  saveSession(): void {
+  private buildSession(): ProjectSessionState | null {
     const files = this.editorState.files();
-    if (files.size === 0) return;
-    this.persistence.saveProjectState({
+    if (files.size === 0) return null;
+    return {
       projectName: this.projectState.projectName(),
       files: Object.fromEntries(files),
       openTabPaths: this.editorState.openTabs().map((t) => t.path),
       activeTabPath: this.editorState.activeTab()?.path ?? null,
       datasets: this.dataState.snapshotDatasets(),
-    });
+    };
+  }
+
+  saveSession(): void {
+    const session = this.buildSession();
+    if (!session) return;
+    this.persistence.saveProjectState(session);
+    void this.saveToLibrary();
   }
 
   /** Replaces the whole in-memory project (used by import) and recompiles from scratch. */
-  loadProject(files: Map<string, string>, projectName: string, assets: AssetFile[] = [], datasets?: DatasetsFile | null, data?: Record<string, unknown> | null): void {
+  loadProject(
+    files: Map<string, string>, projectName: string, assets: AssetFile[] = [], datasets?: DatasetsFile | null,
+    data?: Record<string, unknown> | null, opts: { id?: string; openTabPaths?: string[]; activeTabPath?: string | null } = {},
+  ): void {
+    void this.saveToLibrary(); // guarda el proyecto que se va a reemplazar (el estado se captura ya, antes de cambiarlo)
+    this.assetsReady = true;
+    this.adoptProjectId(opts.id);
     this.assetState.replaceAll(assets);
     this.editorState.openTabs.set([]);
     this.editorState.activeTabId.set(null);
@@ -322,6 +426,13 @@ export class OrchestratorService {
       const name = firstPugPath.split('/').pop() ?? firstPugPath;
       this.editorState.openFile(firstPugPath, name, getFileType(name), files.get(firstPugPath) ?? '');
     }
+    for (const path of opts.openTabPaths ?? []) {
+      if (path === firstPugPath || !files.has(path)) continue;
+      const tabName = path.split('/').pop() ?? path;
+      this.editorState.openFile(path, tabName, getFileType(tabName), files.get(path) ?? '');
+    }
+    const active = opts.activeTabPath && this.editorState.openTabs().find((t) => t.path === opts.activeTabPath);
+    if (active) this.editorState.selectTab(active.id);
 
     this.terminalState.addEntry(
       'success',
@@ -570,4 +681,13 @@ export class OrchestratorService {
     }
     current[keys[keys.length - 1]] = value;
   }
+}
+
+/** Nombre que no coincide (sin distinguir mayúsculas) con ninguno de `existing`: `Nombre`, `Nombre (2)`, `Nombre (3)`... */
+export function uniqueProjectName(base: string, existing: string[]): string {
+  const taken = new Set(existing.map((n) => n.toLowerCase()));
+  if (!taken.has(base.toLowerCase())) return base;
+  let n = 2;
+  while (taken.has(`${base} (${n})`.toLowerCase())) n++;
+  return `${base} (${n})`;
 }

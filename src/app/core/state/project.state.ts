@@ -4,6 +4,8 @@ import { FileNode } from '../models/file-node.model';
 @Injectable({ providedIn: 'root' })
 export class ProjectState {
   readonly projectName = signal('untitled-project');
+  /** Identificador en la biblioteca de proyectos (se asigna al arrancar o al cargar uno). */
+  readonly projectId = signal<string | null>(null);
   readonly fileTree = signal<FileNode[]>([]);
   readonly expandedDirs = signal<Set<string>>(new Set());
   private assetPaths: string[] = [];

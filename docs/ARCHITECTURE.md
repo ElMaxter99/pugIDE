@@ -43,13 +43,15 @@ Además de dispositivos (escritorio/móvil), el preview tiene modo **PDF / pági
 
 ## Persistencia e import/export
 
+- **Biblioteca de proyectos** (`ProjectLibraryService`, IndexedDB `pug-ide-projects`): cada proyecto se guarda con su id (`ProjectState.projectId`), sesión (archivos, pestañas, juegos de datos) y assets. `OrchestratorService.saveSession` / `saveAssets` la actualizan en cada autoguardado; `openProject`, `createProject`, `renameProject`, `duplicateProject` y `deleteProject` la gestionan desde `ProjectsDialogComponent` (botón del proyecto en la barra superior). `localStorage` sigue guardando la sesión activa (`pug-ide-project`) y su id (`pug-ide-current-project`); si falta, `MainLayoutComponent` la recupera de la biblioteca. `loadProject` (importar, compartir, abrir) guarda antes el proyecto que reemplaza. El backend es intercambiable (`LibraryBackend`) para las pruebas.
+
 - Sesión y preferencias en `localStorage` (`pug-ide-project`, `pug-ide-preferences`); si falla la escritura se expone `lastWriteFailed`.
 - Assets binarios (imágenes y fuentes) en IndexedDB (`pug-ide-assets`) vía `AssetStorageService`; los fallos no son fatales.
 - `ProjectIoService`: exporta a carpeta (File System Access API) o `.zip` (fflate), incluyendo los assets; importa carpeta o `.zip`.
 
 ## Compartir y exportar HTML
 
-- **Compartir por enlace** (`share.util`, `ProjectIoService.buildShareLink`): archivos de texto + datos se serializan a JSON `{v, n, f, d}`, se comprimen con fflate (deflate) y se codifican en base64url en el hash (`/ide#p=...`). Todo ocurre en el cliente; el hash nunca se envía al servidor. **Los assets binarios (imágenes y fuentes) no se incluyen.** Si el enlace supera ~8000 caracteres se muestra un aviso.
+- **Compartir por enlace** (`share.util`, `ProjectIoService.buildShareLink`): archivos de texto + datos se serializan a JSON `{v, n, f, d}`, se comprimen con fflate (deflate) y se codifican en base64url en el hash (`/ide#p=...`). Todo ocurre en el cliente; el hash nunca se envía al servidor. Los assets binarios pequeños (hasta `SHARE_MAX_ASSET_BYTES`, 60 KB en total) viajan en el payload v2 (`a: {ruta: base64url}`); los demás no se incluyen y el aviso ofrece descargar el `.zip` (`ProjectIoService.downloadZip`). Se siguen leyendo enlaces v1. Si el enlace supera ~8000 caracteres se muestra un aviso.
 - Al abrir `/ide#p=...`, `MainLayoutComponent` decodifica y valida el payload (versión, rutas, tipos, tope de 5 MB descomprimido); si hay sesión guardada pide confirmación antes de reemplazarla, y luego carga con `OrchestratorService.loadProject`. Un enlace inválido se ignora con un error en el terminal.
 - **Exportar HTML** (`export-html.util`): parte de `PreviewState.compiledHtml`, quita el script del inspector y los atributos `data-pugide-*` y sustituye las URLs `blob:` de los assets por data URIs. El CSS ya va inline.
 

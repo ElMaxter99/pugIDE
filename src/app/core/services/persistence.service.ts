@@ -4,6 +4,7 @@ import type { DatasetsFile } from '../utils/datasets.util';
 
 const STORAGE_KEY = 'pug-ide-preferences';
 const PROJECT_KEY = 'pug-ide-project';
+const CURRENT_ID_KEY = 'pug-ide-current-project';
 
 export interface ProjectSessionState {
   projectName: string;
@@ -68,12 +69,29 @@ export class PersistenceService {
     }
   }
 
+  /** Identificador del proyecto activo en la biblioteca (`ProjectLibraryService`). */
+  loadCurrentProjectId(): string | null {
+    try {
+      return localStorage.getItem(CURRENT_ID_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  saveCurrentProjectId(id: string): void {
+    try {
+      localStorage.setItem(CURRENT_ID_KEY, id);
+    } catch { /* ignore */ }
+  }
+
   clearAll(): void {
+    try { localStorage.removeItem(CURRENT_ID_KEY); } catch { /* ignore */ }
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(PROJECT_KEY);
   }
 
   clearProjectState(): void {
     localStorage.removeItem(PROJECT_KEY);
+    try { localStorage.removeItem(CURRENT_ID_KEY); } catch { /* ignore */ }
   }
 }
