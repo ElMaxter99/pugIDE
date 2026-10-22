@@ -49,7 +49,7 @@ Además de dispositivos (escritorio/móvil), el preview tiene modo **PDF / pági
 
 ## Compartir y exportar HTML
 
-- **Compartir por enlace** (`share.util`, `ProjectIoService.buildShareLink`): archivos de texto + datos se serializan a JSON `{v, n, f, d}`, se comprimen con fflate (deflate) y se codifican en base64url en el hash (`/ide#p=...`). Todo ocurre en el cliente; el hash nunca se envía al servidor. **Los assets binarios (imágenes y fuentes) no se incluyen.** Si el enlace supera ~8000 caracteres se muestra un aviso.
+- **Compartir por enlace** (`share.util`, `ProjectIoService.buildShareLink`): archivos de texto + datos se serializan a JSON `{v, n, f, d}`, se comprimen con fflate (deflate) y se codifican en base64url en el hash (`/ide#p=...`). Todo ocurre en el cliente; el hash nunca se envía al servidor. Los assets binarios pequeños (hasta `SHARE_MAX_ASSET_BYTES`, 60 KB en total) viajan en el payload v2 (`a: {ruta: base64url}`); los demás no se incluyen y el aviso ofrece descargar el `.zip` (`ProjectIoService.downloadZip`). Se siguen leyendo enlaces v1. Si el enlace supera ~8000 caracteres se muestra un aviso.
 - Al abrir `/ide#p=...`, `MainLayoutComponent` decodifica y valida el payload (versión, rutas, tipos, tope de 5 MB descomprimido); si hay sesión guardada pide confirmación antes de reemplazarla, y luego carga con `OrchestratorService.loadProject`. Un enlace inválido se ignora con un error en el terminal.
 - **Exportar HTML** (`export-html.util`): parte de `PreviewState.compiledHtml`, quita el script del inspector y los atributos `data-pugide-*` y sustituye las URLs `blob:` de los assets por data URIs. El CSS ya va inline.
 

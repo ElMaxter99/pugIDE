@@ -62,3 +62,38 @@ test('formatPug is idempotent', () => {
   const once = formatPug('div\n      a\n         b\n   c\n');
   assert.equal(formatPug(once), once);
 });
+
+test('formatPug normaliza atributos simples (comillas y espacios)', () => {
+  assert.equal(formatPug('a(href = "x",  title="y"  disabled) hola\n'), "a(href='x' title='y' disabled) hola\n");
+  assert.equal(formatPug('p(title="it\'s")\n'), "p(title=\"it's\")\n");
+  assert.equal(formatPug('.card(data-id=5 class="a")\n'), ".card(data-id=5 class='a')\n");
+});
+
+test('formatPug no toca atributos con expresiones, mixins ni condicionales', () => {
+  for (const src of [
+    'a(href="/x/" + id)\n', 'a(class={ on: x })\n', 'a(href=fn(1))\n', '+card(1, "a")\n', 'if(a && b)\n  p x\n',
+    'p(title=`t ${x}`)\n', 'a(href=a ? "b" : "c")\n', 'p Texto (sin cerrar\n  b x\n',
+  ]) assert.equal(formatPug(src), src);
+});
+
+test('formatPug reparte las etiquetas largas en varias líneas y es idempotente', () => {
+  const src = 'div\n  a(href="https://ejemplo.com/una/ruta/bastante/larga" class="boton boton-primario" target="_blank" rel="noopener noreferrer") Ir\n';
+  const out = formatPug(src);
+  assert.equal(
+    out,
+    "div\n  a(\n    href='https://ejemplo.com/una/ruta/bastante/larga'\n    class='boton boton-primario'\n    target='_blank'\n    rel='noopener noreferrer'\n  ) Ir\n",
+  );
+  assert.equal(formatPug(out), out);
+});
+
+test('formatPug junta atributos multilínea y conserva los complejos', () => {
+  assert.equal(formatPug('a(\n      href="x"\n  title="y"\n) hi\n  b z\n'), "a(href='x' title='y') hi\n  b z\n");
+  const complex = 'a(\n  href="/a/" + id\n  title="y"\n) hi\np after\n';
+  assert.equal(formatPug(complex), complex);
+  assert.equal(formatPug(formatPug(complex)), complex);
+});
+
+test('formatPug sigue reconociendo bloques de texto con atributos', () => {
+  const src = "script(type='module' src='x').\n    let a = 1\np x\n";
+  assert.equal(formatPug(src), "script(type='module' src='x').\n  let a = 1\np x\n");
+});

@@ -151,17 +151,90 @@ export function searchProject(
   return out;
 }
 
+/** Ancho a partir del cual una etiqueta con varios atributos se reparte en varias líneas. */
+const PRINT_WIDTH = 100;
+
+/** Palabras reservadas que pueden ir seguidas de `(` sin ser una etiqueta con atributos. */
+const NON_TAG_KEYWORDS = new Set([
+  'if', 'else', 'unless', 'while', 'case', 'when', 'each', 'for', 'mixin', 'block', 'extends',
+  'include', 'append', 'prepend', 'yield', 'default', 'doctype',
+]);
+
+const TAG_HEAD_RE = /^(?:[A-Za-z][\w:-]*|(?=[.#][\w-]))(?:[.#][\w-]+)*/;
+
+/** Índice del `)` que cierra el `(` de `open` (respeta comillas), o -1 si no se cierra en `text`. */
+function findClosingParen(text: string, open: number): number {
+  let depth = 0;
+  let quote = '';
+  for (let i = open; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      if (c === '\\') i++;
+      else if (c === quote) quote = '';
+    } else if (c === '"' || c === "'" || c === '`') quote = c;
+    else if (c === '(') depth++;
+    else if (c === ')' && --depth === 0) return i;
+  }
+  return -1;
+}
+
+const ATTR_NAME_RE = /^[A-Za-z_:@[*#][^\s=,'"()!]*/;
+const ATTR_STRING_RE = /^(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")/;
+const ATTR_BARE_RE = /^(?:-?\d+(?:\.\d+)?|[A-Za-z_$][\w$.]*)/;
+
+/**
+ * Atributos "simples" (`nombre`, `nombre=valor` con valor entre comillas, número o identificador)
+ * normalizados con comillas simples y un espacio de separación. Devuelve null si hay algo más
+ * complejo (concatenaciones, objetos, llamadas...): entonces no se toca.
+ */
+function parseSimpleAttrs(inner: string): string[] | null {
+  const attrs: string[] = [];
+  let rest = inner.trim();
+  while (rest) {
+    const name = ATTR_NAME_RE.exec(rest)?.[0];
+    if (!name) return null;
+    rest = rest.slice(name.length);
+    const eq = /^\s*(!?=)\s*/.exec(rest);
+    let attr = name;
+    if (eq) {
+      rest = rest.slice(eq[0].length);
+      const str = ATTR_STRING_RE.exec(rest)?.[0];
+      const value = str ?? ATTR_BARE_RE.exec(rest)?.[0];
+      if (!value) return null;
+      rest = rest.slice(value.length);
+      let out = value;
+      if (str && str[0] === '"' && !str.includes("'") && !str.includes('\\')) out = `'${str.slice(1, -1)}'`;
+      attr += eq[1] + out;
+    }
+    const sep = /^(?:\s*,\s*|\s+|$)/.exec(rest);
+    if (!sep) return null;
+    rest = rest.slice(sep[0].length);
+    attrs.push(attr);
+  }
+  return attrs;
+}
+
+/** Cabecera de etiqueta con atributos al inicio de `body` (`a.btn(href="x")`), o null si no aplica. */
+function splitTagAttrs(body: string): { head: string; open: number; close: number } | null {
+  const head = TAG_HEAD_RE.exec(body)?.[0];
+  if (!head || NON_TAG_KEYWORDS.has(head) || body[head.length] !== '(') return null;
+  return { head, open: head.length, close: findClosingParen(body, head.length) };
+}
+
 /**
  * Simple Pug formatter. Prettier has no built-in Pug support and the community
- * plugin (@prettier/plugin-pug) is not bundled, so this only normalises
- * whitespace:
+ * plugin (@prettier/plugin-pug) is not bundled, so this is a conservative,
+ * hand-written formatter:
  *  - re-indents every line to a consistent unit (`indent`) following the
  *    nesting implied by the original relative indentation,
  *  - converts tabs to spaces, strips trailing whitespace, collapses runs of
- *    blank lines into one, and ensures one trailing newline.
- * It does NOT reflow attributes or touch the inside of raw text blocks
- * (`script.`, `| ` blocks, `//` comment blocks): their lines keep their
- * relative indentation.
+ *    blank lines into one, and ensures one trailing newline,
+ *  - normalises simple tag attributes (`a(href = "x",  title="y")` ->
+ *    `a(href='x' title='y')`) and breaks long attribute lists over several lines.
+ * Attributes with expressions (concatenations, objects, calls...) are left as
+ * written, as are mixin calls and the inside of raw text blocks (`script.`,
+ * `| ` blocks, `//` comment blocks): their lines keep their relative
+ * indentation. It never reorders attributes.
  */
 export function formatPug(source: string, indent = '  '): string {
   const lines = source.replace(/\r\n?/g, '\n').replace(/\t/g, '  ').split('\n');
@@ -170,14 +243,14 @@ export function formatPug(source: string, indent = '  '): string {
   let block: { base: number; depth: number; first: number | null } | null = null;
   let pendingBlank = false;
 
-  for (const raw of lines) {
-    const text = raw.replace(/\s+$/, '');
+  for (let li = 0; li < lines.length; li++) {
+    const text = lines[li].replace(/\s+$/, '');
     if (!text) {
       pendingBlank = true;
       continue;
     }
     const width = text.length - text.trimStart().length;
-    const body = text.trimStart();
+    let body = text.trimStart();
 
     if (block) {
       if (width > block.base) {
@@ -195,6 +268,48 @@ export function formatPug(source: string, indent = '  '): string {
     stack.push(width);
     if (pendingBlank && out.length) out.push('');
     pendingBlank = false;
+
+    // Atributos que siguen en las líneas siguientes (paréntesis sin cerrar): se juntan.
+    const tag = splitTagAttrs(body);
+    const continuation: { width: number; text: string }[] = [];
+    if (tag && tag.close === -1) {
+      let joined = body;
+      let next = li + 1;
+      while (next < lines.length) {
+        const t = lines[next].replace(/\s+$/, '');
+        continuation.push({ width: t.length - t.trimStart().length, text: t.trimStart() });
+        joined += '\n' + t.trimStart();
+        next++;
+        if (findClosingParen(joined, tag.open) !== -1) break;
+      }
+      if (findClosingParen(joined, tag.open) === -1) {
+        continuation.length = 0; // nunca se cierra: se deja como está
+      } else {
+        li = next - 1;
+        body = joined;
+      }
+    }
+
+    const formatted = formatTagLine(body, indent.repeat(depth), indent);
+    if (formatted) {
+      out.push(...formatted.lines);
+      if (formatted.opensRawBlock) block = { base: width, depth, first: null };
+      continue;
+    }
+
+    // Línea con atributos complejos en varias líneas: se conservan con su sangría relativa.
+    if (continuation.length && body.includes('\n')) {
+      const [first, ...restLines] = body.split('\n');
+      out.push(indent.repeat(depth) + first);
+      const inner = continuation.filter((c) => !c.text.startsWith(')'));
+      const base = inner.length ? Math.min(...inner.map((c) => c.width)) : 0;
+      restLines.forEach((l, k) => {
+        if (l.startsWith(')')) out.push(indent.repeat(depth) + l);
+        else out.push(indent.repeat(depth + 1) + ' '.repeat(Math.max(0, continuation[k].width - base)) + l);
+      });
+      continue;
+    }
+
     out.push(indent.repeat(depth) + body);
 
     const opensRawBlock =
@@ -205,4 +320,25 @@ export function formatPug(source: string, indent = '  '): string {
   }
   while (out.length && out[out.length - 1] === '') out.pop();
   return out.length ? out.join('\n') + '\n' : '';
+}
+
+/**
+ * Formatea una línea `etiqueta(atributos) resto` cuando todos sus atributos son simples.
+ * Devuelve null si no es una etiqueta con atributos o hay atributos complejos.
+ */
+function formatTagLine(body: string, pad: string, indent: string): { lines: string[]; opensRawBlock: boolean } | null {
+  const tag = splitTagAttrs(body);
+  if (!tag) return null;
+  const close = findClosingParen(body, tag.open);
+  if (close === -1) return null;
+  const attrs = parseSimpleAttrs(body.slice(tag.open + 1, close).replace(/\s*\n\s*/g, ' '));
+  if (!attrs) return null;
+  const rest = body.slice(close + 1);
+  const opensRawBlock = rest === '.';
+  const oneLine = `${tag.head}(${attrs.join(' ')})${rest}`;
+  if (attrs.length < 2 || pad.length + oneLine.length <= PRINT_WIDTH) return { lines: [pad + oneLine], opensRawBlock };
+  return {
+    lines: [`${pad}${tag.head}(`, ...attrs.map((a) => pad + indent + a), `${pad})${rest}`],
+    opensRawBlock,
+  };
 }

@@ -26,7 +26,7 @@ Editor de código, árbol de datos y vista previa en vivo, con un proyecto demo 
 - Autocompletado de variables detectadas y mixins del proyecto (`+` lista mixins con sus argumentos).
 - Ir a la definición de `include` / `extends` / `+mixin` con Ctrl+clic o F12.
 - Búsqueda en todo el proyecto con Ctrl+Shift+F (abre el archivo en la línea).
-- Formato de Pug (Shift+Alt+F). Limitación: Prettier no soporta Pug de serie y `@prettier/plugin-pug` no se incluye, así que el formateador es propio y solo normaliza indentación/espacios/líneas en blanco (no reordena ni reajusta atributos; los bloques de texto crudo conservan su indentación relativa).
+- Formato de Pug (Shift+Alt+F). Prettier no soporta Pug de serie y `@prettier/plugin-pug` no se incluye, así que el formateador es propio y conservador: normaliza indentación, espacios y líneas en blanco, unifica comillas y espacios de los atributos simples (`a(href = "x")` → `a(href='x')`) y reparte en varias líneas las etiquetas largas. Los atributos con expresiones, las llamadas a mixins y los bloques de texto crudo se dejan como están, y nunca reordena atributos.
 - Modo demo: abre `/ide?demo=true` para cargar un proyecto de ejemplo completo.
 
 - Estilos CSS, SCSS/Sass y Less compilados en el navegador; `<link>` locales y `@import`/`@use` entre archivos.
