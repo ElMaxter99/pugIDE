@@ -1,0 +1,19 @@
+import { check, run, html, errs } from '../lib.mjs';
+// Plantillas de inicio: cada una compila sin errores con sus datos y su estilo
+// 41. Templates
+{
+  const { PROJECT_TEMPLATES } = await import('../.build/services.mjs');
+  check('41 hay tres plantillas con ids únicos', PROJECT_TEMPLATES.length === 3 && new Set(PROJECT_TEMPLATES.map((t) => t.id)).size === 3);
+  for (const t of PROJECT_TEMPLATES) {
+    const app = await run(t.files, '/main.pug', async (a) => {
+      a.DataState.setInitialData(structuredClone(t.data));
+      await a.orch.manualCompile();
+    });
+    const out = html(app);
+    const body = out.replace(/<script[\s\S]*?<\/script>/g, '');
+    check(`41 ${t.id}: compila sin errores`, out.length > 200 && !errs(app), errs(app));
+    check(`41 ${t.id}: usa sus datos y traducciones`, !body.includes('undefined') && !body.includes('[object') && !/\b(INVOICE|EMAIL|REPORT)\.[A-Z_]+\b/.test(body), body.slice(0, 300));
+    check(`41 ${t.id}: el CSS del proyecto llega al HTML`, /<style/.test(out));
+    check(`41 ${t.id}: no genera avisos de datos que faltan`, !app.TerminalState.entries().some((e) => e.type === 'error'));
+  }
+}

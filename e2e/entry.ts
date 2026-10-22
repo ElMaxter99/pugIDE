@@ -23,3 +23,4 @@ export { mockifyData } from '../src/app/core/utils/mock-data.util';
 export { parseDatasetsFile, serializeDatasets } from '../src/app/core/utils/datasets.util';
 export { ProjectLibraryService, MemoryLibraryBackend } from '../src/app/core/services/project-library.service';
 export { uniqueProjectName } from '../src/app/core/services/orchestrator.service';
+export { PROJECT_TEMPLATES } from '../src/app/core/utils/templates.util';

@@ -14,6 +14,7 @@ import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
 import { PersistenceService, ProjectSessionState } from './persistence.service';
 import { ProjectLibraryService } from './project-library.service';
+import { PROJECT_TEMPLATES } from '../utils/templates.util';
 import { DEFAULT_PROJECT_DATA, DEFAULT_PROJECT_NAME, defaultProjectFiles } from '../utils/default-project.util';
 import { AssetState, AssetFile } from '../state/asset.state';
 import { AssetStorageService } from './asset-storage.service';
@@ -338,11 +339,14 @@ export class OrchestratorService {
     return true;
   }
 
-  /** Crea un proyecto nuevo con la plantilla inicial (guardando antes el actual). */
-  async createProject(name?: string): Promise<void> {
+  /** Crea un proyecto nuevo, vacío o desde una plantilla de inicio (guardando antes el actual). */
+  async createProject(name?: string, templateId?: string): Promise<void> {
     await this.saveToLibrary();
     const existing = (await this.library.list()).map((p) => p.name);
-    this.loadProject(defaultProjectFiles(), uniqueProjectName(name?.trim() || DEFAULT_PROJECT_NAME, existing), [], null, { ...DEFAULT_PROJECT_DATA });
+    const template = PROJECT_TEMPLATES.find((t) => t.id === templateId);
+    const files = template ? new Map(Object.entries(template.files)) : defaultProjectFiles();
+    const data = structuredClone(template ? template.data : DEFAULT_PROJECT_DATA);
+    this.loadProject(files, uniqueProjectName(name?.trim() || template?.name || DEFAULT_PROJECT_NAME, existing), [], null, data);
   }
 
   /** Borra un proyecto de la biblioteca; si era el activo, abre el más reciente o crea uno nuevo. */
