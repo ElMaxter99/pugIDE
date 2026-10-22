@@ -136,6 +136,8 @@ export interface AppPreferences {
   minimap: boolean;
   wordWrap: boolean;
   formatOnSave: boolean;
+  /** El formateador de Pug ordena los atributos de cada etiqueta. */
+  sortAttributes: boolean;
   autoCompile: boolean;
   previewDevice: string;
   zoom: number;

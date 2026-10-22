@@ -27,6 +27,7 @@ export class PersistenceService {
     minimap: true,
     wordWrap: false,
     formatOnSave: true,
+    sortAttributes: false,
     autoCompile: true,
     previewDevice: 'Desktop',
     zoom: 100,

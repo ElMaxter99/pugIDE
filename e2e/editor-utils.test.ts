@@ -97,3 +97,29 @@ test('formatPug sigue reconociendo bloques de texto con atributos', () => {
   const src = "script(type='module' src='x').\n    let a = 1\np x\n";
   assert.equal(formatPug(src), "script(type='module' src='x').\n  let a = 1\np x\n");
 });
+
+test('formatPug ordena los atributos solo si se pide', () => {
+  const src = "a(title='t' data-x='1' href='/x' aria-label='l' class='b' id='i' disabled) hi\n";
+  assert.equal(formatPug(src), src);
+  assert.equal(
+    formatPug(src, '  ', { sortAttributes: true }),
+    "a(id='i' class='b' disabled href='/x' title='t' data-x='1' aria-label='l') hi\n",
+  );
+});
+
+test('ordenar atributos: estable con repetidos, no toca expresiones y es idempotente', () => {
+  const opts = { sortAttributes: true };
+  assert.equal(formatPug("p(class='b' title='x' class='a' title='y')\n", '  ', opts), "p(class='b' class='a' title='x' title='y')\n");
+  assert.equal(formatPug("a(title='z' href=base + '/x')\n", '  ', opts), "a(title='z' href=base + '/x')\n");
+  assert.equal(formatPug("input(@click='go' type='text' [value]='v' name='n')\n", '  ', opts), "input(name='n' type='text' @click='go' [value]='v')\n");
+  const once = formatPug("a(z='1' b='2' id='i')\n", '  ', opts);
+  assert.equal(formatPug(once, '  ', opts), once);
+});
+
+test('ordenar atributos también ordena los repartidos en varias líneas', () => {
+  const src = 'div\n  a(\n    href="https://ejemplo.com/una/ruta/bastante/larga" title="un titulo largo para el enlace" class="boton boton-primario" id="a1"\n  ) Ir\n';
+  assert.equal(
+    formatPug(src, '  ', { sortAttributes: true }),
+    "div\n  a(\n    id='a1'\n    class='boton boton-primario'\n    href='https://ejemplo.com/una/ruta/bastante/larga'\n    title='un titulo largo para el enlace'\n  ) Ir\n",
+  );
+});

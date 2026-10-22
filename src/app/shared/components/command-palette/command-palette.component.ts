@@ -96,6 +96,10 @@ export class CommandPaletteComponent {
       { group: 'Proyecto', title: 'Descargar proyecto como .zip', run: () => this.projectIo.downloadZip() },
       { group: 'Proyecto', title: 'Exportar HTML renderizado', run: () => this.projectIo.exportHtml() },
       { group: 'Ajustes', title: 'Alternar tema claro/oscuro', keywords: 'dark light', run: () => this.preferences.toggleTheme() },
+      {
+        group: 'Ajustes', keywords: 'formatear formato atributos orden', run: () => this.preferences.update({ sortAttributes: !this.preferences.sortAttributes() }),
+        title: `Formato de Pug: ordenar atributos (${this.preferences.sortAttributes() ? 'activado' : 'desactivado'})`,
+      },
       { group: 'Ajustes', title: 'Alternar auto-compilación', keywords: 'autocompile', run: () => this.preferences.update({ autoCompile: !this.preferences.autoCompile() }) },
       { group: 'Ajustes', title: 'Mostrar u ocultar Workspace', run: () => this.preferences.toggleSidebar() },
       { group: 'Ajustes', title: 'Mostrar u ocultar Data', run: () => this.preferences.toggleData() },
