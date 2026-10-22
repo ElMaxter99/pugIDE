@@ -37,32 +37,9 @@
       "installMode": "lazy",
       "updateMode": "prefetch",
       "resources": {
-        "files": ["/assets/**"]
-      }
-    }
-  ],
-  "dataGroups": [
-    {
-      "name": "monaco-cdn",
-      "urls": ["https://cdn.jsdelivr.net/npm/monaco-editor@*/**"],
-      "cacheConfig": {
-        "strategy": "performance",
-        "maxSize": 600,
-        "maxAge": "90d",
-        "timeout": "5s"
-      }
-    },
-    {
-      "name": "google-fonts",
-      "urls": [
-        "https://fonts.googleapis.com/**",
-        "https://fonts.gstatic.com/**"
-      ],
-      "cacheConfig": {
-        "strategy": "performance",
-        "maxSize": 40,
-        "maxAge": "365d",
-        "timeout": "3s"
+        "files": [
+          "/assets/**"
+        ]
       }
     }
   ]

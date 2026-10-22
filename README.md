@@ -39,7 +39,7 @@ Editor de código, árbol de datos y vista previa en vivo, con un proyecto demo 
 
 ## Privacidad
 
-**Nada sale de tu navegador.** No hay backend, ni cuenta, ni subida de código. La sesión activa se guarda en el `localStorage` de tu navegador y, junto con todos tus proyectos y sus assets, en IndexedDB. Si borras los datos del sitio, lo pierdes: exporta tus proyectos.
+**Nada sale de tu navegador.** No hay backend, ni cuenta, ni subida de código; el editor (Monaco), las tipografías y los iconos se sirven desde el propio sitio, sin CDNs. La sesión activa se guarda en el `localStorage` de tu navegador y, junto con todos tus proyectos y sus assets, en IndexedDB. Si borras los datos del sitio, lo pierdes: exporta tus proyectos.
 
 ## Importar y exportar
 

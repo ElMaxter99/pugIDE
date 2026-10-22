@@ -68,6 +68,15 @@ check(
   offenders.length > 0 ? `found in:\n    ${offenders.join('\n    ')}` : '',
 );
 
+// 4. Los iconos usados están en la fuente de iconos autoalojada
+const { spawnSync } = await import('node:child_process');
+const icons = spawnSync(process.execPath, [resolve(root, 'scripts/subset-icons.mjs'), '--check'], { encoding: 'utf-8' });
+check(
+  'icon font covers every icon used',
+  icons.status === 0,
+  (icons.stderr || icons.stdout || '').trim(),
+);
+
 if (failed) {
   console.error('\nBuild validation failed.');
   process.exit(1);
