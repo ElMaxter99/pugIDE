@@ -67,6 +67,11 @@ type PendingAction =
               <button class="add-btn" (click)="pickAssets()" title="Subir imágenes, fuentes o estilos (.css, .scss, .less)">
                 <span class="material-symbols-outlined" style="font-size: 16px;">add_photo_alternate</span>
               </button>
+              @if (orchestrator.fileUndoLabel(); as undoLabel) {
+                <button class="add-btn" (click)="orchestrator.undoFileOp()" [title]="undoLabel" [attr.aria-label]="undoLabel">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">undo</span>
+                </button>
+              }
               <button class="add-btn" (click)="showNewFileDialog()" title="New file">
                 <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
               </button>
@@ -396,7 +401,7 @@ type PendingAction =
 export class SidebarComponent {
   protected projectState = inject(ProjectState);
   protected editorState = inject(EditorState);
-  private orchestrator = inject(OrchestratorService);
+  protected orchestrator = inject(OrchestratorService);
   protected projectIo = inject(ProjectIoService);
   protected version = inject(APP_VERSION);
   protected assetState = inject(AssetState);

@@ -4,3 +4,6 @@ export { compileScssLite } from '../../src/app/core/utils/scss-lite.util';
 export * from '../../src/app/core/utils/mock-data.util';
 export * from '../../src/app/core/utils/schema-infer.util';
 export * from '../../src/app/core/utils/datasets.util';
+export * from '../../src/app/core/utils/command-palette.util';
+export * from '../../src/app/core/utils/quality-hints.util';
+export * from '../../src/app/core/utils/paginate.util';

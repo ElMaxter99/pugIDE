@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { debounceTime, Subject } from 'rxjs';
 import { PugParserService } from '../../parser/pug-parser.service';
 import { PugCompilerService } from '../../compiler/pug-compiler.service';
@@ -14,6 +14,8 @@ import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
 import { PersistenceService, ProjectSessionState } from './persistence.service';
 import { ProjectLibraryService } from './project-library.service';
+import { htmlWeightHints, newHints, unusedDataKeys, QualityHint } from '../utils/quality-hints.util';
+import { PROJECT_TEMPLATES } from '../utils/templates.util';
 import { DEFAULT_PROJECT_DATA, DEFAULT_PROJECT_NAME, defaultProjectFiles } from '../utils/default-project.util';
 import { AssetState, AssetFile } from '../state/asset.state';
 import { AssetStorageService } from './asset-storage.service';
@@ -52,6 +54,10 @@ export class OrchestratorService {
   private initialDataLoaded = false;
   private assetsReady = false;
   private libraryWarned = false;
+  private fileOps: FileOp[] = [];
+  private hintKeys = new Set<string>();
+  /** Descripción de la última operación de archivos que se puede deshacer (null si no hay). */
+  readonly fileUndoLabel = signal<string | null>(null);
 
   constructor() {
     this.setupAutoCompile();
@@ -176,6 +182,7 @@ export class OrchestratorService {
       }
       if (compileResult.html) {
         compileResult.html = this.applyAssets(compileResult.html, files);
+        this.reportQualityHints(parseResult, data, compileResult.html);
         compileResult.html = annotateHtmlLines(compileResult.html);
         compileResult.html = injectIntoBody(compileResult.html, `<script>${INSPECTOR_SCRIPT}</script>`);
       }
@@ -215,6 +222,19 @@ export class OrchestratorService {
         void this.processCode(this.editorState.editorContent(), create);
       }
     }
+  }
+
+  /** Avisos no bloqueantes (datos sin usar, peso del HTML); cada uno se muestra una vez hasta que desaparece. */
+  private reportQualityHints(parseResult: { variables: PugVariable[]; errors: unknown[] }, data: Record<string, unknown>, html: string): void {
+    const hints: QualityHint[] = [...htmlWeightHints(html, new TextEncoder().encode(html).length)];
+    if (parseResult.errors.length === 0 && parseResult.variables.length > 0) {
+      const unused = unusedDataKeys(data, parseResult.variables.map((v) => v.path.split('.')[0]));
+      if (unused.length > 0) {
+        hints.push({ key: `unused:${unused.join(',')}`, severity: 'info', message: `Datos que la plantilla no parece usar: ${unused.join(', ')}.` });
+      }
+    }
+    for (const h of newHints(hints, this.hintKeys)) this.terminalState.addEntry(h.severity, 'Calidad', h.message);
+    this.hintKeys = new Set(hints.map((h) => h.key));
   }
 
   /** Points local image / font references at the uploaded files (as `blob:` URLs) and tracks the ones still missing. */
@@ -338,11 +358,14 @@ export class OrchestratorService {
     return true;
   }
 
-  /** Crea un proyecto nuevo con la plantilla inicial (guardando antes el actual). */
-  async createProject(name?: string): Promise<void> {
+  /** Crea un proyecto nuevo, vacío o desde una plantilla de inicio (guardando antes el actual). */
+  async createProject(name?: string, templateId?: string): Promise<void> {
     await this.saveToLibrary();
     const existing = (await this.library.list()).map((p) => p.name);
-    this.loadProject(defaultProjectFiles(), uniqueProjectName(name?.trim() || DEFAULT_PROJECT_NAME, existing), [], null, { ...DEFAULT_PROJECT_DATA });
+    const template = PROJECT_TEMPLATES.find((t) => t.id === templateId);
+    const files = template ? new Map(Object.entries(template.files)) : defaultProjectFiles();
+    const data = structuredClone(template ? template.data : DEFAULT_PROJECT_DATA);
+    this.loadProject(files, uniqueProjectName(name?.trim() || template?.name || DEFAULT_PROJECT_NAME, existing), [], null, data);
   }
 
   /** Borra un proyecto de la biblioteca; si era el activo, abre el más reciente o crea uno nuevo. */
@@ -405,6 +428,9 @@ export class OrchestratorService {
     files: Map<string, string>, projectName: string, assets: AssetFile[] = [], datasets?: DatasetsFile | null,
     data?: Record<string, unknown> | null, opts: { id?: string; openTabPaths?: string[]; activeTabPath?: string | null } = {},
   ): void {
+    this.fileOps = [];
+    this.hintKeys = new Set();
+    this.fileUndoLabel.set(null);
     void this.saveToLibrary(); // guarda el proyecto que se va a reemplazar (el estado se captura ya, antes de cambiarlo)
     this.assetsReady = true;
     this.adoptProjectId(opts.id);
@@ -534,9 +560,39 @@ export class OrchestratorService {
     this.editorState.openFile(path, name, getFileType(name), content);
   }
 
-  renameFile(oldPath: string, newPath: string): void {
+  private pushFileOp(op: FileOp): void {
+    this.fileOps.push(op);
+    if (this.fileOps.length > 20) this.fileOps.shift();
+    this.fileUndoLabel.set(describeFileOp(op));
+  }
+
+  /** Deshace la última operación de borrado o renombrado de archivos. */
+  undoFileOp(): void {
+    const op = this.fileOps.pop();
+    this.fileUndoLabel.set(this.fileOps.length ? describeFileOp(this.fileOps[this.fileOps.length - 1]) : null);
+    if (!op) return;
+    if (op.kind === 'rename') {
+      this.renameFile(op.to, op.from, false);
+      return;
+    }
+    if (op.asset) {
+      this.assetState.add(op.asset.path, op.asset.data, op.asset.mime);
+      this.refreshTree();
+      void this.manualCompile();
+    } else if (op.content !== undefined && !this.editorState.files().has(op.path)) {
+      const content = op.content;
+      this.editorState.files.update((f) => { f.set(op.path, content); return f; });
+      this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+      this.editorState.openFile(op.path, op.path.split('/').pop() ?? op.path, getFileType(op.path), content);
+    }
+    this.terminalState.addEntry('info', 'Files', `Restaurado ${op.path}`);
+  }
+
+  renameFile(oldPath: string, newPath: string, record = true): void {
     if (this.assetState.has(oldPath)) {
+      if (this.assetState.has(newPath)) return;
       this.assetState.rename(oldPath, newPath);
+      if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });
       this.refreshTree();
       this.terminalState.addEntry('info', 'Files', `Renamed ${oldPath} to ${newPath}`);
       void this.manualCompile();
@@ -554,11 +610,14 @@ export class OrchestratorService {
     const name = newPath.split('/').pop() ?? newPath;
     this.editorState.renameOpenTab(oldPath, newPath, name);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+    if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });
     this.terminalState.addEntry('info', 'Files', `Renamed ${oldPath} to ${newPath}`);
   }
 
   deleteFile(path: string): void {
-    if (this.assetState.has(path)) {
+    const asset = this.assetState.assets().get(path);
+    if (asset) {
+      this.pushFileOp({ kind: 'delete', path, asset });
       this.assetState.remove(path);
       this.refreshTree();
       this.terminalState.addEntry('info', 'Files', `Deleted ${path}`);
@@ -567,6 +626,8 @@ export class OrchestratorService {
     }
     const files = this.editorState.files();
     if (!files.has(path)) return;
+    const live = this.editorState.activeTab()?.path === path ? this.editorState.editorContent() : files.get(path);
+    this.pushFileOp({ kind: 'delete', path, content: live ?? '' });
     this.editorState.files.update((f) => { f.delete(path); return f; });
     this.editorState.closeTabByPath(path);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
@@ -690,4 +751,12 @@ export function uniqueProjectName(base: string, existing: string[]): string {
   let n = 2;
   while (taken.has(`${base} (${n})`.toLowerCase())) n++;
   return `${base} (${n})`;
+}
+
+type FileOp =
+  | { kind: 'delete'; path: string; content?: string; asset?: AssetFile }
+  | { kind: 'rename'; from: string; to: string };
+
+function describeFileOp(op: FileOp): string {
+  return op.kind === 'delete' ? `Deshacer borrar ${op.path}` : `Deshacer renombrar ${op.from} → ${op.to}`;
 }

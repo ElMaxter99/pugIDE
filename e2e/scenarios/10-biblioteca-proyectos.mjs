@@ -55,6 +55,9 @@ import { check, run, sleep } from '../lib.mjs';
   check('40 tras borrar el último solo queda el nuevo', (await lib.list()).length === 1 && (await lib.list())[0].id === a.ProjectState.projectId(), JSON.stringify(await lib.list()));
   check('40 borrar el último crea uno nuevo', !!a.ProjectState.projectId() && a.ProjectState.projectId() !== copyId && a.EditorState.files().has('/main.pug'));
 
+  await a.orch.createProject(undefined, 'invoice');
+  check('40 crear desde plantilla carga sus archivos, datos y nombre', a.ProjectState.projectName() === 'Factura' && a.EditorState.files().has('/components/line.pug') && a.DataState.data().invoice?.number === 'F-2026-0042');
+
   check('40 nombres únicos sin distinguir mayúsculas', uniqueProjectName('Demo', ['demo', 'DEMO (2)']) === 'Demo (3)' && uniqueProjectName('Nuevo', []) === 'Nuevo');
 
   // Importar/cargar otro proyecto no pisa el anterior de la biblioteca

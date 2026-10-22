@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { ProjectLibraryService, ProjectSummary } from '../../../core/services/project-library.service';
 import { ProjectState } from '../../../core/state/project.state';
+import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
 
 /** Lista de proyectos guardados en el navegador: abrir, crear, renombrar, duplicar y borrar. */
 @Component({
@@ -51,7 +52,13 @@ import { ProjectState } from '../../../core/state/project.state';
             }
           </ul>
           <div class="footer">
-            <button class="btn primary" (click)="create()">Nuevo proyecto</button>
+            <select class="template-select" aria-label="Plantilla del proyecto nuevo" #tpl>
+              <option value="">Proyecto vacío</option>
+              @for (t of templates; track t.id) {
+                <option [value]="t.id" [title]="t.description">{{ t.name }}</option>
+              }
+            </select>
+            <button class="btn primary" (click)="create(tpl.value)">Nuevo proyecto</button>
           </div>
         </div>
       </div>
@@ -79,7 +86,8 @@ import { ProjectState } from '../../../core/state/project.state';
     .btn.primary { background: var(--accent-color); color: var(--text-on-primary); font-weight: 700; padding: 6px 14px; font-size: 13px; }
     .btn.danger { background: #b3261e; color: #fff; }
     .empty { padding: 20px; text-align: center; color: var(--text-secondary); font-size: 13px; }
-    .footer { display: flex; justify-content: flex-end; padding: 12px 20px 16px; }
+    .template-select { font-size: 13px; padding: 5px 8px; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; }
+    .footer { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 20px 16px; }
   `],
 })
 export class ProjectsDialogComponent {
@@ -90,6 +98,7 @@ export class ProjectsDialogComponent {
   private library = inject(ProjectLibraryService);
   private projectState = inject(ProjectState);
 
+  protected templates = PROJECT_TEMPLATES;
   protected projects = signal<ProjectSummary[]>([]);
   protected loading = signal(false);
   protected renamingId = signal<string | null>(null);
@@ -114,8 +123,8 @@ export class ProjectsDialogComponent {
     if (await this.orchestrator.openProject(p.id)) this.closed.emit();
   }
 
-  protected async create(): Promise<void> {
-    await this.orchestrator.createProject();
+  protected async create(templateId: string): Promise<void> {
+    await this.orchestrator.createProject(undefined, templateId || undefined);
     this.closed.emit();
   }
 

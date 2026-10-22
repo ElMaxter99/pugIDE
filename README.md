@@ -2,7 +2,7 @@
 
 Entorno de desarrollo visual para **Pug/Jade**: detecta variables, genera datos de prueba (mocks) y previsualiza el resultado en tiempo real, todo en el navegador.
 
-![Versión](https://img.shields.io/badge/version-0.1.0-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
+![Versión](https://img.shields.io/badge/version-0.2.0-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
 
 ## Capturas
 
@@ -25,12 +25,14 @@ Editor de código, árbol de datos y vista previa en vivo, con un proyecto demo 
 - Importar / exportar el proyecto.
 - Autocompletado de variables detectadas y mixins del proyecto (`+` lista mixins con sus argumentos).
 - Ir a la definición de `include` / `extends` / `+mixin` con Ctrl+clic o F12.
+- Paleta de comandos con Ctrl/Cmd+K (acciones, dispositivos del preview, plantillas y apertura rápida de archivos).
 - Búsqueda en todo el proyecto con Ctrl+Shift+F (abre el archivo en la línea).
 - Formato de Pug (Shift+Alt+F). Prettier no soporta Pug de serie y `@prettier/plugin-pug` no se incluye, así que el formateador es propio y conservador: normaliza indentación, espacios y líneas en blanco, unifica comillas y espacios de los atributos simples (`a(href = "x")` → `a(href='x')`) y reparte en varias líneas las etiquetas largas. Los atributos con expresiones, las llamadas a mixins y los bloques de texto crudo se dejan como están, y nunca reordena atributos.
 - Modo demo: abre `/ide?demo=true` para cargar un proyecto de ejemplo completo.
 
 - Estilos CSS, SCSS/Sass y Less compilados en el navegador; `<link>` locales y `@import`/`@use` entre archivos.
-- Preview en modo PDF / página impresa (lee `@page { size }`, cuenta páginas, imprimir o guardar como PDF).
+- Preview en modo PDF / página impresa (lee `@page { size }`, cuenta páginas, avisa de imágenes cortadas y encabezados huérfanos, imprimir o guardar como PDF).
+- Avisos de calidad en la terminal: datos sin usar y peso del HTML (p. ej. el límite de 102 KB de Gmail).
 - Traducciones: las claves `t('CLAVE.ANIDADA')` generan automáticamente campos editables en los datos.
 - Assets locales (imágenes y fuentes) que subes al proyecto y se guardan en tu navegador.
 - Varios proyectos guardados en tu navegador (botón con el nombre del proyecto en la barra superior): abrir, crear, renombrar, duplicar y borrar.

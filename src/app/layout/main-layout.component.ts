@@ -17,6 +17,7 @@ import { DataState } from '../core/state/data.state';
 import { ProjectState } from '../core/state/project.state';
 import { PreferencesState } from '../core/services/preferences.state';
 import { PersistenceService, ProjectSessionState } from '../core/services/persistence.service';
+import { CommandPaletteComponent } from '../shared/components/command-palette/command-palette.component';
 import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dialog.component';
 import { ProjectIoService } from '../core/services/project-io.service';
 import { ProjectLibraryService } from '../core/services/project-library.service';
@@ -37,6 +38,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     PreviewPanelComponent,
     TerminalPanelComponent,
     DialogComponent,
+    CommandPaletteComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -56,6 +58,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
         }
       </div>
       <app-statusbar />
+      <app-command-palette />
       <app-dialog
         [config]="shareDialog"
         [isOpen]="shareDialogOpen()"
