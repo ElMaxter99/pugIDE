@@ -5,7 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [Sin publicar]
 
 ### Cambiado
-- CI: el navegador de las pruebas de interfaz se cachea entre ejecuciones (clave según la versión de `playwright-core`) y `actions/checkout` y `actions/setup-node` pasan a la v5, que ya no usan Node 20.
+- CI: el navegador de las pruebas de interfaz se cachea entre ejecuciones (clave según la versión de `playwright-core`) y `actions/checkout`, `actions/setup-node` y `actions/cache` pasan a la v5, que ya no usan Node 20.
 
 ## [0.3.1] - 2026-10-22
 
