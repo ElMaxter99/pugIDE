@@ -32,6 +32,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('node_modules/playwright-core/package.json') }}
       - name: Instalar Chromium para las pruebas de interfaz
-        run: npx playwright-core install --with-deps chromium
+        # Sin --with-deps: las librerías de Chromium ya vienen en el runner y apt tardaba minutos instalando fuentes que no hacen falta.
+        run: npx playwright-core install chromium
       - name: Tests de interfaz
         run: npm run test:ui
