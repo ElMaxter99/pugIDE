@@ -74,7 +74,7 @@ Sin CDNs: Monaco (`monaco-editor`, copiado a `assets/monaco/vs` por `angular.jso
 
 `npm run test:e2e` (carpeta `e2e/`, con fixtures de proyectos reales; un módulo por tema en `e2e/scenarios/`) y `npm run test:unit` (`test/unit/`, `node:test`, utilidades puras).
 
-`npm run test:ui` (`ui-tests/`, Playwright-core + Chromium sobre `dist/pug-ide/browser`, que hay que construir antes con `npm run build:prod`): un servidor estático con la lógica SPA de producción, un contexto aislado por escenario y **todas las peticiones externas bloqueadas y registradas** (la app no debe necesitar CDNs). Cubre arranque, proyectos y plantillas, paleta, preview PDF frente a la impresión real de Chromium (`page.pdf`), foco de diálogos y arranque sin conexión con el service worker. Chromium se toma de Playwright o de `PUGIDE_CHROMIUM`. No se ejecuta aún en CI: añadir el job toca `.github/workflows` y se coordina aparte (`npx playwright install --with-deps chromium` y `npm run test:ui` tras el build).
+`npm run test:ui` (`ui-tests/`, Playwright-core + Chromium sobre `dist/pug-ide/browser`, que hay que construir antes con `npm run build:prod`): un servidor estático con la lógica SPA de producción, un contexto aislado por escenario y **todas las peticiones externas bloqueadas y registradas** (la app no debe necesitar CDNs). Cubre arranque, proyectos y plantillas, paleta, preview PDF frente a la impresión real de Chromium (`page.pdf`), foco de diálogos y arranque sin conexión con el service worker. Chromium se toma de Playwright o de `PUGIDE_CHROMIUM`. Corre en CI (`.github/workflows/ci.yml`) tras el build, con `npx playwright-core install --with-deps chromium` y `npm run test:ui`.
 
 ## Convenciones
 
