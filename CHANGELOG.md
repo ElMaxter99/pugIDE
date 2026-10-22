@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Corregido
+- Paleta de comandos: si el navegador entregaba un `mouseenter` tardío sobre un elemento de la lista anterior (con el puntero quieto sobre la lista), el índice resaltado quedaba fuera de rango al filtrar y Enter no ejecutaba nada. Ahora el resaltado se acota a los resultados y solo cambia con movimiento real del ratón.
+- Pruebas de interfaz: el escenario 02 esperaba al filtro de la paleta de forma frágil y falló en el CI de GitHub; ahora espera a los estados y hay una prueba de estrés para este fallo.
+
 ### Añadido
 - Aviso de privacidad: la analítica anónima de visitas (Vercel Web Analytics) pasa a ser opcional y solo se carga si el usuario la acepta; la decisión se guarda y se puede cambiar desde la paleta de comandos. La landing lo indica.
 
