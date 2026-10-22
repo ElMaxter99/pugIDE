@@ -22,7 +22,8 @@ parser -> datos -> orquestador -> compilador -> preview. Ver `src/app/core/servi
 
 - `npm start` servidor de desarrollo
 - `npm run build:prod` build de producción
-- `npm run test:e2e` pruebas e2e (`e2e/`)
+- `npm run test:e2e` pruebas e2e de servicios (`e2e/`)
+- `npm run test:ui` pruebas de interfaz con Playwright sobre el build de producción (`ui-tests/`; ejecuta antes `npm run build:prod`)
 
 ## Convenciones
 

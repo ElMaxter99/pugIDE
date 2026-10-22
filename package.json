@@ -24,6 +24,7 @@
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
     "prebuild": "node scripts/validate-build.js",
+    "test:ui": "node ui-tests/run.mjs",
     "test:unit": "node test/unit/build.mjs && node --test test/unit/*.test.mjs"
   },
   "private": true,
@@ -60,6 +61,7 @@
     "eslint": "^9.39.5",
     "material-symbols": "0.48.1",
     "path-browserify": "^1.0.1",
+    "playwright-core": "1.56.1",
     "sass": "^1.105.1",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.71.1",
