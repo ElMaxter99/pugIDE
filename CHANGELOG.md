@@ -4,6 +4,15 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Añadido
+- Aviso de privacidad: la analítica anónima de visitas (Vercel Web Analytics) pasa a ser opcional y solo se carga si el usuario la acepta; la decisión se guarda y se puede cambiar desde la paleta de comandos. La landing lo indica.
+
+### Cambiado
+- El CI ejecuta también las pruebas de interfaz (`npm run test:ui`) tras el build y los tests e2e.
+
+### Corregido
+- Paleta de comandos: al pulsar Ctrl+K y escribir de seguido ya no se pierden las primeras letras.
+
 ## [0.3.0] - 2026-10-22
 
 ### Añadido

@@ -5,6 +5,10 @@ import type { DatasetsFile } from '../utils/datasets.util';
 const STORAGE_KEY = 'pug-ide-preferences';
 const PROJECT_KEY = 'pug-ide-project';
 const CURRENT_ID_KEY = 'pug-ide-current-project';
+const ANALYTICS_CONSENT_KEY = 'pug-ide-analytics-consent';
+
+/** Decisión del usuario sobre la analítica anónima de visitas (null: aún no ha decidido). */
+export type AnalyticsConsent = 'granted' | 'denied';
 
 export interface ProjectSessionState {
   projectName: string;
@@ -68,6 +72,21 @@ export class PersistenceService {
     } catch {
       this.lastWriteFailed.set(true);
     }
+  }
+
+  loadAnalyticsConsent(): AnalyticsConsent | null {
+    try {
+      const v = localStorage.getItem(ANALYTICS_CONSENT_KEY);
+      return v === 'granted' || v === 'denied' ? v : null;
+    } catch {
+      return null;
+    }
+  }
+
+  saveAnalyticsConsent(value: AnalyticsConsent): void {
+    try {
+      localStorage.setItem(ANALYTICS_CONSENT_KEY, value);
+    } catch { /* ignore */ }
   }
 
   /** Identificador del proyecto activo en la biblioteca (`ProjectLibraryService`). */

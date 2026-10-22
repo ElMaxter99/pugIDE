@@ -8,7 +8,7 @@ IDE de Pug/Jade 100% en el navegador (Angular 20, componentes standalone, signal
 
 ## Filosofía (no negociable)
 
-- **Todo local en el navegador.** No hay backend ni telemetría; nada del código del usuario sale de su máquina. No añadas llamadas de red con datos del usuario.
+- **Todo local en el navegador.** No hay backend; nada del código del usuario sale de su máquina. No añadas llamadas de red con datos del usuario. La única telemetría es la analítica anónima de visitas de Vercel, **opt-in** (se carga solo si el usuario acepta el aviso de privacidad; `AnalyticsService`): no añadas otra.
 - **Mocks automáticos.** Se detectan las variables y las claves de traducción `t('KEY')` del template y se generan datos de ejemplo (bajo `translations`); el usuario los edita después.
 - **Preview en vivo.** Compilación con debounce al escribir; el preview (dispositivos y modo PDF/página impresa) siempre debe reflejar el estado actual.
 - **Plantillas reales multi-archivo.** Proyectos con carpetas, `include`, `extends`, estilos CSS/SCSS/Sass/Less y assets locales (imágenes y fuentes en IndexedDB, servidos como `blob:`), no ejemplos de un solo archivo.
