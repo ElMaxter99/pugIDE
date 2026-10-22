@@ -151,6 +151,33 @@ export function searchProject(
   return out;
 }
 
+export interface FormatOptions {
+  /** Ordena los atributos simples de cada etiqueta (ver `sortAttributes`). */
+  sortAttributes?: boolean;
+}
+
+/** Posición de un atributo en el orden canónico: id, class, resto, data-*, aria-*, especiales (`(click)`, `[x]`, `@x`…). */
+function attributeRank(name: string): number {
+  if (name === 'id') return 0;
+  if (name === 'class') return 1;
+  if (/^data-/i.test(name)) return 3;
+  if (/^aria-/i.test(name)) return 4;
+  return /^[A-Za-z_]/.test(name) ? 2 : 5;
+}
+
+/**
+ * Orden canónico de atributos: `id`, `class`, el resto por orden alfabético, `data-*`, `aria-*` y al
+ * final los especiales (enlaces de framework, que conservan su orden). Los repetidos mantienen su
+ * orden relativo (el último gana y las clases se suman en orden), así que el resultado no cambia.
+ */
+export function sortAttributes(attrs: string[]): string[] {
+  const name = (a: string) => /^[^=!]*/.exec(a)![0];
+  return attrs
+    .map((a, i) => ({ a, i, n: name(a), r: attributeRank(name(a)) }))
+    .sort((x, y) => x.r - y.r || (x.r >= 2 && x.r <= 4 ? x.n.toLowerCase().localeCompare(y.n.toLowerCase()) : 0) || x.i - y.i)
+    .map((x) => x.a);
+}
+
 /** Ancho a partir del cual una etiqueta con varios atributos se reparte en varias líneas. */
 const PRINT_WIDTH = 100;
 
@@ -236,7 +263,7 @@ function splitTagAttrs(body: string): { head: string; open: number; close: numbe
  * `| ` blocks, `//` comment blocks): their lines keep their relative
  * indentation. It never reorders attributes.
  */
-export function formatPug(source: string, indent = '  '): string {
+export function formatPug(source: string, indent = '  ', options: FormatOptions = {}): string {
   const lines = source.replace(/\r\n?/g, '\n').replace(/\t/g, '  ').split('\n');
   const out: string[] = [];
   const stack: number[] = []; // original indent widths of open ancestors
@@ -290,7 +317,7 @@ export function formatPug(source: string, indent = '  '): string {
       }
     }
 
-    const formatted = formatTagLine(body, indent.repeat(depth), indent);
+    const formatted = formatTagLine(body, indent.repeat(depth), indent, options);
     if (formatted) {
       out.push(...formatted.lines);
       if (formatted.opensRawBlock) block = { base: width, depth, first: null };
@@ -326,13 +353,14 @@ export function formatPug(source: string, indent = '  '): string {
  * Formatea una línea `etiqueta(atributos) resto` cuando todos sus atributos son simples.
  * Devuelve null si no es una etiqueta con atributos o hay atributos complejos.
  */
-function formatTagLine(body: string, pad: string, indent: string): { lines: string[]; opensRawBlock: boolean } | null {
+function formatTagLine(body: string, pad: string, indent: string, options: FormatOptions): { lines: string[]; opensRawBlock: boolean } | null {
   const tag = splitTagAttrs(body);
   if (!tag) return null;
   const close = findClosingParen(body, tag.open);
   if (close === -1) return null;
-  const attrs = parseSimpleAttrs(body.slice(tag.open + 1, close).replace(/\s*\n\s*/g, ' '));
-  if (!attrs) return null;
+  const parsed = parseSimpleAttrs(body.slice(tag.open + 1, close).replace(/\s*\n\s*/g, ' '));
+  if (!parsed) return null;
+  const attrs = options.sortAttributes ? sortAttributes(parsed) : parsed;
   const rest = body.slice(close + 1);
   const opensRawBlock = rest === '.';
   const oneLine = `${tag.head}(${attrs.join(' ')})${rest}`;

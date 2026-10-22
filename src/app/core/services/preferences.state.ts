@@ -10,6 +10,7 @@ export class PreferencesState {
   readonly minimap = signal(true);
   readonly wordWrap = signal(false);
   readonly formatOnSave = signal(true);
+  readonly sortAttributes = signal(false);
   readonly autoCompile = signal(true);
   readonly previewDevice = signal('Desktop');
   readonly zoom = signal(100);
@@ -33,6 +34,7 @@ export class PreferencesState {
     this.minimap.set(prefs.minimap);
     this.wordWrap.set(prefs.wordWrap);
     this.formatOnSave.set(prefs.formatOnSave);
+    this.sortAttributes.set(!!prefs.sortAttributes);
     this.autoCompile.set(prefs.autoCompile);
     this.previewDevice.set(prefs.previewDevice);
     this.zoom.set(prefs.zoom);
@@ -47,6 +49,7 @@ export class PreferencesState {
     if (partial.minimap !== undefined) this.minimap.set(partial.minimap);
     if (partial.wordWrap !== undefined) this.wordWrap.set(partial.wordWrap);
     if (partial.formatOnSave !== undefined) this.formatOnSave.set(partial.formatOnSave);
+    if (partial.sortAttributes !== undefined) this.sortAttributes.set(partial.sortAttributes);
     if (partial.autoCompile !== undefined) this.autoCompile.set(partial.autoCompile);
     if (partial.previewDevice !== undefined) this.previewDevice.set(partial.previewDevice);
     if (partial.zoom !== undefined) this.zoom.set(partial.zoom);

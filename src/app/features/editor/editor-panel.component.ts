@@ -511,7 +511,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       provideDocumentFormattingEdits: (model: any, options: any) => {
         const text = model.getValue();
         const unit = options?.insertSpaces === false ? '\t' : ' '.repeat(options?.tabSize ?? 2);
-        const formatted = formatPug(text, unit);
+        const formatted = formatPug(text, unit, { sortAttributes: this.preferences.sortAttributes() });
         if (formatted === text) return [];
         return [{ range: model.getFullModelRange(), text: formatted }];
       },
