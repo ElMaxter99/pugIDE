@@ -66,3 +66,56 @@ export function paginateDocument(doc: Document, pageHeight: number): void {
     }
   }
 }
+
+/** True si un bloque de alto `height` que empieza en `y` cruza un límite de página (y cabe en una página). */
+export function straddlesPage(y: number, height: number, pageHeight: number): boolean {
+  if (pageHeight <= 0 || height <= 0 || height >= pageHeight) return false;
+  return Math.floor(y / pageHeight) !== Math.floor((y + height - 0.5) / pageHeight);
+}
+
+/** True si un encabezado termina pegado al final de una página (quedaría separado de su contenido). */
+export function isOrphanHeading(y: number, height: number, pageHeight: number, slack = 40): boolean {
+  if (pageHeight <= 0 || height <= 0) return false;
+  const bottom = y + height;
+  const page = Math.floor((bottom - 0.5) / pageHeight);
+  return page === Math.floor(y / pageHeight) && (page + 1) * pageHeight - bottom < slack;
+}
+
+export interface PageBreakIssue {
+  kind: 'cut' | 'orphan-heading';
+  /** Número de página (1 = primera) donde ocurre. */
+  page: number;
+  element: string;
+  text: string;
+}
+
+const CUT_TAGS = new Set(['IMG', 'SVG', 'FIGURE', 'PRE', 'BLOCKQUOTE', 'CANVAS', 'VIDEO']);
+
+/**
+ * Elementos que en la impresión quedarían mal partidos: imágenes, figuras o bloques que cruzan el
+ * salto de página y encabezados al final de una página. Se llama después de `paginateDocument`.
+ */
+export function findPageBreakIssues(doc: Document, pageHeight: number): PageBreakIssue[] {
+  const win = doc.defaultView;
+  const body = doc.body;
+  if (!win || !body || pageHeight <= 0) return [];
+  const issues: PageBreakIssue[] = [];
+  for (const el of Array.from(body.querySelectorAll<HTMLElement>('*'))) {
+    const tag = el.tagName.toUpperCase();
+    const isHeading = /^H[1-6]$/.test(tag);
+    if (!isHeading && !CUT_TAGS.has(tag)) continue;
+    const cs = win.getComputedStyle(el);
+    if (cs.display === 'none' || cs.position === 'fixed' || cs.position === 'absolute') continue;
+    const rect = el.getBoundingClientRect();
+    const y = rect.top + win.scrollY;
+    const text = (el.textContent ?? el.getAttribute('alt') ?? '').trim().replace(/\s+/g, ' ').slice(0, 40);
+    if (isHeading) {
+      if (isOrphanHeading(y, rect.height, pageHeight)) {
+        issues.push({ kind: 'orphan-heading', page: Math.floor(y / pageHeight) + 1, element: tag.toLowerCase(), text });
+      }
+    } else if (straddlesPage(y, rect.height, pageHeight)) {
+      issues.push({ kind: 'cut', page: Math.floor(y / pageHeight) + 1, element: tag.toLowerCase(), text });
+    }
+  }
+  return issues;
+}

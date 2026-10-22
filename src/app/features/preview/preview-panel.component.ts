@@ -12,7 +12,7 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { PreferencesState } from '../../core/services/preferences.state';
-import { paginateDocument, resetPagination } from '../../core/utils/paginate.util';
+import { PageBreakIssue, findPageBreakIssues, paginateDocument, resetPagination } from '../../core/utils/paginate.util';
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { InspectorState } from '../../core/state/inspector.state';
@@ -122,6 +122,12 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
             </button>
           </div>
           <span class="pdf-size">{{ pageCount() }} {{ pageCount() === 1 ? 'página' : 'páginas' }}</span>
+          @if (pageIssues().length) {
+            <span class="pdf-size pdf-warn" [title]="pageIssuesTitle()">
+              <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: -3px;">warning</span>
+              {{ pageIssues().length }} {{ pageIssues().length === 1 ? 'corte' : 'cortes' }} a revisar
+            </span>
+          }
         </div>
       }
       @if (previewState.hasErrors()) {
@@ -339,6 +345,8 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       color: var(--text-secondary);
       white-space: nowrap;
     }
+
+    .pdf-warn { color: #e0a030; cursor: help; }
 
     .device-select { max-width: 150px; }
 
@@ -675,6 +683,27 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   private paginatedHeight = -1;
+  private lastIssueKey = '';
+
+  /** PDF: elementos que se partirían mal al imprimir (imágenes cortadas, encabezados al final de página). */
+  protected readonly pageIssues = signal<PageBreakIssue[]>([]);
+  protected readonly pageIssuesTitle = computed(() =>
+    this.pageIssues().map((i) => this.describeIssue(i)).join('\n'));
+
+  private describeIssue(i: PageBreakIssue): string {
+    const what = i.text ? `<${i.element}> «${i.text}»` : `<${i.element}>`;
+    return i.kind === 'cut'
+      ? `Página ${i.page}: ${what} se corta entre páginas (usa break-inside: avoid).`
+      : `Página ${i.page}: ${what} queda al final de la página, separado de su contenido (usa break-after: avoid o un salto antes).`;
+  }
+
+  private reportPageIssues(issues: PageBreakIssue[]): void {
+    this.pageIssues.set(issues);
+    const key = issues.map((i) => `${i.kind}:${i.page}:${i.element}:${i.text}`).join('|');
+    if (key === this.lastIssueKey) return;
+    this.lastIssueKey = key;
+    for (const i of issues) this.terminal.addEntry('warning', 'PDF', this.describeIssue(i));
+  }
 
   private measure(): void {
     const body = this.previewFrame?.nativeElement.contentDocument?.body;
@@ -686,7 +715,13 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     const doc = this.previewFrame?.nativeElement.contentDocument;
     if (!doc?.body) return;
     resetPagination(doc);
-    if (this.previewState.isPdf()) paginateDocument(doc, this.previewState.pageSize().height);
+    if (this.previewState.isPdf()) {
+      const pageHeight = this.previewState.pageSize().height;
+      paginateDocument(doc, pageHeight);
+      this.reportPageIssues(findPageBreakIssues(doc, pageHeight));
+    } else if (this.pageIssues().length) {
+      this.reportPageIssues([]);
+    }
     this.paginatedHeight = doc.body.scrollHeight;
     this.measure();
   }

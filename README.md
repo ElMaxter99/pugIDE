@@ -31,7 +31,8 @@ Editor de código, árbol de datos y vista previa en vivo, con un proyecto demo 
 - Modo demo: abre `/ide?demo=true` para cargar un proyecto de ejemplo completo.
 
 - Estilos CSS, SCSS/Sass y Less compilados en el navegador; `<link>` locales y `@import`/`@use` entre archivos.
-- Preview en modo PDF / página impresa (lee `@page { size }`, cuenta páginas, imprimir o guardar como PDF).
+- Preview en modo PDF / página impresa (lee `@page { size }`, cuenta páginas, avisa de imágenes cortadas y encabezados huérfanos, imprimir o guardar como PDF).
+- Avisos de calidad en la terminal: datos sin usar y peso del HTML (p. ej. el límite de 102 KB de Gmail).
 - Traducciones: las claves `t('CLAVE.ANIDADA')` generan automáticamente campos editables en los datos.
 - Assets locales (imágenes y fuentes) que subes al proyecto y se guardan en tu navegador.
 - Varios proyectos guardados en tu navegador (botón con el nombre del proyecto en la barra superior): abrir, crear, renombrar, duplicar y borrar.

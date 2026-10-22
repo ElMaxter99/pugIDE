@@ -37,9 +37,16 @@
 - `core/utils/mock-data.util.ts`: mocks por nombre de campo y tipo (es/en): datos reales para campos con significado (nombre, email, ciudad, precio, fecha...) y lorem ipsum para el texto genérico (títulos, descripciones, valores sin pista) con PRNG con semilla (`createRng`), derivado de (semilla, ruta) para que sean reproducibles y estables. Se usan al crear datos que faltan (salvo en `Vacío`, sin mocks, y `Error`, con nulos) y en el botón **Regenerar**. Las imágenes son SVG `data:` (sin red).
 - `core/utils/schema-infer.util.ts`: infiere datos desde un JSON de ejemplo, JSON Schema u OpenAPI sencillo (`$ref` local, `allOf`, `enum`, `format`...); el botón **Importar** crea un juego nuevo.
 
+## Plantillas, paleta de comandos y avisos de calidad
+
+- `core/utils/templates.util.ts`: plantillas de inicio (factura, correo, informe), proyectos reales multiarchivo con datos y traducciones; `OrchestratorService.createProject(nombre?, plantillaId?)`. Las prueba `e2e/scenarios/11-plantillas.mjs` (compilan sin errores).
+- `CommandPaletteComponent` (Ctrl/Cmd+K, listener en fase de captura para adelantarse a Monaco) y `core/utils/command-palette.util.ts` (filtrado sin acentos). El estado de los paneles flotantes está en `UiState`.
+- Deshacer archivos: `OrchestratorService.undoFileOp` (pila de hasta 20 borrados/renombrados, también de assets); se vacía al cargar otro proyecto.
+- `core/utils/quality-hints.util.ts`: avisos de datos sin usar y peso del HTML; `OrchestratorService.reportQualityHints` los emite una vez hasta que desaparecen.
+
 ## Preview PDF
 
-Además de dispositivos (escritorio/móvil), el preview tiene modo **PDF / página impresa**: lee el tamaño de `@page { size }` (A4 por defecto), emula saltos de página con `page-size.util` y `paginate.util`, muestra el número de páginas y permite imprimir o guardar como PDF con el diálogo del navegador (`onPrint`). No se genera ningún PDF en servidor.
+Además de dispositivos (escritorio/móvil), el preview tiene modo **PDF / página impresa**: lee el tamaño de `@page { size }` (A4 por defecto), emula saltos de página con `page-size.util` y `paginate.util`, muestra el número de páginas y permite imprimir o guardar como PDF con el diálogo del navegador (`onPrint`). `paginate.util` también detecta los elementos que se partirían mal al imprimir (`findPageBreakIssues`: imágenes, figuras, `pre` o `blockquote` que cruzan el salto y encabezados al final de página) y el panel los muestra como aviso. Las cabeceras y pies con `@page` (márgenes como `@bottom-center`) los resuelve el navegador al imprimir; la vista previa no los emula. No se genera ningún PDF en servidor.
 
 ## Persistencia e import/export
 
