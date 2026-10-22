@@ -229,9 +229,11 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
         return;
       }
 
+      // Monaco se sirve desde el propio sitio (assets/monaco/vs): sin CDN, funciona sin conexión.
+      const monacoBase = new URL('assets/monaco/vs', document.baseURI).href;
       const onGotAmdLoader = () => {
         (window as any).require.config({
-          paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' },
+          paths: { vs: monacoBase },
         });
         (window as any).require(['vs/editor/editor.main'], () => {
           this.initEditor();
@@ -242,7 +244,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       if (!(window as any).require) {
         const loaderScript = document.createElement('script');
         loaderScript.type = 'text/javascript';
-        loaderScript.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js';
+        loaderScript.src = `${monacoBase}/loader.js`;
         loaderScript.addEventListener('load', onGotAmdLoader);
         document.body.appendChild(loaderScript);
       } else {

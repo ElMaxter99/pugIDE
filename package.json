@@ -37,6 +37,7 @@
     "@vercel/analytics": "^2.0.1",
     "fflate": "^0.8.3",
     "less": "^4.9.1",
+    "monaco-editor": "0.52.2",
     "prettier": "^3.4.0",
     "pug": "^3.0.4",
     "pug-lexer": "^5.0.1",

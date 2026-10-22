@@ -40,6 +40,12 @@
                 "glob": "manifest.webmanifest",
                 "input": "src",
                 "output": "/"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/monaco-editor/min/vs",
+                "output": "assets/monaco/vs",
+                "ignore": ["nls.messages.*.js"]
               }
             ],
             "styles": [
