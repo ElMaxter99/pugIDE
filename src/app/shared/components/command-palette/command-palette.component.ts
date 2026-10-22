@@ -8,6 +8,7 @@ import { UiState } from '../../../core/state/ui.state';
 import { getFileType } from '../../../core/models/tab.model';
 import { DEVICE_PRESETS } from '../../../core/utils/device-presets.util';
 import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
+import { rememberFocus } from '../../../core/utils/focus-trap.util';
 import { filterCommands } from '../../../core/utils/command-palette.util';
 
 interface PaletteCommand {
@@ -79,6 +80,7 @@ export class CommandPaletteComponent {
   private previewState = inject(PreviewState);
   private searchInput = viewChild<ElementRef<HTMLInputElement>>('search');
 
+  private restoreFocus: (() => void) | null = null;
   protected query = signal('');
   protected active = signal(0);
 
@@ -136,9 +138,13 @@ export class CommandPaletteComponent {
 
     effect(() => {
       if (this.ui.paletteOpen()) {
+        this.restoreFocus = rememberFocus();
         this.query.set('');
         this.active.set(0);
         setTimeout(() => this.searchInput()?.nativeElement.focus());
+      } else if (this.restoreFocus) {
+        this.restoreFocus();
+        this.restoreFocus = null;
       }
     });
   }
@@ -159,6 +165,7 @@ export class CommandPaletteComponent {
     else if (e.key === 'ArrowUp') { e.preventDefault(); this.active.set(n ? (this.active() - 1 + n) % n : 0); }
     else if (e.key === 'Enter') { e.preventDefault(); const c = this.results()[this.active()]; if (c) this.run(c); }
     else if (e.key === 'Escape') { e.preventDefault(); this.close(); }
+    else if (e.key === 'Tab') e.preventDefault(); // el único elemento enfocable es el buscador: el foco no sale
   }
 
   protected close(): void {
