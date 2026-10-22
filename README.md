@@ -2,7 +2,7 @@
 
 Entorno de desarrollo visual para **Pug/Jade**: detecta variables, genera datos de prueba (mocks) y previsualiza el resultado en tiempo real, todo en el navegador.
 
-![Versión](https://img.shields.io/badge/version-0.1.0-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
+![Versión](https://img.shields.io/badge/version-0.2.0-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
 
 ## Capturas
 
