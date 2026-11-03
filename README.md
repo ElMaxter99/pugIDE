@@ -40,7 +40,7 @@ Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de a
 - Estilos CSS, SCSS/Sass y Less compilados en el navegador; `<link>` locales y `@import`/`@use` entre archivos.
 - Preview en modo PDF / página impresa (lee `@page { size; margin }` y emula cabeceras y pies con `@top-*` / `@bottom-*`, `counter(page)` y `counter(pages)`, cuenta páginas, avisa de imágenes cortadas y encabezados huérfanos, imprimir o guardar como PDF).
 - Avisos de calidad en la terminal: datos sin usar y peso del HTML (p. ej. el límite de 102 KB de Gmail).
-- Traducciones: las claves `t('CLAVE.ANIDADA')` generan automáticamente campos editables en los datos.
+- Traducciones: las claves `t('CLAVE.ANIDADA')` generan automáticamente campos editables en los datos. Para varios idiomas, usa «Añadir idioma…» (Ctrl+K): crea `locales/es-ES/translations.json`, `locales/es-CAT/translations.json`… y el preview tiene un selector de idioma; las claves nuevas se añaden vacías a todos.
 - Assets locales (imágenes y fuentes) que subes al proyecto y se guardan en tu navegador.
 - Varios proyectos guardados en tu navegador (botón con el nombre del proyecto en la barra superior): abrir, crear, renombrar, duplicar y borrar.
 

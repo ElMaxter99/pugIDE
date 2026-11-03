@@ -14,6 +14,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Diálogo de atajos de teclado (paleta de comandos → "Atajos de teclado").
 - Recordatorio de copia de seguridad: si pasan 14 días sin exportar (contados desde el primer uso si nunca se exportó), la terminal avisa de que los proyectos solo viven en el navegador. Exportar a carpeta o `.zip` lo reinicia. Además se pide al navegador almacenamiento persistente para que no borre los datos por falta de espacio.
 
+- Traducciones por idioma como archivos del proyecto: `locales/<código>/translations.json` (`es-ES`, `es-CAT`, `en`…). El preview tiene un selector de idioma (se conserva en la sesión, la biblioteca y el export), las claves `t('…')` nuevas se añaden vacías a todos los idiomas y un JSON inválido se subraya en su archivo. «Añadir idioma…» (paleta de comandos): el primero recoge las traducciones que hubiera en los datos; los siguientes copian sus claves sin traducir. Sin carpeta `locales/`, todo funciona como antes (`translations` en los datos).
+- Las pestañas con el mismo nombre (p. ej. dos `translations.json`) muestran también su carpeta.
+
 ### Cambiado
 - Angular 20.3.35 (cierra los avisos de `npm audit`) y `angular-eslint` 20, alineado con Angular.
 - `<html lang="es">` y textos de botones (`title` y `aria-label`) en español, con nombre accesible en los botones de solo icono.
