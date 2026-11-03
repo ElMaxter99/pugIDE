@@ -34,7 +34,7 @@ const diag = (a) => a.DiagnosticsState.diagnostics();
   check('13 al corregir el error desaparecen los marcadores', diag(a).length === 0, JSON.stringify(diag(a)));
 }
 {
-  const a = await run({ '/index.pug': 'p ok\n:markdown-it\n  # hi\n' }, '/index.pug');
+  const a = await run({ '/index.pug': 'p ok\n:stylus\n  a\n    color red\n' }, '/index.pug');
   const d = diag(a);
   check('13 filtro desconocido: marcador con ayuda', d.length === 1 && d[0].line === 2 && d[0].message.includes(':cdata'), JSON.stringify(d));
 }

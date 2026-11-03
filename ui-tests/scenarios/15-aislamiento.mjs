@@ -37,8 +37,9 @@ export default async function (env) {
   await waitUntil(async () => (await previewText(page)).includes('Titulo'));
   const text = await waitUntil(async () => { const t = await previewText(page); return t.includes('ls:') && t.includes('idb:') ? t : null; });
   check('15 el JavaScript de la plantilla (render) no puede leer localStorage ni el DOM de la app', !!text && text.includes('ls:SecurityError') && text.includes('parent:SecurityError') && !text.includes('SECRETO-123'), String(text));
+  // document.cookie lanza SecurityError en Chromium y Firefox y devuelve '' en WebKit: en ningún caso se ven cookies de la app.
   check('15 el JavaScript del HTML renderizado (preview) tampoco: ni localStorage, ni el padre, ni IndexedDB, ni cookies',
-    !!text && /ls:SecurityError parent:SecurityError idb:SecurityError cookie:SecurityError/.test(text), String(text));
+    !!text && /ls:SecurityError parent:SecurityError idb:SecurityError cookie(:SecurityError|=)(\s|$)/.test(text), String(text));
 
   const sandboxes = await page.evaluate(() => [...document.querySelectorAll('iframe')].map((f) => ({ cls: f.className, sandbox: f.getAttribute('sandbox') })));
   check('15 ningún iframe de contenido del usuario tiene allow-same-origin', sandboxes.length >= 2 && sandboxes.every((f) => f.sandbox && !f.sandbox.includes('allow-same-origin')), JSON.stringify(sandboxes));
@@ -65,7 +66,9 @@ export default async function (env) {
   await scheme.click(); // dark
   const dark = await waitUntil(async () => (await frame.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)) === true);
   check('15 el modo de color simulado llega al preview aislado', !!dark);
-  check('15 sin errores no controlados ni peticiones externas', app.errors.length === 0 && app.external.length === 0, app.errors.concat(app.external).join(' | '));
+  // WebKit registra como error de página el intento deliberado de la plantilla de leer el DOM del padre (ya capturado con try/catch).
+  const unexpected = app.errors.filter((e) => !/Blocked a frame/.test(e));
+  check('15 sin errores no controlados ni peticiones externas', unexpected.length === 0 && app.external.length === 0, unexpected.concat(app.external).join(' | '));
   await app.close();
 
   await impresion(env);

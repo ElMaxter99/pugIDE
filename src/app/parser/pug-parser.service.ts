@@ -49,6 +49,28 @@ const ARRAY_METHODS = new Set([
   'concat', 'sort', 'reverse', 'push', 'flatMap', 'flat',
 ]);
 const NUMBER_METHODS = new Set(['toFixed', 'toLocaleString', 'toPrecision']);
+
+/**
+ * Métodos que existen en los valores de un JSON (cadenas, números, arrays, fechas, objetos). Una llamada
+ * `dato.metodo(x)` con otro nombre no puede ser de un dato: es un helper (`utils.upper(x)`), que se trata como
+ * función desconocida (stub) en vez de como un campo de los datos.
+ */
+const VALUE_METHODS = new Set([
+  // String
+  'at', 'charAt', 'charCodeAt', 'codePointAt', 'concat', 'endsWith', 'includes', 'indexOf', 'lastIndexOf', 'localeCompare',
+  'match', 'matchAll', 'normalize', 'padEnd', 'padStart', 'repeat', 'replace', 'replaceAll', 'search', 'slice', 'split',
+  'startsWith', 'substring', 'substr', 'toLocaleLowerCase', 'toLocaleUpperCase', 'toLowerCase', 'toUpperCase', 'trim',
+  'trimEnd', 'trimStart',
+  // Array
+  'copyWithin', 'entries', 'every', 'fill', 'filter', 'find', 'findIndex', 'findLast', 'findLastIndex', 'flat', 'flatMap',
+  'forEach', 'join', 'keys', 'map', 'pop', 'push', 'reduce', 'reduceRight', 'reverse', 'shift', 'some', 'sort', 'splice',
+  'toReversed', 'toSorted', 'toSpliced', 'unshift', 'values', 'with',
+  // Number / Date / Object
+  'toExponential', 'toFixed', 'toPrecision', 'toString', 'toLocaleString', 'valueOf', 'toJSON', 'hasOwnProperty',
+  'toDateString', 'toISOString', 'toLocaleDateString', 'toLocaleTimeString', 'toTimeString', 'toUTCString', 'getDay',
+  'getDate', 'getFullYear', 'getHours', 'getMilliseconds', 'getMinutes', 'getMonth', 'getSeconds', 'getTime',
+  'getTimezoneOffset', 'getUTCDate', 'getUTCDay', 'getUTCFullYear', 'getUTCHours', 'getUTCMinutes', 'getUTCMonth', 'getUTCSeconds',
+]);
 const DATE_METHODS = new Set(['toISOString', 'toLocaleDateString', 'getFullYear', 'getTime', 'getMonth', 'getDate']);
 
 /** A data reference found in an expression, with a type hint taken from how it is used (`rows.length` → array). */
@@ -677,6 +699,9 @@ export class PugParserService {
             if (lit && !lit[2].includes('${') && TRANSLATION_KEY_RE.test(lit[2])) keys.push(lit[2]);
           } else if (parts.length === 1) {
             calls.push(first);
+          } else if (!VALUE_METHODS.has(lastPart)) {
+            // `utils.upper(x)`: ningún dato tiene ese método, es un helper -> función desconocida (stub o helpers.js).
+            calls.push(parts.join('.'));
           } else {
             const method = parts.pop()!;
             const hint: DataType | undefined = ARRAY_METHODS.has(method) ? 'array'

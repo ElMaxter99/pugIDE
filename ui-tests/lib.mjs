@@ -54,7 +54,9 @@ export async function openApp(env, { path = '/ide?demo=true', session, prefs, co
   const page = await context.newPage();
   const errors = [];
   // Playwright inyecta (serviceWorkers: 'block') un script en cada marco que falla en los iframes de origen opaco: no es de la app.
-  page.on('pageerror', (e) => { if (!/Service worker is disabled because the context is sandboxed/.test(e.message)) errors.push(e.message); });
+  // WebKit muestra como error de página el CancellationError interno de Monaco («Canceled: Canceled»), que no es de la app.
+  const NOISE = [/Service worker is disabled because the context is sandboxed/i, /^Canceled: Canceled$/];
+  page.on('pageerror', (e) => { if (!NOISE.some((re) => re.test(e.message))) errors.push(e.message); });
   await page.goto(env.baseURL + path);
   await page.waitForTimeout(wait);
   return { context, page, external, requests, errors, close: () => context.close() };

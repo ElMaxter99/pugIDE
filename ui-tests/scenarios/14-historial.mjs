@@ -27,7 +27,7 @@ export default async function (env) {
   await waitUntil(async () => (await previewText(page)).includes('Primera versión'));
 
   let dlg = await openHistory(page);
-  check('14 un archivo sin guardar aún no tiene versiones', (await dlg.innerText()).includes('aún no tiene versiones'));
+  check('14 un archivo sin guardar aún no tiene versiones', !!(await waitUntil(async () => (await dlg.innerText()).includes('aún no tiene versiones'))), await dlg.innerText());
   await page.keyboard.press('Escape');
 
   // Editar y guardar con Ctrl+S

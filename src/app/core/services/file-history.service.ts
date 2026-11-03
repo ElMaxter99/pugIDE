@@ -102,13 +102,15 @@ export class FileHistoryService {
     return projectId + SEP + path;
   }
 
-  /** Versiones del archivo, la más reciente primero. */
-  async list(projectId: string, path: string): Promise<FileVersion[]> {
-    try {
-      return (await this.backend.get(this.key(projectId, path)))?.versions ?? [];
-    } catch {
-      return [];
-    }
+  /** Versiones del archivo, la más reciente primero. Espera a las escrituras pendientes (p. ej. la de un Guardar reciente). */
+  list(projectId: string, path: string): Promise<FileVersion[]> {
+    return this.enqueue(async () => {
+      try {
+        return (await this.backend.get(this.key(projectId, path)))?.versions ?? [];
+      } catch {
+        return [];
+      }
+    });
   }
 
   /**

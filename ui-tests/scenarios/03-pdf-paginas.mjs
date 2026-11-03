@@ -33,6 +33,9 @@ html
     p Fin ${LOREM}
 `;
 
+export const browsers = ['chromium'];
+export const why = 'compara con page.pdf() de Playwright, que solo existe en Chromium';
+
 // Preview PDF con @page (márgenes, cabecera y pie con contador): mismo número de páginas que la impresión real
 export default async function (env) {
   // Impresión real de Chromium

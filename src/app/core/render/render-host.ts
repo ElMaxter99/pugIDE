@@ -46,9 +46,11 @@ export class InlineRenderHost implements RenderHost {
 }
 
 /**
- * Ejecuta el render en un iframe oculto con `sandbox="allow-scripts"` y SIN `allow-same-origin`: su origen es
- * opaco, así que el JavaScript de la plantilla (y el de `helpers.js`) no puede leer `localStorage`, IndexedDB,
- * cookies ni el DOM de la app. Solo se comunica por `postMessage`, con datos clonables.
+ * Ejecuta el render en un Worker dentro de un iframe oculto con `sandbox="allow-scripts"` y SIN
+ * `allow-same-origin`: su origen es opaco, así que el JavaScript de la plantilla (y el de `helpers.js`) no puede
+ * leer `localStorage`, IndexedDB, cookies ni el DOM de la app. Solo se comunica por `postMessage`, con datos
+ * clonables. El Worker tiene su propio hilo: una plantilla que no termina no bloquea la página y, pasado el
+ * tiempo máximo, se descarta el iframe entero.
  */
 export class SandboxRenderHost implements RenderHost {
   private frame: HTMLIFrameElement | null = null;
@@ -57,6 +59,7 @@ export class SandboxRenderHost implements RenderHost {
   private pending = new Map<number, { resolve: (r: RenderResponse) => void; timer: ReturnType<typeof setTimeout> }>();
   private signals = new Map<string, () => void>();
   private listener = (e: MessageEvent): void => this.onMessage(e);
+  private bootError: Error | null = null;
 
   /** Para acotar el tiempo en las pruebas. */
   timeoutMs = RENDER_TIMEOUT_MS;
@@ -93,6 +96,7 @@ export class SandboxRenderHost implements RenderHost {
   }
 
   private async boot(): Promise<void> {
+    this.bootError = null;
     const [pug, runtime] = await Promise.all([fetchText('assets/pug-browser.js'), fetchText('assets/render-sandbox.js')]);
     const frame = document.createElement('iframe');
     frame.setAttribute('sandbox', 'allow-scripts');
@@ -106,10 +110,19 @@ export class SandboxRenderHost implements RenderHost {
     document.body.appendChild(frame);
     this.frame = frame;
     await booted;
-    // El código se entrega por mensaje y se evalúa dentro del iframe (sin escapar `</script>` en 2 MB de JS).
+    this.checkBoot();
+    // El código se entrega por mensaje y el iframe lo arranca como Worker (sin escapar `</script>` en 2 MB de JS).
     const ready = this.waitFor('pugide-render-ready');
     frame.contentWindow!.postMessage({ pugideInit: pug + '\n;\n' + runtime }, '*');
     await ready;
+    this.checkBoot();
+  }
+
+  private checkBoot(): void {
+    if (!this.bootError) return;
+    const err = this.bootError;
+    this.bootError = null;
+    throw err;
   }
 
   private waitFor(signal: string): Promise<void> {
@@ -129,6 +142,13 @@ export class SandboxRenderHost implements RenderHost {
       clearTimeout(p.timer);
       this.pending.delete(d.id);
       p.resolve({ html: String(d.res.html ?? ''), errors: Array.isArray(d.res.errors) ? d.res.errors : [] });
+      return;
+    }
+    if (d.source === 'pugide-render-error') {
+      // El Worker no pudo arrancar: se avisa a quien espere el arranque.
+      const message = String((d as { message?: unknown }).message ?? 'error desconocido');
+      this.bootError = new Error(`El entorno aislado de render falló al arrancar: ${message}`);
+      for (const [name, fire] of [...this.signals]) { this.signals.delete(name); fire(); }
       return;
     }
     const signal = this.signals.get(d.source);
@@ -158,12 +178,21 @@ async function fetchText(url: string): Promise<string> {
   return res.text();
 }
 
-/** Documento inicial del iframe: solo espera el código del render y lo evalúa. */
+/**
+ * Documento inicial del iframe: arranca el código del render como Worker y hace de puente de mensajes entre la
+ * app y el Worker (el Worker no puede hablar directamente con la página que lo contiene).
+ */
 const BOOTSTRAP_HTML =
   '<!doctype html><meta charset="utf-8"><script>' +
-  'addEventListener("message",function(e){if(e.source!==parent)return;var d=e.data;' +
-  'if(d&&typeof d.pugideInit==="string"){try{(0,eval)(d.pugideInit)}catch(err){' +
-  'parent.postMessage({source:"pugide-render-error",message:String(err)},"*")}}});' +
+  'var worker=null;' +
+  'function fail(m){parent.postMessage({source:"pugide-render-error",message:String(m)},"*")}' +
+  'addEventListener("message",function(e){if(e.source!==parent)return;var d=e.data;if(!d)return;' +
+  'if(typeof d.pugideInit==="string"){try{' +
+  'worker=new Worker(URL.createObjectURL(new Blob([d.pugideInit],{type:"text/javascript"})));' +
+  'worker.onmessage=function(m){parent.postMessage(m.data,"*")};' +
+  'worker.onerror=function(m){fail(m.message||"error en el Worker")};' +
+  '}catch(err){fail(err)}}' +
+  'else if(d.source==="pugide-render-req"&&worker){worker.postMessage(d)}});' +
   'parent.postMessage({source:"pugide-render-boot"},"*");' +
   '</script>';
 

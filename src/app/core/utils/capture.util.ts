@@ -60,6 +60,7 @@ export async function captureHtmlToPng(html: string, opts: CaptureOptions): Prom
     const scale = limitScale(requested, width, cssHeight);
     const background = pageBackground(doc);
 
+    flattenStyles(doc);
     doc.querySelectorAll('script').forEach((s) => s.remove());
     const xhtml = new XMLSerializer().serializeToString(doc.documentElement);
     const svg =
@@ -108,4 +109,33 @@ function pageBackground(doc: Document): string {
     if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
   }
   return '#ffffff';
+}
+
+/**
+ * Sustituye las hojas de estilo por una sola con las reglas que se aplican en este ancho: las `@media` y
+ * `@supports` ya resueltas por el iframe de medida. Así la imagen no depende de cómo cada navegador evalúa las
+ * media queries dentro de un SVG (Firefox las evalúa con otro viewport y la captura salía con el diseño de escritorio).
+ */
+export function flattenStyles(doc: Document): void {
+  const win = doc.defaultView;
+  if (!win) return;
+  const out: string[] = [];
+  const walk = (rules: CSSRuleList): void => {
+    for (const rule of Array.from(rules)) {
+      if (rule.type === win.CSSRule.MEDIA_RULE) {
+        if (win.matchMedia((rule as CSSMediaRule).media.mediaText).matches) walk((rule as CSSMediaRule).cssRules);
+      } else if (rule.type === win.CSSRule.SUPPORTS_RULE) {
+        if (win.CSS.supports((rule as CSSSupportsRule).conditionText)) walk((rule as CSSSupportsRule).cssRules);
+      } else if (rule.type !== win.CSSRule.IMPORT_RULE) {
+        out.push(rule.cssText);
+      }
+    }
+  };
+  for (const sheet of Array.from(doc.styleSheets)) {
+    try { walk(sheet.cssRules); } catch { /* hoja de otro origen: no se puede leer */ }
+  }
+  doc.querySelectorAll('style, link[rel~="stylesheet"]').forEach((n) => n.remove());
+  const style = doc.createElement('style');
+  style.textContent = out.join('\n');
+  doc.head.appendChild(style);
 }
