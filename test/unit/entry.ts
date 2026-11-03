@@ -20,3 +20,4 @@ export * from '../../src/app/core/utils/helpers.util';
 export { limitScale, MAX_CANVAS_SIDE, MAX_CANVAS_PIXELS } from '../../src/app/core/utils/capture.util';
 export * from '../../src/app/core/utils/history.util';
 export * from '../../src/app/core/utils/markdown.util';
+export * from '../../src/app/core/utils/html-injection.util';

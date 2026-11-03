@@ -14,7 +14,7 @@ import {
 import { PreferencesState } from '../../core/services/preferences.state';
 import { PageBreakIssue, PageGeometry, pageGeometry } from '../../core/utils/paginate.util';
 import { AssetState } from '../../core/state/asset.state';
-import { injectIntoBody } from '../../core/utils/html-injection.util';
+import { injectIntoBody, pinBaseUrl } from '../../core/utils/html-injection.util';
 import { loadPreviewRuntime } from '../../core/render/preview-runtime';
 import { openInHost } from '../../core/render/preview-host';
 import { A11yIssue, a11yReport, buildPageChrome, describePageIssue, fitScale, pageCountFor, pageIssuesKey } from '../../core/utils/preview-layout.util';
@@ -683,9 +683,13 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  /** Los `blob:` de los assets no cargan en un documento de origen opaco: se sustituyen por data URIs. */
+  /**
+   * Prepara el HTML para un iframe de origen opaco: los `blob:` de los assets no cargan ahí y se sustituyen por data
+   * URIs, y se fija la URL base para que las referencias relativas no se pidan al servidor de la app.
+   */
   private withDataUris(html: string): string {
-    let out = html;
+    if (!html) return html;
+    let out = pinBaseUrl(html);
     for (const [blob, uri] of this.assetState.blobToDataUri()) if (out.includes(blob)) out = out.split(blob).join(uri);
     return out;
   }

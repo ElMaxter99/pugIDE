@@ -1,3 +1,5 @@
+import { pinBaseUrl } from './html-injection.util';
+
 /**
  * Captura de un HTML autocontenido como PNG, sin librerías ni red: el documento se maqueta en un iframe oculto
  * (sin scripts), se serializa dentro de un `<foreignObject>` de un SVG y se dibuja en un canvas. Necesita DOM.
@@ -49,7 +51,7 @@ export async function captureHtmlToPng(html: string, opts: CaptureOptions): Prom
     await new Promise<void>((resolve, reject) => {
       frame.onload = () => resolve();
       frame.onerror = () => reject(new Error('No se pudo maquetar el documento.'));
-      frame.srcdoc = html;
+      frame.srcdoc = pinBaseUrl(html);
     });
     const doc = frame.contentDocument;
     if (!doc?.documentElement) throw new Error('No se pudo leer el documento maquetado.');

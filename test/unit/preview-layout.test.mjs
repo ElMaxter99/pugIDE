@@ -54,3 +54,19 @@ test('a11yReport: sin problemas, con ubicación en Pug y con línea de HTML', ()
   assert.equal(lines[1].message, '[img-alt] Falta alt <img> (/main.pug:4 ~)');
   assert.equal(lines[2].message, '[contrast] Poco contraste <p> (HTML linea 7)');
 });
+
+import { pinBaseUrl } from './.build/units.mjs';
+
+test('pinBaseUrl fija la base del documento sin tocar el resto', () => {
+  const base = '<base href="about:srcdoc">';
+  assert.equal(pinBaseUrl('<!DOCTYPE html><html><head><title>x</title></head><body></body></html>'),
+    `<!DOCTYPE html><html><head>${base}<title>x</title></head><body></body></html>`);
+  assert.equal(pinBaseUrl('<html lang="es"><body>x</body></html>'), `<html lang="es"><head>${base}</head><body>x</body></html>`);
+  assert.equal(pinBaseUrl('<p>fragmento</p>'), `${base}<p>fragmento</p>`);
+  assert.equal(pinBaseUrl('<!doctype html><p>x</p>'), `<!doctype html>${base}<p>x</p>`);
+  // <header> no es <head>
+  assert.equal(pinBaseUrl('<header>h</header>'), `${base}<header>h</header>`);
+  // si la plantilla ya tiene su <base>, se respeta
+  const own = '<html><head><base href="https://ejemplo.com/"></head></html>';
+  assert.equal(pinBaseUrl(own), own);
+});
