@@ -4,17 +4,6 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
-### Añadido
-- Content-Security-Policy y cabeceras de seguridad en `vercel.json` (`nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS). Las imágenes, fuentes y estilos remotos de las plantillas siguen funcionando; las peticiones de red (`fetch`/XHR) del JavaScript del usuario en el preview quedan bloqueadas. Las pruebas de interfaz se ejecutan con esas mismas cabeceras y fallan ante cualquier violación.
-
-### Cambiado
-- Angular 22, TypeScript 6 y `angular-eslint` 22. `npm audit` baja de 33 a 18 avisos moderados (solo `minimatch` en `eslint`).
-- Los assets llegan al iframe del preview una sola vez (como `Blob`) y las compilaciones posteriores solo envían el documento; el iframe ya no se recarga en cada cambio. Con un fallback a `data:` si el navegador rechaza reescribir el documento.
-- El CI usa `actions/checkout@v5` y `actions/setup-node@v5` (Node 24): las v4 van sobre Node 20, obsoleto, y GitHub avisaba de que las forzaría a Node 24.
-- El bundle de la aplicación ya no incluye `package.json` entero (con sus dependencias de desarrollo) solo para leer la versión: se importa `version` por su nombre y el resto se descarta. Una comprobación de interfaz verifica que el Workspace muestre la versión de `package.json`.
-- Dependencias de desarrollo: `@angular/cli` y `@angular/build` 20.3.42 (parches de la misma línea) y se elimina `vite-plugin-node-polyfills`, que no se usaba. `npm audit` pasa de 43 avisos (4 altos, 7 bajos) a 33 moderados; los que quedan vienen de `minimatch` en `eslint` y en el CLI y solo se cierran subiendo de versión de Angular. Las dependencias de producción siguen sin vulnerabilidades.
-- El CI ejecuta también las pruebas de interfaz en Firefox y WebKit (job `ui-navegadores`, en paralelo al de Chromium). Los escenarios que solo valen en Chromium se saltan solos con un `SKIP` visible en el log.
-
 ## [0.4.0] - 2026-11-03
 
 ### Añadido
@@ -34,6 +23,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Filtro de Pug `:markdown` (también `:markdown-it` y `:marked`): subconjunto de Markdown que escapa todo el HTML y anula los enlaces `javascript:`.
 - Las llamadas a métodos que no existen en los valores de un JSON (`utils.upper(name)`) ya no fallan ni crean un campo en los datos: devuelven su argumento, o usan el helper real si hay un `helpers.js`.
 - Pruebas de interfaz en Firefox y WebKit (`PUGIDE_BROWSER=firefox node ui-tests/run.mjs`) y auditoría automática de accesibilidad con axe-core (0 incumplimientos en 12 pantallas y diálogos, en tema oscuro y claro) más pruebas de teclado.
+- Content-Security-Policy y cabeceras de seguridad en `vercel.json` (`nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS). Las imágenes, fuentes y estilos remotos de las plantillas siguen funcionando; las peticiones de red (`fetch`/XHR) del JavaScript del usuario en el preview quedan bloqueadas. Las pruebas de interfaz se ejecutan con esas mismas cabeceras y fallan ante cualquier violación.
 
 ### Corregido
 - `npm run build:prod` (el del CI) no ejecutaba la comprobación de que `render-sandbox.js` y `preview-runtime.js` están al día; ahora la ejecuta (`prebuild:prod`).
@@ -45,8 +35,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - La paginación del modo PDF, la medida del documento y la impresión ahora corren dentro del iframe del preview (`assets/preview-runtime.js`) y se comunican con la app por mensajes; el render de Pug corre en `assets/render-sandbox.js`. Ambos se generan con `npm run bundle:runtime` (se versionan y el build comprueba que están al día). Las imágenes y fuentes de los assets llegan al preview como `data:` (las URL `blob:` no cargan en un documento de origen opaco).
 - Refactor interno sin cambios de comportamiento: los componentes más grandes se trocean y su lógica pasa a utilidades puras con pruebas. Editor de datos → `DataTreeComponent`, `DatasetBarComponent` y `data-tree.util`; preview → `PdfBarComponent` y `preview-layout.util`; editor → `ProjectSearchComponent` y `pug-language`; Workspace → `FileTreeComponent` y `file-actions.util`. Nuevas pruebas de interfaz del editor de datos y del Workspace.
 - Los diálogos y el menú contextual del Workspace están en español.
-- Angular 20.3.35 (cierra los avisos de `npm audit`) y `angular-eslint` 20, alineado con Angular.
 - `<html lang="es">` y textos de botones (`title` y `aria-label`) en español, con nombre accesible en los botones de solo icono.
+- Angular 22, TypeScript 6 y `angular-eslint` 22. `npm audit` baja de 33 a 18 avisos moderados (solo `minimatch` en `eslint`).
+- Los assets llegan al iframe del preview una sola vez (como `Blob`) y las compilaciones posteriores solo envían el documento; el iframe ya no se recarga en cada cambio. Con un fallback a `data:` si el navegador rechaza reescribir el documento.
+- El CI usa `actions/checkout@v5` y `actions/setup-node@v5` (Node 24): las v4 van sobre Node 20, obsoleto, y GitHub avisaba de que las forzaría a Node 24.
+- El bundle de la aplicación ya no incluye `package.json` entero (con sus dependencias de desarrollo) solo para leer la versión: se importa `version` por su nombre y el resto se descarta. Una comprobación de interfaz verifica que el Workspace muestre la versión de `package.json`.
+- Se elimina la devDependency `vite-plugin-node-polyfills`, que no se usaba. Las dependencias de producción no tienen vulnerabilidades.
+- El CI ejecuta también las pruebas de interfaz en Firefox y WebKit (job `ui-navegadores`, en paralelo al de Chromium). Los escenarios que solo valen en Chromium se saltan solos con un `SKIP` visible en el log.
 
 ## [0.3.1] - 2026-10-22
 
