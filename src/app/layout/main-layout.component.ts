@@ -16,10 +16,13 @@ import { DataState } from '../core/state/data.state';
 import { ProjectState } from '../core/state/project.state';
 import { PreferencesState } from '../core/services/preferences.state';
 import { PersistenceService, ProjectSessionState } from '../core/services/persistence.service';
+import { ShortcutsDialogComponent } from '../shared/components/shortcuts-dialog/shortcuts-dialog.component';
+import { UiState } from '../core/state/ui.state';
 import { CommandPaletteComponent } from '../shared/components/command-palette/command-palette.component';
 import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dialog.component';
 import { ProjectIoService } from '../core/services/project-io.service';
 import { ProjectLibraryService } from '../core/services/project-library.service';
+import { backupReminderDays } from '../core/utils/backup.util';
 import { SharePayload, payloadFromHash } from '../core/utils/share.util';
 import { getFileType } from '../core/models/tab.model';
 import { parseDatasetsFile } from '../core/utils/datasets.util';
@@ -38,6 +41,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     TerminalPanelComponent,
     DialogComponent,
     CommandPaletteComponent,
+    ShortcutsDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -58,6 +62,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       </div>
       <app-statusbar />
       <app-command-palette />
+      <app-shortcuts-dialog [isOpen]="ui.shortcutsOpen()" (closed)="ui.shortcutsOpen.set(false)" />
       <app-dialog
         [config]="shareDialog"
         [isOpen]="shareDialogOpen()"
@@ -110,6 +115,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
   `],
 })
 export class MainLayoutComponent implements OnInit {
+  protected ui = inject(UiState);
   private orchestrator = inject(OrchestratorService);
   private route = inject(ActivatedRoute);
   protected editorState = inject(EditorState);
@@ -178,6 +184,10 @@ export class MainLayoutComponent implements OnInit {
       return;
     }
 
+    this.persistence.ensureFirstUse();
+    void this.persistence.requestPersistentStorage();
+    setTimeout(() => this.remindBackup(), 2500);
+
     const saved = this.persistence.loadProjectState();
     const hasSaved = !!saved && Object.keys(saved.files).length > 0;
     const sharedPayload = payloadFromHash(location.hash);
@@ -196,6 +206,14 @@ export class MainLayoutComponent implements OnInit {
     } else {
       void this.startFresh();
     }
+  }
+
+  /** Los proyectos solo viven en este navegador: si hace tiempo que no se exporta, se recuerda en la terminal. */
+  private remindBackup(): void {
+    const days = backupReminderDays(this.persistence.loadBackupInfo(), Date.now(), this.editorState.files().size > 0);
+    if (days === null) return;
+    this.terminalState.addEntry('warning', 'Copia de seguridad',
+      `Hace ${days} días que no exportas el proyecto. Tus proyectos solo existen en este navegador: usa «Exportar proyecto» de la paleta (Ctrl+K) para guardar una copia.`);
   }
 
   /**

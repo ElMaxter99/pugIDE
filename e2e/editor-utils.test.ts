@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import {
   collectMixins,
   findDefinition,
+  documentSymbols,
   formatPug,
+  hoverInfoAt,
+  replaceInProject,
   resolveIncludePath,
   searchProject,
 } from '../src/app/core/utils/pug-editor.util.ts';
@@ -46,6 +49,44 @@ test('searchProject returns file/line/column and honours options', () => {
   assert.equal(searchProject(files, 'car', { wholeWord: true }).length, 0);
   assert.ok(searchProject(files, 'mixin\\s+\\w+', { regex: true }).length === 1);
   assert.deepEqual(searchProject(files, '(', { regex: true }), []);
+});
+
+test('replaceInProject reemplaza en todos los archivos y devuelve solo los que cambian', () => {
+  const r = replaceInProject(files, 'card', 'tarjeta', { caseSensitive: true });
+  assert.deepEqual(r.map((x) => [x.path, x.count]), [['/components/card.pug', 2], ['/data.json', 1], ['/main.pug', 2]]);
+  assert.equal(r.find((x) => x.path === '/data.json')!.content, '{"title":"tarjeta"}');
+  assert.equal(replaceInProject(files, 'zzz', 'x').length, 0);
+  assert.deepEqual(replaceInProject(files, '(', 'x', { regex: true }), []);
+});
+
+test('replaceInProject: texto literal vs. expresión regular con grupos', () => {
+  const f = new Map([['/a.pug', 'p $1 $& a-b\n']]);
+  assert.equal(replaceInProject(f, '$1', '$&$&')[0].content, 'p $&$& $& a-b\n');
+  assert.equal(replaceInProject(f, '(a)-(b)', '$2-$1 $$ $&', { regex: true })[0].content, 'p $1 $& b-a $ a-b\n');
+  assert.equal(replaceInProject(f, 'A', 'z', { caseSensitive: true }).length, 0);
+  assert.equal(replaceInProject(f, 'a', 'z', { wholeWord: true })[0].content, 'p $1 $& z-b\n');
+});
+
+test('hoverInfoAt describe mixins e includes', () => {
+  const line = '  +card(title)';
+  const h = hoverInfoAt(files, '/main.pug', line, 5)!;
+  assert.match(h.markdown, /mixin card\(title, body\)/);
+  assert.match(h.markdown, /\/components\/card\.pug:1/);
+  assert.match(h.markdown, /1 llamada/);
+  assert.deepEqual(h.range, [4, 8]);
+  assert.equal(hoverInfoAt(files, '/main.pug', line, 12), null);
+  assert.match(hoverInfoAt(files, '/main.pug', '  include components/card', 14)!.markdown, /\*\*include\*\*: `\/components\/card\.pug`/);
+  assert.match(hoverInfoAt(files, '/main.pug', 'include nada', 10)!.markdown, /no existe/);
+  assert.equal(hoverInfoAt(files, '/main.pug', '  +desconocido', 6), null);
+});
+
+test('documentSymbols lista mixins y bloques', () => {
+  const src = 'extends layout\nblock content\n  p x\nmixin card(a, b)\n  block\nblock append scripts\n';
+  assert.deepEqual(documentSymbols(src), [
+    { name: 'content', kind: 'block', line: 2 },
+    { name: 'card(a, b)', kind: 'mixin', line: 4 },
+    { name: 'scripts', kind: 'block', line: 6 },
+  ]);
 });
 
 test('formatPug normalises indentation, whitespace and blank lines', () => {

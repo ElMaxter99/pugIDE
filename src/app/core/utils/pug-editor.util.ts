@@ -117,21 +117,87 @@ export function findDefinition(
   return null;
 }
 
+export interface HoverInfo {
+  /** Markdown del hover. */
+  markdown: string;
+  /** [start, end) columnas (1-based) del token. */
+  range: [number, number];
+}
+
+/** Información al pasar el ratón por un `include` / `extends` o una llamada `+mixin`; null si no hay nada que mostrar. */
+export function hoverInfoAt(
+  files: ReadonlyMap<string, string>,
+  currentPath: string,
+  lineText: string,
+  column: number,
+): HoverInfo | null {
+  const target = findDefinition(files, currentPath, lineText, column);
+  if (!target?.range) return null;
+  if (INCLUDE_RE.test(lineText)) {
+    const kind = lineText.trim().startsWith('extends') ? 'extends' : 'include';
+    return {
+      range: target.range,
+      markdown: target.missing
+        ? `**${kind}**: \`${target.path}\` no existe en el proyecto.`
+        : `**${kind}**: \`${target.path}\``,
+    };
+  }
+  const name = lineText.slice(target.range[0] - 1, target.range[1] - 1);
+  const def = collectMixins(files).find((d) => d.path === target.path && d.line === target.line);
+  if (!def) return null;
+  let uses = 0;
+  const re = new RegExp(`(?:^|[\\s:])\\+${name.replace(/[-]/g, '\\-')}(?![\\w-])`);
+  for (const [path, content] of files) {
+    if (isPugPath(path)) uses += content.split('\n').filter((l) => re.test(l)).length;
+  }
+  return {
+    range: target.range,
+    markdown: `\`mixin ${def.name}(${def.args})\`\n\nDefinido en \`${def.path}:${def.line}\` · ${uses} ${uses === 1 ? 'llamada' : 'llamadas'}`,
+  };
+}
+
+export interface DocumentSymbol {
+  name: string;
+  kind: 'mixin' | 'block';
+  line: number; // 1-based
+}
+
+const BLOCK_RE = /^\s*(?:block(?:\s+(?:append|prepend))?)\s+([\w-]+)\s*$/;
+
+/** Mixins y bloques de un archivo Pug, para el outline y "Ir a símbolo" (Ctrl+Shift+O). */
+export function documentSymbols(content: string): DocumentSymbol[] {
+  const out: DocumentSymbol[] = [];
+  content.split('\n').forEach((text, i) => {
+    const mixin = text.match(MIXIN_DEF_RE);
+    if (mixin) {
+      out.push({ name: `${mixin[1]}(${(mixin[2] ?? '').trim()})`, kind: 'mixin', line: i + 1 });
+      return;
+    }
+    const block = text.match(BLOCK_RE);
+    if (block) out.push({ name: block[1], kind: 'block', line: i + 1 });
+  });
+  return out;
+}
+
+function buildSearchRegex(query: string, opts: SearchOptions): RegExp | null {
+  if (!query) return null;
+  try {
+    let src = opts.regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (opts.wholeWord) src = `\\b(?:${src})\\b`;
+    return new RegExp(src, opts.caseSensitive ? 'g' : 'gi');
+  } catch {
+    return null;
+  }
+}
+
 export function searchProject(
   files: ReadonlyMap<string, string>,
   query: string,
   opts: SearchOptions = {},
 ): SearchMatch[] {
-  if (!query) return [];
+  const re = buildSearchRegex(query, opts);
+  if (!re) return [];
   const max = opts.maxResults ?? 500;
-  let re: RegExp;
-  try {
-    let src = opts.regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if (opts.wholeWord) src = `\\b(?:${src})\\b`;
-    re = new RegExp(src, opts.caseSensitive ? 'g' : 'gi');
-  } catch {
-    return [];
-  }
   const out: SearchMatch[] = [];
   for (const path of [...files.keys()].sort()) {
     const lines = (files.get(path) ?? '').split('\n');
@@ -147,6 +213,43 @@ export function searchProject(
         if (out.length >= max) return out;
       }
     }
+  }
+  return out;
+}
+
+export interface ReplaceResult {
+  path: string;
+  content: string;
+  count: number;
+}
+
+/**
+ * Reemplaza todas las coincidencias de `searchProject` (misma semántica, línea a línea). En modo texto el
+ * reemplazo es literal; con `regex` admite `$1`, `$&`… Devuelve solo los archivos que cambian.
+ */
+export function replaceInProject(
+  files: ReadonlyMap<string, string>,
+  query: string,
+  replacement: string,
+  opts: SearchOptions = {},
+): ReplaceResult[] {
+  const re = buildSearchRegex(query, opts);
+  if (!re) return [];
+  const out: ReplaceResult[] = [];
+  for (const path of [...files.keys()].sort()) {
+    let count = 0;
+    const lines = (files.get(path) ?? '').split('\n').map((line) =>
+      line.replace(re, (...args: unknown[]) => {
+        const match = args[0] as string;
+        if (match.length === 0) return match;
+        count++;
+        if (!opts.regex) return replacement;
+        const groups = args.slice(1, args.findIndex((a) => typeof a === 'number'));
+        return replacement.replace(/\$(\$|&|\d{1,2})/g, (_m, g: string) =>
+          g === '$' ? '$' : g === '&' ? match : String(groups[Number(g) - 1] ?? ''));
+      }),
+    );
+    if (count) out.push({ path, content: lines.join('\n'), count });
   }
   return out;
 }

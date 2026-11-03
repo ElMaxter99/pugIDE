@@ -7,4 +7,6 @@ export class UiState {
   readonly projectsOpen = signal(false);
   /** Paleta de comandos (Ctrl+K). */
   readonly paletteOpen = signal(false);
+  /** Diálogo de atajos de teclado. */
+  readonly shortcutsOpen = signal(false);
 }

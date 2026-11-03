@@ -20,7 +20,10 @@ import {
   SearchMatch,
   collectMixins,
   findDefinition,
+  documentSymbols,
   formatPug,
+  hoverInfoAt,
+  replaceInProject,
   searchProject,
 } from '../../core/utils/pug-editor.util';
 import { TerminalState } from '../../core/state/terminal.state';
@@ -28,6 +31,17 @@ import { DiagnosticsState } from '../../core/state/diagnostics.state';
 import { PreferencesState } from '../../core/services/preferences.state';
 
 declare const monaco: any;
+
+/** Lenguaje de Monaco según el tipo de archivo del proyecto. */
+const MODEL_LANGUAGES: Record<string, string> = {
+  pug: 'pug',
+  scss: 'scss',
+  less: 'less',
+  json: 'json',
+  javascript: 'javascript',
+  html: 'html',
+  css: 'css',
+};
 
 @Component({
   selector: 'app-editor-panel',
@@ -40,14 +54,20 @@ declare const monaco: any;
       @if (searchOpen()) {
         <div class="search-panel" role="search">
           <div class="search-bar">
-            <input #searchInput class="search-input" data-testid="project-search" type="text" placeholder="Search in project (Enter: first result, Esc: close)"
+            <input #searchInput class="search-input" data-testid="project-search" type="text" placeholder="Buscar en el proyecto (Enter: primer resultado, Esc: cerrar)"
               [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" (keydown)="onSearchKey($event)" />
             <button type="button" class="opt" [class.on]="searchCase()" title="Distinguir mayúsculas" aria-label="Distinguir mayúsculas" (click)="searchCase.set(!searchCase())">Aa</button>
             <button type="button" class="opt" [class.on]="searchWord()" title="Palabra completa" aria-label="Palabra completa" (click)="searchWord.set(!searchWord())">ab</button>
             <button type="button" class="opt" [class.on]="searchRegex()" title="Expresión regular" aria-label="Expresión regular" (click)="searchRegex.set(!searchRegex())">.*</button>
             <button type="button" class="opt" title="Cerrar búsqueda" aria-label="Cerrar búsqueda" (click)="closeSearch()">&times;</button>
           </div>
-          <div class="search-summary">{{ searchResults().length }} results in {{ searchGroups().length }} files</div>
+          <div class="replace-bar">
+            <input class="search-input" data-testid="project-replace" type="text" placeholder="Reemplazar por…"
+              [value]="replaceText()" (input)="replaceText.set($any($event.target).value)" (keydown)="onReplaceKey($event)" />
+            <button type="button" class="replace-btn" data-testid="replace-all" [disabled]="!searchResults().length"
+              title="Reemplaza todas las coincidencias en el proyecto (Ctrl+Z las deshace en cada archivo)" (click)="replaceAll()">Reemplazar todo</button>
+          </div>
+          <div class="search-summary">{{ searchResults().length }} resultados en {{ searchGroups().length }} archivos</div>
           <div class="search-results">
             @for (g of searchGroups(); track g.path) {
               <div class="result-file">{{ g.path }}</div>
@@ -79,6 +99,10 @@ declare const monaco: any;
     .search-input { flex: 1; min-width: 0; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px; font: inherit; font-size: 13px; }
     .opt { background: transparent; color: var(--text-secondary); border: 1px solid transparent; border-radius: 4px; padding: 0 8px; cursor: pointer; font-size: 12px; }
     .opt.on { color: var(--text-primary); border-color: var(--accent-color); }
+    .replace-bar { display: flex; gap: 4px; padding: 0 8px 6px; }
+    .replace-btn { background: transparent; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0 10px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+    .replace-btn:hover:not(:disabled) { border-color: var(--accent-color); }
+    .replace-btn:disabled { opacity: 0.5; cursor: default; }
     .search-summary { padding: 0 10px 4px; font-size: 11px; color: var(--text-secondary); }
     .search-results { overflow: auto; font-size: 12px; }
     .result-file { padding: 4px 10px; color: var(--text-primary); font-weight: 600; }
@@ -362,6 +386,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     this.setupNavigation();
     this.setupCompletion();
     this.setupFormatting();
+    this.setupHoverAndSymbols();
     this.editor.addAction({
       id: 'pug.searchInProject',
       label: 'Search in Project',
@@ -512,6 +537,35 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     this.extraDisposables.push(provider);
   }
 
+  /** Hover de mixins e includes, y outline / "Ir a símbolo" (Ctrl+Shift+O) con los mixins y bloques del archivo. */
+  private setupHoverAndSymbols(): void {
+    const hover = monaco.languages.registerHoverProvider('pug', {
+      provideHover: (model: any, position: any) => {
+        const info = hoverInfoAt(this.liveFiles(), model.uri.path, model.getLineContent(position.lineNumber), position.column);
+        if (!info) return null;
+        return {
+          range: new monaco.Range(position.lineNumber, info.range[0], position.lineNumber, info.range[1]),
+          contents: [{ value: info.markdown }],
+        };
+      },
+    });
+    const symbols = monaco.languages.registerDocumentSymbolProvider('pug', {
+      provideDocumentSymbols: (model: any) =>
+        documentSymbols(model.getValue()).map((sym) => {
+          const range = new monaco.Range(sym.line, 1, sym.line, model.getLineMaxColumn(sym.line));
+          return {
+            name: sym.name,
+            detail: sym.kind === 'mixin' ? 'mixin' : 'block',
+            kind: sym.kind === 'mixin' ? monaco.languages.SymbolKind.Function : monaco.languages.SymbolKind.Namespace,
+            tags: [],
+            range,
+            selectionRange: range,
+          };
+        }),
+    });
+    this.extraDisposables.push(hover, symbols);
+  }
+
   /** Document formatter (Shift+Alt+F / "Format Document"); see formatPug for its limits. */
   private setupFormatting(): void {
     const provider = monaco.languages.registerDocumentFormattingEditProvider('pug', {
@@ -534,7 +588,12 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   protected searchRegex = signal(false);
   @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
 
+  protected replaceText = signal('');
+  /** Los archivos viven en un Map mutable: se incrementa tras reemplazar para recalcular los resultados. */
+  private searchRefresh = signal(0);
+
   protected searchResults = computed(() => {
+    this.searchRefresh();
     if (!this.searchOpen()) return [];
     return searchProject(this.liveFiles(), this.searchQuery(), {
       caseSensitive: this.searchCase(),
@@ -568,6 +627,54 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   protected closeSearch(): void {
     this.searchOpen.set(false);
     this.editor?.focus();
+  }
+
+  protected onReplaceKey(e: KeyboardEvent): void {
+    if (e.key === 'Escape') this.closeSearch();
+    if (e.key === 'Enter') this.replaceAll();
+  }
+
+  /**
+   * Reemplaza en todo el proyecto. Cada archivo cambia mediante una edición de su modelo de Monaco, así
+   * que Ctrl+Z la deshace archivo a archivo (los modelos de archivos cerrados se crean para ello).
+   */
+  protected replaceAll(): void {
+    const query = this.searchQuery();
+    if (!query || !this.editor) return;
+    const changes = replaceInProject(this.liveFiles(), query, this.replaceText(), {
+      caseSensitive: this.searchCase(),
+      wholeWord: this.searchWord(),
+      regex: this.searchRegex(),
+    });
+    if (!changes.length) return;
+    const files = this.editorState.files();
+    let total = 0;
+    for (const c of changes) {
+      total += c.count;
+      const model = this.modelForPath(c.path);
+      if (model.getValue() !== c.content) {
+        model.pushEditOperations([], [{ range: model.getFullModelRange(), text: c.content }], () => null);
+      }
+      // El modelo activo avisa por onDidChangeModelContent; el resto se sincroniza aquí.
+      files.set(c.path, c.content);
+    }
+    this.editorState.files.set(new Map(files));
+    this.searchRefresh.update((n) => n + 1);
+    this.terminalState.addEntry('info', 'Editor', `Reemplazadas ${total} coincidencias en ${changes.length} archivos. Ctrl+Z las deshace en cada archivo.`);
+    this.orchestrator.saveSession();
+    void this.orchestrator.manualCompile();
+  }
+
+  /** Modelo de Monaco de un archivo del proyecto; lo crea si todavía no se había abierto. */
+  private modelForPath(path: string): any {
+    const uri = monaco.Uri.parse(path);
+    let model = this.models.get(path) ?? monaco.editor.getModel(uri);
+    if (!model) {
+      const name = path.split('/').pop() ?? path;
+      model = monaco.editor.createModel(this.editorState.files().get(path) ?? '', MODEL_LANGUAGES[getFileType(name)] ?? 'plaintext', uri);
+    }
+    this.models.set(path, model);
+    return model;
   }
 
   protected onSearchKey(e: KeyboardEvent): void {
@@ -623,16 +730,6 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   private loadModel(tab: { path: string; type: string; name: string }): void {
     if (!this.editor) return;
 
-    const langMap: Record<string, string> = {
-      pug: 'pug',
-      scss: 'scss',
-      less: 'less',
-      json: 'json',
-      javascript: 'javascript',
-      html: 'html',
-      css: 'css',
-    };
-
     // Monaco auto-creates an implicit `inmemory://` model when the editor is
     // constructed without one — skip it, it's not a real file (see initEditor).
     const currentModel = this.editor.getModel();
@@ -655,7 +752,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       }
     }
 
-    const lang = langMap[tab.type] ?? 'plaintext';
+    const lang = MODEL_LANGUAGES[tab.type] ?? 'plaintext';
     const uri = monaco.Uri.parse(tab.path);
     let model = this.models.get(tab.path) ?? monaco.editor.getModel(uri);
 
