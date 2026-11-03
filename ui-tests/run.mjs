@@ -7,10 +7,11 @@
 // (y `install-deps webkit` en Linux). Los escenarios que solo valen para Chromium se marcan con `export const browsers`.
 import http from 'node:http';
 import { createReadStream, existsSync, readdirSync, statSync } from 'node:fs';
-import { extname, join, resolve, dirname } from 'node:path';
+import { extname, join, resolve, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, firefox, webkit } from 'playwright-core';
 import { stats } from './lib.mjs';
+import { headersFor } from './headers.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = resolve(here, '../dist/pug-ide/browser');
@@ -33,7 +34,9 @@ function serve() {
     if (!file.startsWith(dist)) { res.writeHead(403).end(); return; }
     if (pathname.startsWith('/_vercel/')) { res.writeHead(404).end(); return; } // analítica de Vercel: no existe en local
     if (!existsSync(file) || statSync(file).isDirectory()) file = join(dist, 'index.html');
-    res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });
+    // Cabeceras de producción (CSP incluida), leídas de vercel.json; las rutas SPA sirven index.html con las de su ruta.
+    const served = '/' + file.slice(dist.length + 1).split(sep).join('/');
+    res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', ...headersFor(served === '/index.html' ? pathname : served) });
     createReadStream(file).pipe(res);
   });
   return new Promise((r) => server.listen(0, '127.0.0.1', () => r(server)));

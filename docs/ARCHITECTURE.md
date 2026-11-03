@@ -57,6 +57,26 @@ PugIDE ejecuta JavaScript que escribe el usuario (`- código` y expresiones de l
 - **Pruebas**: `ui-tests/scenarios/15-aislamiento.mjs` comprueba con Chromium que la plantilla y el HTML renderizado no pueden leer `localStorage`, IndexedDB, cookies ni el padre, que ningún iframe tiene `allow-same-origin`, que el inspector, la auditoría, el modo de color y la impresión llegan por mensajes, que un bucle infinito se cancela, y la pestaña anfitriona y el SVG con script.
 - **Límites**: el aislamiento protege los datos de la app, no los del propio proyecto (el JavaScript del usuario sigue pudiendo hacer peticiones de red con lo que renderiza). Un bucle infinito en el HTML renderizado (un `<script>` del preview) sí corre en el hilo del iframe del preview: en Chromium no bloquea la app (otro proceso), pero en navegadores que no aíslan los iframes `sandbox` en otro proceso puede bloquear la pestaña; el render de Pug, en cambio, siempre va en un Worker.
 
+## Seguridad: CSP y cabeceras
+
+`vercel.json` añade a todas las rutas (`/(.*)`) una `Content-Security-Policy` y cabeceras de endurecimiento (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` sin cámara, micrófono, geolocalización, pagos ni USB, y `Strict-Transport-Security`). Las reglas de caché y `Content-Type` ya existentes (service worker, manifest, `index.html`) se mantienen: Vercel combina las cabeceras de todas las reglas que coinciden.
+
+| Directiva | Valor | Motivo |
+| --- | --- | --- |
+| `default-src` | `'self'` | todo es autoalojado (Monaco, fuentes, bundles) |
+| `script-src` | `'self' 'unsafe-inline' 'unsafe-eval'` | ver "Herencia en los iframes" |
+| `style-src` | `'self' 'unsafe-inline' https:` | Angular y el CSS crítico inline; hojas de estilo remotas de plantillas |
+| `img-src` / `font-src` / `media-src` | `'self' data: blob: https:` | assets del proyecto (`blob:`/`data:`) y recursos remotos de las plantillas |
+| `connect-src` | `'self' blob: data:` | la analítica opt-in (`/_vercel/insights`) es del mismo origen; ningún tercero |
+| `worker-src` | `'self' blob:` | workers de Monaco y Worker del render (blob) |
+| `frame-src` | `'self' blob: data:` | iframes aislados y `preview-host.html` |
+| `base-uri` | `'self' about:` | `pinBaseUrl` fija `<base href="about:srcdoc">` en el preview |
+| `object-src` / `frame-ancestors` / `form-action` | `'none'` / `'none'` / `'self'` | sin plugins, sin ser embebida, sin formularios a terceros |
+
+**Herencia en los iframes.** Un documento `srcdoc` (preview y iframe del render) y los Workers `blob:` heredan la CSP de quien los crea; una `<meta http-equiv="Content-Security-Policy">` dentro del HTML solo puede restringir más, nunca relajar. Por eso la política de la app es también la del preview, y por eso no se ha añadido una meta propia: el preview ya queda con la política que necesita. Consecuencias: (1) el preview ejecuta `<script>` inline del usuario, el programa `preview-runtime.js` se inyecta inline y el Worker del render compila con `new Function` (Pug), así que `script-src` necesita `'unsafe-inline'` y `'unsafe-eval'`; el aislamiento real de ese código lo da el `sandbox` sin `allow-same-origin` (origen opaco), no la CSP; (2) `connect-src` hereda al JavaScript del usuario, que no puede hacer `fetch`/XHR a terceros (un `<img>`, `<link>` o fuente remotos sí funcionan: `img-src`/`font-src`/`style-src` admiten `https:`); (3) `<base href>` remotos o `http:` en una plantilla se ignoran. Para endurecer `script-src` (quitar `'unsafe-inline'`/`'unsafe-eval'`) habría que mover el preview y el render a documentos propios con su CSP por cabecera (`src=` en lugar de `srcdoc`), pendiente.
+
+**Pruebas.** `ui-tests/headers.mjs` lee `vercel.json` y `ui-tests/run.mjs` sirve `dist/pug-ide/browser` con exactamente esas cabeceras, de modo que `npm run test:ui` corre bajo la CSP de producción. `openApp` recoge las violaciones (evento `securitypolicyviolation` en todos los marcos, también los de origen opaco, y mensajes de consola de la página y de los Workers) y `close()` falla el escenario si hay alguna: 0 violaciones en todos. `ui-tests/scenarios/18-seguridad-cabeceras.mjs` comprueba las cabeceras en varias rutas, que una plantilla con imágenes y fuentes remotas, `data:` y scripts no viola nada y que el `fetch` a un tercero desde el preview sí se bloquea.
+
 ## Markdown, helpers de objeto y filtros
 
 `markdown.util.ts` (puro) implementa el filtro `:markdown` (alias `:markdown-it` y `:marked`) con un subconjunto —encabezados, énfasis, código, enlaces, imágenes, listas anidadas, citas y reglas— que **escapa todo el HTML** y anula los enlaces `javascript:` y las imágenes `data:` que no sean de imagen. `render-core.ts` lo registra junto a `:cdata`. En el parser, `VALUE_METHODS` lista los métodos que existen en los valores de un JSON (String, Array, Number, Date, Object): una llamada `dato.metodo(x)` con otro nombre no puede ser de un dato, así que se trata como función desconocida (stub que devuelve su primer argumento, o el helper real de `helpers.js`) y no crea un campo en los datos.
