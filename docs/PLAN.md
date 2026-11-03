@@ -58,6 +58,8 @@ Prioridad: **A** = afecta al uso diario, **B** = mejora clara, **C** = deseable.
 
 ## 4. Plan propuesto
 
+> **Estado de la fase 1** (hecha en esta rama): marcadores de error en Monaco (Pug, SCSS/Sass, Less), filtros de Pug verificados (`:cdata` añadido; `:markdown-it`, `:scss`… no existen en el navegador y ahora el error lo explica; `require` no falla), Angular 20.3.35 (`npm audit` sin vulnerabilidades), `angular-eslint` 20, `lang="es"` y etiquetas accesibles. Pendiente de la fase 1: auditoría de accesibilidad completa con lector de pantalla.
+
 **Fase 1 — Fiabilidad (1–2 semanas)**
 1. Marcadores de error de Pug/SCSS en Monaco con línea/columna (el `CompileError` ya trae `line` y `column`).
 2. Verificar y cubrir con e2e los filtros de Pug y `require`; mensaje claro si no están soportados.

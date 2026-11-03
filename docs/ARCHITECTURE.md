@@ -31,6 +31,10 @@
 5. **Assets**: `applyAssets` reescribe referencias locales a imágenes/fuentes hacia URLs `blob:` de los archivos subidos; los que faltan se avisan en el terminal y en `AssetState.missing`.
 6. **Preview**: se anotan las líneas del HTML (`annotateHtmlLines`), se inyecta el script del inspector y se publica en `PreviewState`, que alimenta el iframe. Errores y tiempos van a `TerminalState`.
 
+## Diagnósticos en el editor
+
+`diagnostics.util.ts` convierte los errores del parser, de Pug y de estilos en `Diagnostic` (archivo, línea, columna, mensaje limpio): `splitPugMessage` separa la ubicación del fragmento de código de Pug y se prefiere la ruta del propio mensaje, porque el `filename` del parser es siempre el de entrada. `OrchestratorService.processCode` los publica en `DiagnosticsState` y `EditorPanelComponent` los pinta con `monaco.editor.setModelMarkers` (propietario `pugide`) en todos los modelos abiertos. Los errores de sass/less llevan línea y columna (`ScssCompileError`). `PugCompilerService` solo registra el filtro `:cdata`; un filtro desconocido añade al error la lista de disponibles.
+
 ## Juegos de datos, mocks e importación de esquemas
 
 - `DataState` guarda varios **juegos de datos** por proyecto (`Por defecto`, `Vacío`, `Lleno`, `Error` y personalizados); el activo es `data`. Se crean/cambian/renombran/duplican/borran desde el selector del editor de datos (`OrchestratorService.createDataset` etc.). Viajan en la sesión (`ProjectSessionState.datasets`) y en el export/import como `/.pugide/datasets.json` (zip o carpeta; no es un archivo del proyecto). Utilidades puras en `core/utils/datasets.util.ts`.
