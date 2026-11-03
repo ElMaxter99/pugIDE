@@ -5,6 +5,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [Sin publicar]
 
 ### Cambiado
+- Dependencias de desarrollo: `@angular/cli` y `@angular/build` 20.3.42 (parches de la misma línea) y se elimina `vite-plugin-node-polyfills`, que no se usaba. `npm audit` pasa de 43 avisos (4 altos, 7 bajos) a 33 moderados; los que quedan vienen de `minimatch` en `eslint` y en el CLI y solo se cierran subiendo de versión de Angular. Las dependencias de producción siguen sin vulnerabilidades.
 - El CI ejecuta también las pruebas de interfaz en Firefox y WebKit (job `ui-navegadores`, en paralelo al de Chromium). Los escenarios que solo valen en Chromium se saltan solos con un `SKIP` visible en el log.
 
 ## [0.4.0] - 2026-11-03

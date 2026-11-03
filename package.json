@@ -54,8 +54,8 @@
     "zone.js": "^0.15.0"
   },
   "devDependencies": {
-    "@angular/build": "20.3.38",
-    "@angular/cli": "20.3.38",
+    "@angular/build": "20.3.42",
+    "@angular/cli": "20.3.42",
     "@angular/compiler-cli": "20.3.35",
     "@types/node": "^22.0.0",
     "angular-eslint": "^20.7.0",
@@ -67,7 +67,6 @@
     "playwright-core": "1.56.1",
     "sass": "^1.105.1",
     "typescript": "~5.8.3",
-    "typescript-eslint": "^8.71.1",
-    "vite-plugin-node-polyfills": "^0.28.0"
+    "typescript-eslint": "^8.71.1"
   }
 }
