@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Cambiado
+- El CI ejecuta también las pruebas de interfaz en Firefox y WebKit (job `ui-navegadores`, en paralelo al de Chromium). Los escenarios que solo valen en Chromium se saltan solos con un `SKIP` visible en el log.
+
 ## [0.4.0] - 2026-11-03
 
 ### Añadido

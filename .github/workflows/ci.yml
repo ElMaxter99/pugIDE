@@ -30,3 +30,29 @@ jobs:
         run: npx playwright-core install --with-deps chromium
       - name: Tests de interfaz
         run: npm run test:ui
+
+  # Las mismas pruebas de interfaz en Firefox y WebKit (build-test solo ejecuta Chromium). Los escenarios que solo valen
+  # en Chromium (PDF contra page.pdf() y sin conexión) se saltan solos y lo dicen en el log (`SKIP`).
+  ui-navegadores:
+    name: ui-${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build de produccion
+        run: npm run build:prod
+      - name: Instalar ${{ matrix.browser }} para las pruebas de interfaz
+        run: npx playwright-core install --with-deps ${{ matrix.browser }}
+      - name: Tests de interfaz (${{ matrix.browser }})
+        run: npm run test:ui
+        env:
+          PUGIDE_BROWSER: ${{ matrix.browser }}
