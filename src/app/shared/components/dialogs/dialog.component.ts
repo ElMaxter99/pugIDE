@@ -33,7 +33,7 @@ export interface DialogConfig {
           (click)="$event.stopPropagation()" (keydown.escape)="onCancel()" (keydown)="onKeydown($event)">
           <div class="dialog-header">
             <h3 class="dialog-title">{{ config().title }}</h3>
-            <button class="dialog-close" (click)="onCancel()">
+            <button class="dialog-close" aria-label="Cerrar" title="Cerrar" (click)="onCancel()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>

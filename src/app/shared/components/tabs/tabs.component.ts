@@ -34,7 +34,7 @@ import { ContextMenuAction } from '../../../core/models/index';
             @if (tab.isDirty) {
               <span class="dirty-dot"></span>
             }
-            <button class="tab-close" (click)="closeTab($event, tab.id)" title="Close">
+            <button class="tab-close" (click)="closeTab($event, tab.id)" title="Cerrar pestaña" aria-label="Cerrar pestaña">
               <span class="material-symbols-outlined" style="font-size: 14px;">close</span>
             </button>
           </div>

@@ -58,10 +58,10 @@ type PendingAction =
               <button class="add-btn" (click)="preferences.toggleSidebar()" title="Colapsar Workspace" aria-label="Colapsar Workspace">
                 <span class="material-symbols-outlined" style="font-size: 16px;">left_panel_close</span>
               </button>
-              <button class="add-btn" (click)="onImportClick()" title="Import project (folder or .zip)">
+              <button class="add-btn" (click)="onImportClick()" title="Importar proyecto (carpeta o .zip)" aria-label="Importar proyecto (carpeta o .zip)">
                 <span class="material-symbols-outlined" style="font-size: 16px;">upload</span>
               </button>
-              <button class="add-btn" (click)="onExportClick()" title="Export project (folder or .zip)">
+              <button class="add-btn" (click)="onExportClick()" title="Exportar proyecto (carpeta o .zip)" aria-label="Exportar proyecto (carpeta o .zip)">
                 <span class="material-symbols-outlined" style="font-size: 16px;">download</span>
               </button>
               <button class="add-btn" (click)="pickAssets()" title="Subir imágenes, fuentes o estilos (.css, .scss, .less)">
@@ -72,7 +72,7 @@ type PendingAction =
                   <span class="material-symbols-outlined" style="font-size: 16px;">undo</span>
                 </button>
               }
-              <button class="add-btn" (click)="showNewFileDialog()" title="New file">
+              <button class="add-btn" (click)="showNewFileDialog()" title="Nuevo archivo" aria-label="Nuevo archivo">
                 <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
               </button>
             </div>

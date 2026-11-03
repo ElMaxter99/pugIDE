@@ -44,16 +44,16 @@ interface TreeNode {
           <button class="icon-btn" (click)="preferences.toggleData()" title="Colapsar Data" aria-label="Colapsar Data">
             <span class="material-symbols-outlined" style="font-size: 16px;">right_panel_close</span>
           </button>
-          <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Switch to visual tree (Ctrl+Shift+J)' : 'Switch to JSON editor (Ctrl+Shift+J)'">
+          <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Cambiar al árbol visual (Ctrl+Shift+J)' : 'Cambiar al editor JSON (Ctrl+Shift+J)'" [attr.aria-label]="jsonRawMode() ? 'Cambiar al árbol visual' : 'Cambiar al editor JSON'">
             <span class="mode-label">{{ jsonRawMode() ? 'JSON' : 'Tree' }}</span>
           </button>
-          <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Undo">
+          <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Deshacer" aria-label="Deshacer">
             <span class="material-symbols-outlined" style="font-size: 16px;">undo</span>
           </button>
-          <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Redo">
+          <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Rehacer" aria-label="Rehacer">
             <span class="material-symbols-outlined" style="font-size: 16px;">redo</span>
           </button>
-          <button class="icon-btn" (click)="copyJsonToClipboard()" title="Copy JSON to clipboard">
+          <button class="icon-btn" (click)="copyJsonToClipboard()" title="Copiar JSON al portapapeles" aria-label="Copiar JSON al portapapeles">
             <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
           </button>
           <button class="mock-btn" (click)="clearData()">

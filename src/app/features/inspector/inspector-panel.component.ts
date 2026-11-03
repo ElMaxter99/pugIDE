@@ -18,7 +18,7 @@ import { InspectorState } from '../../core/state/inspector.state';
           <button
             class="panel-action"
             [class.active]="inspectorState.isActive()"
-            title="Toggle Element Inspector"
+            title="Activar o desactivar el inspector de elementos" aria-label="Activar o desactivar el inspector de elementos"
             (click)="inspectorState.toggleInspector()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M2 2l7.586 7.586"/>

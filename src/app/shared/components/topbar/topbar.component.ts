@@ -49,19 +49,19 @@ import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.comp
             Exportar HTML
           </button>
           <div class="divider"></div>
-          <button class="icon-btn" title="Toggle Theme" (click)="onToggleTheme()">
+          <button class="icon-btn" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema claro/oscuro" (click)="onToggleTheme()">
             <span class="material-symbols-outlined">contrast</span>
           </button>
           <div class="divider"></div>
           <button
             class="text-btn"
             [class.active]="preferences.autoCompile()"
-            [title]="preferences.autoCompile() ? 'Auto-compile is on: recompiles as you type' : 'Auto-compile is off: press Save or Ctrl+S to compile'"
+            [title]="preferences.autoCompile() ? 'Autocompilación activada: recompila al escribir' : 'Autocompilación desactivada: pulsa Guardar o Ctrl+S para compilar'"
             (click)="onToggleAutoCompile()">
             <span class="status-dot" [class.on]="preferences.autoCompile()"></span>
-            Auto-compile
+            Autocompilar
           </button>
-          <button class="save-btn" (click)="onSave()">Save</button>
+          <button class="save-btn" (click)="onSave()">Guardar</button>
         </div>
       </div>
       @if (shareNotice(); as n) {

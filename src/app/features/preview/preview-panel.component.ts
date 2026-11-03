@@ -80,7 +80,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
               </button>
             }
           }
-          <button class="preview-action" [class.active]="previewState.colorScheme() !== 'auto'" [title]="'Modo de color simulado: ' + previewState.colorScheme()" (click)="cycleColorScheme()">
+          <button class="preview-action" [class.active]="previewState.colorScheme() !== 'auto'" [title]="'Modo de color simulado: ' + previewState.colorScheme()" [attr.aria-label]="'Modo de color simulado: ' + previewState.colorScheme()" (click)="cycleColorScheme()">
             <span class="material-symbols-outlined" style="font-size: 18px;">{{ schemeIcon() }}</span>
           </button>
           <button class="preview-action" title="Auditoria de accesibilidad (resultados en la terminal)" (click)="runA11y()">
@@ -97,13 +97,13 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
               <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
             </button>
           }
-          <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspect Element" (click)="inspectorState.toggleInspector()">
+          <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspeccionar elemento" aria-label="Inspeccionar elemento" (click)="inspectorState.toggleInspector()">
             <span class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
           </button>
-          <button class="preview-action" title="Refresh" (click)="onReload()">
+          <button class="preview-action" title="Recargar vista previa" aria-label="Recargar vista previa" (click)="onReload()">
             <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
           </button>
-          <button class="preview-action" title="Open in New Tab" (click)="onOpenNewTab()">
+          <button class="preview-action" title="Abrir en una pestaña nueva" aria-label="Abrir en una pestaña nueva" (click)="onOpenNewTab()">
             <span class="material-symbols-outlined" style="font-size: 18px;">open_in_new</span>
           </button>
         </div>
