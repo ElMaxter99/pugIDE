@@ -12,7 +12,11 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { PreferencesState } from '../../core/services/preferences.state';
-import { PageBreakIssue, PageGeometry, documentContentHeight, findPageBreakIssues, pageGeometry, paginateDocument, resetPagination } from '../../core/utils/paginate.util';
+import { PageBreakIssue, PageGeometry, pageGeometry } from '../../core/utils/paginate.util';
+import { AssetState } from '../../core/state/asset.state';
+import { injectIntoBody } from '../../core/utils/html-injection.util';
+import { loadPreviewRuntime } from '../../core/render/preview-runtime';
+import { openInHost } from '../../core/render/preview-host';
 import { A11yIssue, a11yReport, buildPageChrome, describePageIssue, fitScale, pageCountFor, pageIssuesKey } from '../../core/utils/preview-layout.util';
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
@@ -146,7 +150,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
             <iframe
               #previewFrame
               class="preview-iframe"
-              sandbox="allow-scripts allow-same-origin allow-modals"
+              sandbox="allow-scripts allow-modals"
               [style.width.px]="frameWidth()"
               [style.height.px]="frameHeight()"
               [style.transform]="'scale(' + scale() + ')'"
@@ -449,12 +453,12 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     const m = this.previewState.colorScheme();
     return m === 'dark' ? 'dark_mode' : m === 'light' ? 'light_mode' : 'contrast';
   });
-  private lastBlobUrl: string | null = null;
   private canvasObserver: ResizeObserver | null = null;
-  private contentObserver: ResizeObserver | null = null;
+  private assetState = inject(AssetState);
+  private updateSeq = 0;
 
   private readonly canvasSize = signal({ width: 0, height: 0 });
-  /** Rendered height of the PDF document's content, measured inside the iframe. */
+  /** Alto del contenido del documento PDF, medido dentro del iframe y recibido por mensaje. */
   private readonly contentHeight = signal(0);
 
   protected readonly frameWidth = computed(() =>
@@ -481,22 +485,43 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   protected readonly scalePercent = computed(() => Math.round(this.scale() * 100));
   protected readonly zoomValue = computed(() => String(this.previewState.zoomMode()));
+  /**
+   * El documento del preview es contenido del usuario y se ejecuta en un iframe de origen opaco: sus mensajes
+   * no son de fiar. Solo se aceptan los de ese iframe, con la forma esperada, y un mensaje raro no rompe la app.
+   */
   private messageListener = (e: MessageEvent): void => {
     if (e.source !== this.previewFrame?.nativeElement.contentWindow) return;
-    if (e.data?.source === 'pugide-inspector') {
-      const loc = this.locatePug(e.data.sig);
-      this.inspectorState.selectElement({
-        tagName: e.data.tagName,
-        attrs: e.data.attrs ?? {},
-        htmlLine: e.data.htmlLine,
-        pugLine: loc?.line,
-        pugPath: loc?.path,
-        pugApproximate: loc?.approximate,
-        children: [],
-      });
-      if (loc) this.editorState.revealLine(loc.path, loc.line);
-    } else if (e.data?.source === 'pugide-a11y') {
-      this.reportA11y(e.data.issues ?? []);
+    const d = e.data as Record<string, unknown> | null;
+    if (!d || typeof d !== 'object') return;
+    try {
+      switch (d['source']) {
+        case 'pugide-inspector': {
+          const loc = this.locatePug(d['sig']);
+          this.inspectorState.selectElement({
+            tagName: String(d['tagName'] ?? ''),
+            attrs: (d['attrs'] && typeof d['attrs'] === 'object' ? d['attrs'] : {}) as Record<string, string>,
+            htmlLine: typeof d['htmlLine'] === 'number' ? d['htmlLine'] : undefined,
+            pugLine: loc?.line,
+            pugPath: loc?.path,
+            pugApproximate: loc?.approximate,
+            children: [],
+          });
+          if (loc) this.editorState.revealLine(loc.path, loc.line);
+          break;
+        }
+        case 'pugide-a11y':
+          this.reportA11y(Array.isArray(d['issues']) ? (d['issues'] as unknown[]).slice(0, 200).map(toA11yIssue) : []);
+          break;
+        case 'pugide-layout-result':
+          if (typeof d['contentHeight'] === 'number' && Number.isFinite(d['contentHeight'])) this.contentHeight.set(d['contentHeight']);
+          this.reportPageIssues(Array.isArray(d['issues']) ? (d['issues'] as PageBreakIssue[]) : []);
+          break;
+        case 'pugide-runtime-ready':
+          this.sendFrameState();
+          break;
+      }
+    } catch {
+      /* un mensaje mal formado no debe afectar a la app */
     }
   };
 
@@ -515,15 +540,12 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
       this.previewState.isPdf();
       this.previewState.pageSize();
       this.previewState.pageRules();
-      untracked(() => this.reflow());
+      untracked(() => this.sendLayout());
     });
 
     effect(() => {
       const active = this.inspectorState.isActive();
-      this.previewFrame?.nativeElement.contentWindow?.postMessage(
-        { source: 'pugide-inspector-toggle', active },
-        window.location.origin
-      );
+      this.postToFrame({ source: 'pugide-inspector-toggle', active });
     });
 
     effect(() => {
@@ -542,12 +564,26 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     return findPugSource(code, files, entry, sig);
   }
 
+  /** El iframe tiene origen opaco: el destino de `postMessage` solo puede ser '*' (los mensajes no llevan nada sensible). */
+  private postToFrame(message: Record<string, unknown>): void {
+    this.previewFrame?.nativeElement.contentWindow?.postMessage(message, '*');
+  }
+
   private postColorScheme(): void {
     const mode = this.previewState.colorScheme();
-    this.previewFrame?.nativeElement.contentWindow?.postMessage(
-      { source: 'pugide-color-scheme', scheme: mode === 'auto' ? null : mode },
-      window.location.origin
-    );
+    this.postToFrame({ source: 'pugide-color-scheme', scheme: mode === 'auto' ? null : mode });
+  }
+
+  /** Pide al documento del preview que pagine (PDF) o muestre el flujo normal, y que mida su contenido. */
+  private sendLayout(): void {
+    this.postToFrame({ source: 'pugide-layout', pdf: this.previewState.isPdf(), geometry: this.geometry() });
+  }
+
+  /** Estado que el documento necesita al arrancar. */
+  private sendFrameState(): void {
+    this.postColorScheme();
+    this.postToFrame({ source: 'pugide-inspector-toggle', active: this.inspectorState.isActive() });
+    this.sendLayout();
   }
 
   cycleColorScheme(): void {
@@ -566,13 +602,12 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   runA11y(): void {
-    const win = this.previewFrame?.nativeElement.contentWindow;
-    if (!win || !this.previewState.compiledHtml()) {
+    if (!this.previewFrame?.nativeElement.contentWindow || !this.previewState.compiledHtml()) {
       this.terminal.addEntry('warning', 'A11y', 'No hay vista previa compilada que auditar.');
       return;
     }
     this.terminal.isVisible.set(true);
-    win.postMessage({ source: 'pugide-a11y-run' }, window.location.origin);
+    this.postToFrame({ source: 'pugide-a11y-run' });
   }
 
   private reportA11y(issues: A11yIssue[]): void {
@@ -587,17 +622,11 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.canvasObserver?.disconnect();
-    this.contentObserver?.disconnect();
     window.removeEventListener('message', this.messageListener);
   }
 
   onIframeLoad(): void {
-    this.observeContent();
-    this.postColorScheme();
-    this.previewFrame?.nativeElement.contentWindow?.postMessage(
-      { source: 'pugide-inspector-toggle', active: this.inspectorState.isActive() },
-      window.location.origin
-    );
+    this.sendFrameState();
   }
 
   setDevice(name: string, width: number, height: number): void {
@@ -609,32 +638,16 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     this.previewState.zoomMode.set(value === 'fit' ? 'fit' : Number(value));
   }
 
-  /** Prints just the preview document; `@page` of the template (or the shown A4 fallback) sets the sheet. */
+  /** Imprime solo el documento del preview; `@page` de la plantilla (o el A4 que se muestra) fija la hoja. */
   onPrint(): void {
-    const win = this.previewFrame?.nativeElement.contentWindow;
-    const doc = win?.document;
-    if (!win || !doc) return;
-    let injected: HTMLStyleElement | null = null;
     const size = this.previewState.pageSize();
+    let css: string | null = null;
     if (size.source !== 'css') {
-      injected = doc.createElement('style');
       const m = this.previewState.pageRules().margin;
       const hasMargins = m.top + m.right + m.bottom + m.left > 0; // los márgenes de la plantilla se respetan
-      injected.textContent = `@page { size: ${size.width}px ${size.height}px;${hasMargins ? '' : ' margin: 0;'} }`;
-      doc.head.appendChild(injected);
+      css = `@page { size: ${size.width}px ${size.height}px;${hasMargins ? '' : ' margin: 0;'} }`;
     }
-    // The on-screen page-break emulation adds margins that would stack with the real print breaks.
-    resetPagination(doc);
-    win.addEventListener(
-      'afterprint',
-      () => {
-        injected?.remove();
-        this.reflow();
-      },
-      { once: true },
-    );
-    win.focus();
-    win.print();
+    this.postToFrame({ source: 'pugide-print', css });
   }
 
   private restoreDevice(): void {
@@ -644,23 +657,6 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     else if (saved === 'PDF') this.previewState.setDevice('PDF', 0, 0);
   }
 
-  /** Tracks the document height inside the iframe (same-origin blob) so the PDF view shows whole pages. */
-  private observeContent(): void {
-    this.contentObserver?.disconnect();
-    const doc = this.previewFrame?.nativeElement.contentDocument;
-    if (!doc?.body) return;
-    this.reflow();
-    this.contentObserver = new ResizeObserver(() => {
-      // Images / fonts finishing late move everything below them: paginate again when the height changed.
-      if (doc.body.scrollHeight !== this.paginatedHeight) this.reflow();
-      else this.measure();
-    });
-    this.contentObserver.observe(doc.body);
-    // Web fonts change text metrics after load; paginate again once they are in.
-    void doc.fonts?.ready.then(() => this.reflow());
-  }
-
-  private paginatedHeight = -1;
   private lastIssueKey = '';
 
   /** PDF: elementos que se partirían mal al imprimir (imágenes cortadas, encabezados al final de página). */
@@ -673,49 +669,48 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     for (const i of issues) this.terminal.addEntry('warning', 'PDF', describePageIssue(i));
   }
 
-  private measure(): void {
-    const doc = this.previewFrame?.nativeElement.contentDocument;
-    if (doc?.body) this.contentHeight.set(documentContentHeight(doc, this.geometry()));
-  }
-
-  /** PDF: emulate page breaks inside the preview document; other devices show the plain flow. */
-  private reflow(): void {
-    const doc = this.previewFrame?.nativeElement.contentDocument;
-    if (!doc?.body) return;
-    resetPagination(doc);
-    if (this.previewState.isPdf()) {
-      const geometry = this.geometry();
-      paginateDocument(doc, geometry);
-      this.reportPageIssues(findPageBreakIssues(doc, geometry));
-    } else if (this.pageIssues().length) {
-      this.reportPageIssues([]);
-    }
-    this.paginatedHeight = doc.body.scrollHeight;
-    this.measure();
-  }
-
   onReload(): void {
     this.orchestrator.manualCompile();
   }
 
+  /** Pestaña nueva con la vista previa: se abre una página de la app que la ejecuta en un iframe aislado. */
   onOpenNewTab(): void {
     const html = this.previewState.compiledHtml();
-    if (html) {
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+    if (!html) return;
+    if (!openInHost({ kind: 'html', html: this.withDataUris(html) })) {
+      this.terminal.addEntry('warning', 'Preview', 'El navegador bloqueó la pestaña nueva: permite las ventanas emergentes para este sitio.');
     }
   }
 
-  private updatePreview(html: string): void {
-    if (!this.previewFrame) return;
-    const iframe = this.previewFrame.nativeElement;
-    if (this.lastBlobUrl) {
-      URL.revokeObjectURL(this.lastBlobUrl);
-    }
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    this.lastBlobUrl = url;
-    iframe.src = url;
+  /** Los `blob:` de los assets no cargan en un documento de origen opaco: se sustituyen por data URIs. */
+  private withDataUris(html: string): string {
+    let out = html;
+    for (const [blob, uri] of this.assetState.blobToDataUri()) if (out.includes(blob)) out = out.split(blob).join(uri);
+    return out;
   }
+
+  /**
+   * Muestra el HTML en el iframe aislado (`srcdoc`, origen opaco) junto con el programa que pagina, mide e
+   * imprime desde dentro. El estado compilado no cambia: solo el documento que se enseña lleva ese programa.
+   */
+  private async updatePreview(html: string): Promise<void> {
+    const seq = ++this.updateSeq;
+    const runtime = await loadPreviewRuntime();
+    if (seq !== this.updateSeq || !this.previewFrame) return; // llegó una compilación más reciente
+    const doc = html && runtime ? injectIntoBody(this.withDataUris(html), `<script>${runtime}</script>`) : this.withDataUris(html);
+    this.previewFrame.nativeElement.srcdoc = doc;
+  }
+}
+
+/** Una incidencia de accesibilidad enviada por el iframe, con los tipos asegurados. */
+function toA11yIssue(raw: unknown): A11yIssue {
+  const i = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    rule: String(i['rule'] ?? ''),
+    message: String(i['message'] ?? ''),
+    element: String(i['element'] ?? ''),
+    severity: String(i['severity'] ?? 'warning'),
+    htmlLine: typeof i['htmlLine'] === 'number' ? i['htmlLine'] : undefined,
+    sig: i['sig'],
+  };
 }

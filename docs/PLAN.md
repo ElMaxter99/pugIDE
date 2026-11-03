@@ -64,6 +64,8 @@ Prioridad: **A** = afecta al uso diario, **B** = mejora clara, **C** = deseable.
 
 **Estado de la fase 4**: hecha. Helpers del usuario (`helpers.js`), captura PNG del preview e historial local por archivo.
 
+**Estado de la fase 5**: hecha. Aislamiento de la ejecución de plantillas, helpers y preview en iframes de origen opaco.
+
 **Hecho además**: traducciones por idioma en `locales/<código>/translations.json` con selector en el preview.
 
 **Fase 1 — Fiabilidad (1–2 semanas)**

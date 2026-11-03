@@ -1,4 +1,4 @@
-import { check, openApp, waitUntil } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil } from '../lib.mjs';
 import { readFileSync } from 'node:fs';
 
 const readPng = (buf) => ({ signature: buf.subarray(0, 8).toString('hex'), width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) });
@@ -39,7 +39,7 @@ async function runCommand(page, text, title) {
 export default async function (env) {
   const app = await openApp(env, { path: '/ide', session });
   const { page } = app;
-  await waitUntil(async () => (await page.locator('iframe').first().evaluate((f) => f.contentDocument?.body?.innerText ?? '')).includes('Hola captura'));
+  await waitUntil(async () => (await previewText(page)).includes('Hola captura'));
 
   const download = page.waitForEvent('download', { timeout: 20000 });
   await page.locator('button[title="Descargar captura PNG de la vista previa"]').click();
@@ -69,7 +69,7 @@ export default async function (env) {
 
   // Una página muy larga baja la escala en vez de fallar
   const demo = await openApp(env, { path: '/ide?demo=true' });
-  await waitUntil(async () => (await demo.page.locator('iframe').first().evaluate((f) => f.contentDocument?.body?.innerText ?? '')).includes('Demo Completo'));
+  await waitUntil(async () => (await previewText(demo.page)).includes('Demo Completo'));
   const d = demo.page.waitForEvent('download', { timeout: 30000 });
   await demo.page.locator('button[title="Descargar captura PNG de la vista previa"]').click();
   const big = readPng(readFileSync(await (await d).path()));

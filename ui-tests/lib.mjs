@@ -42,6 +42,8 @@ export async function openApp(env, { path = '/ide?demo=true', session, prefs, co
     return route.abort();
   });
   await context.addInitScript(([s, p, c, extra]) => {
+    // Se ejecuta en todos los marcos, también en los iframes aislados (origen opaco), donde no hay localStorage.
+    try { localStorage.length; } catch { return; }
     if (localStorage.getItem('__pugide_seeded')) return;
     localStorage.setItem('__pugide_seeded', '1');
     if (s) localStorage.setItem('pug-ide-project', JSON.stringify(s));
@@ -51,15 +53,34 @@ export async function openApp(env, { path = '/ide?demo=true', session, prefs, co
   }, [session ?? null, prefs ?? null, consent, storage ?? {}]);
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
+  // Playwright inyecta (serviceWorkers: 'block') un script en cada marco que falla en los iframes de origen opaco: no es de la app.
+  page.on('pageerror', (e) => { if (!/Service worker is disabled because the context is sandboxed/.test(e.message)) errors.push(e.message); });
   await page.goto(env.baseURL + path);
   await page.waitForTimeout(wait);
   return { context, page, external, requests, errors, close: () => context.close() };
 }
 
+/**
+ * El iframe del preview tiene origen opaco (la página no puede leer su DOM): se lee desde su propio marco.
+ * `previewFrame` devuelve el marco del preview (no el oculto del render).
+ */
+export async function previewFrame(page) {
+  for (const f of page.frames()) {
+    if (f === page.mainFrame()) continue;
+    try {
+      const el = await f.frameElement();
+      if (await el.evaluate((n) => n.classList.contains('preview-iframe'))) return f;
+    } catch { /* marco desaparecido */ }
+  }
+  return null;
+}
+
 /** Texto visible del cuerpo del iframe del preview. */
-export const previewText = (page) =>
-  page.evaluate(() => [...document.querySelectorAll('iframe')].map((f) => f.contentDocument?.body?.innerText ?? '').join('\n'));
+export async function previewText(page) {
+  const f = await previewFrame(page);
+  if (!f) return '';
+  try { return await f.evaluate(() => document.body?.innerText ?? ''); } catch { return ''; }
+}
 
 /** Nombre del proyecto que muestra el botón de la barra superior. */
 export const projectName = async (page) =>

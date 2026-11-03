@@ -6,6 +6,7 @@ import { ProjectState } from '../../../core/state/project.state';
 import { EditorState } from '../../../core/state/editor.state';
 import { AssetState } from '../../../core/state/asset.state';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
+import { openInHost } from '../../../core/render/preview-host';
 import { isFontPath } from '../../../core/utils/asset.util';
 import { getFileIcon } from '../../../core/utils/file-icon.util';
 
@@ -200,7 +201,10 @@ export class FileTreeComponent {
       this.projectState.toggleDir(node.path);
     } else if (node.isAsset) {
       const url = this.assetState.urlFor(node.path);
-      if (url) window.open(url, '_blank');
+      if (!url) return;
+      // Un SVG abierto como documento ejecutaría sus scripts con los permisos de la app: las imágenes se ven en un <img>.
+      if (this.assetState.assets().get(node.path)?.mime.startsWith('image/')) openInHost({ kind: 'image', url });
+      else window.open(url, '_blank');
     } else {
       this.editorState.openFile(node.path, node.name, getFileType(node.name), node.content ?? '');
     }

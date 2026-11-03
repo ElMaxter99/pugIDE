@@ -50,6 +50,8 @@ Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de a
 
 **Nada sale de tu navegador.** No hay backend, ni cuenta, ni subida de código; el editor (Monaco), las tipografías y los iconos se sirven desde el propio sitio, sin CDNs. La sesión activa se guarda en el `localStorage` de tu navegador y, junto con todos tus proyectos y sus assets, en IndexedDB. Si borras los datos del sitio, lo pierdes: exporta tus proyectos.
 
+**El JavaScript de tus plantillas está aislado.** Lo que escribes en una plantilla o en `helpers.js` (y los `<script>` del HTML que genera) se ejecuta en iframes sin acceso a los datos de PugIDE: no puede leer tus proyectos guardados ni el resto de la página, ni aunque venga de un enlace compartido. Ese código sí puede hacer peticiones de red con lo que renderiza, como cualquier página web.
+
 **Analítica opcional.** Al entrar, un aviso te pregunta si permites una analítica anónima de visitas ([Vercel Web Analytics](https://vercel.com/docs/analytics): sin cookies de seguimiento y sin ningún dato de tus proyectos). Si rechazas, el script no se carga nunca. Puedes cambiar la decisión desde la paleta de comandos (Ctrl+K → "Privacidad"); retirar el permiso surte efecto al recargar la página.
 
 ## Importar y exportar

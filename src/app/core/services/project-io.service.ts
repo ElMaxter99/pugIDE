@@ -13,7 +13,7 @@ import {
   SHARE_URL_WARN_LENGTH, SharePayload, ShareDecodeError, buildShareUrl, decodeShare, encodeShare, splitAssetsForShare,
 } from '../utils/share.util';
 import { captureHtmlToPng } from '../utils/capture.util';
-import { buildStandaloneHtml, bytesToDataUri } from '../utils/export-html.util';
+import { buildStandaloneHtml } from '../utils/export-html.util';
 import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
 
 const TEXT_FILE_RE = /\.(pug|jade|scss|sass|css|json|js|html|htm|md|txt)$/i;
@@ -220,12 +220,7 @@ export class ProjectIoService {
 
   /** HTML renderizado autocontenido (sin inspector ni atributos data-pugide-*, assets locales como data URI). */
   buildStandaloneHtml(): string {
-    const map = new Map<string, string>();
-    for (const a of this.assetState.assets().values()) {
-      const url = this.assetState.urlFor(a.path);
-      if (url) map.set(url, bytesToDataUri(a.data, a.mime));
-    }
-    return buildStandaloneHtml(this.previewState.compiledHtml(), map);
+    return buildStandaloneHtml(this.previewState.compiledHtml(), this.assetState.blobToDataUri());
   }
 
   exportHtml(): boolean {
