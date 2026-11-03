@@ -3,13 +3,15 @@ import {
   ChangeDetectionStrategy,
   inject,
   signal,
-  computed,
   effect,
   OnDestroy,
   AfterViewInit,
   ElementRef,
   ViewChild,
+  viewChild,
 } from '@angular/core';
+import { registerPugLanguage } from './pug-language';
+import { ProjectSearchComponent } from './project-search.component';
 import { TabsComponent } from '../../shared/components/tabs/tabs.component';
 import { EditorState } from '../../core/state/editor.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
@@ -17,75 +19,48 @@ import { getFileType } from '../../core/models/tab.model';
 import { ParserState } from '../../core/state/parser.state';
 import {
   DefinitionTarget,
-  SearchMatch,
-  collectMixins,
   findDefinition,
-  formatPug,
-  searchProject,
+  ReplaceResult,
 } from '../../core/utils/pug-editor.util';
 import { TerminalState } from '../../core/state/terminal.state';
+import { DiagnosticsState } from '../../core/state/diagnostics.state';
 import { PreferencesState } from '../../core/services/preferences.state';
 
 declare const monaco: any;
 
+/** Lenguaje de Monaco según el tipo de archivo del proyecto. */
+const MODEL_LANGUAGES: Record<string, string> = {
+  pug: 'pug',
+  scss: 'scss',
+  less: 'less',
+  json: 'json',
+  javascript: 'javascript',
+  html: 'html',
+  css: 'css',
+};
+
 @Component({
   selector: 'app-editor-panel',
   standalone: true,
-  imports: [TabsComponent],
+  imports: [TabsComponent, ProjectSearchComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="editor-section" (keydown)="onHostKeydown($event)">
+    <main class="editor-section" aria-label="Editor" (keydown)="onHostKeydown($event)">
       <app-tabs />
-      @if (searchOpen()) {
-        <div class="search-panel" role="search">
-          <div class="search-bar">
-            <input #searchInput class="search-input" data-testid="project-search" type="text" placeholder="Search in project (Enter: first result, Esc: close)"
-              [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" (keydown)="onSearchKey($event)" />
-            <button type="button" class="opt" [class.on]="searchCase()" title="Match case" (click)="searchCase.set(!searchCase())">Aa</button>
-            <button type="button" class="opt" [class.on]="searchWord()" title="Whole word" (click)="searchWord.set(!searchWord())">ab</button>
-            <button type="button" class="opt" [class.on]="searchRegex()" title="Regular expression" (click)="searchRegex.set(!searchRegex())">.*</button>
-            <button type="button" class="opt" title="Close" (click)="closeSearch()">&times;</button>
-          </div>
-          <div class="search-summary">{{ searchResults().length }} results in {{ searchGroups().length }} files</div>
-          <div class="search-results">
-            @for (g of searchGroups(); track g.path) {
-              <div class="result-file">{{ g.path }}</div>
-              @for (m of g.matches; track m.line + ':' + m.column) {
-                <button type="button" class="result-line" (click)="openAt(m.path, m.line, m.column)">
-                  <span class="ln">{{ m.line }}</span>
-                  <span class="txt">{{ highlight(m).pre }}<mark>{{ highlight(m).hit }}</mark>{{ highlight(m).post }}</span>
-                </button>
-              }
-            }
-          </div>
-        </div>
-      }
+      <app-project-search #search [files]="liveFiles" (openMatch)="onOpenMatch($event)" (replaced)="onReplaced($event)" (closed)="onSearchClosed()" />
       <div class="editor-canvas">
         @if (!editorState.activeTab()) {
           <div class="empty-editor">
-            <span class="material-symbols-outlined empty-icon">description</span>
-            <h3>No file open</h3>
-            <p>Open a file from the explorer</p>
+            <span aria-hidden="true" class="material-symbols-outlined empty-icon">description</span>
+            <h2>Ningún archivo abierto</h2>
+            <p>Abre un archivo desde el Workspace</p>
           </div>
         }
         <div #editorContainer class="monaco-host" [class.hidden]="!editorState.activeTab()"></div>
       </div>
-    </section>
+    </main>
   `,
   styles: [`
-    .search-panel { border-bottom: 1px solid var(--border-color); background: var(--bg-surface); max-height: 40%; display: flex; flex-direction: column; }
-    .search-bar { display: flex; gap: 4px; padding: 6px 8px; }
-    .search-input { flex: 1; min-width: 0; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px; font: inherit; font-size: 13px; }
-    .opt { background: transparent; color: var(--text-secondary); border: 1px solid transparent; border-radius: 4px; padding: 0 8px; cursor: pointer; font-size: 12px; }
-    .opt.on { color: var(--text-primary); border-color: var(--accent-color); }
-    .search-summary { padding: 0 10px 4px; font-size: 11px; color: var(--text-secondary); }
-    .search-results { overflow: auto; font-size: 12px; }
-    .result-file { padding: 4px 10px; color: var(--text-primary); font-weight: 600; }
-    .result-line { display: flex; gap: 8px; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text-secondary); padding: 2px 10px 2px 18px; cursor: pointer; font-family: var(--font-mono); font-size: 12px; }
-    .result-line:hover { background: rgba(255, 255, 255, 0.06); }
-    .result-line .ln { min-width: 28px; color: var(--text-tertiary); }
-    .result-line .txt { white-space: pre; overflow: hidden; text-overflow: ellipsis; }
-    mark { background: rgba(221, 183, 255, 0.35); color: inherit; }
     :host {
       display: flex;
       flex-direction: column;
@@ -143,7 +118,7 @@ declare const monaco: any;
       opacity: 0.5;
     }
 
-    .empty-editor h3 {
+    .empty-editor h2 {
       margin: 0;
       font-size: 16px;
       font-weight: 500;
@@ -164,6 +139,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   private preferences = inject(PreferencesState);
   private terminalState = inject(TerminalState);
   private parserState = inject(ParserState);
+  private diagnosticsState = inject(DiagnosticsState);
   private extraDisposables: { dispose(): void }[] = [];
   private pendingReveal: { path: string; line: number; column: number } | null = null;
 
@@ -200,6 +176,16 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
         this.lastResetToken = token;
         this.disposeAllModels();
       }
+    });
+
+    effect(() => {
+      const sync = this.editorState.fileSync();
+      if (sync.seq && this.editorReady()) this.syncModels(sync.paths);
+    });
+
+    effect(() => {
+      this.diagnosticsState.byPath();
+      if (this.editorReady()) this.applyMarkers();
     });
 
     effect(() => {
@@ -273,7 +259,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
         'editor.lineHighlightBackground': '#ffffff08',
         'editor.selectionBackground': '#45475a',
         'editorCursor.foreground': '#ddb7ff',
-        'editorLineNumber.foreground': '#4d4354',
+        'editorLineNumber.foreground': '#8a7f92',
         'editorLineNumber.activeForeground': '#988d9f',
         'editorGutter.background': '#0a0a0a',
         'editorIndentGuide.background': '#262626',
@@ -345,16 +331,19 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       if ((e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyS) {
         e.preventDefault();
         e.stopPropagation();
-        this.editorState.saveCurrentFile();
-        this.orchestrator.manualCompile();
+        this.orchestrator.saveFile();
       }
     });
 
     this.editorReady.set(true);
 
     this.setupNavigation();
-    this.setupCompletion();
-    this.setupFormatting();
+    this.extraDisposables.push(...registerPugLanguage(monaco, {
+      activeModel: () => this.editor?.getModel(),
+      files: this.liveFiles,
+      variables: () => this.parserState.variables(),
+      sortAttributes: () => this.preferences.sortAttributes(),
+    }));
     this.editor.addAction({
       id: 'pug.searchInProject',
       label: 'Search in Project',
@@ -364,14 +353,14 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Writes the live content of the active model back into the project files so features see unsaved edits. */
-  private liveFiles(): Map<string, string> {
+  protected liveFiles = (): Map<string, string> => {
     const model = this.editor?.getModel();
     const files = this.editorState.files();
     if (model && model.uri.scheme !== 'inmemory' && files.has(model.uri.path)) {
       files.set(model.uri.path, model.getValue());
     }
     return files;
-  }
+  };
 
   private definitionAt(lineNumber: number, column: number): DefinitionTarget | null {
     const model = this.editor.getModel();
@@ -452,123 +441,59 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  /** Completion of parser-detected variables and project mixins. */
-  private setupCompletion(): void {
-    const provider = monaco.languages.registerCompletionItemProvider('pug', {
-      triggerCharacters: ['+'],
-      provideCompletionItems: (model: any, position: any) => {
-        if (model !== this.editor?.getModel()) return { suggestions: [] };
-        const word = model.getWordUntilPosition(position);
-        const before: string = model.getLineContent(position.lineNumber).substring(0, position.column - 1);
-        const afterPlus = /\+[\w-]*$/.test(before);
-        const wordRange = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, position.column);
-        const plusRange = new monaco.Range(
-          position.lineNumber, word.startColumn - (before.endsWith('+') ? 1 : 0), position.lineNumber, position.column,
-        );
-        const kind = monaco.languages.CompletionItemKind;
-        const suggestions: any[] = [];
-
-        const seen = new Set<string>();
-        for (const m of collectMixins(this.liveFiles())) {
-          if (seen.has(m.name)) continue;
-          seen.add(m.name);
-          const params = m.args ? m.args.split(',').map((a) => a.trim()).filter(Boolean) : [];
-          const snippet = params.length
-            ? `${m.name}(${params.map((p, i) => '${' + (i + 1) + ':' + p.replace(/[}$\\]/g, '') + '}').join(', ')})`
-            : m.name;
-          suggestions.push({
-            label: '+' + m.name,
-            filterText: '+' + m.name,
-            kind: kind.Function,
-            detail: `mixin ${m.name}(${m.args}) - ${m.path}`,
-            insertText: '+' + snippet,
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: plusRange,
-            sortText: '0' + m.name,
-          });
-        }
-        if (afterPlus) return { suggestions };
-
-        for (const v of this.parserState.variables()) {
-          suggestions.push({
-            label: v.path,
-            kind: kind.Variable,
-            detail: `${v.type} (detected variable)`,
-            insertText: v.path,
-            range: wordRange,
-            sortText: '1' + v.path,
-          });
-        }
-        return { suggestions };
-      },
-    });
-    this.extraDisposables.push(provider);
-  }
-
-  /** Document formatter (Shift+Alt+F / "Format Document"); see formatPug for its limits. */
-  private setupFormatting(): void {
-    const provider = monaco.languages.registerDocumentFormattingEditProvider('pug', {
-      provideDocumentFormattingEdits: (model: any, options: any) => {
-        const text = model.getValue();
-        const unit = options?.insertSpaces === false ? '\t' : ' '.repeat(options?.tabSize ?? 2);
-        const formatted = formatPug(text, unit, { sortAttributes: this.preferences.sortAttributes() });
-        if (formatted === text) return [];
-        return [{ range: model.getFullModelRange(), text: formatted }];
-      },
-    });
-    this.extraDisposables.push(provider);
-  }
-
-  // ---- Project search (Ctrl+Shift+F) ----
-  protected searchOpen = signal(false);
-  protected searchQuery = signal('');
-  protected searchCase = signal(false);
-  protected searchWord = signal(false);
-  protected searchRegex = signal(false);
-  @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
-
-  protected searchResults = computed(() => {
-    if (!this.searchOpen()) return [];
-    return searchProject(this.liveFiles(), this.searchQuery(), {
-      caseSensitive: this.searchCase(),
-      wholeWord: this.searchWord(),
-      regex: this.searchRegex(),
-    });
-  });
-  protected searchGroups = computed(() => {
-    const groups: { path: string; matches: SearchMatch[] }[] = [];
-    for (const m of this.searchResults()) {
-      const last = groups[groups.length - 1];
-      if (last && last.path === m.path) last.matches.push(m);
-      else groups.push({ path: m.path, matches: [m] });
-    }
-    return groups;
-  });
+  // ---- Project search (Ctrl+Shift+F): ver ProjectSearchComponent ----
+  private searchPanel = viewChild.required<ProjectSearchComponent>('search');
 
   openSearch(): void {
     const sel = this.editor?.getSelection();
     const model = this.editor?.getModel();
-    if (sel && model && !sel.isEmpty() && sel.startLineNumber === sel.endLineNumber) {
-      this.searchQuery.set(model.getValueInRange(sel));
-    }
-    this.searchOpen.set(true);
-    setTimeout(() => {
-      this.searchInput?.nativeElement.focus();
-      this.searchInput?.nativeElement.select();
-    });
+    const selected = sel && model && !sel.isEmpty() && sel.startLineNumber === sel.endLineNumber ? model.getValueInRange(sel) : undefined;
+    this.searchPanel().show(selected);
   }
 
-  protected closeSearch(): void {
-    this.searchOpen.set(false);
+  protected onSearchClosed(): void {
     this.editor?.focus();
   }
 
-  protected onSearchKey(e: KeyboardEvent): void {
-    if (e.key === 'Escape') this.closeSearch();
-    if (e.key === 'Enter') {
-      const first = this.searchResults()[0];
-      if (first) this.openAt(first.path, first.line, first.column);
+  protected onOpenMatch(m: { path: string; line: number; column: number }): void {
+    this.openAt(m.path, m.line, m.column);
+  }
+
+  /**
+   * Aplica el reemplazo en todo el proyecto. Cada archivo cambia mediante una edición de su modelo de Monaco,
+   * así que Ctrl+Z la deshace archivo a archivo (los modelos de archivos cerrados se crean para ello).
+   */
+  protected onReplaced(changes: ReplaceResult[]): void {
+    if (!changes.length || !this.editor) return;
+    this.orchestrator.snapshotFiles(changes.map((c) => c.path), 'antes de reemplazar');
+    const files = this.editorState.files();
+    let total = 0;
+    for (const c of changes) {
+      total += c.count;
+      const model = this.modelForPath(c.path);
+      if (model.getValue() !== c.content) {
+        model.pushEditOperations([], [{ range: model.getFullModelRange(), text: c.content }], () => null);
+      }
+      // El modelo activo avisa por onDidChangeModelContent; el resto se sincroniza aquí.
+      files.set(c.path, c.content);
     }
+    this.editorState.files.set(new Map(files));
+    this.searchPanel().refresh();
+    this.terminalState.addEntry('info', 'Editor', `Reemplazadas ${total} coincidencias en ${changes.length} archivos. Ctrl+Z las deshace en cada archivo.`);
+    this.orchestrator.saveSession();
+    void this.orchestrator.manualCompile();
+  }
+
+  /** Modelo de Monaco de un archivo del proyecto; lo crea si todavía no se había abierto. */
+  private modelForPath(path: string): any {
+    const uri = monaco.Uri.parse(path);
+    let model = this.models.get(path) ?? monaco.editor.getModel(uri);
+    if (!model) {
+      const name = path.split('/').pop() ?? path;
+      model = monaco.editor.createModel(this.editorState.files().get(path) ?? '', MODEL_LANGUAGES[getFileType(name)] ?? 'plaintext', uri);
+    }
+    this.models.set(path, model);
+    return model;
   }
 
   protected onHostKeydown(e: KeyboardEvent): void {
@@ -576,15 +501,6 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       e.preventDefault();
       this.openSearch();
     }
-  }
-
-  protected highlight(m: SearchMatch): { pre: string; hit: string; post: string } {
-    const start = Math.max(0, m.column - 1 - 30);
-    return {
-      pre: (start > 0 ? '…' : '') + m.text.substring(start, m.column - 1).trimStart(),
-      hit: m.text.substr(m.column - 1, m.length),
-      post: m.text.substring(m.column - 1 + m.length, m.column - 1 + m.length + 80),
-    };
   }
 
   private revealDecorations: string[] = [];
@@ -616,16 +532,6 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   private loadModel(tab: { path: string; type: string; name: string }): void {
     if (!this.editor) return;
 
-    const langMap: Record<string, string> = {
-      pug: 'pug',
-      scss: 'scss',
-      less: 'less',
-      json: 'json',
-      javascript: 'javascript',
-      html: 'html',
-      css: 'css',
-    };
-
     // Monaco auto-creates an implicit `inmemory://` model when the editor is
     // constructed without one — skip it, it's not a real file (see initEditor).
     const currentModel = this.editor.getModel();
@@ -648,7 +554,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       }
     }
 
-    const lang = langMap[tab.type] ?? 'plaintext';
+    const lang = MODEL_LANGUAGES[tab.type] ?? 'plaintext';
     const uri = monaco.Uri.parse(tab.path);
     let model = this.models.get(tab.path) ?? monaco.editor.getModel(uri);
 
@@ -666,6 +572,46 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     if (this.editor.getModel() !== model) {
       this.editor.setModel(model);
     }
+    this.applyMarkers();
     this.applyReveal();
+  }
+
+  /** Lleva a los modelos abiertos el contenido que otro proceso (no el usuario) escribió en `files`. */
+  private syncModels(paths: string[]): void {
+    const files = this.editorState.files();
+    for (const path of paths) {
+      const model = this.models.get(path);
+      const content = files.get(path);
+      if (!model || content === undefined || model.getValue() === content) continue;
+      model.pushEditOperations([], [{ range: model.getFullModelRange(), text: content }], () => null);
+    }
+  }
+
+  /** Dibuja los errores de la última compilación como subrayados en el editor de cada archivo abierto. */
+  private applyMarkers(): void {
+    if (typeof monaco === 'undefined') return;
+    const byPath = this.diagnosticsState.byPath();
+    for (const model of monaco.editor.getModels()) {
+      const list = byPath.get(model.uri.path) ?? [];
+      const lines = model.getLineCount();
+      const markers = list.map((d) => {
+        const line = Math.min(Math.max(d.line, 1), lines);
+        const max = model.getLineMaxColumn(line);
+        let start = d.column && d.column <= max ? d.column : model.getLineFirstNonWhitespaceColumn(line) || 1;
+        let end = max;
+        if (d.column) {
+          const word = model.getWordAtPosition({ lineNumber: line, column: start });
+          if (word) end = word.endColumn;
+        }
+        if (end <= start) { start = 1; end = Math.max(max, 2); }
+        return {
+          severity: d.severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+          message: d.message,
+          source: d.source,
+          startLineNumber: line, startColumn: start, endLineNumber: line, endColumn: end,
+        };
+      });
+      monaco.editor.setModelMarkers(model, 'pugide', markers);
+    }
   }
 }

@@ -2,7 +2,7 @@
 
 Entorno de desarrollo visual para **Pug/Jade**: detecta variables, genera datos de prueba (mocks) y previsualiza el resultado en tiempo real, todo en el navegador.
 
-![Versión](https://img.shields.io/badge/version-0.3.1-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
+![Versión](https://img.shields.io/badge/version-0.4.0-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
 
 ## Capturas
 
@@ -33,19 +33,24 @@ Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de a
 - Ir a la definición de `include` / `extends` / `+mixin` con Ctrl+clic o F12.
 - Paleta de comandos con Ctrl/Cmd+K (acciones, dispositivos del preview, plantillas y apertura rápida de archivos).
 - Búsqueda en todo el proyecto con Ctrl+Shift+F (abre el archivo en la línea).
+- Buscar y reemplazar en todo el proyecto (Ctrl+Shift+F), hover de mixins e includes, "Ir a símbolo" (Ctrl+Shift+O) y diálogo de atajos (paleta de comandos).
+- Helpers propios: un `helpers.js` con `module.exports = { money, formatDate… }` hace que esas funciones estén disponibles en las plantillas (paleta → «Añadir archivo de helpers»).
+- Captura PNG del preview e historial local de versiones por archivo (paleta de comandos).
 - Formato de Pug (Shift+Alt+F). Prettier no soporta Pug de serie y `@prettier/plugin-pug` no se incluye, así que el formateador es propio y conservador: normaliza indentación, espacios y líneas en blanco, unifica comillas y espacios de los atributos simples (`a(href = "x")` → `a(href='x')`) y reparte en varias líneas las etiquetas largas. Los atributos con expresiones, las llamadas a mixins y los bloques de texto crudo se dejan como están, y solo reordena atributos si lo activas (paleta de comandos → "Formato de Pug: ordenar atributos"): `id`, `class`, el resto por orden alfabético, `data-*`, `aria-*` y al final los especiales (`@click`, `[x]`…).
 - Modo demo: abre `/ide?demo=true` para cargar un proyecto de ejemplo completo.
 
 - Estilos CSS, SCSS/Sass y Less compilados en el navegador; `<link>` locales y `@import`/`@use` entre archivos.
 - Preview en modo PDF / página impresa (lee `@page { size; margin }` y emula cabeceras y pies con `@top-*` / `@bottom-*`, `counter(page)` y `counter(pages)`, cuenta páginas, avisa de imágenes cortadas y encabezados huérfanos, imprimir o guardar como PDF).
 - Avisos de calidad en la terminal: datos sin usar y peso del HTML (p. ej. el límite de 102 KB de Gmail).
-- Traducciones: las claves `t('CLAVE.ANIDADA')` generan automáticamente campos editables en los datos.
+- Traducciones: las claves `t('CLAVE.ANIDADA')` generan automáticamente campos editables en los datos. Para varios idiomas, usa «Añadir idioma…» (Ctrl+K): crea `locales/es-ES/translations.json`, `locales/es-CAT/translations.json`… y el preview tiene un selector de idioma; las claves nuevas se añaden vacías a todos.
 - Assets locales (imágenes y fuentes) que subes al proyecto y se guardan en tu navegador.
 - Varios proyectos guardados en tu navegador (botón con el nombre del proyecto en la barra superior): abrir, crear, renombrar, duplicar y borrar.
 
 ## Privacidad
 
 **Nada sale de tu navegador.** No hay backend, ni cuenta, ni subida de código; el editor (Monaco), las tipografías y los iconos se sirven desde el propio sitio, sin CDNs. La sesión activa se guarda en el `localStorage` de tu navegador y, junto con todos tus proyectos y sus assets, en IndexedDB. Si borras los datos del sitio, lo pierdes: exporta tus proyectos.
+
+**El JavaScript de tus plantillas está aislado.** Lo que escribes en una plantilla o en `helpers.js` (y los `<script>` del HTML que genera) se ejecuta en iframes sin acceso a los datos de PugIDE: no puede leer tus proyectos guardados ni el resto de la página, ni aunque venga de un enlace compartido. Ese código sí puede hacer peticiones de red con lo que renderiza, como cualquier página web.
 
 **Analítica opcional.** Al entrar, un aviso te pregunta si permites una analítica anónima de visitas ([Vercel Web Analytics](https://vercel.com/docs/analytics): sin cookies de seguimiento y sin ningún dato de tus proyectos). Si rechazas, el script no se carga nunca. Puedes cambiar la decisión desde la paleta de comandos (Ctrl+K → "Privacidad"); retirar el permiso surte efecto al recargar la página.
 
@@ -60,7 +65,10 @@ Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de a
 - `localStorage` tiene cuota (~5 MB): si un proyecto de texto es muy grande no se guarda ahí (se avisa), pero la biblioteca de IndexedDB lo conserva y se recupera al volver.
 - Importar/exportar a carpeta no funciona en Firefox/Safari (se usa `.zip`).
 - El preview PDF emula la paginación; el resultado final puede variar según el navegador al imprimir.
+- PugIDE está pensado para el escritorio: no se ha diseñado ni probado para móvil.
 - No hay sincronización entre dispositivos ni colaboración.
+- La captura PNG no ejecuta el JavaScript de la página y, en modo PDF, captura el documento sin saltos de página.
+- Tus proyectos solo existen en este navegador: la terminal te recuerda exportar una copia si pasan 14 días.
 
 Más detalle técnico en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); para colaborar, [CONTRIBUTING.md](CONTRIBUTING.md).
 

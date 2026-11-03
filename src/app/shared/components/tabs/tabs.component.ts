@@ -1,11 +1,13 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   inject,
   signal,
 } from '@angular/core';
 import { EditorState } from '../../../core/state/editor.state';
 import { Tab } from '../../../core/models/tab.model';
+import { tabLabels } from '../../../core/utils/tab-label.util';
 import { getFileIcon } from '../../../core/utils/file-icon.util';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
 import { ContextMenuAction } from '../../../core/models/index';
@@ -29,13 +31,15 @@ import { ContextMenuAction } from '../../../core/models/index';
             (dragstart)="onDragStart($event, $index)"
             (dragover)="onDragOver($event, $index)"
             (drop)="onDrop($event, $index)">
-            <span class="material-symbols-outlined tab-file-icon" style="font-size: 14px;">{{ fileIcon(tab) }}</span>
-            <span class="tab-name">{{ tab.name }}</span>
-            @if (tab.isDirty) {
-              <span class="dirty-dot"></span>
-            }
-            <button class="tab-close" (click)="closeTab($event, tab.id)" title="Close">
-              <span class="material-symbols-outlined" style="font-size: 14px;">close</span>
+            <button type="button" class="tab-main" [title]="tab.path" [attr.aria-current]="tab.id === editorState.activeTabId() ? 'true' : null">
+              <span aria-hidden="true" class="material-symbols-outlined tab-file-icon" style="font-size: 14px;">{{ fileIcon(tab) }}</span>
+              <span class="tab-name">{{ labels().get(tab.id) ?? tab.name }}</span>
+              @if (tab.isDirty) {
+                <span class="dirty-dot" role="img" aria-label="Con cambios sin guardar"></span>
+              }
+            </button>
+            <button class="tab-close" (click)="closeTab($event, tab.id)" title="Cerrar pestaña" aria-label="Cerrar pestaña">
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">close</span>
             </button>
           </div>
         }
@@ -95,6 +99,31 @@ import { ContextMenuAction } from '../../../core/models/index';
       color: var(--accent-color);
     }
 
+    .tab-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      height: 100%;
+      padding: 0;
+      background: none;
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .tab-main:focus-visible,
+    .tab-close:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: -2px;
+      border-radius: 3px;
+    }
+
+    .tab:focus-within .tab-close {
+      opacity: 1;
+    }
+
     .tab-file-icon {
       color: var(--accent-color);
       flex-shrink: 0;
@@ -144,6 +173,7 @@ import { ContextMenuAction } from '../../../core/models/index';
 })
 export class TabsComponent {
   protected editorState = inject(EditorState);
+  protected labels = computed(() => tabLabels(this.editorState.openTabs()));
   private dragIndex = signal<number>(-1);
 
   protected contextMenuOpen = signal(false);

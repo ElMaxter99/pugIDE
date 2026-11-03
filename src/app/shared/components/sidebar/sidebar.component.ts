@@ -6,20 +6,19 @@ import {
   ViewChild,
   ElementRef,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FileNode } from '../../../core/models/file-node.model';
 import { ProjectState } from '../../../core/state/project.state';
 import { EditorState } from '../../../core/state/editor.state';
 import { getFileType } from '../../../core/models/tab.model';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { ProjectIoService } from '../../../core/services/project-io.service';
+import { contextMenuFor, defaultNewFileDir, deleteDialog, importDialog, newFileDialog, renameDialog, toProjectPath } from '../../../core/utils/file-actions.util';
+import { FileTreeComponent } from './file-tree.component';
 import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
 import { ContextMenuAction } from '../../../core/models/index';
 import { AssetState } from '../../../core/state/asset.state';
 import { PreferencesState } from '../../../core/services/preferences.state';
-import { isFontPath } from '../../../core/utils/asset.util';
-import { getFileIcon } from '../../../core/utils/file-icon.util';
 import { APP_VERSION } from '../../../core/models/version.token';
 
 type PendingAction =
@@ -31,7 +30,7 @@ type PendingAction =
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, DialogComponent, ContextMenuComponent],
+  imports: [DialogComponent, ContextMenuComponent, FileTreeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <aside class="sidebar" [class.collapsed]="preferences.sidebarCollapsed()">
@@ -47,7 +46,7 @@ type PendingAction =
         [positionY]="contextMenuY()"
         (actionSelected)="onContextAction($event)" />
       <button class="rail-btn" (click)="preferences.toggleSidebar()" title="Mostrar Workspace" aria-label="Mostrar Workspace">
-        <span class="material-symbols-outlined" style="font-size: 18px;">left_panel_open</span>
+        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">left_panel_open</span>
         <span class="rail-label">Workspace</span>
       </button>
       <div class="sidebar-inner">
@@ -56,24 +55,24 @@ type PendingAction =
             <span class="workspace-label">Workspace</span>
             <div class="workspace-actions">
               <button class="add-btn" (click)="preferences.toggleSidebar()" title="Colapsar Workspace" aria-label="Colapsar Workspace">
-                <span class="material-symbols-outlined" style="font-size: 16px;">left_panel_close</span>
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">left_panel_close</span>
               </button>
-              <button class="add-btn" (click)="onImportClick()" title="Import project (folder or .zip)">
-                <span class="material-symbols-outlined" style="font-size: 16px;">upload</span>
+              <button class="add-btn" (click)="onImportClick()" title="Importar proyecto (carpeta o .zip)" aria-label="Importar proyecto (carpeta o .zip)">
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">upload</span>
               </button>
-              <button class="add-btn" (click)="onExportClick()" title="Export project (folder or .zip)">
-                <span class="material-symbols-outlined" style="font-size: 16px;">download</span>
+              <button class="add-btn" (click)="onExportClick()" title="Exportar proyecto (carpeta o .zip)" aria-label="Exportar proyecto (carpeta o .zip)">
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">download</span>
               </button>
               <button class="add-btn" (click)="pickAssets()" title="Subir imágenes, fuentes o estilos (.css, .scss, .less)">
-                <span class="material-symbols-outlined" style="font-size: 16px;">add_photo_alternate</span>
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">add_photo_alternate</span>
               </button>
               @if (orchestrator.fileUndoLabel(); as undoLabel) {
                 <button class="add-btn" (click)="orchestrator.undoFileOp()" [title]="undoLabel" [attr.aria-label]="undoLabel">
-                  <span class="material-symbols-outlined" style="font-size: 16px;">undo</span>
+                  <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">undo</span>
                 </button>
               }
-              <button class="add-btn" (click)="showNewFileDialog()" title="New file">
-                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+              <button class="add-btn" (click)="showNewFileDialog()" title="Nuevo archivo" aria-label="Nuevo archivo">
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">add</span>
               </button>
             </div>
           </div>
@@ -99,94 +98,12 @@ type PendingAction =
           </div>
         </div>
 
-        @if (assetState.missing().length > 0) {
-          <div class="missing-assets">
-            <p class="missing-title">
-              <span class="material-symbols-outlined" style="font-size: 14px;">broken_image</span>
-              Faltan {{ assetState.missing().length }} archivo(s)
-            </p>
-            @for (path of assetState.missing(); track path) {
-              <button class="missing-row" [title]="'Subir ' + path" (click)="pickAssets(path)">
-                <span class="missing-path">{{ path }}</span>
-                <span class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
-              </button>
-            }
-          </div>
-        }
-
-        <div
-          class="file-tree"
-          [class.drop-active]="dragOver()"
-          (dragover)="onDragOver($event)"
-          (dragleave)="dragOver.set(false)"
-          (drop)="onDrop($event)">
-          @for (node of projectState.fileTree(); track node.path) {
-            <ng-container *ngTemplateOutlet="fileNode; context: { $implicit: node, level: 0 }"></ng-container>
-          }
-        </div>
+        <app-file-tree (pickAsset)="pickAssets($event)" (nodeContextMenu)="onNodeContextMenu($event.event, $event.node)" />
       </div>
     </aside>
 
-    <ng-template #fileNode let-node let-level="level">
-      @if (node.type === 'directory') {
-        <div
-          class="file-row directory-row"
-          [style.padding-left.px]="16 + level * 16"
-          (click)="onNodeClick(node)"
-          (contextmenu)="onNodeContextMenu($event, node)">
-          <span class="material-symbols-outlined expand-icon" [class.rotated]="isExpanded(node.path)">
-            keyboard_arrow_down
-          </span>
-          <span class="material-symbols-outlined folder-icon">folder</span>
-          <span class="file-name">{{ node.name }}</span>
-        </div>
-        @if (isExpanded(node.path) && node.children) {
-          @for (child of node.children; track child.path) {
-            <ng-container *ngTemplateOutlet="fileNode; context: { $implicit: child, level: level + 1 }"></ng-container>
-          }
-        }
-      } @else {
-        <div
-          class="file-row file-item"
-          [style.padding-left.px]="16 + level * 16"
-          [class.active]="isActive(node.path)"
-          (click)="onNodeClick(node)"
-          (contextmenu)="onNodeContextMenu($event, node)">
-          <span class="material-symbols-outlined file-icon">{{ fileIcon(node) }}</span>
-          <span class="file-name">{{ node.name }}</span>
-        </div>
-      }
-    </ng-template>
   `,
   styles: [`
-    .missing-assets {
-      margin: 0 12px 8px;
-      padding: 8px;
-      border: 1px solid var(--warning-color, #e5a50a);
-      border-radius: var(--radius);
-      background: var(--bg-surface-container);
-    }
-    .missing-title {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-bottom: 4px;
-      color: var(--warning-color, #e5a50a);
-    }
-    .missing-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-      width: 100%;
-      padding: 2px 4px;
-      color: var(--text-secondary);
-      border-radius: 3px;
-      text-align: left;
-    }
-    .missing-row:hover { background: var(--bg-surface-variant); color: var(--text-primary); }
-    .missing-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
-    .file-tree.drop-active { outline: 2px dashed var(--accent-color); outline-offset: -4px; }
     :host {
       display: flex;
       height: 100%;
@@ -309,62 +226,6 @@ type PendingAction =
       color: var(--text-secondary);
     }
 
-    .file-tree {
-      flex: 1;
-      overflow-y: auto;
-      margin-top: 16px;
-    }
-
-    .file-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 16px;
-      cursor: pointer;
-      font-size: 13px;
-      color: var(--text-secondary);
-      transition: all 0.1s;
-    }
-
-    .file-row:hover {
-      color: var(--text-primary);
-    }
-
-    .file-row.active {
-      background: rgba(221, 183, 255, 0.08);
-      color: var(--accent-color);
-      border-right: 2px solid var(--accent-color);
-    }
-
-    .expand-icon {
-      font-size: 16px;
-      transition: transform 0.15s;
-      flex-shrink: 0;
-      transform: rotate(-90deg);
-    }
-
-    .expand-icon.rotated {
-      transform: rotate(0deg);
-    }
-
-    .folder-icon {
-      font-size: 16px;
-      color: var(--tertiary-color);
-      flex-shrink: 0;
-    }
-
-    .file-icon {
-      font-size: 16px;
-      flex-shrink: 0;
-    }
-
-    .file-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
     .sidebar-footer {
       margin-top: auto;
       border-top: 1px solid var(--border-color);
@@ -406,22 +267,13 @@ export class SidebarComponent {
   protected version = inject(APP_VERSION);
   protected assetState = inject(AssetState);
   protected preferences = inject(PreferencesState);
-  protected dragOver = signal(false);
   private assetTarget: string | undefined;
 
   @ViewChild('zipInput') private zipInput!: ElementRef<HTMLInputElement>;
   @ViewChild('assetInput') private assetInput!: ElementRef<HTMLInputElement>;
 
   protected dialogOpen = signal(false);
-  protected dialogConfig = signal<DialogConfig>({
-    title: 'New File',
-    message: 'Enter filename (e.g. components/card.pug)',
-    confirmText: 'Create',
-    cancelText: 'Cancel',
-    showInput: true,
-    inputLabel: 'Filename',
-    inputValue: '',
-  });
+  protected dialogConfig = signal<DialogConfig>(newFileDialog('/'));
   private pendingAction: PendingAction | null = null;
 
   protected contextMenuOpen = signal(false);
@@ -446,64 +298,16 @@ export class SidebarComponent {
     if (files.length > 0) await this.orchestrator.addAssets(files, target);
   }
 
-  onDragOver(event: DragEvent): void {
-    if (!event.dataTransfer?.types.includes('Files')) return;
-    event.preventDefault();
-    this.dragOver.set(true);
-  }
-
-  async onDrop(event: DragEvent): Promise<void> {
-    event.preventDefault();
-    this.dragOver.set(false);
-    const files = Array.from(event.dataTransfer?.files ?? []);
-    if (files.length > 0) await this.orchestrator.addAssets(files);
-  }
-
-  fileIcon(node: FileNode): string {
-    if (node.isAsset) return isFontPath(node.name) ? 'font_download' : 'image';
-    return getFileIcon(getFileType(node.name));
-  }
-
-  onNodeClick(node: FileNode): void {
-    if (node.type === 'directory') {
-      this.projectState.toggleDir(node.path);
-    } else if (node.isAsset) {
-      const url = this.assetState.urlFor(node.path);
-      if (url) window.open(url, '_blank');
-    } else {
-      this.openFile(node);
-    }
-  }
-
   showNewFileDialog(dir?: string): void {
-    const baseDir = dir ?? (() => {
-      const activePath = this.editorState.activeTab()?.path ?? '/main.pug';
-      return activePath.substring(0, activePath.lastIndexOf('/') + 1);
-    })();
+    const baseDir = dir ?? defaultNewFileDir(this.editorState.activeTab()?.path);
     this.pendingAction = { type: 'newFile', dir: baseDir };
-    this.dialogConfig.set({
-      title: 'New File',
-      message: 'Enter filename (e.g. components/card.pug)',
-      confirmText: 'Create',
-      cancelText: 'Cancel',
-      showInput: true,
-      inputLabel: 'Filename',
-      inputValue: baseDir + 'new-file.pug',
-    });
+    this.dialogConfig.set(newFileDialog(baseDir));
     this.dialogOpen.set(true);
   }
 
   private showRenameDialog(path: string): void {
     this.pendingAction = { type: 'rename', path };
-    this.dialogConfig.set({
-      title: 'Rename',
-      message: `Enter a new path for ${path}`,
-      confirmText: 'Rename',
-      cancelText: 'Cancel',
-      showInput: true,
-      inputLabel: 'New path',
-      inputValue: path,
-    });
+    this.dialogConfig.set(renameDialog(path));
     this.dialogOpen.set(true);
   }
 
@@ -513,16 +317,7 @@ export class SidebarComponent {
 
   onImportClick(): void {
     this.pendingAction = { type: 'importProject' };
-    this.dialogConfig.set({
-      title: 'Import project',
-      message: this.projectIo.supportsFileSystemAccess
-        ? 'Pick a folder to import. This replaces every file currently open in the editor.'
-        : 'Pick a .zip file to import. This replaces every file currently open in the editor.',
-      confirmText: 'Continue',
-      cancelText: 'Cancel',
-      showInput: false,
-      type: 'warning',
-    });
+    this.dialogConfig.set(importDialog(this.projectIo.supportsFileSystemAccess));
     this.dialogOpen.set(true);
   }
 
@@ -536,14 +331,7 @@ export class SidebarComponent {
 
   private showDeleteDialog(path: string): void {
     this.pendingAction = { type: 'delete', path };
-    this.dialogConfig.set({
-      title: 'Delete file',
-      message: `Are you sure you want to delete ${path}? This cannot be undone.`,
-      confirmText: 'Delete',
-      cancelText: 'Cancel',
-      showInput: false,
-      type: 'warning',
-    });
+    this.dialogConfig.set(deleteDialog(path));
     this.dialogOpen.set(true);
   }
 
@@ -554,19 +342,17 @@ export class SidebarComponent {
     if (!action) return;
 
     if (action.type === 'newFile') {
-      const name = value.trim();
-      if (!name) return;
-      const path = name.startsWith('/') ? name : '/' + name;
-      const filename = path.split('/').pop() ?? name;
+      const path = toProjectPath(value);
+      if (!path) return;
+      const filename = path.split('/').pop() ?? path;
       if (this.editorState.files().has(path)) {
         this.editorState.openFile(path, filename, getFileType(filename), '');
         return;
       }
       this.orchestrator.addFile(path, filename);
     } else if (action.type === 'rename') {
-      const name = value.trim();
-      if (!name) return;
-      const newPath = name.startsWith('/') ? name : '/' + name;
+      const newPath = toProjectPath(value);
+      if (!newPath) return;
       this.orchestrator.renameFile(action.path, newPath);
     } else if (action.type === 'delete') {
       this.orchestrator.deleteFile(action.path);
@@ -580,27 +366,9 @@ export class SidebarComponent {
   }
 
   onNodeContextMenu(event: MouseEvent, node: FileNode): void {
-    event.preventDefault();
-    event.stopPropagation();
     this.contextMenuTarget = node;
 
-    const items: ContextMenuAction[] = [];
-    if (node.type === 'directory') {
-      items.push({ label: 'New File', icon: 'note_add', action: 'newFile' });
-    } else if (node.isAsset) {
-      items.push(
-        { label: 'Rename', icon: 'edit', action: 'rename' },
-        { label: 'Delete', icon: 'delete', action: 'delete' },
-      );
-    } else {
-      items.push(
-        { label: 'Rename', icon: 'edit', action: 'rename' },
-        { label: 'Duplicate', icon: 'content_copy', action: 'duplicate' },
-        { label: '', action: '', separator: true },
-        { label: 'Delete', icon: 'delete', action: 'delete' },
-      );
-    }
-    this.contextMenuItems.set(items);
+    this.contextMenuItems.set(contextMenuFor(node));
     this.contextMenuX.set(event.clientX);
     this.contextMenuY.set(event.clientY);
     this.contextMenuOpen.set(true);
@@ -626,20 +394,5 @@ export class SidebarComponent {
         this.showDeleteDialog(node.path);
         break;
     }
-  }
-
-  private openFile(node: FileNode): void {
-    if (node.type === 'file') {
-      const type = getFileType(node.name);
-      this.editorState.openFile(node.path, node.name, type, node.content ?? '');
-    }
-  }
-
-  isActive(path: string): boolean {
-    return this.editorState.activeTab()?.path === path;
-  }
-
-  isExpanded(path: string): boolean {
-    return this.projectState.isExpanded(path);
   }
 }

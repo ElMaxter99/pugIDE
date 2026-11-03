@@ -10,6 +10,7 @@ import { getFileType } from '../../../core/models/tab.model';
 import { DEVICE_PRESETS } from '../../../core/utils/device-presets.util';
 import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
 import { rememberFocus } from '../../../core/utils/focus-trap.util';
+import { HELPERS_TEMPLATE } from '../../../core/utils/helpers.util';
 import { filterCommands } from '../../../core/utils/command-palette.util';
 
 interface PaletteCommand {
@@ -91,15 +92,30 @@ export class CommandPaletteComponent {
     if (!this.ui.paletteOpen()) return [];
     const list: PaletteCommand[] = [
       { group: 'Proyecto', title: 'Compilar ahora', keywords: 'preview render ctrl+enter', run: () => void this.orchestrator.manualCompile() },
-      { group: 'Proyecto', title: 'Guardar', keywords: 'ctrl+s', run: () => { this.editorState.saveCurrentFile(); this.orchestrator.saveSession(); void this.orchestrator.manualCompile(); } },
+      { group: 'Proyecto', title: 'Guardar', keywords: 'ctrl+s', run: () => this.orchestrator.saveFile() },
+      { group: 'Archivos', title: 'Historial del archivo…', keywords: 'versiones restaurar volver atrás cambios diff', run: () => this.ui.historyOpen.set(true) },
       { group: 'Proyecto', title: 'Mis proyectos…', keywords: 'abrir cambiar biblioteca', run: () => this.ui.projectsOpen.set(true) },
       { group: 'Proyecto', title: 'Nuevo proyecto vacío', run: () => void this.orchestrator.createProject() },
       ...PROJECT_TEMPLATES.map((t) => ({
         group: 'Plantillas', title: `Nuevo proyecto: ${t.name}`, keywords: t.description, run: () => void this.orchestrator.createProject(undefined, t.id),
       })),
+      {
+        group: 'Proyecto', title: 'Añadir archivo de helpers (helpers.js)', keywords: 'funciones javascript formatDate money utilidades',
+        run: () => {
+          if (this.editorState.files().has('/helpers.js')) this.editorState.openFile('/helpers.js', 'helpers.js', 'javascript', this.editorState.files().get('/helpers.js') ?? '');
+          else this.orchestrator.addFile('/helpers.js', 'helpers.js', HELPERS_TEMPLATE);
+        },
+      },
       { group: 'Proyecto', title: 'Exportar proyecto (carpeta o .zip)', run: () => void this.projectIo.exportProject() },
       { group: 'Proyecto', title: 'Descargar proyecto como .zip', run: () => this.projectIo.downloadZip() },
+      { group: 'Proyecto', title: 'Exportar captura PNG del preview', keywords: 'imagen screenshot foto', run: () => void this.projectIo.exportPng() },
       { group: 'Proyecto', title: 'Exportar HTML renderizado', run: () => this.projectIo.exportHtml() },
+      { group: 'Idiomas', title: 'Añadir idioma…', keywords: 'traducciones locales translations es-ES idioma', run: () => this.ui.addLocaleOpen.set(true) },
+      ...this.orchestrator.locales().map((code) => ({
+        group: 'Idiomas', title: `Preview en ${code}${code === this.orchestrator.activeLocale() ? ' (activo)' : ''}`, keywords: 'idioma locale traducciones',
+        run: () => this.orchestrator.setTranslationLocale(code),
+      })),
+      { group: 'Ajustes', title: 'Atajos de teclado', keywords: 'ayuda keyboard shortcuts teclas', run: () => this.ui.shortcutsOpen.set(true) },
       { group: 'Ajustes', title: 'Alternar tema claro/oscuro', keywords: 'dark light', run: () => this.preferences.toggleTheme() },
       {
         group: 'Ajustes', keywords: 'formatear formato atributos orden', run: () => this.preferences.update({ sortAttributes: !this.preferences.sortAttributes() }),

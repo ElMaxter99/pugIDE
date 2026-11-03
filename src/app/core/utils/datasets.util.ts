@@ -22,6 +22,8 @@ export interface DatasetsFile {
   activeId: string;
   locale: MockLocale;
   datasets: Dataset[];
+  /** Idioma elegido en el preview (`/locales/<código>/translations.json`), si lo hay. */
+  translationLocale?: string;
 }
 
 /** Ruta del archivo de datasets dentro de un zip / carpeta exportada. No forma parte de los archivos del proyecto. */
@@ -64,5 +66,6 @@ export function parseDatasetsFile(input: string | unknown): DatasetsFile | null 
   }
   if (datasets.length === 0) return null;
   const activeId = datasets.some((d) => d.id === raw['activeId']) ? (raw['activeId'] as string) : datasets[0].id;
-  return { version: 1, activeId, locale: raw['locale'] === 'en' ? 'en' : 'es', datasets };
+  const translationLocale = typeof raw['translationLocale'] === 'string' && raw['translationLocale'] ? (raw['translationLocale'] as string) : undefined;
+  return { version: 1, activeId, locale: raw['locale'] === 'en' ? 'en' : 'es', datasets, ...(translationLocale ? { translationLocale } : {}) };
 }

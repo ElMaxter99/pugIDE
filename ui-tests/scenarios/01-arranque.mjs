@@ -12,7 +12,8 @@ export default async function (env) {
     return el ? Math.round(el.getBoundingClientRect().width) : null;
   });
   check('01 los iconos se dibujan como icono (fuente local), no como texto', iconWidth !== null && iconWidth <= 30, String(iconWidth));
-  const fonts = await page.evaluate(() => [...new Set([...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family))]);
+  // WebKit devuelve los nombres con comillas ("Geist Variable"), Chromium y Firefox sin ellas.
+  const fonts = await page.evaluate(() => [...new Set([...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/^["']|["']$/g, '')))]);
   check('01 tipografías locales cargadas', ['Geist Variable', 'Material Symbols Outlined'].every((f) => fonts.includes(f)), JSON.stringify(fonts));
   check('01 ninguna petición a servidores externos', app.external.length === 0, app.external.join(', '));
   check('01 sin errores no controlados', app.errors.length === 0, app.errors.join(' | '));

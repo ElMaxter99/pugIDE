@@ -5,6 +5,9 @@ import { isStylePath, resolveImports, resolveStyleFile } from '../core/utils/sty
 export interface ScssCompileError {
   path: string;
   message: string;
+  /** 1-based, si el compilador la indica. */
+  line?: number;
+  column?: number;
 }
 
 export interface ScssCompileResult {
@@ -29,7 +32,7 @@ export class ScssCompilerService {
       if (lower.endsWith('.less')) return { ...(await this.compileLess(path, files, used)), used };
       if (lower.endsWith('.scss') || lower.endsWith('.sass')) return { ...(await this.compileSass(path, files, used)), used };
     } catch (err: unknown) {
-      return { css: '', errors: [{ path, message: describe(err) }], used };
+      return { css: '', errors: [describe(err, path, files)], used };
     }
     return { ...this.compileCss(path, files), used: resolveImports(path, files).used };
   }
@@ -146,8 +149,18 @@ interface LessStatic {
   render(input: string, options: unknown): Promise<{ css: string }>;
 }
 
-function describe(err: unknown): string {
-  const e = err as { message?: string; line?: number; sassMessage?: string };
-  const msg = e.sassMessage ?? e.message ?? 'Style compile error';
-  return e.line ? `línea ${e.line}: ${msg}` : msg.split('\n')[0];
+function describe(err: unknown, path: string, files: Map<string, string>): ScssCompileError {
+  const e = err as {
+    message?: string; sassMessage?: string; line?: number; column?: number; filename?: string;
+    span?: { start?: { line: number; column: number }; url?: URL | null };
+  };
+  const msg = (e.sassMessage ?? e.message ?? 'Style compile error').split('\n')[0];
+  // Sass: línea/columna 0-based en `span`; Less: línea 1-based y columna 0-based.
+  let line = e.span?.start ? e.span.start.line + 1 : e.line;
+  let column = e.span?.start ? e.span.start.column + 1 : e.column !== undefined ? e.column + 1 : undefined;
+  let file = path;
+  const from = e.span?.url ? decodeURI(e.span.url.pathname) : e.filename;
+  if (from && files.has(from)) file = from;
+  else if (from && from !== path) { line = undefined; column = undefined; }
+  return { path: file, message: msg, line, column };
 }

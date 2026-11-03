@@ -34,6 +34,15 @@ for (const b of bundles) {
   );
 }
 
+// 2b. Los programas de los iframes aislados corresponden a sus fuentes
+{
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [resolve(root, 'scripts/bundle-runtime.mjs'), '--check'], { encoding: 'utf-8' });
+  process.stdout.write(r.stdout ?? '');
+  process.stderr.write(r.stderr ?? '');
+  check('render-sandbox.js y preview-runtime.js al día', r.status === 0, 'ejecuta "npm run bundle:runtime"');
+}
+
 // 3. No console.log in app source
 const { readdirSync, statSync } = await import('node:fs');
 

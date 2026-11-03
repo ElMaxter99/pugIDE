@@ -3,201 +3,65 @@ import {
   ChangeDetectionStrategy,
   inject,
   signal,
-  computed,
   HostListener,
   ViewChild,
   ElementRef,
+  viewChild,
 } from '@angular/core';
+import { DataTreeComponent } from './data-tree.component';
+import { DatasetBarComponent } from './dataset-bar.component';
 import { DataState } from '../../core/state/data.state';
 import { PreferencesState } from '../../core/services/preferences.state';
 import { ParserState } from '../../core/state/parser.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { TerminalState } from '../../core/state/terminal.state';
-import type { DatasetKind } from '../../core/utils/datasets.util';
-
-interface TreeNode {
-  key: string;
-  path: string;
-  depth: number;
-  kind: 'object-open' | 'array-open' | 'object-close' | 'array-close' | 'leaf' | 'inline-array';
-  value?: unknown;
-  valueType?: string;
-  itemCount?: number;
-  isExpanded?: boolean;
-  inlineItems?: string[];
-}
+import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/data-tree.util';
 
 @Component({
   selector: 'app-smart-data-editor',
   standalone: true,
+  imports: [DatasetBarComponent, DataTreeComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.collapsed]': 'preferences.dataCollapsed()' },
   template: `
     <button class="rail-btn" (click)="preferences.toggleData()" title="Mostrar Data" aria-label="Mostrar Data">
-      <span class="material-symbols-outlined" style="font-size: 18px;">right_panel_open</span>
+      <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">right_panel_open</span>
       <span class="rail-label">Data</span>
     </button>
-    <section class="data-section">
+    <section class="data-section" aria-label="Datos">
       <div class="data-header">
         <span class="data-title">Data</span>
         <div class="data-actions">
           <button class="icon-btn" (click)="preferences.toggleData()" title="Colapsar Data" aria-label="Colapsar Data">
-            <span class="material-symbols-outlined" style="font-size: 16px;">right_panel_close</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">right_panel_close</span>
           </button>
-          <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Switch to visual tree (Ctrl+Shift+J)' : 'Switch to JSON editor (Ctrl+Shift+J)'">
-            <span class="mode-label">{{ jsonRawMode() ? 'JSON' : 'Tree' }}</span>
+          <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Cambiar al árbol visual (Ctrl+Shift+J)' : 'Cambiar al editor JSON (Ctrl+Shift+J)'" [attr.aria-label]="jsonRawMode() ? 'Modo JSON: cambiar al árbol visual' : 'Modo Árbol: cambiar al editor JSON'">
+            <span class="mode-label">{{ jsonRawMode() ? 'JSON' : 'Árbol' }}</span>
           </button>
-          <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Undo">
-            <span class="material-symbols-outlined" style="font-size: 16px;">undo</span>
+          <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Deshacer" aria-label="Deshacer">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">undo</span>
           </button>
-          <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Redo">
-            <span class="material-symbols-outlined" style="font-size: 16px;">redo</span>
+          <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Rehacer" aria-label="Rehacer">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">redo</span>
           </button>
-          <button class="icon-btn" (click)="copyJsonToClipboard()" title="Copy JSON to clipboard">
-            <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+          <button class="icon-btn" (click)="copyJsonToClipboard()" title="Copiar JSON al portapapeles" aria-label="Copiar JSON al portapapeles">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
           </button>
           <button class="mock-btn" (click)="clearData()">
-            <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">delete</span>
             <span class="mock-label">Dejar objeto vacío</span>
           </button>
         </div>
       </div>
 
-      <div class="dataset-bar" role="toolbar" aria-label="Juegos de datos">
-        <select class="ds-select" aria-label="Juego de datos activo" title="Juego de datos activo"
-                (change)="switchDataset($any($event.target).value)">
-          @for (d of dataState.datasetOptions(); track d.id) {
-            <option [value]="d.id" [selected]="d.id === dataState.activeId()">{{ d.name }}</option>
-          }
-        </select>
-        <select class="ds-select ds-new" aria-label="Crear juego de datos" title="Crear un juego de datos nuevo"
-                (change)="createDataset($any($event.target))">
-          <option value="" selected>+ Nuevo…</option>
-          <option value="empty">Vacío</option>
-          <option value="full">Lleno</option>
-          <option value="error">Error</option>
-          <option value="custom">Copia personalizada</option>
-        </select>
-        <button class="icon-btn" (click)="renameDataset()" title="Renombrar juego de datos" aria-label="Renombrar juego de datos">
-          <span class="material-symbols-outlined" style="font-size: 16px;">edit</span>
-        </button>
-        <button class="icon-btn" (click)="duplicateDataset()" title="Duplicar juego de datos" aria-label="Duplicar juego de datos">
-          <span class="material-symbols-outlined" style="font-size: 16px;">file_copy</span>
-        </button>
-        <button class="icon-btn" [disabled]="dataState.datasets().length <= 1" (click)="deleteDataset()" title="Borrar juego de datos" aria-label="Borrar juego de datos">
-          <span class="material-symbols-outlined" style="font-size: 16px;">delete_forever</span>
-        </button>
-        <span class="ds-spacer"></span>
-        <select class="ds-select ds-locale" aria-label="Idioma de los datos de ejemplo" title="Idioma de los datos de ejemplo"
-                (change)="setLocale($any($event.target).value)">
-          <option value="es" [selected]="dataState.locale() === 'es'">es</option>
-          <option value="en" [selected]="dataState.locale() === 'en'">en</option>
-        </select>
-        <button class="mock-btn" (click)="regenerate()" title="Rellenar con datos de ejemplo nuevos (se puede deshacer)">
-          <span class="material-symbols-outlined" style="font-size: 14px;">casino</span>
-          <span class="mock-label">Regenerar</span>
-        </button>
-        <button class="mock-btn" (click)="importInput.click()" title="Importar un JSON, JSON Schema u OpenAPI como juego de datos nuevo">
-          <span class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
-          <span class="mock-label">Importar</span>
-        </button>
-        <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
-      </div>
+      <app-dataset-bar (beforeChange)="applyJsonIfDirty()" (changed)="refreshAfterDatasetChange()" />
 
-      @if (!jsonRawMode()) {
-        <div class="tree-view">
-          <div class="tree-content font-mono">
-            @for (row of flatRows(); track row.path + row.kind) {
-              @switch (row.kind) {
-                @case ('object-open') {
-                  <div class="tree-row expandable" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)">
-                    <span class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
-                    <span class="json-key">{{ row.key }}</span>
-                    <span class="json-colon">:</span>
-                    @if (!row.isExpanded) {
-                      <span class="json-bracket">{{ openCurly }}{{ closeCurly }}</span>
-                    } @else {
-                      <span class="json-bracket">{{ openCurly }}</span>
-                    }
-                  </div>
-                }
-                @case ('array-open') {
-                  <div class="tree-row expandable" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)">
-                    <span class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
-                    <span class="json-key">{{ row.key }}</span>
-                    <span class="json-colon">:</span>
-                    @if (!row.isExpanded) {
-                      <span class="json-bracket">{{ openBracket }}</span>
-                      <span class="json-count">{{ row.itemCount }} items</span>
-                      <span class="json-bracket">{{ closeBracket }}</span>
-                    } @else {
-                      <span class="json-bracket">{{ openBracket }}</span>
-                    }
-                  </div>
-                }
-                @case ('object-close') {
-                  <div class="tree-row closing" [style.padding-left.px]="row.depth * 20 + 20">
-                    <span class="json-bracket">{{ closeCurly }}</span>
-                  </div>
-                }
-                @case ('array-close') {
-                  <div class="tree-row closing" [style.padding-left.px]="row.depth * 20 + 20">
-                    <span class="json-bracket">{{ closeBracket }}</span>
-                  </div>
-                }
-                @case ('leaf') {
-                  <div class="tree-row leaf" [style.padding-left.px]="row.depth * 20 + 20">
-                    <span class="json-key">{{ row.key }}</span>
-                    <span class="json-colon">:</span>
-                    @if (row.valueType === 'string') {
-                      <input
-                        class="json-input string-input"
-                        [value]="row.value"
-                        (change)="updateValue(row.path, $any($event.target).value)" />
-                    } @else if (row.valueType === 'number') {
-                      <input
-                        class="json-input number-input"
-                        type="number"
-                        [value]="row.value"
-                        (change)="updateValue(row.path, +$any($event.target).value)" />
-                    } @else if (row.valueType === 'boolean') {
-                      <div
-                        class="json-toggle"
-                        [class.on]="row.value"
-                        (click)="toggleBoolean(row.path, row.value)">
-                        <div class="toggle-thumb"></div>
-                      </div>
-                      <span class="json-boolean">{{ row.value }}</span>
-                    } @else if (row.valueType === 'null') {
-                      <span class="json-null">null</span>
-                    } @else {
-                      <span class="json-string">{{ row.value }}</span>
-                    }
-                  </div>
-                }
-                @case ('inline-array') {
-                  <div class="tree-row leaf" [style.padding-left.px]="row.depth * 20 + 20">
-                    <span class="json-key">{{ row.key }}</span>
-                    <span class="json-colon">:</span>
-                    <span class="json-bracket">{{ openBracket }}</span>
-                    <span class="inline-array-content">
-                      @for (item of row.inlineItems; track $index; let last = $last) {
-                        <span class="json-string">{{ item }}</span>@if (!last) {<span class="json-comma">, </span>}
-                      }
-                    </span>
-                    <span class="json-bracket">{{ closeBracket }}</span>
-                  </div>
-                }
-              }
-            }
-          </div>
-        </div>
-      }
+      <app-data-tree #tree [class.hidden]="jsonRawMode()" />
 
       <div class="json-editor-area" [class.hidden]="!jsonRawMode()">
         @if (jsonError()) {
           <div class="json-error-bar">
-            <span class="material-symbols-outlined" style="font-size: 14px; color: var(--error-color);">error</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px; color: var(--error-color);">error</span>
             <span class="json-error-text">{{ jsonError() }}</span>
           </div>
         }
@@ -336,178 +200,6 @@ interface TreeNode {
       background: none;
     }
 
-    .dataset-bar {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 4px 12px;
-      border-bottom: 1px solid var(--border-color);
-      background: var(--bg-surface-container-low);
-      flex-shrink: 0;
-    }
-
-    .ds-spacer {
-      flex: 1;
-    }
-
-    .ds-select {
-      background: var(--bg-surface-variant);
-      color: var(--text-primary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      font-family: var(--font-mono);
-      font-size: 11px;
-      padding: 3px 6px;
-      max-width: 160px;
-    }
-
-    .tree-view {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-    }
-
-    .tree-content {
-      font-size: 13px;
-      line-height: 20px;
-    }
-
-    .tree-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 2px 0;
-      min-height: 24px;
-    }
-
-    .tree-row.expandable {
-      cursor: pointer;
-      border-radius: var(--radius);
-    }
-
-    .tree-row.expandable:hover {
-      background: rgba(255, 255, 255, 0.03);
-    }
-
-    .tree-row.closing {
-      color: var(--text-tertiary);
-    }
-
-    .tree-arrow {
-      font-size: 16px;
-      color: var(--text-tertiary);
-      transition: transform 0.15s;
-      flex-shrink: 0;
-      transform: rotate(-90deg);
-    }
-
-    .tree-arrow.rotated {
-      transform: rotate(0deg);
-    }
-
-    .json-key {
-      color: #9cdcfe;
-    }
-
-    .json-colon {
-      color: var(--text-tertiary);
-    }
-
-    .json-bracket {
-      color: var(--text-tertiary);
-    }
-
-    .json-count {
-      color: var(--text-tertiary);
-      font-size: 11px;
-    }
-
-    .json-string {
-      color: #ce9178;
-    }
-
-    .json-boolean {
-      color: #569cd6;
-    }
-
-    .json-null {
-      color: #569cd6;
-      font-style: italic;
-    }
-
-    .json-comma {
-      color: var(--text-tertiary);
-    }
-
-    .inline-array-content {
-      display: inline-flex;
-      align-items: center;
-      gap: 0;
-      flex-wrap: wrap;
-    }
-
-    .json-input {
-      background: transparent;
-      border: none;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      line-height: 20px;
-      color: var(--text-primary);
-      padding: 0;
-      min-width: 0;
-      flex: 1;
-    }
-
-    .string-input {
-      color: #ce9178;
-    }
-
-    .number-input {
-      color: #b5cea8;
-    }
-
-    .number-input:focus {
-      outline: 1px solid var(--accent-color);
-      border-radius: 2px;
-    }
-
-    .number-input::-webkit-inner-spin-button,
-    .number-input::-webkit-outer-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-
-    .json-toggle {
-      width: 32px;
-      height: 18px;
-      border-radius: 9px;
-      background: var(--text-tertiary);
-      position: relative;
-      cursor: pointer;
-      transition: background 0.2s;
-      flex-shrink: 0;
-    }
-
-    .json-toggle.on {
-      background: var(--accent-color);
-    }
-
-    .toggle-thumb {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--text-on-primary);
-      transition: transform 0.2s;
-    }
-
-    .json-toggle.on .toggle-thumb {
-      transform: translateX(14px);
-    }
-
     .mode-toggle {
       display: flex;
       align-items: center;
@@ -601,22 +293,11 @@ export class SmartDataEditorComponent {
   private terminalState = inject(TerminalState);
 
   @ViewChild('jsonArea') jsonArea!: ElementRef<HTMLTextAreaElement>;
+  private tree = viewChild.required<DataTreeComponent>('tree');
 
-  readonly openCurly = '{';
-  readonly closeCurly = '}';
-  readonly openBracket = '[';
-  readonly closeBracket = ']';
-
-  private expandedPaths = signal<Set<string>>(new Set(['', 'usuario']));
   jsonRawMode = signal(false);
   jsonError = signal<string | null>(null);
   rawJsonContent = signal('');
-
-  flatRows = computed(() => {
-    const data = this.dataState.data();
-    const expanded = this.expandedPaths();
-    return this.flattenTree(data, '', 0, expanded);
-  });
 
   @HostListener('window:keydown', ['$event'])
   onKeydown(event: KeyboardEvent): void {
@@ -629,10 +310,7 @@ export class SmartDataEditorComponent {
   toggleMode(): void {
     const goingRaw = !this.jsonRawMode();
     if (goingRaw) {
-      const json = JSON.stringify(this.dataState.data(), null, 2);
-      this.jsonArea.nativeElement.value = json;
-      this.rawJsonContent.set(json);
-      this.jsonError.set(null);
+      this.showJson(stringifyData(this.dataState.data()));
     } else {
       this.applyJson();
     }
@@ -645,29 +323,31 @@ export class SmartDataEditorComponent {
       JSON.parse(value);
       this.jsonError.set(null);
     } catch (e: unknown) {
-      const msg = (e as Error).message;
-      this.jsonError.set(msg);
+      this.jsonError.set((e as Error).message);
     }
+  }
+
+  /** Pone `json` en el área de texto del modo JSON y limpia el error. */
+  private showJson(json: string): void {
+    this.jsonArea.nativeElement.value = json;
+    this.rawJsonContent.set(json);
+    this.jsonError.set(null);
   }
 
   applyJson(): void {
     const textarea = this.jsonArea?.nativeElement;
     const text = textarea ? textarea.value : this.rawJsonContent();
-    try {
-      const parsed = JSON.parse(text);
-      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        this.jsonError.set('Root must be a JSON object');
-        this.terminalState.addEntry('error', 'DataEditor', 'Invalid JSON: root must be an object, not an array or primitive');
-        return;
-      }
-      this.jsonError.set(null);
-      this.dataState.setData(parsed);
-      this.orchestrator.onDataChange();
-    } catch (e: unknown) {
-      const msg = (e as Error).message;
-      this.jsonError.set(msg);
-      this.terminalState.addEntry('error', 'DataEditor', `Invalid JSON: ${msg}`);
+    const result = parseDataJson(text);
+    if (!result.ok) {
+      this.jsonError.set(result.error);
+      this.terminalState.addEntry('error', 'DataEditor', result.rootNotObject
+        ? 'Invalid JSON: root must be an object, not an array or primitive'
+        : `Invalid JSON: ${result.error}`);
+      return;
     }
+    this.jsonError.set(null);
+    this.dataState.setData(result.value);
+    this.orchestrator.onDataChange();
   }
 
   onTextareaKeydown(event: KeyboardEvent): void {
@@ -676,12 +356,11 @@ export class SmartDataEditorComponent {
       const textarea = event.target as HTMLTextAreaElement;
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const value = textarea.value;
-      const newValue = value.substring(0, start) + '  ' + value.substring(end);
+      const { value: newValue, cursor } = insertIndent(textarea.value, start, end);
       this.jsonArea.nativeElement.value = newValue;
       this.rawJsonContent.set(newValue);
       requestAnimationFrame(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 2;
+        textarea.selectionStart = textarea.selectionEnd = cursor;
       });
     } else if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault();
@@ -691,7 +370,7 @@ export class SmartDataEditorComponent {
   }
 
   copyJsonToClipboard(): void {
-    const text = JSON.stringify(this.dataState.data(), null, 2);
+    const text = stringifyData(this.dataState.data());
     navigator.clipboard.writeText(text).then(() => {
       this.terminalState.addEntry('success', 'DataEditor', 'JSON copied to clipboard');
     }).catch(() => {
@@ -703,113 +382,19 @@ export class SmartDataEditorComponent {
     const emptyData = await this.orchestrator.clearDataWithKeys();
     this.dataState.setData(emptyData);
     this.orchestrator.onDataChange();
-    if (this.jsonRawMode()) {
-      const json = JSON.stringify(emptyData, null, 2);
-      this.jsonArea.nativeElement.value = json;
-      this.rawJsonContent.set(json);
-      this.jsonError.set(null);
-    }
-    this.expandedPaths.set(new Set(['']));
+    if (this.jsonRawMode()) this.showJson(stringifyData(emptyData));
+    this.tree().expand(['']);
   }
 
   /** Tras cambiar los datos por otra vía, el modo JSON y los nodos abiertos deben reflejar el estado actual. */
-  private refreshAfterDatasetChange(): void {
-    if (this.jsonRawMode() && this.jsonArea) {
-      const json = JSON.stringify(this.dataState.data(), null, 2);
-      this.jsonArea.nativeElement.value = json;
-      this.rawJsonContent.set(json);
-      this.jsonError.set(null);
-    }
-    this.expandedPaths.set(new Set(['', ...Object.keys(this.dataState.data())]));
-  }
-
-  switchDataset(id: string): void {
-    this.applyJsonIfDirty();
-    this.orchestrator.switchDataset(id);
-    this.refreshAfterDatasetChange();
-  }
-
   /** Guarda lo escrito en el modo JSON antes de cambiar de juego, para no perderlo. */
-  private applyJsonIfDirty(): void {
+  protected applyJsonIfDirty(): void {
     if (this.jsonRawMode() && !this.jsonError()) this.applyJson();
   }
 
-  async createDataset(select: HTMLSelectElement): Promise<void> {
-    const kind = select.value as Exclude<DatasetKind, 'default'> | '';
-    select.value = '';
-    if (!kind) return;
-    this.applyJsonIfDirty();
-    await this.orchestrator.createDataset(kind);
-    this.refreshAfterDatasetChange();
-  }
-
-  renameDataset(): void {
-    const current = this.dataState.activeDataset();
-    const name = window.prompt('Nuevo nombre del juego de datos', current?.name ?? '');
-    if (name && current) this.dataState.renameDataset(current.id, name);
-  }
-
-  duplicateDataset(): void {
-    this.applyJsonIfDirty();
-    this.orchestrator.duplicateDataset(this.dataState.activeId());
-    this.refreshAfterDatasetChange();
-  }
-
-  deleteDataset(): void {
-    const current = this.dataState.activeDataset();
-    if (!current || !window.confirm(`¿Borrar el juego de datos "${current.name}"?`)) return;
-    this.orchestrator.deleteDataset(current.id);
-    this.refreshAfterDatasetChange();
-  }
-
-  setLocale(locale: string): void {
-    this.orchestrator.setMockLocale(locale === 'en' ? 'en' : 'es');
-  }
-
-  async regenerate(): Promise<void> {
-    this.applyJsonIfDirty();
-    await this.orchestrator.regenerateMocks();
-    this.refreshAfterDatasetChange();
-    this.terminalState.addEntry('success', 'DataEditor', 'Datos de ejemplo regenerados (puedes deshacer).');
-  }
-
-  async importFile(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-    try {
-      const doc = JSON.parse(await file.text());
-      this.applyJsonIfDirty();
-      const { source, warnings } = this.orchestrator.importDataDocument(doc, file.name.replace(/\.json$/i, ''));
-      const label = source === 'openapi' ? 'OpenAPI' : source === 'json-schema' ? 'JSON Schema' : 'JSON';
-      this.terminalState.addEntry('success', 'DataEditor', `Importado ${file.name} (${label}) como juego de datos nuevo.`);
-      for (const w of warnings) this.terminalState.addEntry('warning', 'DataEditor', w);
-      this.refreshAfterDatasetChange();
-    } catch (e: unknown) {
-      this.terminalState.addEntry('error', 'DataEditor', `No se pudo importar ${file.name}: ${(e as Error).message}`);
-    }
-  }
-
-  isNodeExpanded(path: string): boolean {
-    return this.expandedPaths().has(path);
-  }
-
-  toggleNode(path: string): void {
-    this.expandedPaths.update((paths) => {
-      const next = new Set(paths);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  }
-
-  updateValue(path: string, value: unknown): void {
-    this.dataState.updateValue(path, value);
-    this.orchestrator.onDataChange();
+  protected refreshAfterDatasetChange(): void {
+    if (this.jsonRawMode() && this.jsonArea) this.showJson(stringifyData(this.dataState.data()));
+    this.tree().expand(['', ...Object.keys(this.dataState.data())]);
   }
 
   undo(): void {
@@ -822,120 +407,5 @@ export class SmartDataEditorComponent {
     this.orchestrator.onDataChange();
   }
 
-  toggleBoolean(path: string, currentValue: unknown): void {
-    this.dataState.updateValue(path, !currentValue);
-    this.orchestrator.onDataChange();
-  }
-
-  private flattenTree(
-    obj: unknown,
-    prefix: string,
-    depth: number,
-    expanded: Set<string>
-  ): TreeNode[] {
-    const rows: TreeNode[] = [];
-    if (obj === null || obj === undefined || typeof obj !== 'object') return rows;
-
-    const entries = Object.entries(obj as Record<string, unknown>);
-    for (const [key, value] of entries) {
-      const path = prefix ? `${prefix}.${key}` : key;
-      const isExpandable = value !== null && typeof value === 'object' && !Array.isArray(value);
-      const isArr = Array.isArray(value);
-
-      if (isExpandable || isArr) {
-        if (isArr) {
-          const arr = value as unknown[];
-          const isPrimitiveArr = arr.every(item => item === null || typeof item !== 'object');
-          if (isPrimitiveArr) {
-            rows.push({
-              key,
-              path,
-              depth,
-              kind: 'inline-array',
-              inlineItems: arr.map(item => item === null ? 'null' : String(item)),
-            });
-            continue;
-          }
-        }
-        const isExp = expanded.has(path);
-        rows.push({
-          key,
-          path,
-          depth,
-          kind: isArr ? 'array-open' : 'object-open',
-          itemCount: isArr ? (value as unknown[]).length : undefined,
-          isExpanded: isExp,
-        });
-        if (isExp) {
-          if (isArr) {
-            const arr = value as unknown[];
-            for (let i = 0; i < arr.length; i++) {
-              const item = arr[i];
-              const itemPath = `${path}.${i}`;
-              if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
-                rows.push({
-                  key: String(i),
-                  path: itemPath,
-                  depth: depth + 1,
-                  kind: 'object-open',
-                  isExpanded: expanded.has(itemPath),
-                });
-                if (expanded.has(itemPath)) {
-                  rows.push(...this.flattenTree(item, itemPath, depth + 2, expanded));
-                  rows.push({
-                    key: '',
-                    path: itemPath,
-                    depth: depth + 1,
-                    kind: 'object-close',
-                  });
-                }
-              } else {
-                rows.push({
-                  key: String(i),
-                  path: itemPath,
-                  depth: depth + 1,
-                  kind: 'leaf',
-                  value: item,
-                  valueType: this.getValueType(item),
-                });
-              }
-            }
-            rows.push({
-              key: '',
-              path,
-              depth,
-              kind: 'array-close',
-            });
-          } else {
-            rows.push(...this.flattenTree(value, path, depth + 1, expanded));
-            rows.push({
-              key: '',
-              path,
-              depth,
-              kind: 'object-close',
-            });
-          }
-        }
-      } else {
-        rows.push({
-          key,
-          path,
-          depth,
-          kind: 'leaf',
-          value,
-          valueType: this.getValueType(value),
-        });
-      }
-    }
-    return rows;
-  }
-
-  private getValueType(value: unknown): string {
-    if (value === null) return 'null';
-    if (typeof value === 'boolean') return 'boolean';
-    if (typeof value === 'number') return 'number';
-    if (typeof value === 'string') return 'string';
-    return 'string';
-  }
 
 }

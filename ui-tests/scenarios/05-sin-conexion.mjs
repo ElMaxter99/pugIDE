@@ -1,5 +1,8 @@
 import { check, openApp, previewText, sleep } from '../lib.mjs';
 
+export const browsers = ['chromium'];
+export const why = 'la emulación offline de Playwright en Firefox/WebKit impide navegar aunque el service worker tenga la página en caché';
+
 // Service worker: tras una visita, la app arranca sin conexión (Monaco, preview, iconos y fuentes incluidos)
 export default async function (env) {
   const online = await openApp({ ...env, serviceWorkers: 'allow' }, { wait: 2500 });

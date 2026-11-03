@@ -32,8 +32,8 @@ export interface DialogConfig {
         <div #dlg class="dialog" role="dialog" aria-modal="true" [attr.aria-label]="config().title" tabindex="-1"
           (click)="$event.stopPropagation()" (keydown.escape)="onCancel()" (keydown)="onKeydown($event)">
           <div class="dialog-header">
-            <h3 class="dialog-title">{{ config().title }}</h3>
-            <button class="dialog-close" (click)="onCancel()">
+            <h2 class="dialog-title">{{ config().title }}</h2>
+            <button class="dialog-close" aria-label="Cerrar" title="Cerrar" (click)="onCancel()">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
@@ -46,6 +46,7 @@ export interface DialogConfig {
               <label class="dialog-label">{{ config().inputLabel }}</label>
               <input
                 class="dialog-input"
+                [attr.aria-label]="config().inputLabel"
                 [value]="inputValue()"
                 (input)="inputValue.set($any($event.target).value)"
                 (keydown.enter)="onConfirm()" />

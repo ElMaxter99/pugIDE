@@ -33,7 +33,7 @@ export default async function (env) {
   await sleep(400);
   check('04 Paleta: Escape devuelve el foco al elemento anterior', (await active()).includes('Copiar un enlace'), await active());
 
-  const add = page.locator('button[title="New file"]');
+  const add = page.locator('button[title="Nuevo archivo"]');
   await add.focus();
   await add.press('Enter');
   await sleep(600);
@@ -43,6 +43,6 @@ export default async function (env) {
   check('04 Nuevo archivo: el foco no sale del diálogo', leaks2 === 0, `fugas=${leaks2}`);
   await page.keyboard.press('Escape');
   await sleep(400);
-  check('04 Nuevo archivo: Escape cierra y devuelve el foco', (await page.locator('app-dialog [role="dialog"]').count()) === 0 && (await active()).includes('New file'), await active());
+  check('04 Nuevo archivo: Escape cierra y devuelve el foco', (await page.locator('app-dialog [role="dialog"]').count()) === 0 && (await active()).includes('Nuevo archivo'), await active());
   await app.close();
 }

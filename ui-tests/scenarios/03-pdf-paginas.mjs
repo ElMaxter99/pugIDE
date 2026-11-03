@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { check, openApp, sleep } from '../lib.mjs';
+import { check, openApp, previewFrame, sleep } from '../lib.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -33,6 +33,9 @@ html
     p Fin ${LOREM}
 `;
 
+export const browsers = ['chromium'];
+export const why = 'compara con page.pdf() de Playwright, que solo existe en Chromium';
+
 // Preview PDF con @page (márgenes, cabecera y pie con contador): mismo número de páginas que la impresión real
 export default async function (env) {
   // Impresión real de Chromium
@@ -61,7 +64,7 @@ export default async function (env) {
   check('03 @page :first oculta la cabecera solo en la primera página', boxes[0] === `Página 1 de ${realPages}` && boxes.filter((b) => b === 'Informe trimestral').length === realPages - 1, JSON.stringify(boxes));
 
   // El texto con que empieza cada página coincide con el de la impresión real
-  const frame = page.frames().find((f) => f !== page.mainFrame() && f.url().startsWith('blob:'));
+  const frame = await previewFrame(page);
   const starts = await frame.evaluate((n) => {
     const mm = 96 / 25.4;
     const out = [];

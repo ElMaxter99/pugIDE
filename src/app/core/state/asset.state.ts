@@ -1,3 +1,4 @@
+import { bytesToDataUri } from '../utils/export-html.util';
 import { Injectable, signal, computed } from '@angular/core';
 import { mimeForPath, refToPath } from '../utils/asset.util';
 
@@ -54,6 +55,28 @@ export class AssetState {
     const name = path.split('/').pop()!.toLowerCase();
     const same = this.paths().filter((p) => p.split('/').pop()!.toLowerCase() === name);
     return same.length === 1 ? same[0] : null;
+  }
+
+  private dataUris = new Map<string, { data: Uint8Array; uri: string }>();
+
+  /**
+   * URL `blob:` -> data URI de cada asset. El preview se ejecuta en un iframe de origen opaco, que no puede
+   * cargar los `blob:` de la app; el export y la captura los necesitan autocontenidos. Se memoiza por contenido.
+   */
+  blobToDataUri(): Map<string, string> {
+    const map = new Map<string, string>();
+    for (const a of this.assets().values()) {
+      const url = this.urlFor(a.path);
+      if (!url) continue;
+      let hit = this.dataUris.get(a.path);
+      if (!hit || hit.data !== a.data) {
+        hit = { data: a.data, uri: bytesToDataUri(a.data, a.mime) };
+        this.dataUris.set(a.path, hit);
+      }
+      map.set(url, hit.uri);
+    }
+    for (const p of [...this.dataUris.keys()]) if (!this.assets().has(p)) this.dataUris.delete(p);
+    return map;
   }
 
   urlFor(path: string): string | null {

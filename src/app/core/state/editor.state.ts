@@ -169,6 +169,13 @@ export class EditorState {
     this.revealRequest.set({ path, line, seq: ++this.revealSeq });
   }
 
+  /** Archivos cambiados desde fuera del editor (p. ej. claves nuevas en `translations.json`): Monaco debe refrescar sus modelos. */
+  readonly fileSync = signal<{ seq: number; paths: string[] }>({ seq: 0, paths: [] });
+
+  notifyFileSync(paths: string[]): void {
+    this.fileSync.update((s) => ({ seq: s.seq + 1, paths }));
+  }
+
   bumpResetToken(): void {
     this.resetToken.update((v) => v + 1);
   }

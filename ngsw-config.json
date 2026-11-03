@@ -23,6 +23,9 @@
       "resources": {
         "files": [
           "/assets/pug-browser.js",
+          "/assets/render-sandbox.js",
+          "/assets/preview-runtime.js",
+          "/assets/preview-host.html",
           "/assets/parser-browser.js",
           "/assets/PugIDE.svg",
           "/assets/icons/pwa-*.png",

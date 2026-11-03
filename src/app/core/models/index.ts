@@ -104,6 +104,8 @@ export interface CompileResult {
 export interface CompileError {
   message: string;
   source: 'pug' | 'scss' | 'javascript';
+  /** Archivo del proyecto donde ocurrió (p. ej. un parcial incluido), si se conoce. */
+  path?: string;
   line?: number;
   column?: number;
   severity: 'error' | 'warning';

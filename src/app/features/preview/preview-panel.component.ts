@@ -12,24 +12,30 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { PreferencesState } from '../../core/services/preferences.state';
-import { PageBreakIssue, PageGeometry, documentContentHeight, findPageBreakIssues, pageGeometry, paginateDocument, resetPagination } from '../../core/utils/paginate.util';
-import { MARGIN_BOX_NAMES, boxesForPage, renderContent } from '../../core/utils/page-rules.util';
+import { PageBreakIssue, PageGeometry, pageGeometry } from '../../core/utils/paginate.util';
+import { AssetState } from '../../core/state/asset.state';
+import { injectIntoBody, pinBaseUrl } from '../../core/utils/html-injection.util';
+import { loadPreviewRuntime } from '../../core/render/preview-runtime';
+import { openInHost } from '../../core/render/preview-host';
+import { A11yIssue, a11yReport, buildPageChrome, describePageIssue, fitScale, pageCountFor, pageIssuesKey } from '../../core/utils/preview-layout.util';
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
+import { ProjectIoService } from '../../core/services/project-io.service';
 import { InspectorState } from '../../core/state/inspector.state';
 import { DEVICE_PRESETS, findDevicePreset, ColorSchemeSim } from '../../core/utils/device-presets.util';
 import { EditorState } from '../../core/state/editor.state';
 import { TerminalState } from '../../core/state/terminal.state';
 import { findPugSource } from '../../core/utils/pug-source-map.util';
+import { PdfBarComponent } from './pdf-bar.component';
 import { InspectorPanelComponent } from '../inspector/inspector-panel.component';
 
 @Component({
   selector: 'app-preview-panel',
   standalone: true,
-  imports: [InspectorPanelComponent],
+  imports: [InspectorPanelComponent, PdfBarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="preview-section">
+    <section class="preview-section" aria-label="Vista previa">
       <div class="preview-header">
         <div class="preview-header-left">
           <span class="preview-title">
@@ -42,51 +48,59 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
               title="Escritorio"
               [class.active]="!previewState.isPdf() && deviceKind() === 'desktop'"
               (click)="selectDevice('Desktop')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">desktop_windows</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">desktop_windows</span>
             </button>
             <button
               class="device-btn"
               title="Tablet"
               [class.active]="!previewState.isPdf() && deviceKind() === 'tablet'"
               (click)="selectDevice('Tablet')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">tablet_mac</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">tablet_mac</span>
             </button>
             <button
               class="device-btn"
               title="Movil"
               [class.active]="!previewState.isPdf() && deviceKind() === 'mobile'"
               (click)="selectDevice('Mobile')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
             </button>
             <button
               class="device-btn"
               [class.active]="previewState.isPdf()"
               title="PDF / página impresa"
               (click)="setDevice('PDF', 0, 0)">
-              <span class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
             </button>
           </div>
         </div>
         <div class="preview-header-right">
+          @if (orchestrator.locales().length) {
+            <select class="zoom-select locale-select" data-testid="preview-locale" title="Idioma de las traducciones (locales/)" aria-label="Idioma de las traducciones"
+                    (change)="orchestrator.setTranslationLocale($any($event.target).value)">
+              @for (code of orchestrator.locales(); track code) {
+                <option [value]="code" [selected]="code === orchestrator.activeLocale()">{{ code }}</option>
+              }
+            </select>
+          }
           @if (!previewState.isPdf()) {
-            <select class="zoom-select device-select" title="Dispositivo" [value]="previewState.deviceName()" (change)="selectDevice($any($event.target).value)">
+            <select class="zoom-select device-select" title="Dispositivo" aria-label="Dispositivo" [value]="previewState.deviceName()" (change)="selectDevice($any($event.target).value)">
               @for (d of presets; track d.name) {
                 <option [value]="d.name">{{ d.name }} ({{ d.width }}x{{ d.height }})</option>
               }
             </select>
             @if (deviceKind() !== 'desktop') {
               <button class="preview-action" title="Girar" (click)="rotateDevice()">
-                <span class="material-symbols-outlined" style="font-size: 18px;">screen_rotation</span>
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">screen_rotation</span>
               </button>
             }
           }
-          <button class="preview-action" [class.active]="previewState.colorScheme() !== 'auto'" [title]="'Modo de color simulado: ' + previewState.colorScheme()" (click)="cycleColorScheme()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">{{ schemeIcon() }}</span>
+          <button class="preview-action" [class.active]="previewState.colorScheme() !== 'auto'" [title]="'Modo de color simulado: ' + previewState.colorScheme()" [attr.aria-label]="'Modo de color simulado: ' + previewState.colorScheme()" (click)="cycleColorScheme()">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">{{ schemeIcon() }}</span>
           </button>
           <button class="preview-action" title="Auditoria de accesibilidad (resultados en la terminal)" (click)="runA11y()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">accessibility_new</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">accessibility_new</span>
           </button>
-          <select class="zoom-select" title="Zoom" [value]="zoomValue()" (change)="onZoom($any($event.target).value)">
+          <select class="zoom-select" title="Zoom" aria-label="Zoom" [value]="zoomValue()" (change)="onZoom($any($event.target).value)">
             <option value="fit">Ajustar ({{ scalePercent() }}%)</option>
             <option value="50">50%</option>
             <option value="75">75%</option>
@@ -94,46 +108,29 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
           </select>
           @if (previewState.isPdf()) {
             <button class="preview-action" title="Imprimir / Guardar como PDF" (click)="onPrint()">
-              <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">print</span>
             </button>
           }
-          <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspect Element" (click)="inspectorState.toggleInspector()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
+          <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspeccionar elemento" aria-label="Inspeccionar elemento" (click)="inspectorState.toggleInspector()">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
           </button>
-          <button class="preview-action" title="Refresh" (click)="onReload()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
+          <button class="preview-action" title="Descargar captura PNG de la vista previa" aria-label="Descargar captura PNG de la vista previa" (click)="projectIo.exportPng()">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">photo_camera</span>
           </button>
-          <button class="preview-action" title="Open in New Tab" (click)="onOpenNewTab()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">open_in_new</span>
+          <button class="preview-action" title="Recargar vista previa" aria-label="Recargar vista previa" (click)="onReload()">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
+          </button>
+          <button class="preview-action" title="Abrir en una pestaña nueva" aria-label="Abrir en una pestaña nueva" (click)="onOpenNewTab()">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">open_in_new</span>
           </button>
         </div>
       </div>
       @if (previewState.isPdf()) {
-        <div class="pdf-bar">
-          <span class="pdf-size" [title]="previewState.pageSize().source === 'css' ? 'Tamaño leído de @page { size }' : 'Sin @page en la plantilla: A4 por defecto'">
-            {{ previewState.pageSize().label }} · {{ previewState.pageSize().width }}×{{ previewState.pageSize().height }}px
-            @if (previewState.pageSize().source === 'default') { <em>(por defecto)</em> } @else if (previewState.pageSize().source === 'manual') { <em>(girado)</em> }
-          </span>
-          <div class="device-switcher">
-            <button class="device-btn" [class.active]="isLandscape()" title="Horizontal" (click)="setOrientation('landscape')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">crop_landscape</span>
-            </button>
-            <button class="device-btn" [class.active]="!isLandscape()" title="Vertical" (click)="setOrientation('portrait')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">crop_portrait</span>
-            </button>
-          </div>
-          <span class="pdf-size">{{ pageCount() }} {{ pageCount() === 1 ? 'página' : 'páginas' }}</span>
-          @if (pageIssues().length) {
-            <span class="pdf-size pdf-warn" [title]="pageIssuesTitle()">
-              <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: -3px;">warning</span>
-              {{ pageIssues().length }} {{ pageIssues().length === 1 ? 'corte' : 'cortes' }} a revisar
-            </span>
-          }
-        </div>
+        <app-pdf-bar [pageCount]="pageCount()" [issues]="pageIssues()" />
       }
       @if (previewState.hasErrors()) {
         <div class="compile-error" role="alert">
-          <span class="material-symbols-outlined" style="font-size: 16px;">error</span>
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">error</span>
           <span class="compile-error-text">
             <strong>{{ previewState.errors().length === 1 ? 'Error de compilación' : previewState.errors().length + ' errores de compilación' }}:</strong>
             {{ previewState.errors()[0].message }}
@@ -153,7 +150,8 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
             <iframe
               #previewFrame
               class="preview-iframe"
-              sandbox="allow-scripts allow-same-origin allow-modals"
+              title="Vista previa de la plantilla"
+              sandbox="allow-scripts allow-modals"
               [style.width.px]="frameWidth()"
               [style.height.px]="frameHeight()"
               [style.transform]="'scale(' + scale() + ')'"
@@ -337,24 +335,6 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       background-repeat: repeat-y;
     }
 
-    .pdf-bar {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-      padding: 4px 16px;
-      border-bottom: 1px solid var(--border-color);
-      background: var(--bg-surface-container-low);
-      flex-shrink: 0;
-    }
-
-    .pdf-size {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--text-secondary);
-      white-space: nowrap;
-    }
-
     .page-chrome {
       position: absolute;
       top: 0;
@@ -368,9 +348,8 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       font: 16px 'Times New Roman', Times, serif;
     }
 
-    .pdf-warn { color: #e0a030; cursor: help; }
-
     .device-select { max-width: 150px; }
+    .locale-select { max-width: 110px; }
 
     .zoom-select {
       height: 24px;
@@ -464,7 +443,8 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   previewState = inject(PreviewState);
   protected inspectorState = inject(InspectorState);
-  private orchestrator = inject(OrchestratorService);
+  protected orchestrator = inject(OrchestratorService);
+  protected projectIo = inject(ProjectIoService);
   private preferences = inject(PreferencesState);
   private editorState = inject(EditorState);
   protected terminal = inject(TerminalState);
@@ -474,12 +454,12 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     const m = this.previewState.colorScheme();
     return m === 'dark' ? 'dark_mode' : m === 'light' ? 'light_mode' : 'contrast';
   });
-  private lastBlobUrl: string | null = null;
   private canvasObserver: ResizeObserver | null = null;
-  private contentObserver: ResizeObserver | null = null;
+  private assetState = inject(AssetState);
+  private updateSeq = 0;
 
   private readonly canvasSize = signal({ width: 0, height: 0 });
-  /** Rendered height of the PDF document's content, measured inside the iframe. */
+  /** Alto del contenido del documento PDF, medido dentro del iframe y recibido por mensaje. */
   private readonly contentHeight = signal(0);
 
   protected readonly frameWidth = computed(() =>
@@ -487,8 +467,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   /** PDF: as many whole pages as the content needs, so the frame ends on a page boundary. */
   protected readonly pageCount = computed(() => {
-    const page = this.previewState.pageSize().height;
-    return Math.max(1, Math.ceil(this.contentHeight() / page));
+    return pageCountFor(this.contentHeight(), this.previewState.pageSize().height);
   });
 
   /** Hoja con sus márgenes (`@page { margin }`): lo que se descuenta del área de contenido de cada página. */
@@ -499,77 +478,51 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     this.previewState.isPdf() ? this.pageCount() * this.previewState.pageSize().height : this.previewState.deviceHeight());
 
   /** Cajas de margen (cabeceras y pies) de cada página, ya posicionadas sobre la hoja. */
-  protected readonly pageChrome = computed(() => {
-    const rules = this.previewState.pageRules();
-    if (!this.previewState.isPdf() || !(Object.keys(rules.boxes).length || Object.keys(rules.firstBoxes).length)) return [];
-    const { width, height } = this.previewState.pageSize();
-    const m = rules.margin;
-    const third = Math.max(0, width - m.left - m.right) / 3;
-    const pages = this.pageCount();
-    const items: { id: string; text: string; style: Record<string, string> }[] = [];
-    for (let k = 0; k < pages; k++) {
-      const boxes = boxesForPage(rules, k);
-      for (const name of MARGIN_BOX_NAMES) {
-        const box = boxes[name];
-        if (!box?.content) continue;
-        const isTop = name.startsWith('top');
-        const col = name.endsWith('left') ? 0 : name.endsWith('center') ? 1 : 2;
-        const align = col === 0 ? 'left' : col === 1 ? 'center' : 'right';
-        const css = { ...rules.baseStyle, ...box.style };
-        const vertical = css['vertical-align'];
-        delete css['vertical-align'];
-        const style: Record<string, string> = {
-          position: 'absolute',
-          left: `${m.left + col * third}px`,
-          top: `${isTop ? k * height : (k + 1) * height - m.bottom}px`,
-          width: `${third}px`,
-          height: `${isTop ? m.top : m.bottom}px`,
-          display: 'flex',
-          'align-items': vertical === 'top' ? 'flex-start' : vertical === 'bottom' ? 'flex-end' : 'center',
-          'justify-content': col === 0 ? 'flex-start' : col === 1 ? 'center' : 'flex-end',
-          'text-align': align,
-          'box-sizing': 'border-box',
-          overflow: 'hidden',
-          ...css,
-        };
-        items.push({ id: `${k}-${name}`, text: renderContent(box.content, k + 1, pages), style });
-      }
-    }
-    return items;
-  });
+  protected readonly pageChrome = computed(() =>
+    this.previewState.isPdf() ? buildPageChrome(this.previewState.pageRules(), this.previewState.pageSize(), this.pageCount()) : []);
 
-  protected readonly scale = computed(() => {
-    const mode = this.previewState.zoomMode();
-    if (mode !== 'fit') return mode / 100;
-    const { width, height } = this.canvasSize();
-    if (!width || !height) return 1;
-    const availW = Math.max(width - 64, 100);
-    const availH = Math.max(height - 64, 100);
-    // A PDF scrolls vertically (many pages), so it only has to fit the width.
-    const s = this.previewState.isPdf()
-      ? availW / this.frameWidth()
-      : Math.min(availW / this.frameWidth(), availH / this.frameHeight());
-    return Math.min(1, s);
-  });
+  protected readonly scale = computed(() =>
+    fitScale(this.previewState.zoomMode(), this.canvasSize(), { width: this.frameWidth(), height: this.frameHeight() }, this.previewState.isPdf()));
 
   protected readonly scalePercent = computed(() => Math.round(this.scale() * 100));
   protected readonly zoomValue = computed(() => String(this.previewState.zoomMode()));
+  /**
+   * El documento del preview es contenido del usuario y se ejecuta en un iframe de origen opaco: sus mensajes
+   * no son de fiar. Solo se aceptan los de ese iframe, con la forma esperada, y un mensaje raro no rompe la app.
+   */
   private messageListener = (e: MessageEvent): void => {
     if (e.source !== this.previewFrame?.nativeElement.contentWindow) return;
-    if (e.data?.source === 'pugide-inspector') {
-      const loc = this.locatePug(e.data.sig);
-      this.inspectorState.selectElement({
-        tagName: e.data.tagName,
-        attrs: e.data.attrs ?? {},
-        htmlLine: e.data.htmlLine,
-        pugLine: loc?.line,
-        pugPath: loc?.path,
-        pugApproximate: loc?.approximate,
-        children: [],
-      });
-      if (loc) this.editorState.revealLine(loc.path, loc.line);
-    } else if (e.data?.source === 'pugide-a11y') {
-      this.reportA11y(e.data.issues ?? []);
+    const d = e.data as Record<string, unknown> | null;
+    if (!d || typeof d !== 'object') return;
+    try {
+      switch (d['source']) {
+        case 'pugide-inspector': {
+          const loc = this.locatePug(d['sig']);
+          this.inspectorState.selectElement({
+            tagName: String(d['tagName'] ?? ''),
+            attrs: (d['attrs'] && typeof d['attrs'] === 'object' ? d['attrs'] : {}) as Record<string, string>,
+            htmlLine: typeof d['htmlLine'] === 'number' ? d['htmlLine'] : undefined,
+            pugLine: loc?.line,
+            pugPath: loc?.path,
+            pugApproximate: loc?.approximate,
+            children: [],
+          });
+          if (loc) this.editorState.revealLine(loc.path, loc.line);
+          break;
+        }
+        case 'pugide-a11y':
+          this.reportA11y(Array.isArray(d['issues']) ? (d['issues'] as unknown[]).slice(0, 200).map(toA11yIssue) : []);
+          break;
+        case 'pugide-layout-result':
+          if (typeof d['contentHeight'] === 'number' && Number.isFinite(d['contentHeight'])) this.contentHeight.set(d['contentHeight']);
+          this.reportPageIssues(Array.isArray(d['issues']) ? (d['issues'] as PageBreakIssue[]) : []);
+          break;
+        case 'pugide-runtime-ready':
+          this.sendFrameState();
+          break;
+      }
+    } catch {
+      /* un mensaje mal formado no debe afectar a la app */
     }
   };
 
@@ -588,15 +541,12 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
       this.previewState.isPdf();
       this.previewState.pageSize();
       this.previewState.pageRules();
-      untracked(() => this.reflow());
+      untracked(() => this.sendLayout());
     });
 
     effect(() => {
       const active = this.inspectorState.isActive();
-      this.previewFrame?.nativeElement.contentWindow?.postMessage(
-        { source: 'pugide-inspector-toggle', active },
-        window.location.origin
-      );
+      this.postToFrame({ source: 'pugide-inspector-toggle', active });
     });
 
     effect(() => {
@@ -615,12 +565,26 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     return findPugSource(code, files, entry, sig);
   }
 
+  /** El iframe tiene origen opaco: el destino de `postMessage` solo puede ser '*' (los mensajes no llevan nada sensible). */
+  private postToFrame(message: Record<string, unknown>): void {
+    this.previewFrame?.nativeElement.contentWindow?.postMessage(message, '*');
+  }
+
   private postColorScheme(): void {
     const mode = this.previewState.colorScheme();
-    this.previewFrame?.nativeElement.contentWindow?.postMessage(
-      { source: 'pugide-color-scheme', scheme: mode === 'auto' ? null : mode },
-      window.location.origin
-    );
+    this.postToFrame({ source: 'pugide-color-scheme', scheme: mode === 'auto' ? null : mode });
+  }
+
+  /** Pide al documento del preview que pagine (PDF) o muestre el flujo normal, y que mida su contenido. */
+  private sendLayout(): void {
+    this.postToFrame({ source: 'pugide-layout', pdf: this.previewState.isPdf(), geometry: this.geometry() });
+  }
+
+  /** Estado que el documento necesita al arrancar. */
+  private sendFrameState(): void {
+    this.postColorScheme();
+    this.postToFrame({ source: 'pugide-inspector-toggle', active: this.inspectorState.isActive() });
+    this.sendLayout();
   }
 
   cycleColorScheme(): void {
@@ -639,26 +603,16 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   runA11y(): void {
-    const win = this.previewFrame?.nativeElement.contentWindow;
-    if (!win || !this.previewState.compiledHtml()) {
+    if (!this.previewFrame?.nativeElement.contentWindow || !this.previewState.compiledHtml()) {
       this.terminal.addEntry('warning', 'A11y', 'No hay vista previa compilada que auditar.');
       return;
     }
     this.terminal.isVisible.set(true);
-    win.postMessage({ source: 'pugide-a11y-run' }, window.location.origin);
+    this.postToFrame({ source: 'pugide-a11y-run' });
   }
 
-  private reportA11y(issues: any[]): void {
-    if (issues.length === 0) {
-      this.terminal.addEntry('success', 'A11y', 'Auditoria basica: sin problemas detectados (contraste, alt, labels, encabezados).');
-      return;
-    }
-    this.terminal.addEntry('info', 'A11y', `Auditoria basica: ${issues.length} problema(s).`);
-    for (const i of issues) {
-      const loc = this.locatePug(i.sig);
-      const where = loc ? ` (${loc.path}:${loc.line}${loc.approximate ? ' ~' : ''})` : i.htmlLine ? ` (HTML linea ${i.htmlLine})` : '';
-      this.terminal.addEntry(i.severity === 'error' ? 'error' : 'warning', 'A11y', `[${i.rule}] ${i.message} <${i.element}>${where}`);
-    }
+  private reportA11y(issues: A11yIssue[]): void {
+    for (const line of a11yReport(issues, (sig) => this.locatePug(sig))) this.terminal.addEntry(line.type, 'A11y', line.message);
   }
 
   ngAfterViewInit(): void {
@@ -669,17 +623,11 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.canvasObserver?.disconnect();
-    this.contentObserver?.disconnect();
     window.removeEventListener('message', this.messageListener);
   }
 
   onIframeLoad(): void {
-    this.observeContent();
-    this.postColorScheme();
-    this.previewFrame?.nativeElement.contentWindow?.postMessage(
-      { source: 'pugide-inspector-toggle', active: this.inspectorState.isActive() },
-      window.location.origin
-    );
+    this.sendFrameState();
   }
 
   setDevice(name: string, width: number, height: number): void {
@@ -687,45 +635,20 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     this.preferences.update({ previewDevice: name });
   }
 
-  protected isLandscape(): boolean {
-    const { width, height } = this.previewState.pageSize();
-    return width >= height;
-  }
-
-  setOrientation(o: 'landscape' | 'portrait'): void {
-    this.previewState.pdfOrientation.set(o);
-  }
-
   onZoom(value: string): void {
     this.previewState.zoomMode.set(value === 'fit' ? 'fit' : Number(value));
   }
 
-  /** Prints just the preview document; `@page` of the template (or the shown A4 fallback) sets the sheet. */
+  /** Imprime solo el documento del preview; `@page` de la plantilla (o el A4 que se muestra) fija la hoja. */
   onPrint(): void {
-    const win = this.previewFrame?.nativeElement.contentWindow;
-    const doc = win?.document;
-    if (!win || !doc) return;
-    let injected: HTMLStyleElement | null = null;
     const size = this.previewState.pageSize();
+    let css: string | null = null;
     if (size.source !== 'css') {
-      injected = doc.createElement('style');
       const m = this.previewState.pageRules().margin;
       const hasMargins = m.top + m.right + m.bottom + m.left > 0; // los márgenes de la plantilla se respetan
-      injected.textContent = `@page { size: ${size.width}px ${size.height}px;${hasMargins ? '' : ' margin: 0;'} }`;
-      doc.head.appendChild(injected);
+      css = `@page { size: ${size.width}px ${size.height}px;${hasMargins ? '' : ' margin: 0;'} }`;
     }
-    // The on-screen page-break emulation adds margins that would stack with the real print breaks.
-    resetPagination(doc);
-    win.addEventListener(
-      'afterprint',
-      () => {
-        injected?.remove();
-        this.reflow();
-      },
-      { once: true },
-    );
-    win.focus();
-    win.print();
+    this.postToFrame({ source: 'pugide-print', css });
   }
 
   private restoreDevice(): void {
@@ -735,88 +658,64 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     else if (saved === 'PDF') this.previewState.setDevice('PDF', 0, 0);
   }
 
-  /** Tracks the document height inside the iframe (same-origin blob) so the PDF view shows whole pages. */
-  private observeContent(): void {
-    this.contentObserver?.disconnect();
-    const doc = this.previewFrame?.nativeElement.contentDocument;
-    if (!doc?.body) return;
-    this.reflow();
-    this.contentObserver = new ResizeObserver(() => {
-      // Images / fonts finishing late move everything below them: paginate again when the height changed.
-      if (doc.body.scrollHeight !== this.paginatedHeight) this.reflow();
-      else this.measure();
-    });
-    this.contentObserver.observe(doc.body);
-    // Web fonts change text metrics after load; paginate again once they are in.
-    void doc.fonts?.ready.then(() => this.reflow());
-  }
-
-  private paginatedHeight = -1;
   private lastIssueKey = '';
 
   /** PDF: elementos que se partirían mal al imprimir (imágenes cortadas, encabezados al final de página). */
   protected readonly pageIssues = signal<PageBreakIssue[]>([]);
-  protected readonly pageIssuesTitle = computed(() =>
-    this.pageIssues().map((i) => this.describeIssue(i)).join('\n'));
-
-  private describeIssue(i: PageBreakIssue): string {
-    const what = i.text ? `<${i.element}> «${i.text}»` : `<${i.element}>`;
-    return i.kind === 'cut'
-      ? `Página ${i.page}: ${what} se corta entre páginas (usa break-inside: avoid).`
-      : `Página ${i.page}: ${what} queda al final de la página, separado de su contenido (usa break-after: avoid o un salto antes).`;
-  }
-
   private reportPageIssues(issues: PageBreakIssue[]): void {
     this.pageIssues.set(issues);
-    const key = issues.map((i) => `${i.kind}:${i.page}:${i.element}:${i.text}`).join('|');
+    const key = pageIssuesKey(issues);
     if (key === this.lastIssueKey) return;
     this.lastIssueKey = key;
-    for (const i of issues) this.terminal.addEntry('warning', 'PDF', this.describeIssue(i));
-  }
-
-  private measure(): void {
-    const doc = this.previewFrame?.nativeElement.contentDocument;
-    if (doc?.body) this.contentHeight.set(documentContentHeight(doc, this.geometry()));
-  }
-
-  /** PDF: emulate page breaks inside the preview document; other devices show the plain flow. */
-  private reflow(): void {
-    const doc = this.previewFrame?.nativeElement.contentDocument;
-    if (!doc?.body) return;
-    resetPagination(doc);
-    if (this.previewState.isPdf()) {
-      const geometry = this.geometry();
-      paginateDocument(doc, geometry);
-      this.reportPageIssues(findPageBreakIssues(doc, geometry));
-    } else if (this.pageIssues().length) {
-      this.reportPageIssues([]);
-    }
-    this.paginatedHeight = doc.body.scrollHeight;
-    this.measure();
+    for (const i of issues) this.terminal.addEntry('warning', 'PDF', describePageIssue(i));
   }
 
   onReload(): void {
     this.orchestrator.manualCompile();
   }
 
+  /** Pestaña nueva con la vista previa: se abre una página de la app que la ejecuta en un iframe aislado. */
   onOpenNewTab(): void {
     const html = this.previewState.compiledHtml();
-    if (html) {
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+    if (!html) return;
+    if (!openInHost({ kind: 'html', html: this.withDataUris(html) })) {
+      this.terminal.addEntry('warning', 'Preview', 'El navegador bloqueó la pestaña nueva: permite las ventanas emergentes para este sitio.');
     }
   }
 
-  private updatePreview(html: string): void {
-    if (!this.previewFrame) return;
-    const iframe = this.previewFrame.nativeElement;
-    if (this.lastBlobUrl) {
-      URL.revokeObjectURL(this.lastBlobUrl);
-    }
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    this.lastBlobUrl = url;
-    iframe.src = url;
+  /**
+   * Prepara el HTML para un iframe de origen opaco: los `blob:` de los assets no cargan ahí y se sustituyen por data
+   * URIs, y se fija la URL base para que las referencias relativas no se pidan al servidor de la app.
+   */
+  private withDataUris(html: string): string {
+    if (!html) return html;
+    let out = pinBaseUrl(html);
+    for (const [blob, uri] of this.assetState.blobToDataUri()) if (out.includes(blob)) out = out.split(blob).join(uri);
+    return out;
   }
+
+  /**
+   * Muestra el HTML en el iframe aislado (`srcdoc`, origen opaco) junto con el programa que pagina, mide e
+   * imprime desde dentro. El estado compilado no cambia: solo el documento que se enseña lleva ese programa.
+   */
+  private async updatePreview(html: string): Promise<void> {
+    const seq = ++this.updateSeq;
+    const runtime = await loadPreviewRuntime();
+    if (seq !== this.updateSeq || !this.previewFrame) return; // llegó una compilación más reciente
+    const doc = html && runtime ? injectIntoBody(this.withDataUris(html), `<script>${runtime}</script>`) : this.withDataUris(html);
+    this.previewFrame.nativeElement.srcdoc = doc;
+  }
+}
+
+/** Una incidencia de accesibilidad enviada por el iframe, con los tipos asegurados. */
+function toA11yIssue(raw: unknown): A11yIssue {
+  const i = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return {
+    rule: String(i['rule'] ?? ''),
+    message: String(i['message'] ?? ''),
+    element: String(i['element'] ?? ''),
+    severity: String(i['severity'] ?? 'warning'),
+    htmlLine: typeof i['htmlLine'] === 'number' ? i['htmlLine'] : undefined,
+    sig: i['sig'],
+  };
 }

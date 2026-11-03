@@ -26,10 +26,11 @@ export async function waitUntil(fn, timeout = 6000, step = 150) {
  *
  * - `session`: sesión guardada (`pug-ide-project`) que se inyecta antes de arrancar.
  * - `prefs`: preferencias guardadas (`pug-ide-preferences`).
+ * - `storage`: otras claves de `localStorage` a sembrar (`{ clave: valor }`).
  * - `consent`: decisión guardada sobre la analítica (`'denied'` por defecto, para que el aviso no estorbe;
  *   `null` = sin decidir, aparece el aviso).
  */
-export async function openApp(env, { path = '/ide?demo=true', session, prefs, consent = 'denied', viewport = { width: 1400, height: 850 }, wait = 4000 } = {}) {
+export async function openApp(env, { path = '/ide?demo=true', session, prefs, consent = 'denied', storage, viewport = { width: 1400, height: 850 }, wait = 4000 } = {}) {
   const context = await env.browser.newContext({ viewport, serviceWorkers: env.serviceWorkers ?? 'block' });
   const external = [];
   const requests = [];
@@ -40,24 +41,48 @@ export async function openApp(env, { path = '/ide?demo=true', session, prefs, co
     external.push(url);
     return route.abort();
   });
-  await context.addInitScript(([s, p, c]) => {
+  await context.addInitScript(([s, p, c, extra]) => {
+    // Se ejecuta en todos los marcos, también en los iframes aislados (origen opaco), donde no hay localStorage.
+    try { localStorage.length; } catch { return; }
     if (localStorage.getItem('__pugide_seeded')) return;
     localStorage.setItem('__pugide_seeded', '1');
     if (s) localStorage.setItem('pug-ide-project', JSON.stringify(s));
     if (p) localStorage.setItem('pug-ide-preferences', JSON.stringify(p));
     if (c) localStorage.setItem('pug-ide-analytics-consent', c);
-  }, [session ?? null, prefs ?? null, consent]);
+    for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v);
+  }, [session ?? null, prefs ?? null, consent, storage ?? {}]);
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', (e) => errors.push(e.message));
+  // Playwright inyecta (serviceWorkers: 'block') un script en cada marco que falla en los iframes de origen opaco: no es de la app.
+  // WebKit muestra como error de página el CancellationError interno de Monaco («Canceled: Canceled»), que no es de la app.
+  const NOISE = [/Service worker is disabled because the context is sandboxed/i, /^Canceled: Canceled$/];
+  page.on('pageerror', (e) => { if (!NOISE.some((re) => re.test(e.message))) errors.push(e.message); });
   await page.goto(env.baseURL + path);
   await page.waitForTimeout(wait);
   return { context, page, external, requests, errors, close: () => context.close() };
 }
 
+/**
+ * El iframe del preview tiene origen opaco (la página no puede leer su DOM): se lee desde su propio marco.
+ * `previewFrame` devuelve el marco del preview (no el oculto del render).
+ */
+export async function previewFrame(page) {
+  for (const f of page.frames()) {
+    if (f === page.mainFrame()) continue;
+    try {
+      const el = await f.frameElement();
+      if (await el.evaluate((n) => n.classList.contains('preview-iframe'))) return f;
+    } catch { /* marco desaparecido */ }
+  }
+  return null;
+}
+
 /** Texto visible del cuerpo del iframe del preview. */
-export const previewText = (page) =>
-  page.evaluate(() => [...document.querySelectorAll('iframe')].map((f) => f.contentDocument?.body?.innerText ?? '').join('\n'));
+export async function previewText(page) {
+  const f = await previewFrame(page);
+  if (!f) return '';
+  try { return await f.evaluate(() => document.body?.innerText ?? ''); } catch { return ''; }
+}
 
 /** Nombre del proyecto que muestra el botón de la barra superior. */
 export const projectName = async (page) =>

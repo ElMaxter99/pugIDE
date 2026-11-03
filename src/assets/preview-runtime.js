@@ -1,0 +1,326 @@
+// pugide-runtime source-hash: 862766051672b9fb
+"use strict";
+(() => {
+  // src/app/core/utils/paginate.util.ts
+  var MARK = "data-pg-orig";
+  var SPACER = "data-pg-spacer";
+  var HTML_MARK = "data-pg-html";
+  var EPS = 0.5;
+  var FORCED = /* @__PURE__ */ new Set(["page", "always", "left", "right", "recto", "verso"]);
+  var ATOMIC_TAGS = /* @__PURE__ */ new Set(["IMG", "SVG", "FIGURE", "CANVAS", "VIDEO", "PRE", "BLOCKQUOTE"]);
+  function pageGeometry(pageHeight, margin) {
+    return {
+      pageHeight,
+      marginTop: margin?.top ?? 0,
+      marginRight: margin?.right ?? 0,
+      marginBottom: margin?.bottom ?? 0,
+      marginLeft: margin?.left ?? 0
+    };
+  }
+  var hasVerticalMargins = (g) => g.marginTop + g.marginBottom > 0;
+  var contentHeight = (g) => g.pageHeight - g.marginTop - g.marginBottom;
+  var pageOf = (g, y) => Math.max(0, Math.floor(y / g.pageHeight));
+  var pageTop = (g, k) => k * g.pageHeight + g.marginTop;
+  var pageBottom = (g, k) => (k + 1) * g.pageHeight - g.marginBottom;
+  function nextPageStart(g, y) {
+    const k = pageOf(g, y);
+    if (Math.abs(y - pageTop(g, k)) < EPS) return null;
+    const next = y < pageTop(g, k) ? pageTop(g, k) : pageTop(g, k + 1);
+    return next - y < EPS ? null : next;
+  }
+  function pushTarget(g, y, height) {
+    if (g.pageHeight <= 0 || height <= 0) return null;
+    const k = pageOf(g, y);
+    if (y < pageTop(g, k) - EPS) return pageTop(g, k);
+    if (height < contentHeight(g) && y + height > pageBottom(g, k) + EPS) return pageTop(g, k + 1);
+    return null;
+  }
+  function resetPagination(doc) {
+    doc.querySelectorAll(`[${MARK}]`).forEach((el) => {
+      const orig = el.getAttribute(MARK) ?? "";
+      if (orig) el.style.setProperty("margin-top", orig);
+      else el.style.removeProperty("margin-top");
+      el.removeAttribute(MARK);
+    });
+    const parents = /* @__PURE__ */ new Set();
+    doc.querySelectorAll(`[${SPACER}]`).forEach((sp) => {
+      if (sp.parentNode) parents.add(sp.parentNode);
+      sp.remove();
+    });
+    parents.forEach((p) => p.normalize());
+    const root = doc.documentElement;
+    if (root.hasAttribute(HTML_MARK)) {
+      const orig = JSON.parse(root.getAttribute(HTML_MARK) || "{}");
+      for (const prop of ["padding", "box-sizing"]) {
+        if (orig[prop]) root.style.setProperty(prop, orig[prop]);
+        else root.style.removeProperty(prop);
+      }
+      root.removeAttribute(HTML_MARK);
+    }
+  }
+  function applyRootPadding(doc, g) {
+    const root = doc.documentElement;
+    if (g.marginTop + g.marginRight + g.marginBottom + g.marginLeft <= 0) return;
+    root.setAttribute(HTML_MARK, JSON.stringify({
+      padding: root.style.getPropertyValue("padding"),
+      "box-sizing": root.style.getPropertyValue("box-sizing")
+    }));
+    root.style.setProperty("box-sizing", "border-box");
+    root.style.setProperty("padding", `${g.marginTop}px ${g.marginRight}px ${g.marginBottom}px ${g.marginLeft}px`, "important");
+  }
+  function documentContentHeight(doc, g) {
+    const body = doc.body;
+    const win = doc.defaultView;
+    if (!body) return 0;
+    if (!win || g.marginTop + g.marginBottom <= 0) return Math.max(body.scrollHeight, body.offsetHeight);
+    const bottom = body.getBoundingClientRect().bottom + win.scrollY + (parseFloat(win.getComputedStyle(body).marginBottom) || 0);
+    return bottom + g.marginBottom;
+  }
+  function isFirstContent(el, body) {
+    for (let n = el; n && n !== body; n = n.parentElement) {
+      if (n.previousElementSibling) return false;
+    }
+    return true;
+  }
+  function isLeafTextBlock(el, win, cs) {
+    if (!["block", "list-item", "flow-root"].includes(cs.display)) return false;
+    if (!(el.textContent ?? "").trim()) return false;
+    return Array.from(el.children).every((c) => c.tagName === "BR" || win.getComputedStyle(c).display.startsWith("inline"));
+  }
+  function collectText(el) {
+    const doc = el.ownerDocument;
+    const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => n.parentElement?.closest("script,style,[data-pg-spacer]") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+    });
+    const runs = [];
+    let total = 0;
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (!n.data.length) continue;
+      runs.push({ node: n, start: total });
+      total += n.data.length;
+    }
+    return { runs, total };
+  }
+  function charRect(doc, runs, total, index) {
+    const win = doc.defaultView;
+    const range = doc.createRange();
+    for (let i = index; i < total && i < index + 64; i++) {
+      let r = runs.length - 1;
+      while (r > 0 && runs[r].start > i) r--;
+      const { node, start } = runs[r];
+      const off = i - start;
+      range.setStart(node, off);
+      range.setEnd(node, Math.min(off + 1, node.data.length));
+      const rect = Array.from(range.getClientRects()).find((x) => x.height > 0);
+      if (rect) return { top: rect.top + win.scrollY, bottom: rect.bottom + win.scrollY, idx: i };
+    }
+    return null;
+  }
+  function insertSpacer(doc, runs, index, height) {
+    let r = runs.length - 1;
+    while (r > 0 && runs[r].start > index) r--;
+    const { node, start } = runs[r];
+    const off = index - start;
+    const spacer = doc.createElement("span");
+    spacer.setAttribute(SPACER, "");
+    spacer.style.cssText = `display:block;height:${height}px;margin:0;padding:0;border:0;`;
+    const target = off > 0 ? node.splitText(off) : node;
+    target.parentNode?.insertBefore(spacer, target);
+  }
+  function splitTextBlock(doc, el, g, push) {
+    const win = doc.defaultView;
+    let page = pageOf(g, el.getBoundingClientRect().top + win.scrollY);
+    for (let guard = 0; guard < 60; guard++) {
+      const limit = pageBottom(g, page) + EPS;
+      if (el.getBoundingClientRect().bottom + win.scrollY <= limit) return;
+      const { runs, total } = collectText(el);
+      if (total === 0) return;
+      const last = charRect(doc, runs, total, total - 1);
+      const lastVisible = last ?? charRect(doc, runs, total, 0);
+      if (!lastVisible || lastVisible.bottom <= limit) return;
+      const first = charRect(doc, runs, total, 0);
+      if (!first) return;
+      if (first.bottom > limit) {
+        push(el, pageTop(g, page + 1));
+        page++;
+        continue;
+      }
+      let lo = 0;
+      let hi = total - 1;
+      while (lo < hi) {
+        const mid = lo + hi >> 1;
+        const rect = charRect(doc, runs, total, mid);
+        if (rect && rect.bottom > limit) hi = mid;
+        else lo = mid + 1;
+      }
+      const line = charRect(doc, runs, total, lo);
+      if (!line) return;
+      const height = pageTop(g, page + 1) - line.top;
+      if (height <= 0) return;
+      insertSpacer(doc, runs, line.idx, height);
+      page++;
+    }
+  }
+  function pushTableRow(doc, row, height) {
+    const spacer = doc.createElement("tr");
+    spacer.setAttribute(SPACER, "");
+    const cell = doc.createElement("td");
+    cell.colSpan = 1e3;
+    cell.style.cssText = `height:${height}px;padding:0;border:0;background:none;`;
+    spacer.appendChild(cell);
+    row.parentNode?.insertBefore(spacer, row);
+  }
+  function paginateDocument(doc, geometry2) {
+    const g = typeof geometry2 === "number" ? pageGeometry(geometry2) : geometry2;
+    const win = doc.defaultView;
+    const body = doc.body;
+    if (!win || !body || g.pageHeight <= 0) return;
+    resetPagination(doc);
+    applyRootPadding(doc, g);
+    const gap = hasVerticalMargins(g);
+    const forcedAfter = /* @__PURE__ */ new Set();
+    const top = (el) => el.getBoundingClientRect().top + win.scrollY;
+    const pushTo = (el, target) => {
+      const cs = win.getComputedStyle(el);
+      if (!el.hasAttribute(MARK)) el.setAttribute(MARK, el.style.getPropertyValue("margin-top"));
+      let margin = (parseFloat(cs.marginTop) || 0) + (target - top(el));
+      for (let i = 0; i < 4; i++) {
+        el.style.setProperty("margin-top", `${Math.max(0, margin)}px`, "important");
+        const diff = target - top(el);
+        if (Math.abs(diff) < EPS) break;
+        margin += diff;
+      }
+    };
+    for (const el of Array.from(body.querySelectorAll("*"))) {
+      if (el.hasAttribute(SPACER) || el.closest(`[${SPACER}]`)) continue;
+      const cs = win.getComputedStyle(el);
+      if (cs.display === "none" || cs.position === "absolute" || cs.position === "fixed") continue;
+      if (cs.display === "table-row") {
+        if (gap) {
+          const r = el.getBoundingClientRect();
+          const target = pushTarget(g, r.top + win.scrollY, r.height);
+          if (target !== null) pushTableRow(doc, el, target - (r.top + win.scrollY));
+        }
+        continue;
+      }
+      if (cs.display.startsWith("table") || cs.display === "inline") continue;
+      if (FORCED.has(cs.breakAfter) || FORCED.has(cs.getPropertyValue("page-break-after"))) {
+        const next = el.nextElementSibling;
+        if (next) forcedAfter.add(next);
+      }
+      const forced = FORCED.has(cs.breakBefore) || FORCED.has(cs.getPropertyValue("page-break-before")) || forcedAfter.has(el);
+      if (forced) {
+        if (isFirstContent(el, body)) continue;
+        const target = nextPageStart(g, top(el));
+        if (target !== null) pushTo(el, target);
+        continue;
+      }
+      const rect = el.getBoundingClientRect();
+      const y = rect.top + win.scrollY;
+      const avoid = cs.breakInside === "avoid" || cs.getPropertyValue("page-break-inside") === "avoid";
+      if (avoid || ATOMIC_TAGS.has(el.tagName.toUpperCase())) {
+        if (avoid || gap) {
+          const target = pushTarget(g, y, rect.height);
+          if (target !== null) pushTo(el, target);
+        }
+        continue;
+      }
+      if (gap && isLeafTextBlock(el, win, cs)) {
+        const target = pushTarget(g, y, 0.01);
+        if (target !== null) pushTo(el, target);
+        splitTextBlock(doc, el, g, pushTo);
+      }
+    }
+  }
+  function isOrphanHeading(y, height, pageHeight, slack = 40, marginBottom = 0) {
+    if (pageHeight <= 0 || height <= 0) return false;
+    const bottom = y + height;
+    const page = Math.floor((bottom - 0.5) / pageHeight);
+    if (page !== Math.floor(y / pageHeight)) return false;
+    const left = (page + 1) * pageHeight - marginBottom - bottom;
+    return left < slack && left > -EPS;
+  }
+  var CUT_TAGS = /* @__PURE__ */ new Set(["IMG", "SVG", "FIGURE", "PRE", "BLOCKQUOTE", "CANVAS", "VIDEO"]);
+  function findPageBreakIssues(doc, geometry2) {
+    const g = typeof geometry2 === "number" ? pageGeometry(geometry2) : geometry2;
+    const win = doc.defaultView;
+    const body = doc.body;
+    if (!win || !body || g.pageHeight <= 0) return [];
+    const issues2 = [];
+    for (const el of Array.from(body.querySelectorAll("*"))) {
+      const tag = el.tagName.toUpperCase();
+      const isHeading = /^H[1-6]$/.test(tag);
+      if (!isHeading && !CUT_TAGS.has(tag)) continue;
+      const cs = win.getComputedStyle(el);
+      if (cs.display === "none" || cs.position === "fixed" || cs.position === "absolute") continue;
+      const rect = el.getBoundingClientRect();
+      const y = rect.top + win.scrollY;
+      const text = (el.textContent ?? el.getAttribute("alt") ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
+      const page = pageOf(g, y) + 1;
+      if (isHeading) {
+        if (isOrphanHeading(y, rect.height, g.pageHeight, 40, g.marginBottom)) issues2.push({ kind: "orphan-heading", page, element: tag.toLowerCase(), text });
+      } else if (pushTarget(g, y, rect.height) !== null) {
+        issues2.push({ kind: "cut", page, element: tag.toLowerCase(), text });
+      }
+    }
+    return issues2;
+  }
+
+  // src/app/core/render/preview-entry.ts
+  var pdf = false;
+  var geometry = null;
+  var paginatedHeight = -1;
+  var issues = [];
+  var post = (message) => window.parent.postMessage(message, "*");
+  function measure() {
+    if (!document.body || !geometry) return;
+    post({ source: "pugide-layout-result", contentHeight: documentContentHeight(document, geometry), issues });
+  }
+  function reflow() {
+    if (!document.body || !geometry) return;
+    resetPagination(document);
+    if (pdf) {
+      paginateDocument(document, geometry);
+      issues = findPageBreakIssues(document, geometry);
+    } else {
+      issues = [];
+    }
+    paginatedHeight = document.body.scrollHeight;
+    measure();
+  }
+  function print(css) {
+    let injected = null;
+    if (css) {
+      injected = document.createElement("style");
+      injected.textContent = css;
+      document.head.appendChild(injected);
+    }
+    resetPagination(document);
+    window.addEventListener("afterprint", () => {
+      injected?.remove();
+      reflow();
+    }, { once: true });
+    window.focus();
+    window.print();
+  }
+  window.addEventListener("message", (e) => {
+    if (e.source !== window.parent) return;
+    const d = e.data;
+    if (!d) return;
+    if (d.source === "pugide-layout" && d.geometry) {
+      pdf = !!d.pdf;
+      geometry = d.geometry;
+      reflow();
+    } else if (d.source === "pugide-print") {
+      print(typeof d.css === "string" ? d.css : null);
+    }
+  });
+  if (document.body) {
+    new ResizeObserver(() => {
+      if (document.body.scrollHeight !== paginatedHeight) reflow();
+      else measure();
+    }).observe(document.body);
+    void document.fonts?.ready.then(() => reflow());
+  }
+  post({ source: "pugide-runtime-ready" });
+})();

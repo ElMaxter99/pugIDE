@@ -1,3 +1,4 @@
+import { PersistenceService } from './persistence.service';
 import { Injectable, inject } from '@angular/core';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import { EditorState } from '../state/editor.state';
@@ -11,7 +12,8 @@ import { PreviewState } from '../state/preview.state';
 import {
   SHARE_URL_WARN_LENGTH, SharePayload, ShareDecodeError, buildShareUrl, decodeShare, encodeShare, splitAssetsForShare,
 } from '../utils/share.util';
-import { buildStandaloneHtml, bytesToDataUri } from '../utils/export-html.util';
+import { captureHtmlToPng } from '../utils/capture.util';
+import { buildStandaloneHtml } from '../utils/export-html.util';
 import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
 
 const TEXT_FILE_RE = /\.(pug|jade|scss|sass|css|json|js|html|htm|md|txt)$/i;
@@ -23,6 +25,7 @@ const TEXT_FILE_RE = /\.(pug|jade|scss|sass|css|json|js|html|htm|md|txt)$/i;
  */
 @Injectable({ providedIn: 'root' })
 export class ProjectIoService {
+  private persistence = inject(PersistenceService);
   private editorState = inject(EditorState);
   private projectState = inject(ProjectState);
   private terminalState = inject(TerminalState);
@@ -62,6 +65,7 @@ export class ProjectIoService {
       await this.writeFileToDirectory(dirHandle, a.path, a.data);
     }
     await this.writeFileToDirectory(dirHandle, DATASETS_PATH, this.datasetsText());
+    this.persistence.saveLastBackup();
     this.terminalState.addEntry('success', 'Export', `Exported ${files.size + this.assetState.assets().size} file(s) to disk.`);
   }
 
@@ -109,6 +113,7 @@ export class ProjectIoService {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    this.persistence.saveLastBackup();
     this.terminalState.addEntry('success', 'Export', `Exported ${files.size + this.assetState.assets().size} file(s) as ${fileName}.`);
   }
 
@@ -215,12 +220,7 @@ export class ProjectIoService {
 
   /** HTML renderizado autocontenido (sin inspector ni atributos data-pugide-*, assets locales como data URI). */
   buildStandaloneHtml(): string {
-    const map = new Map<string, string>();
-    for (const a of this.assetState.assets().values()) {
-      const url = this.assetState.urlFor(a.path);
-      if (url) map.set(url, bytesToDataUri(a.data, a.mime));
-    }
-    return buildStandaloneHtml(this.previewState.compiledHtml(), map);
+    return buildStandaloneHtml(this.previewState.compiledHtml(), this.assetState.blobToDataUri());
   }
 
   exportHtml(): boolean {
@@ -240,5 +240,35 @@ export class ProjectIoService {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     this.terminalState.addEntry('success', 'Exportar HTML', `HTML exportado como ${fileName}.`);
     return true;
+  }
+
+  /** Descarga una captura PNG (a doble resolución) del documento completo, con el ancho del dispositivo o de la hoja. */
+  async exportPng(): Promise<boolean> {
+    if (!this.previewState.compiledHtml()) {
+      this.terminalState.addEntry('warning', 'Captura', 'No hay vista previa que capturar.');
+      return false;
+    }
+    const pdf = this.previewState.isPdf();
+    const width = pdf ? this.previewState.pageSize().width : this.previewState.deviceWidth();
+    const viewportHeight = pdf ? this.previewState.pageSize().height : this.previewState.deviceHeight();
+    try {
+      const shot = await captureHtmlToPng(this.buildStandaloneHtml(), { width, viewportHeight, scale: 2 });
+      const url = URL.createObjectURL(shot.blob);
+      const device = pdf ? 'pdf' : this.previewState.deviceName().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const fileName = `${this.projectState.projectName() || 'pug-project'}-${device}.png`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const note = shot.scaleReduced ? ' (escala reducida: la página es muy larga)' : '';
+      this.terminalState.addEntry('success', 'Captura', `${fileName}: ${shot.width}×${shot.height}px${note}.${pdf ? ' En modo PDF se captura el documento sin saltos de página.' : ''}`);
+      return true;
+    } catch (err) {
+      this.terminalState.addEntry('error', 'Captura', `No se pudo generar la captura: ${(err as Error).message}`);
+      return false;
+    }
   }
 }

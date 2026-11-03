@@ -12,6 +12,8 @@ export class DataState {
   readonly datasets = signal<Dataset[]>([{ id: 'ds-1', name: DEFAULT_DATASET_NAME, data: {} }]);
   readonly activeId = signal('ds-1');
   readonly locale = signal<MockLocale>('es');
+  /** Idioma de `/locales/` elegido en el preview (null: el primero). */
+  readonly translationLocale = signal<string | null>(null);
   readonly datasetOptions = computed(() => this.datasets().map((d) => ({ id: d.id, name: d.name })));
   readonly activeDataset = computed(() => this.datasets().find((d) => d.id === this.activeId()) ?? this.datasets()[0]);
 
@@ -140,17 +142,27 @@ export class DataState {
 
   /** Estado completo para persistir/exportar. */
   snapshotDatasets(): DatasetsFile {
-    return { version: 1, activeId: this.activeId(), locale: this.locale(), datasets: this.synced() };
+    const translationLocale = this.translationLocale();
+    return { version: 1, activeId: this.activeId(), locale: this.locale(), datasets: this.synced(), ...(translationLocale ? { translationLocale } : {}) };
   }
 
   restoreDatasets(file: DatasetsFile): void {
     this.locale.set(file.locale);
+    this.translationLocale.set(file.translationLocale ?? null);
     this.loadActive(file.activeId, structuredClone(file.datasets));
+  }
+
+  /** Quita `translations` de todos los juegos: pasan a vivir en `/locales/`. */
+  stripTranslations(key: string): void {
+    const omit = (d: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(d).filter(([k]) => k !== key));
+    this.data.update(omit);
+    this.datasets.update((list) => list.map((d) => ({ ...d, data: omit(d.data) })));
   }
 
   /** Un proyecto nuevo/importado sin juegos propios empieza con uno solo, vacio. */
   resetDatasets(): void {
     this.locale.set('es');
+    this.translationLocale.set(null);
     this.loadActive('ds-1', [{ id: 'ds-1', name: DEFAULT_DATASET_NAME, data: {} }]);
   }
 }

@@ -18,7 +18,7 @@ import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
         <div #dlg class="dialog" role="dialog" aria-modal="true" aria-label="Mis proyectos" tabindex="-1"
           (click)="$event.stopPropagation()" (keydown.escape)="closed.emit()" (keydown)="onKeydown($event)">
           <div class="header">
-            <h3>Mis proyectos</h3>
+            <h2>Mis proyectos</h2>
             <button class="icon" title="Cerrar" aria-label="Cerrar" (click)="closed.emit()">&times;</button>
           </div>
           <p class="hint">Se guardan solo en este navegador (IndexedDB). Exporta un .zip si quieres una copia fuera.</p>
@@ -70,7 +70,7 @@ import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
     .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; }
     .dialog { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 64px); display: flex; flex-direction: column; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3); }
     .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 4px; }
-    h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-primary); }
     .icon { font-size: 20px; line-height: 1; color: var(--text-secondary); padding: 0 6px; }
     .hint { margin: 0; padding: 0 20px 12px; font-size: 12px; color: var(--text-secondary); }
     .list { list-style: none; margin: 0; padding: 0 12px; overflow-y: auto; }

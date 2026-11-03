@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { debounceTime, Subject } from 'rxjs';
 import { PugParserService } from '../../parser/pug-parser.service';
 import { PugCompilerService } from '../../compiler/pug-compiler.service';
@@ -10,6 +10,11 @@ import { ParserState } from '../state/parser.state';
 import { PreviewState } from '../state/preview.state';
 import { DataState } from '../state/data.state';
 import { TerminalState } from '../state/terminal.state';
+import { DiagnosticsState } from '../state/diagnostics.state';
+import { FileHistoryService } from './file-history.service';
+import { FileVersion } from '../utils/history.util';
+import { loadHelpers } from '../utils/helpers.util';
+import { buildDiagnostics, Diagnostic } from '../utils/diagnostics.util';
 import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
 import { PersistenceService, ProjectSessionState } from './persistence.service';
@@ -28,6 +33,9 @@ import { errorifyData, mockifyData, mockLeaf } from '../utils/mock-data.util';
 import { DatasetKind, DatasetsFile, parseDatasetsFile } from '../utils/datasets.util';
 import { inferData } from '../utils/schema-infer.util';
 import { buildTranslationSkeleton, TRANSLATIONS_KEY } from '../utils/i18n.util';
+import {
+  addMissingKeys, blankTranslations, isValidLocaleCode, listLocales, localePath, parseTranslations, resolveLocale, serializeTranslations,
+} from '../utils/locales.util';
 import { findEntryPath, normalize, resolveVirtualPath } from '../utils/pug-vfs.util';
 
 @Injectable({ providedIn: 'root' })
@@ -40,6 +48,8 @@ export class OrchestratorService {
   private previewState = inject(PreviewState);
   private dataState = inject(DataState);
   private terminalState = inject(TerminalState);
+  private history = inject(FileHistoryService);
+  private diagnosticsState = inject(DiagnosticsState);
   private preferences = inject(PreferencesState);
   private projectState = inject(ProjectState);
   private persistence = inject(PersistenceService);
@@ -109,6 +119,7 @@ export class OrchestratorService {
       const entryPath = findEntryPath(files, activePath);
       if (!entryPath) {
         this.previewState.updateCompiledResult({ html: '', css: '', errors: [], compilationTime: 0 });
+        this.diagnosticsState.clear();
         return;
       }
       this.previewState.entryPath.set(entryPath);
@@ -122,18 +133,26 @@ export class OrchestratorService {
       }
 
       const parseResult = await this.parser.parse(entryCode, entryPath, files);
+      // Lo que exportan los helpers (/helpers.js) no es un dato: no se crean campos para esos nombres.
+      const helperNames = new Set(Object.keys(loadHelpers(files).helpers));
+      if (helperNames.size) parseResult.variables = parseResult.variables.filter((v) => !helperNames.has(v.path.split('.')[0]));
       this.parserState.updateFromParseResult(parseResult);
       this.parserState.setParsing(false);
 
+      // Con `/locales/<código>/translations.json` las claves t('…') van a esos archivos y no a los datos.
+      const locales = listLocales(files.keys());
+      if (locales.join() !== this.locales().join()) this.locales.set(locales);
+      const dataKeys = locales.length ? [] : parseResult.translationKeys;
+
       if (!this.initialDataLoaded && Object.keys(this.dataState.data()).length === 0) {
-        const data = this.skeletonForActiveDataset(parseResult.variables, parseResult.translationKeys);
+        const data = this.skeletonForActiveDataset(parseResult.variables, dataKeys);
         if (Object.keys(data).length > 0) {
           this.dataState.setInitialData(data);
           this.initialDataLoaded = true;
         }
       }
 
-      const skeleton = this.skeletonForActiveDataset(parseResult.variables, parseResult.translationKeys);
+      const skeleton = this.skeletonForActiveDataset(parseResult.variables, dataKeys);
       const patchedData = structuredClone(this.dataState.data());
       const ds = this.dataState.activeDataset();
       const mockOpts = { seed: ds?.seed ?? 1, locale: this.dataState.locale() };
@@ -158,7 +177,10 @@ export class OrchestratorService {
         );
       }
 
-      const data = this.dataState.data();
+      const localeInfo = this.syncLocales(files, locales, parseResult.translationKeys);
+      const data = localeInfo.translations
+        ? { ...this.dataState.data(), [TRANSLATIONS_KEY]: localeInfo.translations }
+        : this.dataState.data();
       const compileResult = await this.compiler.compile(entryCode, data, entryPath, files, parseResult.calledFunctions);
 
       // `<link rel="stylesheet" href="local.css">` becomes an inline <style>; the rest of the project styles are still injected.
@@ -188,6 +210,13 @@ export class OrchestratorService {
       }
 
       this.previewState.updateCompiledResult(compileResult);
+      this.diagnosticsState.set(buildDiagnostics({
+        entryPath,
+        parseErrors: parseResult.errors,
+        compileErrors: compileResult.errors,
+        styleErrors: scssResult.errors,
+        extra: localeInfo.diagnostics,
+      }));
 
       for (const error of compileResult.errors) {
         this.terminalState.addEntry(
@@ -198,7 +227,7 @@ export class OrchestratorService {
       }
 
       for (const scssError of scssResult.errors) {
-        this.terminalState.addEntry('error', 'scss', `${scssError.path} - ${scssError.message}`);
+        this.terminalState.addEntry('error', 'scss', `${scssError.path} - ${scssError.line ? `línea ${scssError.line}: ` : ''}${scssError.message}`);
       }
 
       if (parseResult.errors.length === 0 && compileResult.errors.length === 0) {
@@ -373,6 +402,7 @@ export class OrchestratorService {
     const wasCurrent = id === this.projectState.projectId();
     if (wasCurrent) this.projectState.projectId.set(null); // evita que el guardado previo al cambio lo vuelva a escribir
     await this.library.remove(id);
+    void this.history.removeProject(id);
     if (!wasCurrent) return;
     const next = (await this.library.list())[0];
     if (!next || !(await this.openProject(next.id))) await this.createProject();
@@ -421,6 +451,85 @@ export class OrchestratorService {
     if (!session) return;
     this.persistence.saveProjectState(session);
     void this.saveToLibrary();
+    this.trackHistory();
+  }
+
+  // ---- Historial local por archivo ----
+
+  /** Último contenido visto de cada archivo (`<proyecto>\0<ruta>`): detecta cambios y da la versión «inicial». */
+  private seen = new Map<string, string>();
+  private historyInflight = new Set<string>();
+
+  private historyKey(projectId: string, path: string): string {
+    return projectId + '\u0000' + path;
+  }
+
+  /** Contenido actual de un archivo, incluido lo que se está escribiendo. */
+  currentContent(path: string): string {
+    return this.editorState.activeTab()?.path === path ? this.editorState.editorContent() : (this.editorState.files().get(path) ?? '');
+  }
+
+  /** Versiones guardadas del archivo, la más reciente primero. */
+  async fileHistory(path: string): Promise<FileVersion[]> {
+    const pid = this.projectState.projectId();
+    return pid ? this.history.list(pid, path) : [];
+  }
+
+  /** Guarda versiones automáticas de los archivos que cambiaron desde la última vez (como mucho una cada pocos minutos). */
+  private trackHistory(): void {
+    const pid = this.projectState.projectId();
+    if (!pid) return;
+    for (const path of this.editorState.files().keys()) {
+      const content = this.currentContent(path);
+      const key = this.historyKey(pid, path);
+      const prev = this.seen.get(key);
+      if (prev === undefined) { this.seen.set(key, content); continue; }
+      if (prev === content || this.historyInflight.has(key)) continue;
+      this.historyInflight.add(key);
+      void this.history.record(pid, path, content, 'automático', { auto: true, previous: prev }).then((outcome) => {
+        this.historyInflight.delete(key);
+        if (outcome === 'added' || outcome === 'same') this.seen.set(key, content);
+      });
+    }
+  }
+
+  /** Guardar (Ctrl+S): guarda una versión del archivo activo, guarda la sesión y compila. */
+  saveFile(): void {
+    this.editorState.saveCurrentFile();
+    const path = this.editorState.activeTab()?.path;
+    const pid = this.projectState.projectId();
+    if (path && pid) {
+      const key = this.historyKey(pid, path);
+      const content = this.currentContent(path);
+      const previous = this.seen.get(key);
+      this.seen.set(key, content);
+      void this.history.record(pid, path, content, 'guardado', { previous });
+    }
+    this.saveSession();
+    void this.manualCompile();
+  }
+
+  /** Guarda ahora una versión de estos archivos (por ejemplo antes de un reemplazo en todo el proyecto). */
+  snapshotFiles(paths: string[], reason: string): void {
+    const pid = this.projectState.projectId();
+    if (!pid) return;
+    for (const path of paths) void this.history.record(pid, path, this.currentContent(path), reason, { previous: this.seen.get(this.historyKey(pid, path)) });
+  }
+
+  /** Vuelve el archivo a una versión guardada; antes guarda su estado actual para poder deshacerlo. */
+  async restoreVersion(path: string, content: string): Promise<void> {
+    const pid = this.projectState.projectId();
+    if (pid) await this.history.record(pid, path, this.currentContent(path), 'antes de restaurar');
+    const files = this.editorState.files();
+    if (!files.has(path)) return;
+    files.set(path, content);
+    if (this.editorState.activeTab()?.path === path) this.editorState.updateContent(content);
+    // Monaco recibe el cambio como una edición (Ctrl+Z lo deshace) y recompila.
+    this.editorState.notifyFileSync([path]);
+    if (pid) this.seen.set(this.historyKey(pid, path), content);
+    this.terminalState.addEntry('success', 'Historial', `${path} vuelve a una versión anterior (el estado previo queda en el historial).`);
+    this.saveSession();
+    void this.manualCompile();
   }
 
   /** Replaces the whole in-memory project (used by import) and recompiles from scratch. */
@@ -608,6 +717,13 @@ export class OrchestratorService {
       return f;
     });
     const name = newPath.split('/').pop() ?? newPath;
+    const pid = this.projectState.projectId();
+    if (pid) {
+      void this.history.rename(pid, oldPath, newPath);
+      const seenValue = this.seen.get(this.historyKey(pid, oldPath));
+      if (seenValue !== undefined) this.seen.set(this.historyKey(pid, newPath), seenValue);
+      this.seen.delete(this.historyKey(pid, oldPath));
+    }
     this.editorState.renameOpenTab(oldPath, newPath, name);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });
@@ -679,6 +795,91 @@ export class OrchestratorService {
     if (changed) {
       this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     }
+  }
+
+  /**
+   * Con idiomas en `/locales/`: añade a cada `translations.json` las claves `t('…')` que le faltan (vacías, para
+   * traducirlas) y devuelve las traducciones del idioma activo, que sustituyen a `data.translations` al compilar.
+   */
+  private syncLocales(files: Map<string, string>, locales: string[], keys: string[]): { translations: Record<string, unknown> | null; diagnostics: Diagnostic[] } {
+    if (!locales.length) return { translations: null, diagnostics: [] };
+    const diagnostics: Diagnostic[] = [];
+    const parsed = new Map<string, Record<string, unknown>>();
+    const changed: string[] = [];
+    for (const code of locales) {
+      const path = localePath(code);
+      const r = parseTranslations(files.get(path) ?? '');
+      if (r.error) {
+        diagnostics.push({ path, line: r.error.line ?? 1, message: r.error.message, severity: 'error', source: 'json' });
+        this.terminalState.addEntry('error', 'Idiomas', `${path}: ${r.error.message}`);
+        parsed.set(code, {});
+        continue;
+      }
+      // Una clave plana ("HOME.TITLE": "…") ya cuenta como definida.
+      const missing = keys.filter((k) => !(k in r.value));
+      if (addMissingKeys(r.value, buildTranslationSkeleton(missing))) {
+        files.set(path, serializeTranslations(r.value));
+        changed.push(path);
+      }
+      parsed.set(code, r.value);
+    }
+    if (changed.length) {
+      this.editorState.notifyFileSync(changed);
+      this.terminalState.addEntry('info', 'Idiomas', `Claves nuevas añadidas (vacías, por traducir) en: ${changed.join(', ')}`);
+    }
+    const active = resolveLocale(this.dataState.translationLocale(), locales)!;
+    return { translations: parsed.get(active) ?? {}, diagnostics };
+  }
+
+  /** Idiomas del proyecto (`/locales/<código>/translations.json`); se actualiza en cada compilación (los archivos viven en un Map mutable). */
+  readonly locales = signal<string[]>([]);
+  /** Idioma que usa el preview: el elegido si existe, si no el primero. */
+  readonly activeLocale = computed(() => resolveLocale(this.dataState.translationLocale(), this.locales()));
+
+  /** Cambia el idioma de las traducciones del preview. */
+  setTranslationLocale(code: string): void {
+    if (this.dataState.translationLocale() === code) return;
+    this.dataState.translationLocale.set(code);
+    this.saveSession();
+    void this.processCode(this.editorState.editorContent(), false);
+  }
+
+  /**
+   * Añade un idioma. El primero recoge las traducciones que había en los datos (`translations`); los siguientes
+   * copian la estructura del primero con los valores vacíos, para traducirlos.
+   */
+  addLocale(rawCode: string): boolean {
+    const code = rawCode.trim();
+    if (!isValidLocaleCode(code)) {
+      this.terminalState.addEntry('error', 'Idiomas', `«${code}» no es un código de idioma válido (ejemplos: es-ES, es-CAT, en).`);
+      return false;
+    }
+    const path = localePath(code);
+    const files = this.editorState.files();
+    if (files.has(path)) {
+      this.editorState.openFile(path, 'translations.json', 'json', files.get(path) ?? '');
+      this.setTranslationLocale(code);
+      return true;
+    }
+    const existing = listLocales(files.keys());
+    let seed: Record<string, unknown>;
+    let note = '';
+    if (existing.length) {
+      seed = blankTranslations(parseTranslations(files.get(localePath(existing[0])) ?? '').value);
+      note = ` con las claves de ${existing[0]} sin traducir`;
+    } else {
+      const legacy = this.dataState.data()[TRANSLATIONS_KEY];
+      seed = legacy !== null && typeof legacy === 'object' && !Array.isArray(legacy) ? structuredClone(legacy as Record<string, unknown>) : {};
+      this.dataState.stripTranslations(TRANSLATIONS_KEY);
+      if (Object.keys(seed).length) note = ' con las traducciones que había en los datos';
+    }
+    this.addFile(path, 'translations.json', serializeTranslations(seed));
+    this.locales.set(listLocales(this.editorState.files().keys()));
+    this.dataState.translationLocale.set(code);
+    this.terminalState.addEntry('success', 'Idiomas', `Idioma ${code} creado en ${path}${note}.`);
+    this.saveSession();
+    void this.manualCompile();
+    return true;
   }
 
   private buildDataFromVariables(variables: PugVariable[], translationKeys: string[] = []): Record<string, unknown> {
