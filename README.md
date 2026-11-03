@@ -34,6 +34,8 @@ Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de a
 - Paleta de comandos con Ctrl/Cmd+K (acciones, dispositivos del preview, plantillas y apertura rápida de archivos).
 - Búsqueda en todo el proyecto con Ctrl+Shift+F (abre el archivo en la línea).
 - Buscar y reemplazar en todo el proyecto (Ctrl+Shift+F), hover de mixins e includes, "Ir a símbolo" (Ctrl+Shift+O) y diálogo de atajos (paleta de comandos).
+- Helpers propios: un `helpers.js` con `module.exports = { money, formatDate… }` hace que esas funciones estén disponibles en las plantillas (paleta → «Añadir archivo de helpers»).
+- Captura PNG del preview e historial local de versiones por archivo (paleta de comandos).
 - Formato de Pug (Shift+Alt+F). Prettier no soporta Pug de serie y `@prettier/plugin-pug` no se incluye, así que el formateador es propio y conservador: normaliza indentación, espacios y líneas en blanco, unifica comillas y espacios de los atributos simples (`a(href = "x")` → `a(href='x')`) y reparte en varias líneas las etiquetas largas. Los atributos con expresiones, las llamadas a mixins y los bloques de texto crudo se dejan como están, y solo reordena atributos si lo activas (paleta de comandos → "Formato de Pug: ordenar atributos"): `id`, `class`, el resto por orden alfabético, `data-*`, `aria-*` y al final los especiales (`@click`, `[x]`…).
 - Modo demo: abre `/ide?demo=true` para cargar un proyecto de ejemplo completo.
 
@@ -63,6 +65,7 @@ Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de a
 - El preview PDF emula la paginación; el resultado final puede variar según el navegador al imprimir.
 - PugIDE está pensado para el escritorio: no se ha diseñado ni probado para móvil.
 - No hay sincronización entre dispositivos ni colaboración.
+- La captura PNG no ejecuta el JavaScript de la página y, en modo PDF, captura el documento sin saltos de página.
 - Tus proyectos solo existen en este navegador: la terminal te recuerda exportar una copia si pasan 14 días.
 
 Más detalle técnico en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); para colaborar, [CONTRIBUTING.md](CONTRIBUTING.md).

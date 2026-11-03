@@ -11,6 +11,8 @@ import { PreviewState } from '../state/preview.state';
 import { DataState } from '../state/data.state';
 import { TerminalState } from '../state/terminal.state';
 import { DiagnosticsState } from '../state/diagnostics.state';
+import { FileHistoryService } from './file-history.service';
+import { FileVersion } from '../utils/history.util';
 import { loadHelpers } from '../utils/helpers.util';
 import { buildDiagnostics, Diagnostic } from '../utils/diagnostics.util';
 import { PreferencesState } from './preferences.state';
@@ -46,6 +48,7 @@ export class OrchestratorService {
   private previewState = inject(PreviewState);
   private dataState = inject(DataState);
   private terminalState = inject(TerminalState);
+  private history = inject(FileHistoryService);
   private diagnosticsState = inject(DiagnosticsState);
   private preferences = inject(PreferencesState);
   private projectState = inject(ProjectState);
@@ -399,6 +402,7 @@ export class OrchestratorService {
     const wasCurrent = id === this.projectState.projectId();
     if (wasCurrent) this.projectState.projectId.set(null); // evita que el guardado previo al cambio lo vuelva a escribir
     await this.library.remove(id);
+    void this.history.removeProject(id);
     if (!wasCurrent) return;
     const next = (await this.library.list())[0];
     if (!next || !(await this.openProject(next.id))) await this.createProject();
@@ -447,6 +451,85 @@ export class OrchestratorService {
     if (!session) return;
     this.persistence.saveProjectState(session);
     void this.saveToLibrary();
+    this.trackHistory();
+  }
+
+  // ---- Historial local por archivo ----
+
+  /** Último contenido visto de cada archivo (`<proyecto>\0<ruta>`): detecta cambios y da la versión «inicial». */
+  private seen = new Map<string, string>();
+  private historyInflight = new Set<string>();
+
+  private historyKey(projectId: string, path: string): string {
+    return projectId + '\u0000' + path;
+  }
+
+  /** Contenido actual de un archivo, incluido lo que se está escribiendo. */
+  currentContent(path: string): string {
+    return this.editorState.activeTab()?.path === path ? this.editorState.editorContent() : (this.editorState.files().get(path) ?? '');
+  }
+
+  /** Versiones guardadas del archivo, la más reciente primero. */
+  async fileHistory(path: string): Promise<FileVersion[]> {
+    const pid = this.projectState.projectId();
+    return pid ? this.history.list(pid, path) : [];
+  }
+
+  /** Guarda versiones automáticas de los archivos que cambiaron desde la última vez (como mucho una cada pocos minutos). */
+  private trackHistory(): void {
+    const pid = this.projectState.projectId();
+    if (!pid) return;
+    for (const path of this.editorState.files().keys()) {
+      const content = this.currentContent(path);
+      const key = this.historyKey(pid, path);
+      const prev = this.seen.get(key);
+      if (prev === undefined) { this.seen.set(key, content); continue; }
+      if (prev === content || this.historyInflight.has(key)) continue;
+      this.historyInflight.add(key);
+      void this.history.record(pid, path, content, 'automático', { auto: true, previous: prev }).then((outcome) => {
+        this.historyInflight.delete(key);
+        if (outcome === 'added' || outcome === 'same') this.seen.set(key, content);
+      });
+    }
+  }
+
+  /** Guardar (Ctrl+S): guarda una versión del archivo activo, guarda la sesión y compila. */
+  saveFile(): void {
+    this.editorState.saveCurrentFile();
+    const path = this.editorState.activeTab()?.path;
+    const pid = this.projectState.projectId();
+    if (path && pid) {
+      const key = this.historyKey(pid, path);
+      const content = this.currentContent(path);
+      const previous = this.seen.get(key);
+      this.seen.set(key, content);
+      void this.history.record(pid, path, content, 'guardado', { previous });
+    }
+    this.saveSession();
+    void this.manualCompile();
+  }
+
+  /** Guarda ahora una versión de estos archivos (por ejemplo antes de un reemplazo en todo el proyecto). */
+  snapshotFiles(paths: string[], reason: string): void {
+    const pid = this.projectState.projectId();
+    if (!pid) return;
+    for (const path of paths) void this.history.record(pid, path, this.currentContent(path), reason, { previous: this.seen.get(this.historyKey(pid, path)) });
+  }
+
+  /** Vuelve el archivo a una versión guardada; antes guarda su estado actual para poder deshacerlo. */
+  async restoreVersion(path: string, content: string): Promise<void> {
+    const pid = this.projectState.projectId();
+    if (pid) await this.history.record(pid, path, this.currentContent(path), 'antes de restaurar');
+    const files = this.editorState.files();
+    if (!files.has(path)) return;
+    files.set(path, content);
+    if (this.editorState.activeTab()?.path === path) this.editorState.updateContent(content);
+    // Monaco recibe el cambio como una edición (Ctrl+Z lo deshace) y recompila.
+    this.editorState.notifyFileSync([path]);
+    if (pid) this.seen.set(this.historyKey(pid, path), content);
+    this.terminalState.addEntry('success', 'Historial', `${path} vuelve a una versión anterior (el estado previo queda en el historial).`);
+    this.saveSession();
+    void this.manualCompile();
   }
 
   /** Replaces the whole in-memory project (used by import) and recompiles from scratch. */
@@ -634,6 +717,13 @@ export class OrchestratorService {
       return f;
     });
     const name = newPath.split('/').pop() ?? newPath;
+    const pid = this.projectState.projectId();
+    if (pid) {
+      void this.history.rename(pid, oldPath, newPath);
+      const seenValue = this.seen.get(this.historyKey(pid, oldPath));
+      if (seenValue !== undefined) this.seen.set(this.historyKey(pid, newPath), seenValue);
+      this.seen.delete(this.historyKey(pid, oldPath));
+    }
     this.editorState.renameOpenTab(oldPath, newPath, name);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });

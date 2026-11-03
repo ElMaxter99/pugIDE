@@ -331,8 +331,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       if ((e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyS) {
         e.preventDefault();
         e.stopPropagation();
-        this.editorState.saveCurrentFile();
-        this.orchestrator.manualCompile();
+        this.orchestrator.saveFile();
       }
     });
 
@@ -466,6 +465,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
    */
   protected onReplaced(changes: ReplaceResult[]): void {
     if (!changes.length || !this.editor) return;
+    this.orchestrator.snapshotFiles(changes.map((c) => c.path), 'antes de reemplazar');
     const files = this.editorState.files();
     let total = 0;
     for (const c of changes) {

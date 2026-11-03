@@ -92,7 +92,8 @@ export class CommandPaletteComponent {
     if (!this.ui.paletteOpen()) return [];
     const list: PaletteCommand[] = [
       { group: 'Proyecto', title: 'Compilar ahora', keywords: 'preview render ctrl+enter', run: () => void this.orchestrator.manualCompile() },
-      { group: 'Proyecto', title: 'Guardar', keywords: 'ctrl+s', run: () => { this.editorState.saveCurrentFile(); this.orchestrator.saveSession(); void this.orchestrator.manualCompile(); } },
+      { group: 'Proyecto', title: 'Guardar', keywords: 'ctrl+s', run: () => this.orchestrator.saveFile() },
+      { group: 'Archivos', title: 'Historial del archivo…', keywords: 'versiones restaurar volver atrás cambios diff', run: () => this.ui.historyOpen.set(true) },
       { group: 'Proyecto', title: 'Mis proyectos…', keywords: 'abrir cambiar biblioteca', run: () => this.ui.projectsOpen.set(true) },
       { group: 'Proyecto', title: 'Nuevo proyecto vacío', run: () => void this.orchestrator.createProject() },
       ...PROJECT_TEMPLATES.map((t) => ({
@@ -107,6 +108,7 @@ export class CommandPaletteComponent {
       },
       { group: 'Proyecto', title: 'Exportar proyecto (carpeta o .zip)', run: () => void this.projectIo.exportProject() },
       { group: 'Proyecto', title: 'Descargar proyecto como .zip', run: () => this.projectIo.downloadZip() },
+      { group: 'Proyecto', title: 'Exportar captura PNG del preview', keywords: 'imagen screenshot foto', run: () => void this.projectIo.exportPng() },
       { group: 'Proyecto', title: 'Exportar HTML renderizado', run: () => this.projectIo.exportHtml() },
       { group: 'Idiomas', title: 'Añadir idioma…', keywords: 'traducciones locales translations es-ES idioma', run: () => this.ui.addLocaleOpen.set(true) },
       ...this.orchestrator.locales().map((code) => ({

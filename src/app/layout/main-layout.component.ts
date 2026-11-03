@@ -16,6 +16,7 @@ import { DataState } from '../core/state/data.state';
 import { ProjectState } from '../core/state/project.state';
 import { PreferencesState } from '../core/services/preferences.state';
 import { PersistenceService, ProjectSessionState } from '../core/services/persistence.service';
+import { FileHistoryDialogComponent } from '../shared/components/file-history-dialog/file-history-dialog.component';
 import { ShortcutsDialogComponent } from '../shared/components/shortcuts-dialog/shortcuts-dialog.component';
 import { UiState } from '../core/state/ui.state';
 import { CommandPaletteComponent } from '../shared/components/command-palette/command-palette.component';
@@ -42,6 +43,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     DialogComponent,
     CommandPaletteComponent,
     ShortcutsDialogComponent,
+    FileHistoryDialogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -62,6 +64,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       </div>
       <app-statusbar />
       <app-command-palette />
+      <app-file-history-dialog [isOpen]="ui.historyOpen()" (closed)="ui.historyOpen.set(false)" />
       <app-shortcuts-dialog [isOpen]="ui.shortcutsOpen()" (closed)="ui.shortcutsOpen.set(false)" />
       <app-dialog
         [config]="addLocaleDialog"
@@ -308,8 +311,7 @@ export class MainLayoutComponent implements OnInit {
   onKeydown(event: KeyboardEvent): void {
     if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault();
-      this.editorState.saveCurrentFile();
-      this.orchestrator.manualCompile();
+      this.orchestrator.saveFile();
     }
     if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
       event.preventDefault();

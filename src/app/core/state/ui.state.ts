@@ -11,4 +11,6 @@ export class UiState {
   readonly shortcutsOpen = signal(false);
   /** Diálogo para añadir un idioma (`/locales/<código>/translations.json`). */
   readonly addLocaleOpen = signal(false);
+  /** Diálogo con el historial de versiones del archivo activo. */
+  readonly historyOpen = signal(false);
 }

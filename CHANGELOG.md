@@ -19,6 +19,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 - Helpers definidos por el usuario: `helpers.js` (y `helpers/*.js`) exporta con `module.exports` funciones y valores que las plantillas pueden llamar (`money(n)`, `utils.upper(s)`…) y que un JSON de datos no puede contener. Los helpers tapan a un dato con el mismo nombre y dejan de generar campos en los datos; un archivo roto se subraya en su archivo y no impide renderizar. «Añadir archivo de helpers» (paleta de comandos) crea uno con ejemplos.
 
+- Captura PNG del preview (botón de cámara del preview o «Exportar captura PNG» en la paleta): documento completo con el ancho del dispositivo o de la hoja, a doble resolución, sin librerías ni red. Se maqueta en un iframe oculto sin scripts, así que no se ejecuta el JavaScript de la página; las páginas muy largas bajan la escala para no pasar el límite del canvas.
+- Historial local por archivo («Historial del archivo…» en la paleta): hasta 30 versiones por archivo en el navegador, guardadas al pulsar Guardar (Ctrl+S), cada ~3 min mientras editas, antes de restaurar y antes de «reemplazar todo»; muestra qué volvería y qué desaparecería al restaurar cada una (diff por líneas) y restaurar se puede deshacer con Ctrl+Z. El historial sigue al archivo al renombrarlo y se borra con el proyecto.
+
 ### Cambiado
 - Refactor interno sin cambios de comportamiento: los componentes más grandes se trocean y su lógica pasa a utilidades puras con pruebas. Editor de datos → `DataTreeComponent`, `DatasetBarComponent` y `data-tree.util`; preview → `PdfBarComponent` y `preview-layout.util`; editor → `ProjectSearchComponent` y `pug-language`; Workspace → `FileTreeComponent` y `file-actions.util`. Nuevas pruebas de interfaz del editor de datos y del Workspace.
 - Los diálogos y el menú contextual del Workspace están en español.

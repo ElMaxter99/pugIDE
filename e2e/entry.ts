@@ -24,4 +24,5 @@ export { parseDatasetsFile, serializeDatasets } from '../src/app/core/utils/data
 export { ProjectLibraryService, MemoryLibraryBackend } from '../src/app/core/services/project-library.service';
 export { uniqueProjectName } from '../src/app/core/services/orchestrator.service';
 export { PROJECT_TEMPLATES } from '../src/app/core/utils/templates.util';
+export { FileHistoryService, MemoryHistoryBackend } from '../src/app/core/services/file-history.service';
 export { DiagnosticsState } from '../src/app/core/state/diagnostics.state';

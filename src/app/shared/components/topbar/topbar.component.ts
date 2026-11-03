@@ -247,9 +247,7 @@ export class TopbarComponent {
   }
 
   onSave(): void {
-    this.editorState.saveCurrentFile();
-    this.orchestrator.manualCompile();
-    this.orchestrator.saveSession();
+    this.orchestrator.saveFile();
   }
 
   onToggleAutoCompile(): void {

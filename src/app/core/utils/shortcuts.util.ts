@@ -14,7 +14,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     title: 'General',
     items: [
       { label: 'Paleta de comandos', keys: 'Ctrl+K' },
-      { label: 'Guardar y compilar', keys: 'Ctrl+S' },
+      { label: 'Guardar (crea una versión en el historial) y compilar', keys: 'Ctrl+S' },
       { label: 'Compilar ahora', keys: 'Ctrl+Enter' },
     ],
   },
