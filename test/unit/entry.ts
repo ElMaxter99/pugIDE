@@ -11,3 +11,5 @@ export * from '../../src/app/core/utils/page-rules.util';
 export * from '../../src/app/core/utils/focus-trap.util';
 export * from '../../src/app/core/utils/diagnostics.util';
 export * from '../../src/app/core/utils/backup.util';
+export * from '../../src/app/core/utils/locales.util';
+export * from '../../src/app/core/utils/tab-label.util';

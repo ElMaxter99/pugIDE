@@ -229,6 +229,11 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     });
 
     effect(() => {
+      const sync = this.editorState.fileSync();
+      if (sync.seq && this.editorReady()) this.syncModels(sync.paths);
+    });
+
+    effect(() => {
       this.diagnosticsState.byPath();
       if (this.editorReady()) this.applyMarkers();
     });
@@ -772,6 +777,17 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     }
     this.applyMarkers();
     this.applyReveal();
+  }
+
+  /** Lleva a los modelos abiertos el contenido que otro proceso (no el usuario) escribió en `files`. */
+  private syncModels(paths: string[]): void {
+    const files = this.editorState.files();
+    for (const path of paths) {
+      const model = this.models.get(path);
+      const content = files.get(path);
+      if (!model || content === undefined || model.getValue() === content) continue;
+      model.pushEditOperations([], [{ range: model.getFullModelRange(), text: content }], () => null);
+    }
   }
 
   /** Dibuja los errores de la última compilación como subrayados en el editor de cada archivo abierto. */

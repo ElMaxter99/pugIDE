@@ -68,6 +68,14 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
           </div>
         </div>
         <div class="preview-header-right">
+          @if (orchestrator.locales().length) {
+            <select class="zoom-select locale-select" data-testid="preview-locale" title="Idioma de las traducciones (locales/)" aria-label="Idioma de las traducciones"
+                    (change)="orchestrator.setTranslationLocale($any($event.target).value)">
+              @for (code of orchestrator.locales(); track code) {
+                <option [value]="code" [selected]="code === orchestrator.activeLocale()">{{ code }}</option>
+              }
+            </select>
+          }
           @if (!previewState.isPdf()) {
             <select class="zoom-select device-select" title="Dispositivo" [value]="previewState.deviceName()" (change)="selectDevice($any($event.target).value)">
               @for (d of presets; track d.name) {
@@ -371,6 +379,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
     .pdf-warn { color: #e0a030; cursor: help; }
 
     .device-select { max-width: 150px; }
+    .locale-select { max-width: 110px; }
 
     .zoom-select {
       height: 24px;
@@ -464,7 +473,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   previewState = inject(PreviewState);
   protected inspectorState = inject(InspectorState);
-  private orchestrator = inject(OrchestratorService);
+  protected orchestrator = inject(OrchestratorService);
   private preferences = inject(PreferencesState);
   private editorState = inject(EditorState);
   protected terminal = inject(TerminalState);

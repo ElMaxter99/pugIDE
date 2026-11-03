@@ -100,6 +100,11 @@ export class CommandPaletteComponent {
       { group: 'Proyecto', title: 'Exportar proyecto (carpeta o .zip)', run: () => void this.projectIo.exportProject() },
       { group: 'Proyecto', title: 'Descargar proyecto como .zip', run: () => this.projectIo.downloadZip() },
       { group: 'Proyecto', title: 'Exportar HTML renderizado', run: () => this.projectIo.exportHtml() },
+      { group: 'Idiomas', title: 'Añadir idioma…', keywords: 'traducciones locales translations es-ES idioma', run: () => this.ui.addLocaleOpen.set(true) },
+      ...this.orchestrator.locales().map((code) => ({
+        group: 'Idiomas', title: `Preview en ${code}${code === this.orchestrator.activeLocale() ? ' (activo)' : ''}`, keywords: 'idioma locale traducciones',
+        run: () => this.orchestrator.setTranslationLocale(code),
+      })),
       { group: 'Ajustes', title: 'Atajos de teclado', keywords: 'ayuda keyboard shortcuts teclas', run: () => this.ui.shortcutsOpen.set(true) },
       { group: 'Ajustes', title: 'Alternar tema claro/oscuro', keywords: 'dark light', run: () => this.preferences.toggleTheme() },
       {

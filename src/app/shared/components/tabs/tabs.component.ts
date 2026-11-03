@@ -1,11 +1,13 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   inject,
   signal,
 } from '@angular/core';
 import { EditorState } from '../../../core/state/editor.state';
 import { Tab } from '../../../core/models/tab.model';
+import { tabLabels } from '../../../core/utils/tab-label.util';
 import { getFileIcon } from '../../../core/utils/file-icon.util';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
 import { ContextMenuAction } from '../../../core/models/index';
@@ -30,7 +32,7 @@ import { ContextMenuAction } from '../../../core/models/index';
             (dragover)="onDragOver($event, $index)"
             (drop)="onDrop($event, $index)">
             <span class="material-symbols-outlined tab-file-icon" style="font-size: 14px;">{{ fileIcon(tab) }}</span>
-            <span class="tab-name">{{ tab.name }}</span>
+            <span class="tab-name" [title]="tab.path">{{ labels().get(tab.id) ?? tab.name }}</span>
             @if (tab.isDirty) {
               <span class="dirty-dot"></span>
             }
@@ -144,6 +146,7 @@ import { ContextMenuAction } from '../../../core/models/index';
 })
 export class TabsComponent {
   protected editorState = inject(EditorState);
+  protected labels = computed(() => tabLabels(this.editorState.openTabs()));
   private dragIndex = signal<number>(-1);
 
   protected contextMenuOpen = signal(false);

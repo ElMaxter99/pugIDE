@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { debounceTime, Subject } from 'rxjs';
 import { PugParserService } from '../../parser/pug-parser.service';
 import { PugCompilerService } from '../../compiler/pug-compiler.service';
@@ -11,7 +11,7 @@ import { PreviewState } from '../state/preview.state';
 import { DataState } from '../state/data.state';
 import { TerminalState } from '../state/terminal.state';
 import { DiagnosticsState } from '../state/diagnostics.state';
-import { buildDiagnostics } from '../utils/diagnostics.util';
+import { buildDiagnostics, Diagnostic } from '../utils/diagnostics.util';
 import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
 import { PersistenceService, ProjectSessionState } from './persistence.service';
@@ -30,6 +30,9 @@ import { errorifyData, mockifyData, mockLeaf } from '../utils/mock-data.util';
 import { DatasetKind, DatasetsFile, parseDatasetsFile } from '../utils/datasets.util';
 import { inferData } from '../utils/schema-infer.util';
 import { buildTranslationSkeleton, TRANSLATIONS_KEY } from '../utils/i18n.util';
+import {
+  addMissingKeys, blankTranslations, isValidLocaleCode, listLocales, localePath, parseTranslations, resolveLocale, serializeTranslations,
+} from '../utils/locales.util';
 import { findEntryPath, normalize, resolveVirtualPath } from '../utils/pug-vfs.util';
 
 @Injectable({ providedIn: 'root' })
@@ -129,15 +132,20 @@ export class OrchestratorService {
       this.parserState.updateFromParseResult(parseResult);
       this.parserState.setParsing(false);
 
+      // Con `/locales/<código>/translations.json` las claves t('…') van a esos archivos y no a los datos.
+      const locales = listLocales(files.keys());
+      if (locales.join() !== this.locales().join()) this.locales.set(locales);
+      const dataKeys = locales.length ? [] : parseResult.translationKeys;
+
       if (!this.initialDataLoaded && Object.keys(this.dataState.data()).length === 0) {
-        const data = this.skeletonForActiveDataset(parseResult.variables, parseResult.translationKeys);
+        const data = this.skeletonForActiveDataset(parseResult.variables, dataKeys);
         if (Object.keys(data).length > 0) {
           this.dataState.setInitialData(data);
           this.initialDataLoaded = true;
         }
       }
 
-      const skeleton = this.skeletonForActiveDataset(parseResult.variables, parseResult.translationKeys);
+      const skeleton = this.skeletonForActiveDataset(parseResult.variables, dataKeys);
       const patchedData = structuredClone(this.dataState.data());
       const ds = this.dataState.activeDataset();
       const mockOpts = { seed: ds?.seed ?? 1, locale: this.dataState.locale() };
@@ -162,7 +170,10 @@ export class OrchestratorService {
         );
       }
 
-      const data = this.dataState.data();
+      const localeInfo = this.syncLocales(files, locales, parseResult.translationKeys);
+      const data = localeInfo.translations
+        ? { ...this.dataState.data(), [TRANSLATIONS_KEY]: localeInfo.translations }
+        : this.dataState.data();
       const compileResult = await this.compiler.compile(entryCode, data, entryPath, files, parseResult.calledFunctions);
 
       // `<link rel="stylesheet" href="local.css">` becomes an inline <style>; the rest of the project styles are still injected.
@@ -197,6 +208,7 @@ export class OrchestratorService {
         parseErrors: parseResult.errors,
         compileErrors: compileResult.errors,
         styleErrors: scssResult.errors,
+        extra: localeInfo.diagnostics,
       }));
 
       for (const error of compileResult.errors) {
@@ -689,6 +701,91 @@ export class OrchestratorService {
     if (changed) {
       this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     }
+  }
+
+  /**
+   * Con idiomas en `/locales/`: añade a cada `translations.json` las claves `t('…')` que le faltan (vacías, para
+   * traducirlas) y devuelve las traducciones del idioma activo, que sustituyen a `data.translations` al compilar.
+   */
+  private syncLocales(files: Map<string, string>, locales: string[], keys: string[]): { translations: Record<string, unknown> | null; diagnostics: Diagnostic[] } {
+    if (!locales.length) return { translations: null, diagnostics: [] };
+    const diagnostics: Diagnostic[] = [];
+    const parsed = new Map<string, Record<string, unknown>>();
+    const changed: string[] = [];
+    for (const code of locales) {
+      const path = localePath(code);
+      const r = parseTranslations(files.get(path) ?? '');
+      if (r.error) {
+        diagnostics.push({ path, line: r.error.line ?? 1, message: r.error.message, severity: 'error', source: 'json' });
+        this.terminalState.addEntry('error', 'Idiomas', `${path}: ${r.error.message}`);
+        parsed.set(code, {});
+        continue;
+      }
+      // Una clave plana ("HOME.TITLE": "…") ya cuenta como definida.
+      const missing = keys.filter((k) => !(k in r.value));
+      if (addMissingKeys(r.value, buildTranslationSkeleton(missing))) {
+        files.set(path, serializeTranslations(r.value));
+        changed.push(path);
+      }
+      parsed.set(code, r.value);
+    }
+    if (changed.length) {
+      this.editorState.notifyFileSync(changed);
+      this.terminalState.addEntry('info', 'Idiomas', `Claves nuevas añadidas (vacías, por traducir) en: ${changed.join(', ')}`);
+    }
+    const active = resolveLocale(this.dataState.translationLocale(), locales)!;
+    return { translations: parsed.get(active) ?? {}, diagnostics };
+  }
+
+  /** Idiomas del proyecto (`/locales/<código>/translations.json`); se actualiza en cada compilación (los archivos viven en un Map mutable). */
+  readonly locales = signal<string[]>([]);
+  /** Idioma que usa el preview: el elegido si existe, si no el primero. */
+  readonly activeLocale = computed(() => resolveLocale(this.dataState.translationLocale(), this.locales()));
+
+  /** Cambia el idioma de las traducciones del preview. */
+  setTranslationLocale(code: string): void {
+    if (this.dataState.translationLocale() === code) return;
+    this.dataState.translationLocale.set(code);
+    this.saveSession();
+    void this.processCode(this.editorState.editorContent(), false);
+  }
+
+  /**
+   * Añade un idioma. El primero recoge las traducciones que había en los datos (`translations`); los siguientes
+   * copian la estructura del primero con los valores vacíos, para traducirlos.
+   */
+  addLocale(rawCode: string): boolean {
+    const code = rawCode.trim();
+    if (!isValidLocaleCode(code)) {
+      this.terminalState.addEntry('error', 'Idiomas', `«${code}» no es un código de idioma válido (ejemplos: es-ES, es-CAT, en).`);
+      return false;
+    }
+    const path = localePath(code);
+    const files = this.editorState.files();
+    if (files.has(path)) {
+      this.editorState.openFile(path, 'translations.json', 'json', files.get(path) ?? '');
+      this.setTranslationLocale(code);
+      return true;
+    }
+    const existing = listLocales(files.keys());
+    let seed: Record<string, unknown>;
+    let note = '';
+    if (existing.length) {
+      seed = blankTranslations(parseTranslations(files.get(localePath(existing[0])) ?? '').value);
+      note = ` con las claves de ${existing[0]} sin traducir`;
+    } else {
+      const legacy = this.dataState.data()[TRANSLATIONS_KEY];
+      seed = legacy !== null && typeof legacy === 'object' && !Array.isArray(legacy) ? structuredClone(legacy as Record<string, unknown>) : {};
+      this.dataState.stripTranslations(TRANSLATIONS_KEY);
+      if (Object.keys(seed).length) note = ' con las traducciones que había en los datos';
+    }
+    this.addFile(path, 'translations.json', serializeTranslations(seed));
+    this.locales.set(listLocales(this.editorState.files().keys()));
+    this.dataState.translationLocale.set(code);
+    this.terminalState.addEntry('success', 'Idiomas', `Idioma ${code} creado en ${path}${note}.`);
+    this.saveSession();
+    void this.manualCompile();
+    return true;
   }
 
   private buildDataFromVariables(variables: PugVariable[], translationKeys: string[] = []): Record<string, unknown> {

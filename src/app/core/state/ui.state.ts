@@ -9,4 +9,6 @@ export class UiState {
   readonly paletteOpen = signal(false);
   /** Diálogo de atajos de teclado. */
   readonly shortcutsOpen = signal(false);
+  /** Diálogo para añadir un idioma (`/locales/<código>/translations.json`). */
+  readonly addLocaleOpen = signal(false);
 }

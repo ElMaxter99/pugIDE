@@ -64,6 +64,11 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-command-palette />
       <app-shortcuts-dialog [isOpen]="ui.shortcutsOpen()" (closed)="ui.shortcutsOpen.set(false)" />
       <app-dialog
+        [config]="addLocaleDialog"
+        [isOpen]="ui.addLocaleOpen()"
+        (confirmed)="onAddLocale($event)"
+        (cancelled)="ui.addLocaleOpen.set(false)" />
+      <app-dialog
         [config]="shareDialog"
         [isOpen]="shareDialogOpen()"
         (confirmed)="onShareConfirm()"
@@ -135,6 +140,15 @@ export class MainLayoutComponent implements OnInit {
     confirmText: 'Reemplazar y abrir',
     cancelText: 'Mantener mi sesión',
     type: 'confirm',
+  };
+  protected addLocaleDialog: DialogConfig = {
+    title: 'Añadir idioma',
+    message: 'Código del idioma; se crea locales/<código>/translations.json (por ejemplo es-ES, es-CAT, en).',
+    confirmText: 'Añadir',
+    cancelText: 'Cancelar',
+    showInput: true,
+    inputLabel: 'Código de idioma',
+    inputValue: '',
   };
   private pendingShare: SharePayload | null = null;
   private assetTimer: ReturnType<typeof setTimeout> | null = null;
@@ -209,6 +223,11 @@ export class MainLayoutComponent implements OnInit {
   }
 
   /** Los proyectos solo viven en este navegador: si hace tiempo que no se exporta, se recuerda en la terminal. */
+  protected onAddLocale(code: string): void {
+    this.ui.addLocaleOpen.set(false);
+    if (code.trim()) this.orchestrator.addLocale(code);
+  }
+
   private remindBackup(): void {
     const days = backupReminderDays(this.persistence.loadBackupInfo(), Date.now(), this.editorState.files().size > 0);
     if (days === null) return;

@@ -54,6 +54,8 @@ export function buildDiagnostics(input: {
   parseErrors?: ParseError[];
   compileErrors?: CompileError[];
   styleErrors?: StyleDiagnosticInput[];
+  /** Diagnósticos ya localizados (p. ej. JSON de traducciones inválido). */
+  extra?: Diagnostic[];
 }): Diagnostic[] {
   const out: Diagnostic[] = [];
   const seen = new Set<string>();
@@ -86,6 +88,7 @@ export function buildDiagnostics(input: {
     if (!e.line) continue;
     add({ path: e.path, line: e.line, column: e.column || undefined, message: e.message, severity: 'error', source: 'scss' });
   }
+  for (const d of input.extra ?? []) add(d);
   return out;
 }
 
