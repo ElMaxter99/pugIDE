@@ -59,6 +59,8 @@ Prioridad: **A** = afecta al uso diario, **B** = mejora clara, **C** = deseable.
 ## 4. Plan propuesto
 
 > **Estado de la fase 1** (hecha en esta rama): marcadores de error en Monaco (Pug, SCSS/Sass, Less), filtros de Pug verificados (`:cdata` añadido; `:markdown-it`, `:scss`… no existen en el navegador y ahora el error lo explica; `require` no falla), Angular 20.3.35 (`npm audit` sin vulnerabilidades), `angular-eslint` 20, `lang="es"` y etiquetas accesibles. Pendiente de la fase 1: auditoría de accesibilidad completa con lector de pantalla.
+>
+> **Estado de la fase 2**: hecho buscar y reemplazar en proyecto, hover de mixins/includes, outline (Ctrl+Shift+O), diálogo de atajos y recordatorio de copia de seguridad. **Descartado**: layout para pantallas pequeñas (PugIDE no está pensado para móvil; se anota en el README). **Pendiente**: selector de idioma de `translations` en el preview — requiere decidir cómo se guardan varios idiomas (hoy hay un único objeto `translations` por juego de datos; mientras tanto se puede tener un juego de datos por idioma).
 
 **Fase 1 — Fiabilidad (1–2 semanas)**
 1. Marcadores de error de Pug/SCSS en Monaco con línea/columna (el `CompileError` ya trae `line` y `column`).

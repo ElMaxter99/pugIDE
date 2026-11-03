@@ -35,6 +35,14 @@
 
 `diagnostics.util.ts` convierte los errores del parser, de Pug y de estilos en `Diagnostic` (archivo, línea, columna, mensaje limpio): `splitPugMessage` separa la ubicación del fragmento de código de Pug y se prefiere la ruta del propio mensaje, porque el `filename` del parser es siempre el de entrada. `OrchestratorService.processCode` los publica en `DiagnosticsState` y `EditorPanelComponent` los pinta con `monaco.editor.setModelMarkers` (propietario `pugide`) en todos los modelos abiertos. Los errores de sass/less llevan línea y columna (`ScssCompileError`). `PugCompilerService` solo registra el filtro `:cdata`; un filtro desconocido añade al error la lista de disponibles.
 
+## Buscar y reemplazar, hover y outline
+
+`pug-editor.util.ts` (puro, sin Angular ni Monaco) reúne `searchProject` / `replaceInProject` (misma expresión regular, línea a línea; el reemplazo es literal salvo en modo regex), `hoverInfoAt` y `documentSymbols`. `EditorPanelComponent.replaceAll` aplica cada archivo cambiado con `model.pushEditOperations` sobre su modelo de Monaco (creándolo si el archivo no estaba abierto), de modo que Ctrl+Z funciona archivo a archivo. El hover y el outline se registran con `registerHoverProvider` / `registerDocumentSymbolProvider`. Los atajos del diálogo están en `shortcuts.util.ts`.
+
+## Copia de seguridad
+
+`backup.util.ts` decide cuándo recordar exportar (`backupReminderDays`: 14 días desde la última exportación o el primer uso). `PersistenceService` guarda `pug-ide-last-backup` y `pug-ide-first-use`; `ProjectIoService` anota la copia al exportar a carpeta o `.zip` (compartir por enlace no cuenta). `MainLayoutComponent` avisa en la terminal y pide `navigator.storage.persist()`.
+
 ## Juegos de datos, mocks e importación de esquemas
 
 - `DataState` guarda varios **juegos de datos** por proyecto (`Por defecto`, `Vacío`, `Lleno`, `Error` y personalizados); el activo es `data`. Se crean/cambian/renombran/duplican/borran desde el selector del editor de datos (`OrchestratorService.createDataset` etc.). Viajan en la sesión (`ProjectSessionState.datasets`) y en el export/import como `/.pugide/datasets.json` (zip o carpeta; no es un archivo del proyecto). Utilidades puras en `core/utils/datasets.util.ts`.

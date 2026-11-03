@@ -33,6 +33,7 @@ Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de a
 - Ir a la definición de `include` / `extends` / `+mixin` con Ctrl+clic o F12.
 - Paleta de comandos con Ctrl/Cmd+K (acciones, dispositivos del preview, plantillas y apertura rápida de archivos).
 - Búsqueda en todo el proyecto con Ctrl+Shift+F (abre el archivo en la línea).
+- Buscar y reemplazar en todo el proyecto (Ctrl+Shift+F), hover de mixins e includes, "Ir a símbolo" (Ctrl+Shift+O) y diálogo de atajos (paleta de comandos).
 - Formato de Pug (Shift+Alt+F). Prettier no soporta Pug de serie y `@prettier/plugin-pug` no se incluye, así que el formateador es propio y conservador: normaliza indentación, espacios y líneas en blanco, unifica comillas y espacios de los atributos simples (`a(href = "x")` → `a(href='x')`) y reparte en varias líneas las etiquetas largas. Los atributos con expresiones, las llamadas a mixins y los bloques de texto crudo se dejan como están, y solo reordena atributos si lo activas (paleta de comandos → "Formato de Pug: ordenar atributos"): `id`, `class`, el resto por orden alfabético, `data-*`, `aria-*` y al final los especiales (`@click`, `[x]`…).
 - Modo demo: abre `/ide?demo=true` para cargar un proyecto de ejemplo completo.
 
@@ -60,7 +61,9 @@ Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de a
 - `localStorage` tiene cuota (~5 MB): si un proyecto de texto es muy grande no se guarda ahí (se avisa), pero la biblioteca de IndexedDB lo conserva y se recupera al volver.
 - Importar/exportar a carpeta no funciona en Firefox/Safari (se usa `.zip`).
 - El preview PDF emula la paginación; el resultado final puede variar según el navegador al imprimir.
+- PugIDE está pensado para el escritorio: no se ha diseñado ni probado para móvil.
 - No hay sincronización entre dispositivos ni colaboración.
+- Tus proyectos solo existen en este navegador: la terminal te recuerda exportar una copia si pasan 14 días.
 
 Más detalle técnico en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); para colaborar, [CONTRIBUTING.md](CONTRIBUTING.md).
 
