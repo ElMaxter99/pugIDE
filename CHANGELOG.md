@@ -24,7 +24,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 - Aislamiento del JavaScript del usuario: el de las plantillas y de `helpers.js` se ejecuta ahora en un iframe oculto de origen opaco (`sandbox` sin `allow-same-origin`) y el preview es otro iframe del mismo tipo, así que ninguno puede leer `localStorage`, IndexedDB, cookies ni el DOM de la app (antes corrían con los permisos de la app: un enlace compartido malicioso podía leer los proyectos guardados). Una plantilla que no termina (bucle infinito) se cancela a los 15 s y la app sigue respondiendo. «Abrir en pestaña nueva» y abrir un SVG de los assets pasan por una página anfitriona (`assets/preview-host.html`) que los muestra en un iframe aislado o en un `<img>`.
 
+- Filtro de Pug `:markdown` (también `:markdown-it` y `:marked`): subconjunto de Markdown que escapa todo el HTML y anula los enlaces `javascript:`.
+- Las llamadas a métodos que no existen en los valores de un JSON (`utils.upper(name)`) ya no fallan ni crean un campo en los datos: devuelven su argumento, o usan el helper real si hay un `helpers.js`.
+- Pruebas de interfaz en Firefox y WebKit (`PUGIDE_BROWSER=firefox node ui-tests/run.mjs`) y auditoría automática de accesibilidad con axe-core (0 incumplimientos en 12 pantallas y diálogos, en tema oscuro y claro) más pruebas de teclado.
+
+### Corregido
+- `npm run build:prod` (el del CI) no ejecutaba la comprobación de que `render-sandbox.js` y `preview-runtime.js` están al día; ahora la ejecuta (`prebuild:prod`).
+- Accesibilidad: los iconos ya no se leen como texto («folder_open»); el árbol de archivos, las pestañas, las filas plegables del árbol de datos y los interruptores booleanos se manejan con teclado (flechas, Enter, Espacio, Mayús+F10); nombres accesibles en los controles de formulario, el marco del preview y los botones del buscador; puntos de referencia (`main`, `aside`, `footer`, regiones) y un único `h1`; contraste suficiente en el tema claro (colores de la sintaxis JSON, texto terciario, aviso, éxito) y en la barra de estado; jerarquía de encabezados en los diálogos; textos de la barra de estado y del Workspace en español. Ctrl+M libera el foco del editor.
+- La captura PNG en Firefox no aplicaba las media queries del dispositivo: se resuelven antes de generar la imagen.
+
 ### Cambiado
+- El render de Pug corre en un Worker dentro del iframe aislado: una plantilla con un bucle infinito se cancela a los 15 s sin bloquear la página también en Firefox y WebKit (antes solo en Chromium). Una plantilla ya no ve `window` ni `document`.
 - La paginación del modo PDF, la medida del documento y la impresión ahora corren dentro del iframe del preview (`assets/preview-runtime.js`) y se comunican con la app por mensajes; el render de Pug corre en `assets/render-sandbox.js`. Ambos se generan con `npm run bundle:runtime` (se versionan y el build comprueba que están al día). Las imágenes y fuentes de los assets llegan al preview como `data:` (las URL `blob:` no cargan en un documento de origen opaco).
 - Refactor interno sin cambios de comportamiento: los componentes más grandes se trocean y su lógica pasa a utilidades puras con pruebas. Editor de datos → `DataTreeComponent`, `DatasetBarComponent` y `data-tree.util`; preview → `PdfBarComponent` y `preview-layout.util`; editor → `ProjectSearchComponent` y `pug-language`; Workspace → `FileTreeComponent` y `file-actions.util`. Nuevas pruebas de interfaz del editor de datos y del Workspace.
 - Los diálogos y el menú contextual del Workspace están en español.

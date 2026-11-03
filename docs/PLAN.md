@@ -64,6 +64,8 @@ Prioridad: **A** = afecta al uso diario, **B** = mejora clara, **C** = deseable.
 
 **Estado de la fase 4**: hecha. Helpers del usuario (`helpers.js`), captura PNG del preview e historial local por archivo.
 
+**Estado de la fase 6**: hecha. Accesibilidad (axe-core en 12 pantallas, teclado en árboles y pestañas), pruebas en Firefox y WebKit, `:markdown` y métodos de helpers, y medición de rendimiento. Pendiente: probar con un lector de pantalla real.
+
 **Estado de la fase 5**: hecha. Aislamiento de la ejecución de plantillas, helpers y preview en iframes de origen opaco.
 
 **Hecho además**: traducciones por idioma en `locales/<código>/translations.json` con selector en el preview.
