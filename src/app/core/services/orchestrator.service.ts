@@ -11,6 +11,7 @@ import { PreviewState } from '../state/preview.state';
 import { DataState } from '../state/data.state';
 import { TerminalState } from '../state/terminal.state';
 import { DiagnosticsState } from '../state/diagnostics.state';
+import { loadHelpers } from '../utils/helpers.util';
 import { buildDiagnostics, Diagnostic } from '../utils/diagnostics.util';
 import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
@@ -129,6 +130,9 @@ export class OrchestratorService {
       }
 
       const parseResult = await this.parser.parse(entryCode, entryPath, files);
+      // Lo que exportan los helpers (/helpers.js) no es un dato: no se crean campos para esos nombres.
+      const helperNames = new Set(Object.keys(loadHelpers(files).helpers));
+      if (helperNames.size) parseResult.variables = parseResult.variables.filter((v) => !helperNames.has(v.path.split('.')[0]));
       this.parserState.updateFromParseResult(parseResult);
       this.parserState.setParsing(false);
 

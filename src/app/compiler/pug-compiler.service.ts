@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { CompileResult, CompileError } from '../core/models/index';
 import { explainUnknownFilter } from '../core/utils/diagnostics.util';
 import { createTranslator, TRANSLATE_FNS } from '../core/utils/i18n.util';
+import { loadHelpers } from '../core/utils/helpers.util';
 import { createPugFilePlugin, normalizeIncludes } from '../core/utils/pug-vfs.util';
 
 function getPugBundle(): any {
@@ -80,7 +81,12 @@ export class PugCompilerService {
         const compiledFn = bundle.compile(source, opts);
         // Templates call helpers the host app provides (`t('KEY')`, `i18n.t('KEY')`, `formatDate(x)`).
         // JSON data can't hold functions: translators read `data.translations`, other helpers echo their first argument.
-        const locals: Record<string, unknown> = { ...data };
+        // Los helpers del proyecto (/helpers.js) pasan a ser locales y tapan a un dato con el mismo nombre.
+        const loaded = files ? loadHelpers(files) : { helpers: {}, errors: [] };
+        for (const e of loaded.errors) {
+          errors.push({ message: e.message, source: 'javascript', path: e.path, line: e.line, severity: 'error' });
+        }
+        const locals: Record<string, unknown> = { ...data, ...loaded.helpers };
         const translate = createTranslator(data);
         const identity = (...args: unknown[]) => args[0] ?? '';
         for (const name of functionStubs) {

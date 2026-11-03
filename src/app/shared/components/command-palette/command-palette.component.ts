@@ -10,6 +10,7 @@ import { getFileType } from '../../../core/models/tab.model';
 import { DEVICE_PRESETS } from '../../../core/utils/device-presets.util';
 import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
 import { rememberFocus } from '../../../core/utils/focus-trap.util';
+import { HELPERS_TEMPLATE } from '../../../core/utils/helpers.util';
 import { filterCommands } from '../../../core/utils/command-palette.util';
 
 interface PaletteCommand {
@@ -97,6 +98,13 @@ export class CommandPaletteComponent {
       ...PROJECT_TEMPLATES.map((t) => ({
         group: 'Plantillas', title: `Nuevo proyecto: ${t.name}`, keywords: t.description, run: () => void this.orchestrator.createProject(undefined, t.id),
       })),
+      {
+        group: 'Proyecto', title: 'Añadir archivo de helpers (helpers.js)', keywords: 'funciones javascript formatDate money utilidades',
+        run: () => {
+          if (this.editorState.files().has('/helpers.js')) this.editorState.openFile('/helpers.js', 'helpers.js', 'javascript', this.editorState.files().get('/helpers.js') ?? '');
+          else this.orchestrator.addFile('/helpers.js', 'helpers.js', HELPERS_TEMPLATE);
+        },
+      },
       { group: 'Proyecto', title: 'Exportar proyecto (carpeta o .zip)', run: () => void this.projectIo.exportProject() },
       { group: 'Proyecto', title: 'Descargar proyecto como .zip', run: () => this.projectIo.downloadZip() },
       { group: 'Proyecto', title: 'Exportar HTML renderizado', run: () => this.projectIo.exportHtml() },
