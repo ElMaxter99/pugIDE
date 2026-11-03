@@ -35,14 +35,14 @@ export default async function (env) {
   ]);
   await page.locator('app-file-tree .file-item', { hasText: 'uno.svg' }).waitFor({ timeout: 8000 });
   await waitUntil(async () => await imgOk(page, 'uno'), 10000);
-  check('18 la imagen de los assets se ve en el preview', !!(await imgOk(page, 'uno')));
+  check('19 la imagen de los assets se ve en el preview', !!(await imgOk(page, 'uno')));
   const html = await (await previewFrame(page)).evaluate(() => document.documentElement.outerHTML);
-  check('18 el documento usa URL blob: propias del iframe, no data URI', html.includes('blob:') && !html.includes('data:image/svg'), html.slice(0, 300));
+  check('19 el documento usa URL blob: propias del iframe, no data URI', html.includes('blob:') && !html.includes('data:image/svg'), html.slice(0, 300));
   const fontOk = await waitUntil(async () => (await previewFrame(page)).evaluate(async () => {
     await document.fonts.ready;
     return [...document.fonts].some((f) => f.family.includes('Prueba') && f.status === 'loaded');
   }), 8000);
-  check('18 la fuente de @font-face (blob:) se carga', !!fontOk);
+  check('19 la fuente de @font-face (blob:) se carga', !!fontOk);
 
   // Solo código: el iframe se conserva (la marca de la ventana sigue) y los assets no se reenvían
   await (await previewFrame(page)).evaluate(() => { window.__marker = 'viva'; });
@@ -50,10 +50,10 @@ export default async function (env) {
   await setMain(page, MAIN('    p.nuevo Cambio solo de código'));
   await waitUntil(async () => (await previewText(page)).includes('Cambio solo de código'), 8000);
   const after = await stats(page);
-  check('18 el cambio de código se ve en el preview', (await previewText(page)).includes('Cambio solo de código'));
-  check('18 el iframe no se recarga al cambiar el código', after?.marker === 'viva' && after.docs === before.docs + 1, JSON.stringify([before, after]));
-  check('18 cambiar solo el código no reenvía los assets', after?.assetMessages === before.assetMessages, JSON.stringify([before, after]));
-  check('18 la imagen sigue visible tras el cambio de código', !!(await imgOk(page, 'uno')));
+  check('19 el cambio de código se ve en el preview', (await previewText(page)).includes('Cambio solo de código'));
+  check('19 el iframe no se recarga al cambiar el código', after?.marker === 'viva' && after.docs === before.docs + 1, JSON.stringify([before, after]));
+  check('19 cambiar solo el código no reenvía los assets', after?.assetMessages === before.assetMessages, JSON.stringify([before, after]));
+  check('19 la imagen sigue visible tras el cambio de código', !!(await imgOk(page, 'uno')));
 
   // Un asset nuevo se envía (una vez) y se ve
   await page.locator('input[type="file"][multiple]').setInputFiles({ name: 'dos.svg', mimeType: 'image/svg+xml', buffer: svg('blue') });
@@ -61,15 +61,15 @@ export default async function (env) {
   await setMain(page, MAIN("    img#dos(src='images/dos.svg' alt='')"));
   await waitUntil(async () => await imgOk(page, 'dos'), 10000);
   const withNew = await stats(page);
-  check('18 el asset nuevo se ve en el preview', !!(await imgOk(page, 'dos')));
-  check('18 los assets nuevos se envían una sola vez', withNew?.assetMessages === after.assetMessages + 1, JSON.stringify([after, withNew]));
-  check('18 y el iframe sigue siendo el mismo', withNew?.marker === 'viva');
+  check('19 el asset nuevo se ve en el preview', !!(await imgOk(page, 'dos')));
+  check('19 los assets nuevos se envían una sola vez', withNew?.assetMessages === after.assetMessages + 1, JSON.stringify([after, withNew]));
+  check('19 y el iframe sigue siendo el mismo', withNew?.marker === 'viva');
   // El export HTML sigue siendo autocontenido: los assets van como data URI, sin blob:
   const download = page.waitForEvent('download', { timeout: 20000 });
   await page.getByText('Exportar HTML').first().click();
   const exported = readFileSync(await (await download).path(), 'utf8');
-  check('18 el HTML exportado lleva los assets como data URI y ningún blob:', exported.includes('data:image/svg+xml;base64,') && !exported.includes('blob:'), exported.slice(0, 200));
-  check('18 el preview no hizo peticiones externas', app.external.length === 0, app.external.join(' '));
-  check('18 sin errores de página', app.errors.length === 0, app.errors.join(' | '));
+  check('19 el HTML exportado lleva los assets como data URI y ningún blob:', exported.includes('data:image/svg+xml;base64,') && !exported.includes('blob:'), exported.slice(0, 200));
+  check('19 el preview no hizo peticiones externas', app.external.length === 0, app.external.join(' '));
+  check('19 sin errores de página', app.errors.length === 0, app.errors.join(' | '));
   await app.close();
 }
