@@ -1,4 +1,4 @@
-import { check, openApp, previewText, waitUntil, sleep } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil } from '../lib.mjs';
 
 const MAIN = "doctype html\nhtml\n  body\n    include partials/card\n    h1 hola mundo\n    +card('x')\nmixin local(a)\n  p= a\nblock foot\n";
 const CARD = "mixin card(t)\n  p hola #{t}\n";
@@ -69,7 +69,7 @@ export default async function (env) {
   await dlg.waitFor({ timeout: 4000 });
   check('08 el diálogo de atajos lista Ctrl+Shift+F', (await dlg.innerText()).includes('Ctrl+Shift+F'));
   await page.keyboard.press('Escape');
-  await sleep(100);
+  await dlg.waitFor({ state: 'detached', timeout: 4000 }).catch(() => {});
   check('08 Escape cierra el diálogo de atajos', (await dlg.count()) === 0);
   check('08 sin errores no controlados', app.errors.length === 0, app.errors.join(' | '));
   await app.close();
