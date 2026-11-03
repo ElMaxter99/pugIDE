@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: 862766051672b9fb
+// pugide-runtime source-hash: 8cd7e1a6f9e3d2b9
 "use strict";
 (() => {
   // src/app/core/utils/paginate.util.ts
@@ -303,7 +303,33 @@
     window.focus();
     window.print();
   }
-  window.addEventListener("message", (e) => {
+  var localUrls = /* @__PURE__ */ new Map();
+  var stats = window.__pugideStats ?? (window.__pugideStats = { assetMessages: 0, docs: 0 });
+  var retired = [];
+  var observer = null;
+  function setAssets(files) {
+    stats.assetMessages++;
+    const wanted = /* @__PURE__ */ new Set();
+    for (const f of Array.isArray(files) ? files : []) {
+      const url = f?.url;
+      const blob = f?.blob;
+      if (typeof url !== "string" || !url.startsWith("blob:") || !(blob instanceof Blob)) continue;
+      wanted.add(url);
+      if (!localUrls.has(url)) localUrls.set(url, URL.createObjectURL(blob));
+    }
+    for (const [url, local] of [...localUrls]) {
+      if (!wanted.has(url)) {
+        retired.push(local);
+        localUrls.delete(url);
+      }
+    }
+  }
+  function mapUrls(html) {
+    let out = html;
+    for (const [from, to] of localUrls) if (out.includes(from)) out = out.split(from).join(to);
+    return out;
+  }
+  function onMessage(e) {
     if (e.source !== window.parent) return;
     const d = e.data;
     if (!d) return;
@@ -313,14 +339,41 @@
       reflow();
     } else if (d.source === "pugide-print") {
       print(typeof d.css === "string" ? d.css : null);
+    } else if (d.source === "pugide-assets") {
+      setAssets(d.files);
+    } else if (d.source === "pugide-doc" && typeof d.html === "string") {
+      writeDocument(d.html);
     }
-  });
-  if (document.body) {
-    new ResizeObserver(() => {
+  }
+  function observeBody() {
+    if (!document.body) return;
+    observer ?? (observer = new ResizeObserver(() => {
       if (document.body.scrollHeight !== paginatedHeight) reflow();
       else measure();
-    }).observe(document.body);
+    }));
+    observer.disconnect();
+    observer.observe(document.body);
     void document.fonts?.ready.then(() => reflow());
   }
-  post({ source: "pugide-runtime-ready" });
+  function writeDocument(html) {
+    try {
+      stats.docs++;
+      const out = mapUrls(html);
+      document.open();
+      document.write(out);
+      document.close();
+      window.addEventListener("message", onMessage);
+      for (const u of retired) URL.revokeObjectURL(u);
+      retired = [];
+      paginatedHeight = -1;
+      issues = [];
+      observeBody();
+      post({ source: "pugide-runtime-ready", hasDoc: true });
+    } catch {
+      post({ source: "pugide-doc-error" });
+    }
+  }
+  window.addEventListener("message", onMessage);
+  observeBody();
+  post({ source: "pugide-runtime-ready", hasDoc: false });
 })();

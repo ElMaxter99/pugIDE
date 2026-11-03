@@ -21,6 +21,7 @@ export class AssetState {
   readonly paths = computed(() => [...this.assets().keys()].sort());
 
   private urls = new Map<string, string>();
+  private blobs = new Map<string, Blob>();
 
   has(path: string): boolean {
     return this.assets().has(path);
@@ -79,13 +80,29 @@ export class AssetState {
     return map;
   }
 
+  /**
+   * `blob:` de cada asset junto con su `Blob`. El preview los recibe una vez (un `Blob` se transfiere por
+   * `postMessage` sin copiarlo ni codificarlo) y crea sus propias URL dentro del iframe aislado.
+   */
+  blobEntries(): { url: string; blob: Blob }[] {
+    const out: { url: string; blob: Blob }[] = [];
+    for (const a of this.assets().values()) {
+      const url = this.urlFor(a.path);
+      const blob = this.blobs.get(a.path);
+      if (url && blob) out.push({ url, blob });
+    }
+    return out;
+  }
+
   urlFor(path: string): string | null {
     const a = this.assets().get(path);
     if (!a) return null;
     let url = this.urls.get(path);
     if (!url) {
-      url = URL.createObjectURL(new Blob([a.data as BlobPart], { type: a.mime }));
+      const blob = new Blob([a.data as BlobPart], { type: a.mime });
+      url = URL.createObjectURL(blob);
       this.urls.set(path, url);
+      this.blobs.set(path, blob);
     }
     return url;
   }
@@ -96,5 +113,6 @@ export class AssetState {
       URL.revokeObjectURL(url);
       this.urls.delete(path);
     }
+    this.blobs.delete(path);
   }
 }

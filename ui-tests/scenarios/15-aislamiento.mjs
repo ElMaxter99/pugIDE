@@ -183,7 +183,12 @@ async function urlsRelativas(env) {
   } else {
     check('15 las referencias relativas sin asset no se piden al servidor de la app', asked.length === 0, asked.join(', '));
   }
-  await frame.locator('#ir').click();
+  // Clic con el ratón real en el centro del enlace (el preview está escalado). El documento se escribe dentro del iframe con
+  // document.open(), y el `locator.click()` de Playwright calcula mal el punto en un marco así (da en <html>); el clic real sí llega.
+  const box = await (await frame.frameElement()).boundingBox();
+  const r = await frame.evaluate(() => { const b = document.getElementById('ir').getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2, w: innerWidth }; });
+  const k = box.width / r.w;
+  await page.mouse.click(box.x + r.x * k, box.y + r.y * k);
   await page.waitForTimeout(300);
   check('15 un enlace #ancla se queda en el documento del preview', (await frame.evaluate(() => location.href)) === 'about:srcdoc#fin' && (await previewText(page)).includes('Relativas'), await frame.evaluate(() => location.href));
   check('15 sin errores no controlados (URLs relativas)', app.errors.length === 0, app.errors.join(' | '));
