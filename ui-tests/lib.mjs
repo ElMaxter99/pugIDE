@@ -41,6 +41,14 @@ export async function openApp(env, { path = '/ide?demo=true', session, prefs, co
     external.push(url);
     return route.abort();
   });
+  // Violaciones de la CSP en cualquier marco (también los de origen opaco) y en Workers: se aplican las cabeceras de producción.
+  const violations = [];
+  const CSP_LOG = /Content Security Policy|Refused to |__PUGIDE_CSP__/i;
+  const onConsole = (m) => { if (CSP_LOG.test(m.text())) violations.push(m.text().slice(0, 300)); };
+  context.on('console', onConsole);
+  await context.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (e) => console.warn(`__PUGIDE_CSP__ ${e.violatedDirective} ${e.blockedURI}`));
+  });
   await context.addInitScript(([s, p, c, extra]) => {
     // Se ejecuta en todos los marcos, también en los iframes aislados (origen opaco), donde no hay localStorage.
     try { localStorage.length; } catch { return; }
@@ -52,6 +60,7 @@ export async function openApp(env, { path = '/ide?demo=true', session, prefs, co
     for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v);
   }, [session ?? null, prefs ?? null, consent, storage ?? {}]);
   const page = await context.newPage();
+  page.on('worker', (w) => w.on('console', onConsole));
   const errors = [];
   // Playwright inyecta (serviceWorkers: 'block') un script en cada marco que falla en los iframes de origen opaco: no es de la app.
   // WebKit muestra como error de página el CancellationError interno de Monaco («Canceled: Canceled»), que no es de la app.
@@ -59,7 +68,14 @@ export async function openApp(env, { path = '/ide?demo=true', session, prefs, co
   page.on('pageerror', (e) => { if (!NOISE.some((re) => re.test(e.message))) errors.push(e.message); });
   await page.goto(env.baseURL + path);
   await page.waitForTimeout(wait);
-  return { context, page, external, requests, errors, close: () => context.close() };
+  return {
+    context, page, external, requests, errors, violations,
+    // Cada escenario debe cerrar sin violaciones de la CSP, salvo que provoque una a propósito (`expectViolations`).
+    close: async ({ expectViolations = false } = {}) => {
+      if (!expectViolations) check(`${path} sin violaciones de la CSP`, violations.length === 0, violations.slice(0, 3).join(' | '));
+      await context.close();
+    },
+  };
 }
 
 /**
