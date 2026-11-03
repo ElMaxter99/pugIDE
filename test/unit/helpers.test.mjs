@@ -45,3 +45,15 @@ test('sin archivos de helpers no hay nada que cargar; la plantilla de ejemplo es
   assert.equal(helpers.utils.upper('hola'), 'HOLA');
   assert.match(helpers.money(1234.5), /1234,50|1\.234,50/);
 });
+
+import { limitScale, MAX_CANVAS_SIDE } from './.build/units.mjs';
+
+test('limitScale baja la escala solo cuando el canvas no cabe', () => {
+  assert.equal(limitScale(2, 1440, 900), 2);
+  assert.ok(limitScale(2, 1440, 20000) < 1);
+  assert.ok(Math.round(1440 * limitScale(2, 1440, 20000)) <= MAX_CANVAS_SIDE);
+  assert.ok(Math.round(20000 * limitScale(2, 1440, 20000)) <= MAX_CANVAS_SIDE);
+  const s = limitScale(2, 8000, 8000);
+  assert.ok(8000 * s * 8000 * s <= 100_000_000 * 1.001);
+  assert.ok(limitScale(2, 100000, 100000) >= 0.1);
+});

@@ -16,6 +16,7 @@ import { PageBreakIssue, PageGeometry, documentContentHeight, findPageBreakIssue
 import { A11yIssue, a11yReport, buildPageChrome, describePageIssue, fitScale, pageCountFor, pageIssuesKey } from '../../core/utils/preview-layout.util';
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
+import { ProjectIoService } from '../../core/services/project-io.service';
 import { InspectorState } from '../../core/state/inspector.state';
 import { DEVICE_PRESETS, findDevicePreset, ColorSchemeSim } from '../../core/utils/device-presets.util';
 import { EditorState } from '../../core/state/editor.state';
@@ -108,6 +109,9 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
           }
           <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspeccionar elemento" aria-label="Inspeccionar elemento" (click)="inspectorState.toggleInspector()">
             <span class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
+          </button>
+          <button class="preview-action" title="Descargar captura PNG de la vista previa" aria-label="Descargar captura PNG de la vista previa" (click)="projectIo.exportPng()">
+            <span class="material-symbols-outlined" style="font-size: 18px;">photo_camera</span>
           </button>
           <button class="preview-action" title="Recargar vista previa" aria-label="Recargar vista previa" (click)="onReload()">
             <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
@@ -435,6 +439,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   previewState = inject(PreviewState);
   protected inspectorState = inject(InspectorState);
   protected orchestrator = inject(OrchestratorService);
+  protected projectIo = inject(ProjectIoService);
   private preferences = inject(PreferencesState);
   private editorState = inject(EditorState);
   protected terminal = inject(TerminalState);
