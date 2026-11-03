@@ -26,10 +26,11 @@ export async function waitUntil(fn, timeout = 6000, step = 150) {
  *
  * - `session`: sesión guardada (`pug-ide-project`) que se inyecta antes de arrancar.
  * - `prefs`: preferencias guardadas (`pug-ide-preferences`).
+ * - `storage`: otras claves de `localStorage` a sembrar (`{ clave: valor }`).
  * - `consent`: decisión guardada sobre la analítica (`'denied'` por defecto, para que el aviso no estorbe;
  *   `null` = sin decidir, aparece el aviso).
  */
-export async function openApp(env, { path = '/ide?demo=true', session, prefs, consent = 'denied', viewport = { width: 1400, height: 850 }, wait = 4000 } = {}) {
+export async function openApp(env, { path = '/ide?demo=true', session, prefs, consent = 'denied', storage, viewport = { width: 1400, height: 850 }, wait = 4000 } = {}) {
   const context = await env.browser.newContext({ viewport, serviceWorkers: env.serviceWorkers ?? 'block' });
   const external = [];
   const requests = [];
@@ -40,13 +41,14 @@ export async function openApp(env, { path = '/ide?demo=true', session, prefs, co
     external.push(url);
     return route.abort();
   });
-  await context.addInitScript(([s, p, c]) => {
+  await context.addInitScript(([s, p, c, extra]) => {
     if (localStorage.getItem('__pugide_seeded')) return;
     localStorage.setItem('__pugide_seeded', '1');
     if (s) localStorage.setItem('pug-ide-project', JSON.stringify(s));
     if (p) localStorage.setItem('pug-ide-preferences', JSON.stringify(p));
     if (c) localStorage.setItem('pug-ide-analytics-consent', c);
-  }, [session ?? null, prefs ?? null, consent]);
+    for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v);
+  }, [session ?? null, prefs ?? null, consent, storage ?? {}]);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));

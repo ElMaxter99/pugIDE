@@ -6,6 +6,8 @@ const STORAGE_KEY = 'pug-ide-preferences';
 const PROJECT_KEY = 'pug-ide-project';
 const CURRENT_ID_KEY = 'pug-ide-current-project';
 const ANALYTICS_CONSENT_KEY = 'pug-ide-analytics-consent';
+const LAST_BACKUP_KEY = 'pug-ide-last-backup';
+const FIRST_USE_KEY = 'pug-ide-first-use';
 
 /** Decisión del usuario sobre la analítica anónima de visitas (null: aún no ha decidido). */
 export type AnalyticsConsent = 'granted' | 'denied';
@@ -87,6 +89,40 @@ export class PersistenceService {
     try {
       localStorage.setItem(ANALYTICS_CONSENT_KEY, value);
     } catch { /* ignore */ }
+  }
+
+  /** Fecha de la última exportación (carpeta o .zip) y del primer uso; null si no constan. */
+  loadBackupInfo(): { lastBackup: number | null; firstUse: number | null } {
+    const read = (key: string): number | null => {
+      try {
+        const n = Number(localStorage.getItem(key));
+        return Number.isFinite(n) && n > 0 ? n : null;
+      } catch {
+        return null;
+      }
+    };
+    return { lastBackup: read(LAST_BACKUP_KEY), firstUse: read(FIRST_USE_KEY) };
+  }
+
+  saveLastBackup(at = Date.now()): void {
+    try { localStorage.setItem(LAST_BACKUP_KEY, String(at)); } catch { /* ignore */ }
+  }
+
+  /** Guarda el primer uso si aún no consta. */
+  ensureFirstUse(at = Date.now()): void {
+    try {
+      if (!localStorage.getItem(FIRST_USE_KEY)) localStorage.setItem(FIRST_USE_KEY, String(at));
+    } catch { /* ignore */ }
+  }
+
+  /** Pide al navegador que no borre los datos del sitio por falta de espacio. Devuelve si quedó concedido. */
+  async requestPersistentStorage(): Promise<boolean> {
+    try {
+      if (!navigator.storage?.persist) return false;
+      return (await navigator.storage.persisted()) || (await navigator.storage.persist());
+    } catch {
+      return false;
+    }
   }
 
   /** Identificador del proyecto activo en la biblioteca (`ProjectLibraryService`). */

@@ -1,3 +1,4 @@
+import { PersistenceService } from './persistence.service';
 import { Injectable, inject } from '@angular/core';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import { EditorState } from '../state/editor.state';
@@ -23,6 +24,7 @@ const TEXT_FILE_RE = /\.(pug|jade|scss|sass|css|json|js|html|htm|md|txt)$/i;
  */
 @Injectable({ providedIn: 'root' })
 export class ProjectIoService {
+  private persistence = inject(PersistenceService);
   private editorState = inject(EditorState);
   private projectState = inject(ProjectState);
   private terminalState = inject(TerminalState);
@@ -62,6 +64,7 @@ export class ProjectIoService {
       await this.writeFileToDirectory(dirHandle, a.path, a.data);
     }
     await this.writeFileToDirectory(dirHandle, DATASETS_PATH, this.datasetsText());
+    this.persistence.saveLastBackup();
     this.terminalState.addEntry('success', 'Export', `Exported ${files.size + this.assetState.assets().size} file(s) to disk.`);
   }
 
@@ -109,6 +112,7 @@ export class ProjectIoService {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    this.persistence.saveLastBackup();
     this.terminalState.addEntry('success', 'Export', `Exported ${files.size + this.assetState.assets().size} file(s) as ${fileName}.`);
   }
 
