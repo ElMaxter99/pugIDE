@@ -60,7 +60,9 @@ Prioridad: **A** = afecta al uso diario, **B** = mejora clara, **C** = deseable.
 
 > **Estado de la fase 1** (hecha en esta rama): marcadores de error en Monaco (Pug, SCSS/Sass, Less), filtros de Pug verificados (`:cdata` añadido; `:markdown-it`, `:scss`… no existen en el navegador y ahora el error lo explica; `require` no falla), Angular 20.3.35 (`npm audit` sin vulnerabilidades), `angular-eslint` 20, `lang="es"` y etiquetas accesibles. Pendiente de la fase 1: auditoría de accesibilidad completa con lector de pantalla.
 >
-> **Estado de la fase 2**: hecho buscar y reemplazar en proyecto, hover de mixins/includes, outline (Ctrl+Shift+O), diálogo de atajos y recordatorio de copia de seguridad. **Descartado**: layout para pantallas pequeñas (PugIDE no está pensado para móvil; se anota en el README). **Hecho además**: traducciones por idioma en `locales/<código>/translations.json` con selector en el preview.
+> **Estado de la fase 2**: hecho buscar y reemplazar en proyecto, hover de mixins/includes, outline (Ctrl+Shift+O), diálogo de atajos y recordatorio de copia de seguridad. **Descartado**: layout para pantallas pequeñas (PugIDE no está pensado para móvil; se anota en el README). **Estado de la fase 3**: hecha la separación de los cuatro componentes grandes (ver «Componentes grandes y sus partes» en la arquitectura) y pruebas de interfaz del editor de datos y del Workspace. Líneas antes → después: editor de datos 941 → 412 (+ árbol 302 y barra 208), preview 831 → 716 (+ barra PDF 104), editor 820 → 617 (+ búsqueda 143 y servicios de lenguaje 108), Workspace 645 → 398 (+ árbol 222).
+
+**Hecho además**: traducciones por idioma en `locales/<código>/translations.json` con selector en el preview.
 
 **Fase 1 — Fiabilidad (1–2 semanas)**
 1. Marcadores de error de Pug/SCSS en Monaco con línea/columna (el `CompileError` ya trae `line` y `column`).

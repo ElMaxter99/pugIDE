@@ -20,6 +20,17 @@
 | `features/` | `landing`, `editor` (Monaco), `preview`, `smart-data-editor`, `terminal`, `inspector`. |
 | `layout/`, `shared/` | Layout principal y componentes comunes. |
 
+## Componentes grandes y sus partes
+
+Para que los componentes no acumulen lógica, cada uno delega en utilidades puras (`core/utils`, probadas con `npm run test:unit`) y en componentes hijos:
+
+| Componente | Hijos | Utilidades |
+|---|---|---|
+| `SmartDataEditorComponent` (modo JSON, cabecera) | `DataTreeComponent` (árbol editable; sigue vivo, oculto, en modo JSON para conservar los nodos abiertos), `DatasetBarComponent` (juegos de datos; avisa con `beforeChange` / `changed`) | `data-tree.util` (`flattenTree`, `parseDataJson`) |
+| `PreviewPanelComponent` | `PdfBarComponent` | `preview-layout.util` (`fitScale`, `buildPageChrome`, `a11yReport`…), `paginate.util`, `page-rules.util` |
+| `EditorPanelComponent` (Monaco, modelos, marcadores) | `ProjectSearchComponent` (no toca Monaco: emite `openMatch` / `replaced`), `pug-language.ts` (completado, hover, símbolos y formato) | `pug-editor.util` |
+| `SidebarComponent` (diálogos y menú contextual) | `FileTreeComponent` | `file-actions.util` (textos de diálogos, rutas, menú) |
+
 ## Flujo: parser -> datos -> orquestador -> compilador -> preview
 
 `OrchestratorService.processCode(code, createMissing)` (tras el debounce de `onCodeChange`, o `manualCompile`):

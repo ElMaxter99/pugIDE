@@ -15,3 +15,4 @@ export * from '../../src/app/core/utils/locales.util';
 export * from '../../src/app/core/utils/tab-label.util';
 export * from '../../src/app/core/utils/data-tree.util';
 export * from '../../src/app/core/utils/preview-layout.util';
+export * from '../../src/app/core/utils/file-actions.util';
