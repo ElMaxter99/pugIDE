@@ -134,7 +134,15 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
           <span class="compile-error-text">
             <strong>{{ previewState.errors().length === 1 ? 'Error de compilación' : previewState.errors().length + ' errores de compilación' }}:</strong>
             {{ previewState.errors()[0].message }}
+            @if (previewState.errors()[0].hint; as hint) {
+              <span class="compile-error-hint">{{ hint }}</span>
+            }
           </span>
+          @if (errorLocation(); as loc) {
+            <button class="compile-error-btn" (click)="goToError()" [title]="'Abrir ' + loc.path + ' en la línea ' + loc.line">
+              Ir al error ({{ loc.name }}:{{ loc.line }})
+            </button>
+          }
           <button class="compile-error-btn" (click)="terminal.isVisible.set(true)">Ver terminal</button>
         </div>
       }
@@ -394,9 +402,15 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
     .compile-error-text {
       flex: 1;
       min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      max-height: 96px;
+      overflow: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .compile-error-hint {
+      display: block;
+      margin-top: 2px;
+      color: var(--text-secondary, #ffcdd2);
     }
     .compile-error-btn {
       background: transparent;
@@ -699,6 +713,19 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Pestaña nueva con la vista previa: se abre una página de la app que la ejecuta en un iframe aislado. */
+  /** Archivo y línea del primer error si se conocen (sin archivo, el de entrada). */
+  readonly errorLocation = computed(() => {
+    const e = this.previewState.errors()[0];
+    const path = e?.path ?? this.previewState.entryPath();
+    if (!e || !e.line || !path) return null;
+    return { path, line: e.line, name: path.split('/').pop() ?? path };
+  });
+
+  goToError(): void {
+    const loc = this.errorLocation();
+    if (loc) this.editorState.revealLine(loc.path, loc.line);
+  }
+
   onOpenNewTab(): void {
     const html = this.previewState.compiledHtml();
     if (!html) return;

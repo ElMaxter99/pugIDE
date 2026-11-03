@@ -108,6 +108,8 @@ export interface CompileError {
   path?: string;
   line?: number;
   column?: number;
+  /** Explicación de la causa probable y cómo arreglarla, cuando el mensaje de Pug es críptico. */
+  hint?: string;
   severity: 'error' | 'warning';
 }
 

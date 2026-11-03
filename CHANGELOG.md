@@ -4,6 +4,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Añadido
+- Los errores de ejecución de Pug se explican: si se llama a `+azBody` y ningún archivo define ese mixin, el aviso del preview lo dice, lista los mixins que sí existen y, si el mixin está definido en un archivo que no se incluye, indica el `include` que falta. Lo mismo para variables no definidas. El aviso ya no arrastra la ruta ni el fragmento de código y tiene un botón «Ir al error (archivo:línea)» que abre el archivo y deja la línea a la vista.
+
+### Corregido
+- En Safari/WebKit, los errores de ejecución de una plantilla señalaban una línea que no era la del `.pug` (se usaba la línea del JavaScript compilado en vez de la que indica Pug).
+
 ## [0.4.0] - 2026-11-03
 
 ### Añadido

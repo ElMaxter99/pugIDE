@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { splitPugMessage, buildDiagnostics, groupDiagnostics, explainUnknownFilter } from './.build/units.mjs';
+import { splitPugMessage, buildDiagnostics, groupDiagnostics, explainUnknownFilter, explainRuntimeError } from './.build/units.mjs';
 
 const syntax = '/index.pug:3:1\n    1| p\n    2|   a(href=\'x\'\n  > 3| \n-------^\n\nThe end of the string reached with no closing bracket ) found.';
 
@@ -34,4 +34,20 @@ test('buildDiagnostics cae al archivo de entrada y lee la línea del mensaje', (
 test('explainUnknownFilter indica los filtros disponibles', () => {
   assert.match(explainUnknownFilter('/i.pug:1:1\n\nunknown filter ":markdown-it"'), /:markdown-it no está disponible.*:cdata/s);
   assert.equal(explainUnknownFilter('otro error'), 'otro error');
+});
+
+test('explainRuntimeError explica un mixin que no existe', () => {
+  const files = new Map([['/main.pug', 'include ./mixins\n+azBody(x)'], ['/mixins.pug', 'mixin saludo(n)\n  p Hola']]);
+  const hint = explainRuntimeError('pug_mixins.azBody is not a function', files);
+  assert.match(hint, /ningún archivo define `mixin azBody/);
+  assert.match(hint, /\+saludo/);
+});
+
+test('explainRuntimeError detecta mixin definido pero sin include y distingue mayúsculas', () => {
+  const files = new Map([['/main.pug', '+card()'], ['/partials/ui.pug', 'mixin card()\n  div']]);
+  assert.match(explainRuntimeError('pug_mixins.card is not a function', files), /ui\.pug.*include ui\.pug/s);
+  assert.match(explainRuntimeError('pug_mixins["Card"] is not a function', files), /se llama «card»/);
+  assert.match(explainRuntimeError('pug_mixins.x is not a function', new Map()), /no define ningún mixin/);
+  assert.equal(explainRuntimeError('otra cosa'), undefined);
+  assert.match(explainRuntimeError('foo is not defined'), /«foo»/);
 });
