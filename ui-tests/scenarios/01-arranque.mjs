@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { check, openApp, previewText } from '../lib.mjs';
 
 // Arranque del IDE con el proyecto demo: editor, preview, iconos y cero dependencias externas
@@ -15,6 +16,9 @@ export default async function (env) {
   // WebKit devuelve los nombres con comillas ("Geist Variable"), Chromium y Firefox sin ellas.
   const fonts = await page.evaluate(() => [...new Set([...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/^["']|["']$/g, '')))]);
   check('01 tipografías locales cargadas', ['Geist Variable', 'Material Symbols Outlined'].every((f) => fonts.includes(f)), JSON.stringify(fonts));
+  // La versión sale de package.json (import con nombre): si el import se rompiera, saldría «vundefined».
+  const expected = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version;
+  check('01 el Workspace muestra la versión de package.json', (await page.locator('.workspace-version').first().innerText()).trim() === `v${expected}`, await page.locator('.workspace-version').first().innerText());
   check('01 ninguna petición a servidores externos', app.external.length === 0, app.external.join(', '));
   check('01 sin errores no controlados', app.errors.length === 0, app.errors.join(' | '));
   await app.close();

@@ -5,6 +5,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [Sin publicar]
 
 ### Cambiado
+- El CI usa `actions/checkout@v5` y `actions/setup-node@v5` (Node 24): las v4 van sobre Node 20, obsoleto, y GitHub avisaba de que las forzaría a Node 24.
+- El bundle de la aplicación ya no incluye `package.json` entero (con sus dependencias de desarrollo) solo para leer la versión: se importa `version` por su nombre y el resto se descarta. Una comprobación de interfaz verifica que el Workspace muestre la versión de `package.json`.
+
+### Cambiado
 - Dependencias de desarrollo: `@angular/cli` y `@angular/build` 20.3.42 (parches de la misma línea) y se elimina `vite-plugin-node-polyfills`, que no se usaba. `npm audit` pasa de 43 avisos (4 altos, 7 bajos) a 33 moderados; los que quedan vienen de `minimatch` en `eslint` y en el CLI y solo se cierran subiendo de versión de Angular. Las dependencias de producción siguen sin vulnerabilidades.
 - El CI ejecuta también las pruebas de interfaz en Firefox y WebKit (job `ui-navegadores`, en paralelo al de Chromium). Los escenarios que solo valen en Chromium se saltan solos con un `SKIP` visible en el log.
 
