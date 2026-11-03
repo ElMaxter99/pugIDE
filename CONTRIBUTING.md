@@ -10,7 +10,7 @@ PugIDE es 100% local: no se añaden backends ni envíos de código del usuario a
 
 1. Haz un fork y crea una rama (`feat/...`, `fix/...`, `docs/...`).
 2. `npm install`, `npm start`.
-3. Antes de abrir el PR: `npm run build:prod`, `npm run test:e2e` y, si tocas la interfaz, `npm run test:ui` (necesita Chromium: `npx playwright install chromium`, o `PUGIDE_CHROMIUM=/ruta/a/chrome`). Para otros navegadores: `PUGIDE_BROWSER=firefox node ui-tests/run.mjs` (o `webkit`).
+3. Antes de abrir el PR: `npm run build:prod`, `npm run test:e2e` y, si tocas la interfaz, `npm run test:ui` (necesita Chromium: `npx playwright install chromium`, o `PUGIDE_CHROMIUM=/ruta/a/chrome`). Para otros navegadores: `PUGIDE_BROWSER=firefox node ui-tests/run.mjs` (o `webkit`); el CI también los ejecuta (`ui-firefox` y `ui-webkit`).
 4. Commits pequeños y descriptivos (`feat(data): ...`, `fix(parser): ...`).
 5. Abre un PR explicando qué cambia y por qué.
 
