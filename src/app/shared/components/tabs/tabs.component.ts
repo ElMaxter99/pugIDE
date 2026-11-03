@@ -31,13 +31,15 @@ import { ContextMenuAction } from '../../../core/models/index';
             (dragstart)="onDragStart($event, $index)"
             (dragover)="onDragOver($event, $index)"
             (drop)="onDrop($event, $index)">
-            <span class="material-symbols-outlined tab-file-icon" style="font-size: 14px;">{{ fileIcon(tab) }}</span>
-            <span class="tab-name" [title]="tab.path">{{ labels().get(tab.id) ?? tab.name }}</span>
-            @if (tab.isDirty) {
-              <span class="dirty-dot"></span>
-            }
+            <button type="button" class="tab-main" [title]="tab.path" [attr.aria-current]="tab.id === editorState.activeTabId() ? 'true' : null">
+              <span aria-hidden="true" class="material-symbols-outlined tab-file-icon" style="font-size: 14px;">{{ fileIcon(tab) }}</span>
+              <span class="tab-name">{{ labels().get(tab.id) ?? tab.name }}</span>
+              @if (tab.isDirty) {
+                <span class="dirty-dot" role="img" aria-label="Con cambios sin guardar"></span>
+              }
+            </button>
             <button class="tab-close" (click)="closeTab($event, tab.id)" title="Cerrar pestaña" aria-label="Cerrar pestaña">
-              <span class="material-symbols-outlined" style="font-size: 14px;">close</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">close</span>
             </button>
           </div>
         }
@@ -95,6 +97,31 @@ import { ContextMenuAction } from '../../../core/models/index';
     .tab.active {
       background: var(--bg-surface);
       color: var(--accent-color);
+    }
+
+    .tab-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      height: 100%;
+      padding: 0;
+      background: none;
+      border: 0;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .tab-main:focus-visible,
+    .tab-close:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: -2px;
+      border-radius: 3px;
+    }
+
+    .tab:focus-within .tab-close {
+      opacity: 1;
     }
 
     .tab-file-icon {

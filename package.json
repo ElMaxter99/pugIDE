@@ -12,6 +12,7 @@
   "scripts": {
     "start": "ng serve",
     "build": "ng build",
+    "prebuild:prod": "node scripts/validate-build.js",
     "build:prod": "ng build --configuration production",
     "watch": "ng build --watch",
     "test": "ng test",
@@ -59,6 +60,7 @@
     "@types/node": "^22.0.0",
     "angular-eslint": "^20.7.0",
     "assert": "^2.1.0",
+    "axe-core": "^4.14.0",
     "eslint": "^9.39.5",
     "material-symbols": "0.48.1",
     "path-browserify": "^1.0.1",

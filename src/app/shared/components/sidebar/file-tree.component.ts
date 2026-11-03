@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ElementRef, inject, output, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FileNode } from '../../../core/models/file-node.model';
 import { getFileType } from '../../../core/models/tab.model';
@@ -20,13 +20,13 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
     @if (assetState.missing().length > 0) {
       <div class="missing-assets">
         <p class="missing-title">
-          <span class="material-symbols-outlined" style="font-size: 14px;">broken_image</span>
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">broken_image</span>
           Faltan {{ assetState.missing().length }} archivo(s)
         </p>
         @for (path of assetState.missing(); track path) {
           <button class="missing-row" [title]="'Subir ' + path" (click)="pickAsset.emit(path)">
             <span class="missing-path">{{ path }}</span>
-            <span class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
           </button>
         }
       </div>
@@ -34,6 +34,8 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
 
     <div
       class="file-tree"
+      role="tree"
+      aria-label="Archivos del proyecto"
       [class.drop-active]="dragOver()"
       (dragover)="onDragOver($event)"
       (dragleave)="dragOver.set(false)"
@@ -47,13 +49,20 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
       @if (node.type === 'directory') {
         <div
           class="file-row directory-row"
+          role="treeitem"
+          [attr.aria-level]="level + 1"
+          [attr.aria-expanded]="isExpanded(node.path)"
+          [attr.tabindex]="rowTabindex(node.path)"
+          [attr.data-path]="node.path"
           [style.padding-left.px]="16 + level * 16"
           (click)="onNodeClick(node)"
+          (focus)="focusPath.set(node.path)"
+          (keydown)="onRowKeydown($event, node)"
           (contextmenu)="onNodeContextMenu($event, node)">
-          <span class="material-symbols-outlined expand-icon" [class.rotated]="isExpanded(node.path)">
+          <span aria-hidden="true" class="material-symbols-outlined expand-icon" [class.rotated]="isExpanded(node.path)">
             keyboard_arrow_down
           </span>
-          <span class="material-symbols-outlined folder-icon">folder</span>
+          <span aria-hidden="true" class="material-symbols-outlined folder-icon">folder</span>
           <span class="file-name">{{ node.name }}</span>
         </div>
         @if (isExpanded(node.path) && node.children) {
@@ -64,11 +73,18 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
       } @else {
         <div
           class="file-row file-item"
+          role="treeitem"
+          [attr.aria-level]="level + 1"
+          [attr.aria-selected]="isActive(node.path)"
+          [attr.tabindex]="rowTabindex(node.path)"
+          [attr.data-path]="node.path"
           [style.padding-left.px]="16 + level * 16"
           [class.active]="isActive(node.path)"
           (click)="onNodeClick(node)"
+          (focus)="focusPath.set(node.path)"
+          (keydown)="onRowKeydown($event, node)"
           (contextmenu)="onNodeContextMenu($event, node)">
-          <span class="material-symbols-outlined file-icon">{{ fileIcon(node) }}</span>
+          <span aria-hidden="true" class="material-symbols-outlined file-icon">{{ fileIcon(node) }}</span>
           <span class="file-name">{{ node.name }}</span>
         </div>
       }
@@ -127,6 +143,11 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
       transition: all 0.1s;
     }
 
+    .file-row:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: -2px;
+    }
+
     .file-row:hover {
       color: var(--text-primary);
     }
@@ -173,6 +194,9 @@ export class FileTreeComponent {
   protected assetState = inject(AssetState);
   private orchestrator = inject(OrchestratorService);
   protected dragOver = signal(false);
+  /** Fila que tiene (o tuvo) el foco: el árbol es una sola parada de Tab y las flechas mueven el foco entre filas. */
+  protected focusPath = signal<string | null>(null);
+  private host = inject(ElementRef<HTMLElement>);
 
   /** Se pide subir el archivo que falta en esa ruta. */
   readonly pickAsset = output<string>();
@@ -214,6 +238,62 @@ export class FileTreeComponent {
     event.preventDefault();
     event.stopPropagation();
     this.nodeContextMenu.emit({ event, node });
+  }
+
+  /** Solo una fila es parada de Tab: la última enfocada, si no el archivo abierto, si no la primera. */
+  protected rowTabindex(path: string): number {
+    const paths = this.rowPaths();
+    const wanted = this.focusPath() && paths.includes(this.focusPath()!) ? this.focusPath()
+      : paths.includes(this.editorState.activeTab()?.path ?? '') ? this.editorState.activeTab()!.path : paths[0];
+    return path === wanted ? 0 : -1;
+  }
+
+  private rowPaths(): string[] {
+    const out: string[] = [];
+    const walk = (nodes: FileNode[]): void => {
+      for (const n of nodes) {
+        out.push(n.path);
+        if (n.type === 'directory' && n.children && this.isExpanded(n.path)) walk(n.children);
+      }
+    };
+    walk(this.projectState.fileTree());
+    return out;
+  }
+
+  /** Enter/Espacio abren; flechas arriba/abajo mueven el foco; derecha/izquierda despliegan y pliegan; tecla de menú o Mayús+F10 abren el menú contextual. */
+  protected onRowKeydown(event: KeyboardEvent, node: FileNode): void {
+    const rows = Array.from((this.host.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.file-row'));
+    const index = rows.findIndex((r) => r.dataset['path'] === node.path);
+    const move = (to: number): void => {
+      const target = rows[Math.max(0, Math.min(rows.length - 1, to))];
+      if (target) { event.preventDefault(); target.focus(); }
+    };
+    switch (event.key) {
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+        this.onNodeClick(node);
+        break;
+      case 'ArrowDown': move(index + 1); break;
+      case 'ArrowUp': move(index - 1); break;
+      case 'Home': move(0); break;
+      case 'End': move(rows.length - 1); break;
+      case 'ArrowRight':
+        if (node.type === 'directory') { event.preventDefault(); if (!this.isExpanded(node.path)) this.projectState.toggleDir(node.path); else move(index + 1); }
+        break;
+      case 'ArrowLeft':
+        if (node.type === 'directory' && this.isExpanded(node.path)) { event.preventDefault(); this.projectState.toggleDir(node.path); }
+        break;
+      case 'ContextMenu':
+      case 'F10':
+        if (event.key === 'F10' && !event.shiftKey) break;
+        event.preventDefault();
+        {
+          const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+          this.nodeContextMenu.emit({ event: new MouseEvent('contextmenu', { clientX: r.left + 24, clientY: r.bottom }), node });
+        }
+        break;
+    }
   }
 
   protected isActive(path: string): boolean {

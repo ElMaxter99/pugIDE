@@ -14,23 +14,23 @@ import { PersistenceService } from '../../../core/services/persistence.service';
   template: `
     <footer class="statusbar">
       <div class="status-left">
-        <div class="status-group" (click)="toggleTerminal()">
-          <span class="material-symbols-outlined error-icon">cancel</span>
-          <span>{{ terminalState.errorCount() }} errors</span>
-        </div>
+        <button type="button" class="status-group" (click)="toggleTerminal()" title="Mostrar u ocultar la terminal" [attr.aria-label]="terminalState.errorCount() + (terminalState.errorCount() === 1 ? ' error' : ' errores') + ': mostrar u ocultar la terminal'">
+          <span aria-hidden="true" class="material-symbols-outlined error-icon">cancel</span>
+          <span>{{ terminalState.errorCount() }} {{ terminalState.errorCount() === 1 ? 'error' : 'errores' }}</span>
+        </button>
         <div class="status-group">
-          <span class="material-symbols-outlined warning-icon">warning</span>
-          <span>{{ terminalState.warningCount() }} warnings</span>
+          <span aria-hidden="true" class="material-symbols-outlined warning-icon">warning</span>
+          <span>{{ terminalState.warningCount() }} {{ terminalState.warningCount() === 1 ? 'aviso' : 'avisos' }}</span>
         </div>
         @if (parserState.isParsing()) {
           <div class="status-group">
-            <span class="material-symbols-outlined info-icon">sync</span>
-            <span>Parsing&hellip;</span>
+            <span aria-hidden="true" class="material-symbols-outlined info-icon">sync</span>
+            <span>Analizando&hellip;</span>
           </div>
         } @else if (previewState.compilationTime() > 0) {
           <div class="status-group">
-            <span class="material-symbols-outlined info-icon">info</span>
-            <span>Compiled in {{ previewState.compilationTime() | number:'1.0-0' }}ms</span>
+            <span aria-hidden="true" class="material-symbols-outlined info-icon">info</span>
+            <span>Compilado en {{ previewState.compilationTime() | number:'1.0-0' }} ms</span>
           </div>
         }
       </div>
@@ -43,7 +43,7 @@ import { PersistenceService } from '../../../core/services/persistence.service';
           [class.pending]="!persistence.lastWriteFailed() && editorState.hasUnsavedChanges()"
           [class.live]="!persistence.lastWriteFailed() && !editorState.hasUnsavedChanges()"
           [title]="persistence.lastWriteFailed() ? 'Local storage save failed — your work may not survive a reload. Export the project to be safe.' : ''">
-          <span class="material-symbols-outlined" style="font-size: 14px;">
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">
             {{ persistence.lastWriteFailed() ? 'cloud_off' : (editorState.hasUnsavedChanges() ? 'edit' : 'cloud_done') }}
           </span>
           <span>{{ persistence.lastWriteFailed() ? 'No se pudo guardar' : (editorState.hasUnsavedChanges() ? 'Cambios sin guardar' : 'Guardado') }}</span>
@@ -59,6 +59,16 @@ import { PersistenceService } from '../../../core/services/persistence.service';
       height: 32px;
       padding: 0 16px;
       background: #1a1523;
+      /* La barra es oscura en los dos temas: lleva su propia paleta para que el contraste no dependa del tema. */
+      --text-primary: #eadfed;
+      --text-secondary: #cfc2d6;
+      --text-tertiary: #988d9f;
+      --accent-color: #ddb7ff;
+      --tertiary-color: #fabc4e;
+      --secondary-color: #4cd7f6;
+      --error-color: #ffb4ab;
+      --warning-color: #fabc4e;
+      --success-color: #a6e3a1;
       border-top: 1px solid rgba(221, 183, 255, 0.2);
       font-family: var(--font-mono);
       font-size: 11px;
@@ -77,6 +87,11 @@ import { PersistenceService } from '../../../core/services/persistence.service';
     }
 
     .status-group {
+      background: none;
+      border: 0;
+      padding: 0;
+      font: inherit;
+      color: inherit;
       display: flex;
       align-items: center;
       gap: 8px;

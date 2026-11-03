@@ -13,13 +13,13 @@ import { SHORTCUT_GROUPS } from '../../../core/utils/shortcuts.util';
         <div #dlg class="dialog" role="dialog" aria-modal="true" aria-label="Atajos de teclado" tabindex="-1"
           (click)="$event.stopPropagation()" (keydown.escape)="closed.emit()" (keydown)="onKeydown($event)">
           <div class="header">
-            <h3>Atajos de teclado</h3>
+            <h2>Atajos de teclado</h2>
             <button class="icon" title="Cerrar" aria-label="Cerrar" (click)="closed.emit()">&times;</button>
           </div>
           <p class="hint">En macOS, Ctrl equivale a Cmd.</p>
           <div class="body">
             @for (g of groups; track g.title) {
-              <h4>{{ g.title }}</h4>
+              <h3>{{ g.title }}</h3>
               <dl>
                 @for (s of g.items; track s.keys) {
                   <div class="row"><dt>{{ s.label }}</dt><dd><kbd>{{ s.keys }}</kbd></dd></div>
@@ -35,8 +35,8 @@ import { SHORTCUT_GROUPS } from '../../../core/utils/shortcuts.util';
     .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; }
     .dialog { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 64px); display: flex; flex-direction: column; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3); }
     .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 4px; }
-    h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-primary); }
-    h4 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+    h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    h3 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
     .icon { font-size: 20px; line-height: 1; color: var(--text-secondary); padding: 0 6px; }
     .hint { margin: 0; padding: 0 20px 4px; font-size: 12px; color: var(--text-secondary); }
     .body { overflow-y: auto; padding: 0 20px 16px; }

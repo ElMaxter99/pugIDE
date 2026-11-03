@@ -45,20 +45,20 @@ const MODEL_LANGUAGES: Record<string, string> = {
   imports: [TabsComponent, ProjectSearchComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="editor-section" (keydown)="onHostKeydown($event)">
+    <main class="editor-section" aria-label="Editor" (keydown)="onHostKeydown($event)">
       <app-tabs />
       <app-project-search #search [files]="liveFiles" (openMatch)="onOpenMatch($event)" (replaced)="onReplaced($event)" (closed)="onSearchClosed()" />
       <div class="editor-canvas">
         @if (!editorState.activeTab()) {
           <div class="empty-editor">
-            <span class="material-symbols-outlined empty-icon">description</span>
-            <h3>No file open</h3>
-            <p>Open a file from the explorer</p>
+            <span aria-hidden="true" class="material-symbols-outlined empty-icon">description</span>
+            <h2>Ningún archivo abierto</h2>
+            <p>Abre un archivo desde el Workspace</p>
           </div>
         }
         <div #editorContainer class="monaco-host" [class.hidden]="!editorState.activeTab()"></div>
       </div>
-    </section>
+    </main>
   `,
   styles: [`
     :host {
@@ -118,7 +118,7 @@ const MODEL_LANGUAGES: Record<string, string> = {
       opacity: 0.5;
     }
 
-    .empty-editor h3 {
+    .empty-editor h2 {
       margin: 0;
       font-size: 16px;
       font-weight: 500;
@@ -259,7 +259,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
         'editor.lineHighlightBackground': '#ffffff08',
         'editor.selectionBackground': '#45475a',
         'editorCursor.foreground': '#ddb7ff',
-        'editorLineNumber.foreground': '#4d4354',
+        'editorLineNumber.foreground': '#8a7f92',
         'editorLineNumber.activeForeground': '#988d9f',
         'editorGutter.background': '#0a0a0a',
         'editorIndentGuide.background': '#262626',

@@ -46,7 +46,7 @@ type PendingAction =
         [positionY]="contextMenuY()"
         (actionSelected)="onContextAction($event)" />
       <button class="rail-btn" (click)="preferences.toggleSidebar()" title="Mostrar Workspace" aria-label="Mostrar Workspace">
-        <span class="material-symbols-outlined" style="font-size: 18px;">left_panel_open</span>
+        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">left_panel_open</span>
         <span class="rail-label">Workspace</span>
       </button>
       <div class="sidebar-inner">
@@ -55,24 +55,24 @@ type PendingAction =
             <span class="workspace-label">Workspace</span>
             <div class="workspace-actions">
               <button class="add-btn" (click)="preferences.toggleSidebar()" title="Colapsar Workspace" aria-label="Colapsar Workspace">
-                <span class="material-symbols-outlined" style="font-size: 16px;">left_panel_close</span>
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">left_panel_close</span>
               </button>
               <button class="add-btn" (click)="onImportClick()" title="Importar proyecto (carpeta o .zip)" aria-label="Importar proyecto (carpeta o .zip)">
-                <span class="material-symbols-outlined" style="font-size: 16px;">upload</span>
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">upload</span>
               </button>
               <button class="add-btn" (click)="onExportClick()" title="Exportar proyecto (carpeta o .zip)" aria-label="Exportar proyecto (carpeta o .zip)">
-                <span class="material-symbols-outlined" style="font-size: 16px;">download</span>
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">download</span>
               </button>
               <button class="add-btn" (click)="pickAssets()" title="Subir imágenes, fuentes o estilos (.css, .scss, .less)">
-                <span class="material-symbols-outlined" style="font-size: 16px;">add_photo_alternate</span>
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">add_photo_alternate</span>
               </button>
               @if (orchestrator.fileUndoLabel(); as undoLabel) {
                 <button class="add-btn" (click)="orchestrator.undoFileOp()" [title]="undoLabel" [attr.aria-label]="undoLabel">
-                  <span class="material-symbols-outlined" style="font-size: 16px;">undo</span>
+                  <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">undo</span>
                 </button>
               }
               <button class="add-btn" (click)="showNewFileDialog()" title="Nuevo archivo" aria-label="Nuevo archivo">
-                <span class="material-symbols-outlined" style="font-size: 16px;">add</span>
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">add</span>
               </button>
             </div>
           </div>

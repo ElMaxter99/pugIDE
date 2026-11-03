@@ -22,35 +22,29 @@ import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.comp
   template: `
     <header class="topbar">
       <div class="topbar-left">
-        <h1
-          class="logo"
-          role="button"
-          tabindex="0"
-          title="Volver al inicio"
-          (click)="goHome()"
-          (keydown.enter)="goHome()">PugIDE</h1>
+        <h1 class="logo"><a href="/" title="Volver al inicio" (click)="goHome($event)">PugIDE</a></h1>
       </div>
       <div class="topbar-right">
         <div class="topbar-actions">
           <button class="text-btn" title="Abrir, crear, renombrar, duplicar o borrar proyectos guardados en este navegador" (click)="ui.projectsOpen.set(true)">
-            <span class="material-symbols-outlined">folder_open</span>
+            <span aria-hidden="true" class="material-symbols-outlined">folder_open</span>
             {{ projectState.projectName() }}
           </button>
           <button class="text-btn" title="Paleta de comandos (Ctrl+K)" (click)="ui.paletteOpen.set(true)">
-            <span class="material-symbols-outlined">keyboard_command_key</span>
+            <span aria-hidden="true" class="material-symbols-outlined">keyboard_command_key</span>
             Comandos
           </button>
           <button class="text-btn" title="Copiar un enlace con el proyecto (archivos, datos y assets pequeños)" (click)="onShare()">
-            <span class="material-symbols-outlined">link</span>
+            <span aria-hidden="true" class="material-symbols-outlined">link</span>
             Compartir
           </button>
           <button class="text-btn" title="Descargar el HTML renderizado autocontenido" (click)="onExportHtml()">
-            <span class="material-symbols-outlined">code</span>
+            <span aria-hidden="true" class="material-symbols-outlined">code</span>
             Exportar HTML
           </button>
           <div class="divider"></div>
           <button class="icon-btn" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema claro/oscuro" (click)="onToggleTheme()">
-            <span class="material-symbols-outlined">contrast</span>
+            <span aria-hidden="true" class="material-symbols-outlined">contrast</span>
           </button>
           <div class="divider"></div>
           <button
@@ -103,7 +97,19 @@ import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.comp
       letter-spacing: -0.02em;
       color: var(--accent-color);
       line-height: 40px;
+      margin: 0;
+    }
+
+    .logo a {
+      color: inherit;
+      text-decoration: none;
       cursor: pointer;
+    }
+
+    .logo a:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: 4px;
+      border-radius: 4px;
     }
 
     .topbar-actions {
@@ -242,7 +248,8 @@ export class TopbarComponent {
   protected ui = inject(UiState);
   protected shareNotice = signal<{ text: string; warn: boolean; offerZip: boolean } | null>(null);
 
-  goHome(): void {
+  goHome(event?: Event): void {
+    event?.preventDefault();
     this.router.navigate(['/']);
   }
 

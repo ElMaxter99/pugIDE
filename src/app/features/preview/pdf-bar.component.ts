@@ -16,16 +16,16 @@ import { describePageIssue } from '../../core/utils/preview-layout.util';
       </span>
       <div class="device-switcher">
         <button class="device-btn" [class.active]="isLandscape()" title="Horizontal" aria-label="Horizontal" (click)="setOrientation('landscape')">
-          <span class="material-symbols-outlined" style="font-size: 16px;">crop_landscape</span>
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">crop_landscape</span>
         </button>
         <button class="device-btn" [class.active]="!isLandscape()" title="Vertical" aria-label="Vertical" (click)="setOrientation('portrait')">
-          <span class="material-symbols-outlined" style="font-size: 16px;">crop_portrait</span>
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">crop_portrait</span>
         </button>
       </div>
       <span class="pdf-size">{{ pageCount() }} {{ pageCount() === 1 ? 'página' : 'páginas' }}</span>
       @if (issues().length) {
         <span class="pdf-size pdf-warn" [title]="issuesTitle()">
-          <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: -3px;">warning</span>
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px; vertical-align: -3px;">warning</span>
           {{ issues().length }} {{ issues().length === 1 ? 'corte' : 'cortes' }} a revisar
         </span>
       }

@@ -25,7 +25,7 @@ import { ContextMenuAction } from '../../../core/models/index';
               [disabled]="item.disabled"
               (click)="onAction(item)">
               @if (item.icon) {
-                <span class="context-icon material-symbols-outlined">{{ item.icon }}</span>
+                <span aria-hidden="true" class="context-icon material-symbols-outlined">{{ item.icon }}</span>
               }
               <span class="context-label">{{ item.label }}</span>
               @if (item.children) {

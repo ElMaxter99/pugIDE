@@ -35,7 +35,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
   imports: [InspectorPanelComponent, PdfBarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="preview-section">
+    <section class="preview-section" aria-label="Vista previa">
       <div class="preview-header">
         <div class="preview-header-left">
           <span class="preview-title">
@@ -48,28 +48,28 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
               title="Escritorio"
               [class.active]="!previewState.isPdf() && deviceKind() === 'desktop'"
               (click)="selectDevice('Desktop')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">desktop_windows</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">desktop_windows</span>
             </button>
             <button
               class="device-btn"
               title="Tablet"
               [class.active]="!previewState.isPdf() && deviceKind() === 'tablet'"
               (click)="selectDevice('Tablet')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">tablet_mac</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">tablet_mac</span>
             </button>
             <button
               class="device-btn"
               title="Movil"
               [class.active]="!previewState.isPdf() && deviceKind() === 'mobile'"
               (click)="selectDevice('Mobile')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
             </button>
             <button
               class="device-btn"
               [class.active]="previewState.isPdf()"
               title="PDF / página impresa"
               (click)="setDevice('PDF', 0, 0)">
-              <span class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
             </button>
           </div>
         </div>
@@ -83,24 +83,24 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
             </select>
           }
           @if (!previewState.isPdf()) {
-            <select class="zoom-select device-select" title="Dispositivo" [value]="previewState.deviceName()" (change)="selectDevice($any($event.target).value)">
+            <select class="zoom-select device-select" title="Dispositivo" aria-label="Dispositivo" [value]="previewState.deviceName()" (change)="selectDevice($any($event.target).value)">
               @for (d of presets; track d.name) {
                 <option [value]="d.name">{{ d.name }} ({{ d.width }}x{{ d.height }})</option>
               }
             </select>
             @if (deviceKind() !== 'desktop') {
               <button class="preview-action" title="Girar" (click)="rotateDevice()">
-                <span class="material-symbols-outlined" style="font-size: 18px;">screen_rotation</span>
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">screen_rotation</span>
               </button>
             }
           }
           <button class="preview-action" [class.active]="previewState.colorScheme() !== 'auto'" [title]="'Modo de color simulado: ' + previewState.colorScheme()" [attr.aria-label]="'Modo de color simulado: ' + previewState.colorScheme()" (click)="cycleColorScheme()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">{{ schemeIcon() }}</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">{{ schemeIcon() }}</span>
           </button>
           <button class="preview-action" title="Auditoria de accesibilidad (resultados en la terminal)" (click)="runA11y()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">accessibility_new</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">accessibility_new</span>
           </button>
-          <select class="zoom-select" title="Zoom" [value]="zoomValue()" (change)="onZoom($any($event.target).value)">
+          <select class="zoom-select" title="Zoom" aria-label="Zoom" [value]="zoomValue()" (change)="onZoom($any($event.target).value)">
             <option value="fit">Ajustar ({{ scalePercent() }}%)</option>
             <option value="50">50%</option>
             <option value="75">75%</option>
@@ -108,20 +108,20 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
           </select>
           @if (previewState.isPdf()) {
             <button class="preview-action" title="Imprimir / Guardar como PDF" (click)="onPrint()">
-              <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
+              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">print</span>
             </button>
           }
           <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspeccionar elemento" aria-label="Inspeccionar elemento" (click)="inspectorState.toggleInspector()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
           </button>
           <button class="preview-action" title="Descargar captura PNG de la vista previa" aria-label="Descargar captura PNG de la vista previa" (click)="projectIo.exportPng()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">photo_camera</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">photo_camera</span>
           </button>
           <button class="preview-action" title="Recargar vista previa" aria-label="Recargar vista previa" (click)="onReload()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
           </button>
           <button class="preview-action" title="Abrir en una pestaña nueva" aria-label="Abrir en una pestaña nueva" (click)="onOpenNewTab()">
-            <span class="material-symbols-outlined" style="font-size: 18px;">open_in_new</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">open_in_new</span>
           </button>
         </div>
       </div>
@@ -130,7 +130,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       }
       @if (previewState.hasErrors()) {
         <div class="compile-error" role="alert">
-          <span class="material-symbols-outlined" style="font-size: 16px;">error</span>
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">error</span>
           <span class="compile-error-text">
             <strong>{{ previewState.errors().length === 1 ? 'Error de compilación' : previewState.errors().length + ' errores de compilación' }}:</strong>
             {{ previewState.errors()[0].message }}
@@ -150,6 +150,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
             <iframe
               #previewFrame
               class="preview-iframe"
+              title="Vista previa de la plantilla"
               sandbox="allow-scripts allow-modals"
               [style.width.px]="frameWidth()"
               [style.height.px]="frameHeight()"

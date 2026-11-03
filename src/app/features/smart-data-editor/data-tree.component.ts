@@ -14,8 +14,8 @@ import { flattenTree } from '../../core/utils/data-tree.util';
           @for (row of flatRows(); track row.path + row.kind) {
             @switch (row.kind) {
               @case ('object-open') {
-                <div class="tree-row expandable" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)">
-                  <span class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
+                <div class="tree-row expandable" role="button" tabindex="0" [attr.aria-expanded]="isNodeExpanded(row.path)" [attr.aria-label]="(isNodeExpanded(row.path) ? 'Plegar ' : 'Desplegar ') + row.key" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)" (keydown.enter)="toggleNode(row.path)" (keydown.space)="$event.preventDefault(); toggleNode(row.path)">
+                  <span aria-hidden="true" class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
                   <span class="json-key">{{ row.key }}</span>
                   <span class="json-colon">:</span>
                   @if (!row.isExpanded) {
@@ -26,8 +26,8 @@ import { flattenTree } from '../../core/utils/data-tree.util';
                 </div>
               }
               @case ('array-open') {
-                <div class="tree-row expandable" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)">
-                  <span class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
+                <div class="tree-row expandable" role="button" tabindex="0" [attr.aria-expanded]="isNodeExpanded(row.path)" [attr.aria-label]="(isNodeExpanded(row.path) ? 'Plegar ' : 'Desplegar ') + row.key" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)" (keydown.enter)="toggleNode(row.path)" (keydown.space)="$event.preventDefault(); toggleNode(row.path)">
+                  <span aria-hidden="true" class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
                   <span class="json-key">{{ row.key }}</span>
                   <span class="json-colon">:</span>
                   @if (!row.isExpanded) {
@@ -56,19 +56,27 @@ import { flattenTree } from '../../core/utils/data-tree.util';
                   @if (row.valueType === 'string') {
                     <input
                       class="json-input string-input"
+                        [attr.aria-label]="'Valor de ' + row.path"
                       [value]="row.value"
                       (change)="updateValue(row.path, $any($event.target).value)" />
                   } @else if (row.valueType === 'number') {
                     <input
                       class="json-input number-input"
+                        [attr.aria-label]="'Valor de ' + row.path"
                       type="number"
                       [value]="row.value"
                       (change)="updateValue(row.path, +$any($event.target).value)" />
                   } @else if (row.valueType === 'boolean') {
                     <div
                       class="json-toggle"
+                      role="switch"
+                      tabindex="0"
+                      [attr.aria-checked]="!!row.value"
+                      [attr.aria-label]="'Valor de ' + row.path"
                       [class.on]="row.value"
-                      (click)="toggleBoolean(row.path, row.value)">
+                      (click)="toggleBoolean(row.path, row.value)"
+                      (keydown.enter)="toggleBoolean(row.path, row.value)"
+                      (keydown.space)="$event.preventDefault(); toggleBoolean(row.path, row.value)">
                       <div class="toggle-thumb"></div>
                     </div>
                     <span class="json-boolean">{{ row.value }}</span>
@@ -124,6 +132,12 @@ import { flattenTree } from '../../core/utils/data-tree.util';
       line-height: 20px;
     }
 
+    .tree-row.expandable:focus-visible,
+    .json-toggle:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: 2px;
+    }
+
     .tree-row {
       display: flex;
       align-items: center;
@@ -158,7 +172,7 @@ import { flattenTree } from '../../core/utils/data-tree.util';
     }
 
     .json-key {
-      color: #9cdcfe;
+      color: var(--syn-key);
     }
 
     .json-colon {
@@ -175,15 +189,15 @@ import { flattenTree } from '../../core/utils/data-tree.util';
     }
 
     .json-string {
-      color: #ce9178;
+      color: var(--syn-string);
     }
 
     .json-boolean {
-      color: #569cd6;
+      color: var(--syn-keyword);
     }
 
     .json-null {
-      color: #569cd6;
+      color: var(--syn-keyword);
       font-style: italic;
     }
 
@@ -211,11 +225,11 @@ import { flattenTree } from '../../core/utils/data-tree.util';
     }
 
     .string-input {
-      color: #ce9178;
+      color: var(--syn-string);
     }
 
     .number-input {
-      color: #b5cea8;
+      color: var(--syn-number);
     }
 
     .number-input:focus {

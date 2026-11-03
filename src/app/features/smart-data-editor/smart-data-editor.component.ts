@@ -25,30 +25,30 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
   host: { '[class.collapsed]': 'preferences.dataCollapsed()' },
   template: `
     <button class="rail-btn" (click)="preferences.toggleData()" title="Mostrar Data" aria-label="Mostrar Data">
-      <span class="material-symbols-outlined" style="font-size: 18px;">right_panel_open</span>
+      <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">right_panel_open</span>
       <span class="rail-label">Data</span>
     </button>
-    <section class="data-section">
+    <section class="data-section" aria-label="Datos">
       <div class="data-header">
         <span class="data-title">Data</span>
         <div class="data-actions">
           <button class="icon-btn" (click)="preferences.toggleData()" title="Colapsar Data" aria-label="Colapsar Data">
-            <span class="material-symbols-outlined" style="font-size: 16px;">right_panel_close</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">right_panel_close</span>
           </button>
-          <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Cambiar al árbol visual (Ctrl+Shift+J)' : 'Cambiar al editor JSON (Ctrl+Shift+J)'" [attr.aria-label]="jsonRawMode() ? 'Cambiar al árbol visual' : 'Cambiar al editor JSON'">
-            <span class="mode-label">{{ jsonRawMode() ? 'JSON' : 'Tree' }}</span>
+          <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Cambiar al árbol visual (Ctrl+Shift+J)' : 'Cambiar al editor JSON (Ctrl+Shift+J)'" [attr.aria-label]="jsonRawMode() ? 'Modo JSON: cambiar al árbol visual' : 'Modo Árbol: cambiar al editor JSON'">
+            <span class="mode-label">{{ jsonRawMode() ? 'JSON' : 'Árbol' }}</span>
           </button>
           <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Deshacer" aria-label="Deshacer">
-            <span class="material-symbols-outlined" style="font-size: 16px;">undo</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">undo</span>
           </button>
           <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Rehacer" aria-label="Rehacer">
-            <span class="material-symbols-outlined" style="font-size: 16px;">redo</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">redo</span>
           </button>
           <button class="icon-btn" (click)="copyJsonToClipboard()" title="Copiar JSON al portapapeles" aria-label="Copiar JSON al portapapeles">
-            <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
           </button>
           <button class="mock-btn" (click)="clearData()">
-            <span class="material-symbols-outlined" style="font-size: 14px;">delete</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">delete</span>
             <span class="mock-label">Dejar objeto vacío</span>
           </button>
         </div>
@@ -61,7 +61,7 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
       <div class="json-editor-area" [class.hidden]="!jsonRawMode()">
         @if (jsonError()) {
           <div class="json-error-bar">
-            <span class="material-symbols-outlined" style="font-size: 14px; color: var(--error-color);">error</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px; color: var(--error-color);">error</span>
             <span class="json-error-text">{{ jsonError() }}</span>
           </div>
         }

@@ -26,13 +26,13 @@ import type { DatasetKind } from '../../core/utils/datasets.util';
         <option value="custom">Copia personalizada</option>
       </select>
       <button class="icon-btn" (click)="renameDataset()" title="Renombrar juego de datos" aria-label="Renombrar juego de datos">
-        <span class="material-symbols-outlined" style="font-size: 16px;">edit</span>
+        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">edit</span>
       </button>
       <button class="icon-btn" (click)="duplicateDataset()" title="Duplicar juego de datos" aria-label="Duplicar juego de datos">
-        <span class="material-symbols-outlined" style="font-size: 16px;">file_copy</span>
+        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">file_copy</span>
       </button>
       <button class="icon-btn" [disabled]="dataState.datasets().length <= 1" (click)="deleteDataset()" title="Borrar juego de datos" aria-label="Borrar juego de datos">
-        <span class="material-symbols-outlined" style="font-size: 16px;">delete_forever</span>
+        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">delete_forever</span>
       </button>
       <span class="ds-spacer"></span>
       <select class="ds-select ds-locale" aria-label="Idioma de los datos de ejemplo" title="Idioma de los datos de ejemplo"
@@ -41,11 +41,11 @@ import type { DatasetKind } from '../../core/utils/datasets.util';
         <option value="en" [selected]="dataState.locale() === 'en'">en</option>
       </select>
       <button class="mock-btn" (click)="regenerate()" title="Rellenar con datos de ejemplo nuevos (se puede deshacer)">
-        <span class="material-symbols-outlined" style="font-size: 14px;">casino</span>
+        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">casino</span>
         <span class="mock-label">Regenerar</span>
       </button>
       <button class="mock-btn" (click)="importInput.click()" title="Importar un JSON, JSON Schema u OpenAPI como juego de datos nuevo">
-        <span class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
+        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
         <span class="mock-label">Importar</span>
       </button>
       <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />

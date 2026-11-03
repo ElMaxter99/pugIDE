@@ -12,9 +12,9 @@ import { ReplaceResult, SearchMatch, highlightMatch, replaceInProject, searchPro
           <div class="search-bar">
             <input #searchInput class="search-input" data-testid="project-search" type="text" placeholder="Buscar en el proyecto (Enter: primer resultado, Esc: cerrar)"
               [value]="query()" (input)="query.set($any($event.target).value)" (keydown)="onSearchKey($event)" />
-            <button type="button" class="opt" [class.on]="caseSensitive()" title="Distinguir mayúsculas" aria-label="Distinguir mayúsculas" (click)="caseSensitive.set(!caseSensitive())">Aa</button>
-            <button type="button" class="opt" [class.on]="wholeWord()" title="Palabra completa" aria-label="Palabra completa" (click)="wholeWord.set(!wholeWord())">ab</button>
-            <button type="button" class="opt" [class.on]="regex()" title="Expresión regular" aria-label="Expresión regular" (click)="regex.set(!regex())">.*</button>
+            <button type="button" class="opt" [class.on]="caseSensitive()" title="Aa: distinguir mayúsculas" aria-label="Aa: distinguir mayúsculas" (click)="caseSensitive.set(!caseSensitive())">Aa</button>
+            <button type="button" class="opt" [class.on]="wholeWord()" title="ab: palabra completa" aria-label="ab: palabra completa" (click)="wholeWord.set(!wholeWord())">ab</button>
+            <button type="button" class="opt" [class.on]="regex()" title=".*: expresión regular" aria-label=".*: expresión regular" (click)="regex.set(!regex())">.*</button>
             <button type="button" class="opt" title="Cerrar búsqueda" aria-label="Cerrar búsqueda" (click)="close()">&times;</button>
           </div>
           <div class="replace-bar">
