@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { CompileResult, CompileError } from '../core/models/index';
+import { explainUnknownFilter } from '../core/utils/diagnostics.util';
 import { createTranslator, TRANSLATE_FNS } from '../core/utils/i18n.util';
 import { createPugFilePlugin, normalizeIncludes } from '../core/utils/pug-vfs.util';
 
@@ -64,6 +65,8 @@ export class PugCompilerService {
           pretty: true,
           doctype: 'html',
           self: false,
+          // Los filtros que Pug resuelve con paquetes de Node no existen en el navegador.
+          filters: { cdata: (text: string) => `<![CDATA[${text}]]>` },
         };
         if (entryPath) {
           opts['filename'] = entryPath;
@@ -95,10 +98,11 @@ export class PugCompilerService {
         html = compiledFn(locals);
       }
     } catch (err: unknown) {
-      const error = err as { message?: string; line?: number; column?: number };
+      const error = err as { message?: string; line?: number; column?: number; filename?: string };
       errors.push({
-        message: error.message ?? 'Compilation error',
+        message: explainUnknownFilter(error.message ?? 'Compilation error'),
         source: 'pug',
+        path: error.filename && files?.has(error.filename) ? error.filename : undefined,
         line: error.line,
         column: error.column,
         severity: 'error',

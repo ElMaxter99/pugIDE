@@ -9,3 +9,4 @@ export * from '../../src/app/core/utils/quality-hints.util';
 export * from '../../src/app/core/utils/paginate.util';
 export * from '../../src/app/core/utils/page-rules.util';
 export * from '../../src/app/core/utils/focus-trap.util';
+export * from '../../src/app/core/utils/diagnostics.util';

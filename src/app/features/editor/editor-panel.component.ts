@@ -24,6 +24,7 @@ import {
   searchProject,
 } from '../../core/utils/pug-editor.util';
 import { TerminalState } from '../../core/state/terminal.state';
+import { DiagnosticsState } from '../../core/state/diagnostics.state';
 import { PreferencesState } from '../../core/services/preferences.state';
 
 declare const monaco: any;
@@ -41,10 +42,10 @@ declare const monaco: any;
           <div class="search-bar">
             <input #searchInput class="search-input" data-testid="project-search" type="text" placeholder="Search in project (Enter: first result, Esc: close)"
               [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" (keydown)="onSearchKey($event)" />
-            <button type="button" class="opt" [class.on]="searchCase()" title="Match case" (click)="searchCase.set(!searchCase())">Aa</button>
-            <button type="button" class="opt" [class.on]="searchWord()" title="Whole word" (click)="searchWord.set(!searchWord())">ab</button>
-            <button type="button" class="opt" [class.on]="searchRegex()" title="Regular expression" (click)="searchRegex.set(!searchRegex())">.*</button>
-            <button type="button" class="opt" title="Close" (click)="closeSearch()">&times;</button>
+            <button type="button" class="opt" [class.on]="searchCase()" title="Distinguir mayúsculas" aria-label="Distinguir mayúsculas" (click)="searchCase.set(!searchCase())">Aa</button>
+            <button type="button" class="opt" [class.on]="searchWord()" title="Palabra completa" aria-label="Palabra completa" (click)="searchWord.set(!searchWord())">ab</button>
+            <button type="button" class="opt" [class.on]="searchRegex()" title="Expresión regular" aria-label="Expresión regular" (click)="searchRegex.set(!searchRegex())">.*</button>
+            <button type="button" class="opt" title="Cerrar búsqueda" aria-label="Cerrar búsqueda" (click)="closeSearch()">&times;</button>
           </div>
           <div class="search-summary">{{ searchResults().length }} results in {{ searchGroups().length }} files</div>
           <div class="search-results">
@@ -164,6 +165,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   private preferences = inject(PreferencesState);
   private terminalState = inject(TerminalState);
   private parserState = inject(ParserState);
+  private diagnosticsState = inject(DiagnosticsState);
   private extraDisposables: { dispose(): void }[] = [];
   private pendingReveal: { path: string; line: number; column: number } | null = null;
 
@@ -200,6 +202,11 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
         this.lastResetToken = token;
         this.disposeAllModels();
       }
+    });
+
+    effect(() => {
+      this.diagnosticsState.byPath();
+      if (this.editorReady()) this.applyMarkers();
     });
 
     effect(() => {
@@ -666,6 +673,35 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     if (this.editor.getModel() !== model) {
       this.editor.setModel(model);
     }
+    this.applyMarkers();
     this.applyReveal();
+  }
+
+  /** Dibuja los errores de la última compilación como subrayados en el editor de cada archivo abierto. */
+  private applyMarkers(): void {
+    if (typeof monaco === 'undefined') return;
+    const byPath = this.diagnosticsState.byPath();
+    for (const model of monaco.editor.getModels()) {
+      const list = byPath.get(model.uri.path) ?? [];
+      const lines = model.getLineCount();
+      const markers = list.map((d) => {
+        const line = Math.min(Math.max(d.line, 1), lines);
+        const max = model.getLineMaxColumn(line);
+        let start = d.column && d.column <= max ? d.column : model.getLineFirstNonWhitespaceColumn(line) || 1;
+        let end = max;
+        if (d.column) {
+          const word = model.getWordAtPosition({ lineNumber: line, column: start });
+          if (word) end = word.endColumn;
+        }
+        if (end <= start) { start = 1; end = Math.max(max, 2); }
+        return {
+          severity: d.severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+          message: d.message,
+          source: d.source,
+          startLineNumber: line, startColumn: start, endLineNumber: line, endColumn: end,
+        };
+      });
+      monaco.editor.setModelMarkers(model, 'pugide', markers);
+    }
   }
 }

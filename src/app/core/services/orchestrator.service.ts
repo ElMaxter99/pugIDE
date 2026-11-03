@@ -10,6 +10,8 @@ import { ParserState } from '../state/parser.state';
 import { PreviewState } from '../state/preview.state';
 import { DataState } from '../state/data.state';
 import { TerminalState } from '../state/terminal.state';
+import { DiagnosticsState } from '../state/diagnostics.state';
+import { buildDiagnostics } from '../utils/diagnostics.util';
 import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
 import { PersistenceService, ProjectSessionState } from './persistence.service';
@@ -40,6 +42,7 @@ export class OrchestratorService {
   private previewState = inject(PreviewState);
   private dataState = inject(DataState);
   private terminalState = inject(TerminalState);
+  private diagnosticsState = inject(DiagnosticsState);
   private preferences = inject(PreferencesState);
   private projectState = inject(ProjectState);
   private persistence = inject(PersistenceService);
@@ -109,6 +112,7 @@ export class OrchestratorService {
       const entryPath = findEntryPath(files, activePath);
       if (!entryPath) {
         this.previewState.updateCompiledResult({ html: '', css: '', errors: [], compilationTime: 0 });
+        this.diagnosticsState.clear();
         return;
       }
       this.previewState.entryPath.set(entryPath);
@@ -188,6 +192,12 @@ export class OrchestratorService {
       }
 
       this.previewState.updateCompiledResult(compileResult);
+      this.diagnosticsState.set(buildDiagnostics({
+        entryPath,
+        parseErrors: parseResult.errors,
+        compileErrors: compileResult.errors,
+        styleErrors: scssResult.errors,
+      }));
 
       for (const error of compileResult.errors) {
         this.terminalState.addEntry(
@@ -198,7 +208,7 @@ export class OrchestratorService {
       }
 
       for (const scssError of scssResult.errors) {
-        this.terminalState.addEntry('error', 'scss', `${scssError.path} - ${scssError.message}`);
+        this.terminalState.addEntry('error', 'scss', `${scssError.path} - ${scssError.line ? `línea ${scssError.line}: ` : ''}${scssError.message}`);
       }
 
       if (parseResult.errors.length === 0 && compileResult.errors.length === 0) {
