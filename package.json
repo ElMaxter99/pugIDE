@@ -31,14 +31,14 @@
   },
   "private": true,
   "dependencies": {
-    "@angular/animations": "20.3.35",
-    "@angular/common": "20.3.35",
-    "@angular/compiler": "20.3.35",
-    "@angular/core": "20.3.35",
-    "@angular/forms": "20.3.35",
-    "@angular/platform-browser": "20.3.35",
-    "@angular/router": "20.3.35",
-    "@angular/service-worker": "20.3.35",
+    "@angular/animations": "22.2.4",
+    "@angular/common": "22.2.4",
+    "@angular/compiler": "22.2.4",
+    "@angular/core": "22.2.4",
+    "@angular/forms": "22.2.4",
+    "@angular/platform-browser": "22.2.4",
+    "@angular/router": "22.2.4",
+    "@angular/service-worker": "22.2.4",
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/jetbrains-mono": "5.3.0",
     "@vercel/analytics": "^2.0.1",
@@ -54,11 +54,11 @@
     "zone.js": "^0.15.0"
   },
   "devDependencies": {
-    "@angular/build": "20.3.42",
-    "@angular/cli": "20.3.42",
-    "@angular/compiler-cli": "20.3.35",
+    "@angular/build": "22.2.5",
+    "@angular/cli": "22.2.5",
+    "@angular/compiler-cli": "22.2.4",
     "@types/node": "^22.0.0",
-    "angular-eslint": "^20.7.0",
+    "angular-eslint": "^22.6.0",
     "assert": "^2.1.0",
     "axe-core": "^4.14.0",
     "eslint": "^9.39.5",
@@ -66,7 +66,7 @@
     "path-browserify": "^1.0.1",
     "playwright-core": "1.56.1",
     "sass": "^1.105.1",
-    "typescript": "~5.8.3",
+    "typescript": "~6.0.3",
     "typescript-eslint": "^8.71.1"
   }
 }
