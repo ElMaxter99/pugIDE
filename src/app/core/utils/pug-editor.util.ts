@@ -217,6 +217,16 @@ export function searchProject(
   return out;
 }
 
+/** Trozo de la línea antes / durante / después de la coincidencia, acotado para mostrarlo en la lista de resultados. */
+export function highlightMatch(m: SearchMatch): { pre: string; hit: string; post: string } {
+  const start = Math.max(0, m.column - 1 - 30);
+  return {
+    pre: (start > 0 ? '…' : '') + m.text.substring(start, m.column - 1).trimStart(),
+    hit: m.text.substring(m.column - 1, m.column - 1 + m.length),
+    post: m.text.substring(m.column - 1 + m.length, m.column - 1 + m.length + 80),
+  };
+}
+
 export interface ReplaceResult {
   path: string;
   content: string;

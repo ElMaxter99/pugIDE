@@ -3,13 +3,15 @@ import {
   ChangeDetectionStrategy,
   inject,
   signal,
-  computed,
   effect,
   OnDestroy,
   AfterViewInit,
   ElementRef,
   ViewChild,
+  viewChild,
 } from '@angular/core';
+import { registerPugLanguage } from './pug-language';
+import { ProjectSearchComponent } from './project-search.component';
 import { TabsComponent } from '../../shared/components/tabs/tabs.component';
 import { EditorState } from '../../core/state/editor.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
@@ -17,14 +19,8 @@ import { getFileType } from '../../core/models/tab.model';
 import { ParserState } from '../../core/state/parser.state';
 import {
   DefinitionTarget,
-  SearchMatch,
-  collectMixins,
   findDefinition,
-  documentSymbols,
-  formatPug,
-  hoverInfoAt,
-  replaceInProject,
-  searchProject,
+  ReplaceResult,
 } from '../../core/utils/pug-editor.util';
 import { TerminalState } from '../../core/state/terminal.state';
 import { DiagnosticsState } from '../../core/state/diagnostics.state';
@@ -46,41 +42,12 @@ const MODEL_LANGUAGES: Record<string, string> = {
 @Component({
   selector: 'app-editor-panel',
   standalone: true,
-  imports: [TabsComponent],
+  imports: [TabsComponent, ProjectSearchComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="editor-section" (keydown)="onHostKeydown($event)">
       <app-tabs />
-      @if (searchOpen()) {
-        <div class="search-panel" role="search">
-          <div class="search-bar">
-            <input #searchInput class="search-input" data-testid="project-search" type="text" placeholder="Buscar en el proyecto (Enter: primer resultado, Esc: cerrar)"
-              [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" (keydown)="onSearchKey($event)" />
-            <button type="button" class="opt" [class.on]="searchCase()" title="Distinguir mayúsculas" aria-label="Distinguir mayúsculas" (click)="searchCase.set(!searchCase())">Aa</button>
-            <button type="button" class="opt" [class.on]="searchWord()" title="Palabra completa" aria-label="Palabra completa" (click)="searchWord.set(!searchWord())">ab</button>
-            <button type="button" class="opt" [class.on]="searchRegex()" title="Expresión regular" aria-label="Expresión regular" (click)="searchRegex.set(!searchRegex())">.*</button>
-            <button type="button" class="opt" title="Cerrar búsqueda" aria-label="Cerrar búsqueda" (click)="closeSearch()">&times;</button>
-          </div>
-          <div class="replace-bar">
-            <input class="search-input" data-testid="project-replace" type="text" placeholder="Reemplazar por…"
-              [value]="replaceText()" (input)="replaceText.set($any($event.target).value)" (keydown)="onReplaceKey($event)" />
-            <button type="button" class="replace-btn" data-testid="replace-all" [disabled]="!searchResults().length"
-              title="Reemplaza todas las coincidencias en el proyecto (Ctrl+Z las deshace en cada archivo)" (click)="replaceAll()">Reemplazar todo</button>
-          </div>
-          <div class="search-summary">{{ searchResults().length }} resultados en {{ searchGroups().length }} archivos</div>
-          <div class="search-results">
-            @for (g of searchGroups(); track g.path) {
-              <div class="result-file">{{ g.path }}</div>
-              @for (m of g.matches; track m.line + ':' + m.column) {
-                <button type="button" class="result-line" (click)="openAt(m.path, m.line, m.column)">
-                  <span class="ln">{{ m.line }}</span>
-                  <span class="txt">{{ highlight(m).pre }}<mark>{{ highlight(m).hit }}</mark>{{ highlight(m).post }}</span>
-                </button>
-              }
-            }
-          </div>
-        </div>
-      }
+      <app-project-search #search [files]="liveFiles" (openMatch)="onOpenMatch($event)" (replaced)="onReplaced($event)" (closed)="onSearchClosed()" />
       <div class="editor-canvas">
         @if (!editorState.activeTab()) {
           <div class="empty-editor">
@@ -94,23 +61,6 @@ const MODEL_LANGUAGES: Record<string, string> = {
     </section>
   `,
   styles: [`
-    .search-panel { border-bottom: 1px solid var(--border-color); background: var(--bg-surface); max-height: 40%; display: flex; flex-direction: column; }
-    .search-bar { display: flex; gap: 4px; padding: 6px 8px; }
-    .search-input { flex: 1; min-width: 0; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px; font: inherit; font-size: 13px; }
-    .opt { background: transparent; color: var(--text-secondary); border: 1px solid transparent; border-radius: 4px; padding: 0 8px; cursor: pointer; font-size: 12px; }
-    .opt.on { color: var(--text-primary); border-color: var(--accent-color); }
-    .replace-bar { display: flex; gap: 4px; padding: 0 8px 6px; }
-    .replace-btn { background: transparent; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0 10px; cursor: pointer; font-size: 12px; white-space: nowrap; }
-    .replace-btn:hover:not(:disabled) { border-color: var(--accent-color); }
-    .replace-btn:disabled { opacity: 0.5; cursor: default; }
-    .search-summary { padding: 0 10px 4px; font-size: 11px; color: var(--text-secondary); }
-    .search-results { overflow: auto; font-size: 12px; }
-    .result-file { padding: 4px 10px; color: var(--text-primary); font-weight: 600; }
-    .result-line { display: flex; gap: 8px; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text-secondary); padding: 2px 10px 2px 18px; cursor: pointer; font-family: var(--font-mono); font-size: 12px; }
-    .result-line:hover { background: rgba(255, 255, 255, 0.06); }
-    .result-line .ln { min-width: 28px; color: var(--text-tertiary); }
-    .result-line .txt { white-space: pre; overflow: hidden; text-overflow: ellipsis; }
-    mark { background: rgba(221, 183, 255, 0.35); color: inherit; }
     :host {
       display: flex;
       flex-direction: column;
@@ -389,9 +339,12 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     this.editorReady.set(true);
 
     this.setupNavigation();
-    this.setupCompletion();
-    this.setupFormatting();
-    this.setupHoverAndSymbols();
+    this.extraDisposables.push(...registerPugLanguage(monaco, {
+      activeModel: () => this.editor?.getModel(),
+      files: this.liveFiles,
+      variables: () => this.parserState.variables(),
+      sortAttributes: () => this.preferences.sortAttributes(),
+    }));
     this.editor.addAction({
       id: 'pug.searchInProject',
       label: 'Search in Project',
@@ -401,14 +354,14 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Writes the live content of the active model back into the project files so features see unsaved edits. */
-  private liveFiles(): Map<string, string> {
+  protected liveFiles = (): Map<string, string> => {
     const model = this.editor?.getModel();
     const files = this.editorState.files();
     if (model && model.uri.scheme !== 'inmemory' && files.has(model.uri.path)) {
       files.set(model.uri.path, model.getValue());
     }
     return files;
-  }
+  };
 
   private definitionAt(lineNumber: number, column: number): DefinitionTarget | null {
     const model = this.editor.getModel();
@@ -489,169 +442,30 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  /** Completion of parser-detected variables and project mixins. */
-  private setupCompletion(): void {
-    const provider = monaco.languages.registerCompletionItemProvider('pug', {
-      triggerCharacters: ['+'],
-      provideCompletionItems: (model: any, position: any) => {
-        if (model !== this.editor?.getModel()) return { suggestions: [] };
-        const word = model.getWordUntilPosition(position);
-        const before: string = model.getLineContent(position.lineNumber).substring(0, position.column - 1);
-        const afterPlus = /\+[\w-]*$/.test(before);
-        const wordRange = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, position.column);
-        const plusRange = new monaco.Range(
-          position.lineNumber, word.startColumn - (before.endsWith('+') ? 1 : 0), position.lineNumber, position.column,
-        );
-        const kind = monaco.languages.CompletionItemKind;
-        const suggestions: any[] = [];
-
-        const seen = new Set<string>();
-        for (const m of collectMixins(this.liveFiles())) {
-          if (seen.has(m.name)) continue;
-          seen.add(m.name);
-          const params = m.args ? m.args.split(',').map((a) => a.trim()).filter(Boolean) : [];
-          const snippet = params.length
-            ? `${m.name}(${params.map((p, i) => '${' + (i + 1) + ':' + p.replace(/[}$\\]/g, '') + '}').join(', ')})`
-            : m.name;
-          suggestions.push({
-            label: '+' + m.name,
-            filterText: '+' + m.name,
-            kind: kind.Function,
-            detail: `mixin ${m.name}(${m.args}) - ${m.path}`,
-            insertText: '+' + snippet,
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range: plusRange,
-            sortText: '0' + m.name,
-          });
-        }
-        if (afterPlus) return { suggestions };
-
-        for (const v of this.parserState.variables()) {
-          suggestions.push({
-            label: v.path,
-            kind: kind.Variable,
-            detail: `${v.type} (detected variable)`,
-            insertText: v.path,
-            range: wordRange,
-            sortText: '1' + v.path,
-          });
-        }
-        return { suggestions };
-      },
-    });
-    this.extraDisposables.push(provider);
-  }
-
-  /** Hover de mixins e includes, y outline / "Ir a símbolo" (Ctrl+Shift+O) con los mixins y bloques del archivo. */
-  private setupHoverAndSymbols(): void {
-    const hover = monaco.languages.registerHoverProvider('pug', {
-      provideHover: (model: any, position: any) => {
-        const info = hoverInfoAt(this.liveFiles(), model.uri.path, model.getLineContent(position.lineNumber), position.column);
-        if (!info) return null;
-        return {
-          range: new monaco.Range(position.lineNumber, info.range[0], position.lineNumber, info.range[1]),
-          contents: [{ value: info.markdown }],
-        };
-      },
-    });
-    const symbols = monaco.languages.registerDocumentSymbolProvider('pug', {
-      provideDocumentSymbols: (model: any) =>
-        documentSymbols(model.getValue()).map((sym) => {
-          const range = new monaco.Range(sym.line, 1, sym.line, model.getLineMaxColumn(sym.line));
-          return {
-            name: sym.name,
-            detail: sym.kind === 'mixin' ? 'mixin' : 'block',
-            kind: sym.kind === 'mixin' ? monaco.languages.SymbolKind.Function : monaco.languages.SymbolKind.Namespace,
-            tags: [],
-            range,
-            selectionRange: range,
-          };
-        }),
-    });
-    this.extraDisposables.push(hover, symbols);
-  }
-
-  /** Document formatter (Shift+Alt+F / "Format Document"); see formatPug for its limits. */
-  private setupFormatting(): void {
-    const provider = monaco.languages.registerDocumentFormattingEditProvider('pug', {
-      provideDocumentFormattingEdits: (model: any, options: any) => {
-        const text = model.getValue();
-        const unit = options?.insertSpaces === false ? '\t' : ' '.repeat(options?.tabSize ?? 2);
-        const formatted = formatPug(text, unit, { sortAttributes: this.preferences.sortAttributes() });
-        if (formatted === text) return [];
-        return [{ range: model.getFullModelRange(), text: formatted }];
-      },
-    });
-    this.extraDisposables.push(provider);
-  }
-
-  // ---- Project search (Ctrl+Shift+F) ----
-  protected searchOpen = signal(false);
-  protected searchQuery = signal('');
-  protected searchCase = signal(false);
-  protected searchWord = signal(false);
-  protected searchRegex = signal(false);
-  @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
-
-  protected replaceText = signal('');
-  /** Los archivos viven en un Map mutable: se incrementa tras reemplazar para recalcular los resultados. */
-  private searchRefresh = signal(0);
-
-  protected searchResults = computed(() => {
-    this.searchRefresh();
-    if (!this.searchOpen()) return [];
-    return searchProject(this.liveFiles(), this.searchQuery(), {
-      caseSensitive: this.searchCase(),
-      wholeWord: this.searchWord(),
-      regex: this.searchRegex(),
-    });
-  });
-  protected searchGroups = computed(() => {
-    const groups: { path: string; matches: SearchMatch[] }[] = [];
-    for (const m of this.searchResults()) {
-      const last = groups[groups.length - 1];
-      if (last && last.path === m.path) last.matches.push(m);
-      else groups.push({ path: m.path, matches: [m] });
-    }
-    return groups;
-  });
+  // ---- Project search (Ctrl+Shift+F): ver ProjectSearchComponent ----
+  private searchPanel = viewChild.required<ProjectSearchComponent>('search');
 
   openSearch(): void {
     const sel = this.editor?.getSelection();
     const model = this.editor?.getModel();
-    if (sel && model && !sel.isEmpty() && sel.startLineNumber === sel.endLineNumber) {
-      this.searchQuery.set(model.getValueInRange(sel));
-    }
-    this.searchOpen.set(true);
-    setTimeout(() => {
-      this.searchInput?.nativeElement.focus();
-      this.searchInput?.nativeElement.select();
-    });
+    const selected = sel && model && !sel.isEmpty() && sel.startLineNumber === sel.endLineNumber ? model.getValueInRange(sel) : undefined;
+    this.searchPanel().show(selected);
   }
 
-  protected closeSearch(): void {
-    this.searchOpen.set(false);
+  protected onSearchClosed(): void {
     this.editor?.focus();
   }
 
-  protected onReplaceKey(e: KeyboardEvent): void {
-    if (e.key === 'Escape') this.closeSearch();
-    if (e.key === 'Enter') this.replaceAll();
+  protected onOpenMatch(m: { path: string; line: number; column: number }): void {
+    this.openAt(m.path, m.line, m.column);
   }
 
   /**
-   * Reemplaza en todo el proyecto. Cada archivo cambia mediante una edición de su modelo de Monaco, así
-   * que Ctrl+Z la deshace archivo a archivo (los modelos de archivos cerrados se crean para ello).
+   * Aplica el reemplazo en todo el proyecto. Cada archivo cambia mediante una edición de su modelo de Monaco,
+   * así que Ctrl+Z la deshace archivo a archivo (los modelos de archivos cerrados se crean para ello).
    */
-  protected replaceAll(): void {
-    const query = this.searchQuery();
-    if (!query || !this.editor) return;
-    const changes = replaceInProject(this.liveFiles(), query, this.replaceText(), {
-      caseSensitive: this.searchCase(),
-      wholeWord: this.searchWord(),
-      regex: this.searchRegex(),
-    });
-    if (!changes.length) return;
+  protected onReplaced(changes: ReplaceResult[]): void {
+    if (!changes.length || !this.editor) return;
     const files = this.editorState.files();
     let total = 0;
     for (const c of changes) {
@@ -664,7 +478,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       files.set(c.path, c.content);
     }
     this.editorState.files.set(new Map(files));
-    this.searchRefresh.update((n) => n + 1);
+    this.searchPanel().refresh();
     this.terminalState.addEntry('info', 'Editor', `Reemplazadas ${total} coincidencias en ${changes.length} archivos. Ctrl+Z las deshace en cada archivo.`);
     this.orchestrator.saveSession();
     void this.orchestrator.manualCompile();
@@ -682,28 +496,11 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     return model;
   }
 
-  protected onSearchKey(e: KeyboardEvent): void {
-    if (e.key === 'Escape') this.closeSearch();
-    if (e.key === 'Enter') {
-      const first = this.searchResults()[0];
-      if (first) this.openAt(first.path, first.line, first.column);
-    }
-  }
-
   protected onHostKeydown(e: KeyboardEvent): void {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       this.openSearch();
     }
-  }
-
-  protected highlight(m: SearchMatch): { pre: string; hit: string; post: string } {
-    const start = Math.max(0, m.column - 1 - 30);
-    return {
-      pre: (start > 0 ? '…' : '') + m.text.substring(start, m.column - 1).trimStart(),
-      hit: m.text.substr(m.column - 1, m.length),
-      post: m.text.substring(m.column - 1 + m.length, m.column - 1 + m.length + 80),
-    };
   }
 
   private revealDecorations: string[] = [];

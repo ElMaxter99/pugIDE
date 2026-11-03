@@ -8,28 +8,18 @@ import {
   ViewChild,
   ElementRef,
 } from '@angular/core';
+import { DatasetBarComponent } from './dataset-bar.component';
 import { DataState } from '../../core/state/data.state';
 import { PreferencesState } from '../../core/services/preferences.state';
 import { ParserState } from '../../core/state/parser.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { TerminalState } from '../../core/state/terminal.state';
-import type { DatasetKind } from '../../core/utils/datasets.util';
-
-interface TreeNode {
-  key: string;
-  path: string;
-  depth: number;
-  kind: 'object-open' | 'array-open' | 'object-close' | 'array-close' | 'leaf' | 'inline-array';
-  value?: unknown;
-  valueType?: string;
-  itemCount?: number;
-  isExpanded?: boolean;
-  inlineItems?: string[];
-}
+import { flattenTree, insertIndent, parseDataJson, stringifyData } from '../../core/utils/data-tree.util';
 
 @Component({
   selector: 'app-smart-data-editor',
   standalone: true,
+  imports: [DatasetBarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.collapsed]': 'preferences.dataCollapsed()' },
   template: `
@@ -63,46 +53,7 @@ interface TreeNode {
         </div>
       </div>
 
-      <div class="dataset-bar" role="toolbar" aria-label="Juegos de datos">
-        <select class="ds-select" aria-label="Juego de datos activo" title="Juego de datos activo"
-                (change)="switchDataset($any($event.target).value)">
-          @for (d of dataState.datasetOptions(); track d.id) {
-            <option [value]="d.id" [selected]="d.id === dataState.activeId()">{{ d.name }}</option>
-          }
-        </select>
-        <select class="ds-select ds-new" aria-label="Crear juego de datos" title="Crear un juego de datos nuevo"
-                (change)="createDataset($any($event.target))">
-          <option value="" selected>+ Nuevo…</option>
-          <option value="empty">Vacío</option>
-          <option value="full">Lleno</option>
-          <option value="error">Error</option>
-          <option value="custom">Copia personalizada</option>
-        </select>
-        <button class="icon-btn" (click)="renameDataset()" title="Renombrar juego de datos" aria-label="Renombrar juego de datos">
-          <span class="material-symbols-outlined" style="font-size: 16px;">edit</span>
-        </button>
-        <button class="icon-btn" (click)="duplicateDataset()" title="Duplicar juego de datos" aria-label="Duplicar juego de datos">
-          <span class="material-symbols-outlined" style="font-size: 16px;">file_copy</span>
-        </button>
-        <button class="icon-btn" [disabled]="dataState.datasets().length <= 1" (click)="deleteDataset()" title="Borrar juego de datos" aria-label="Borrar juego de datos">
-          <span class="material-symbols-outlined" style="font-size: 16px;">delete_forever</span>
-        </button>
-        <span class="ds-spacer"></span>
-        <select class="ds-select ds-locale" aria-label="Idioma de los datos de ejemplo" title="Idioma de los datos de ejemplo"
-                (change)="setLocale($any($event.target).value)">
-          <option value="es" [selected]="dataState.locale() === 'es'">es</option>
-          <option value="en" [selected]="dataState.locale() === 'en'">en</option>
-        </select>
-        <button class="mock-btn" (click)="regenerate()" title="Rellenar con datos de ejemplo nuevos (se puede deshacer)">
-          <span class="material-symbols-outlined" style="font-size: 14px;">casino</span>
-          <span class="mock-label">Regenerar</span>
-        </button>
-        <button class="mock-btn" (click)="importInput.click()" title="Importar un JSON, JSON Schema u OpenAPI como juego de datos nuevo">
-          <span class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
-          <span class="mock-label">Importar</span>
-        </button>
-        <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
-      </div>
+      <app-dataset-bar (beforeChange)="applyJsonIfDirty()" (changed)="refreshAfterDatasetChange()" />
 
       @if (!jsonRawMode()) {
         <div class="tree-view">
@@ -334,32 +285,6 @@ interface TreeNode {
 
     .icon-btn:disabled:hover {
       background: none;
-    }
-
-    .dataset-bar {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 4px 12px;
-      border-bottom: 1px solid var(--border-color);
-      background: var(--bg-surface-container-low);
-      flex-shrink: 0;
-    }
-
-    .ds-spacer {
-      flex: 1;
-    }
-
-    .ds-select {
-      background: var(--bg-surface-variant);
-      color: var(--text-primary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      font-family: var(--font-mono);
-      font-size: 11px;
-      padding: 3px 6px;
-      max-width: 160px;
     }
 
     .tree-view {
@@ -615,7 +540,7 @@ export class SmartDataEditorComponent {
   flatRows = computed(() => {
     const data = this.dataState.data();
     const expanded = this.expandedPaths();
-    return this.flattenTree(data, '', 0, expanded);
+    return flattenTree(data, expanded);
   });
 
   @HostListener('window:keydown', ['$event'])
@@ -629,10 +554,7 @@ export class SmartDataEditorComponent {
   toggleMode(): void {
     const goingRaw = !this.jsonRawMode();
     if (goingRaw) {
-      const json = JSON.stringify(this.dataState.data(), null, 2);
-      this.jsonArea.nativeElement.value = json;
-      this.rawJsonContent.set(json);
-      this.jsonError.set(null);
+      this.showJson(stringifyData(this.dataState.data()));
     } else {
       this.applyJson();
     }
@@ -645,29 +567,31 @@ export class SmartDataEditorComponent {
       JSON.parse(value);
       this.jsonError.set(null);
     } catch (e: unknown) {
-      const msg = (e as Error).message;
-      this.jsonError.set(msg);
+      this.jsonError.set((e as Error).message);
     }
+  }
+
+  /** Pone `json` en el área de texto del modo JSON y limpia el error. */
+  private showJson(json: string): void {
+    this.jsonArea.nativeElement.value = json;
+    this.rawJsonContent.set(json);
+    this.jsonError.set(null);
   }
 
   applyJson(): void {
     const textarea = this.jsonArea?.nativeElement;
     const text = textarea ? textarea.value : this.rawJsonContent();
-    try {
-      const parsed = JSON.parse(text);
-      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        this.jsonError.set('Root must be a JSON object');
-        this.terminalState.addEntry('error', 'DataEditor', 'Invalid JSON: root must be an object, not an array or primitive');
-        return;
-      }
-      this.jsonError.set(null);
-      this.dataState.setData(parsed);
-      this.orchestrator.onDataChange();
-    } catch (e: unknown) {
-      const msg = (e as Error).message;
-      this.jsonError.set(msg);
-      this.terminalState.addEntry('error', 'DataEditor', `Invalid JSON: ${msg}`);
+    const result = parseDataJson(text);
+    if (!result.ok) {
+      this.jsonError.set(result.error);
+      this.terminalState.addEntry('error', 'DataEditor', result.rootNotObject
+        ? 'Invalid JSON: root must be an object, not an array or primitive'
+        : `Invalid JSON: ${result.error}`);
+      return;
     }
+    this.jsonError.set(null);
+    this.dataState.setData(result.value);
+    this.orchestrator.onDataChange();
   }
 
   onTextareaKeydown(event: KeyboardEvent): void {
@@ -676,12 +600,11 @@ export class SmartDataEditorComponent {
       const textarea = event.target as HTMLTextAreaElement;
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      const value = textarea.value;
-      const newValue = value.substring(0, start) + '  ' + value.substring(end);
+      const { value: newValue, cursor } = insertIndent(textarea.value, start, end);
       this.jsonArea.nativeElement.value = newValue;
       this.rawJsonContent.set(newValue);
       requestAnimationFrame(() => {
-        textarea.selectionStart = textarea.selectionEnd = start + 2;
+        textarea.selectionStart = textarea.selectionEnd = cursor;
       });
     } else if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault();
@@ -691,7 +614,7 @@ export class SmartDataEditorComponent {
   }
 
   copyJsonToClipboard(): void {
-    const text = JSON.stringify(this.dataState.data(), null, 2);
+    const text = stringifyData(this.dataState.data());
     navigator.clipboard.writeText(text).then(() => {
       this.terminalState.addEntry('success', 'DataEditor', 'JSON copied to clipboard');
     }).catch(() => {
@@ -703,92 +626,19 @@ export class SmartDataEditorComponent {
     const emptyData = await this.orchestrator.clearDataWithKeys();
     this.dataState.setData(emptyData);
     this.orchestrator.onDataChange();
-    if (this.jsonRawMode()) {
-      const json = JSON.stringify(emptyData, null, 2);
-      this.jsonArea.nativeElement.value = json;
-      this.rawJsonContent.set(json);
-      this.jsonError.set(null);
-    }
+    if (this.jsonRawMode()) this.showJson(stringifyData(emptyData));
     this.expandedPaths.set(new Set(['']));
   }
 
   /** Tras cambiar los datos por otra vía, el modo JSON y los nodos abiertos deben reflejar el estado actual. */
-  private refreshAfterDatasetChange(): void {
-    if (this.jsonRawMode() && this.jsonArea) {
-      const json = JSON.stringify(this.dataState.data(), null, 2);
-      this.jsonArea.nativeElement.value = json;
-      this.rawJsonContent.set(json);
-      this.jsonError.set(null);
-    }
-    this.expandedPaths.set(new Set(['', ...Object.keys(this.dataState.data())]));
-  }
-
-  switchDataset(id: string): void {
-    this.applyJsonIfDirty();
-    this.orchestrator.switchDataset(id);
-    this.refreshAfterDatasetChange();
-  }
-
   /** Guarda lo escrito en el modo JSON antes de cambiar de juego, para no perderlo. */
-  private applyJsonIfDirty(): void {
+  protected applyJsonIfDirty(): void {
     if (this.jsonRawMode() && !this.jsonError()) this.applyJson();
   }
 
-  async createDataset(select: HTMLSelectElement): Promise<void> {
-    const kind = select.value as Exclude<DatasetKind, 'default'> | '';
-    select.value = '';
-    if (!kind) return;
-    this.applyJsonIfDirty();
-    await this.orchestrator.createDataset(kind);
-    this.refreshAfterDatasetChange();
-  }
-
-  renameDataset(): void {
-    const current = this.dataState.activeDataset();
-    const name = window.prompt('Nuevo nombre del juego de datos', current?.name ?? '');
-    if (name && current) this.dataState.renameDataset(current.id, name);
-  }
-
-  duplicateDataset(): void {
-    this.applyJsonIfDirty();
-    this.orchestrator.duplicateDataset(this.dataState.activeId());
-    this.refreshAfterDatasetChange();
-  }
-
-  deleteDataset(): void {
-    const current = this.dataState.activeDataset();
-    if (!current || !window.confirm(`¿Borrar el juego de datos "${current.name}"?`)) return;
-    this.orchestrator.deleteDataset(current.id);
-    this.refreshAfterDatasetChange();
-  }
-
-  setLocale(locale: string): void {
-    this.orchestrator.setMockLocale(locale === 'en' ? 'en' : 'es');
-  }
-
-  async regenerate(): Promise<void> {
-    this.applyJsonIfDirty();
-    await this.orchestrator.regenerateMocks();
-    this.refreshAfterDatasetChange();
-    this.terminalState.addEntry('success', 'DataEditor', 'Datos de ejemplo regenerados (puedes deshacer).');
-  }
-
-  async importFile(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-    try {
-      const doc = JSON.parse(await file.text());
-      this.applyJsonIfDirty();
-      const { source, warnings } = this.orchestrator.importDataDocument(doc, file.name.replace(/\.json$/i, ''));
-      const label = source === 'openapi' ? 'OpenAPI' : source === 'json-schema' ? 'JSON Schema' : 'JSON';
-      this.terminalState.addEntry('success', 'DataEditor', `Importado ${file.name} (${label}) como juego de datos nuevo.`);
-      for (const w of warnings) this.terminalState.addEntry('warning', 'DataEditor', w);
-      this.refreshAfterDatasetChange();
-    } catch (e: unknown) {
-      this.terminalState.addEntry('error', 'DataEditor', `No se pudo importar ${file.name}: ${(e as Error).message}`);
-    }
+  protected refreshAfterDatasetChange(): void {
+    if (this.jsonRawMode() && this.jsonArea) this.showJson(stringifyData(this.dataState.data()));
+    this.expandedPaths.set(new Set(['', ...Object.keys(this.dataState.data())]));
   }
 
   isNodeExpanded(path: string): boolean {
@@ -826,116 +676,4 @@ export class SmartDataEditorComponent {
     this.dataState.updateValue(path, !currentValue);
     this.orchestrator.onDataChange();
   }
-
-  private flattenTree(
-    obj: unknown,
-    prefix: string,
-    depth: number,
-    expanded: Set<string>
-  ): TreeNode[] {
-    const rows: TreeNode[] = [];
-    if (obj === null || obj === undefined || typeof obj !== 'object') return rows;
-
-    const entries = Object.entries(obj as Record<string, unknown>);
-    for (const [key, value] of entries) {
-      const path = prefix ? `${prefix}.${key}` : key;
-      const isExpandable = value !== null && typeof value === 'object' && !Array.isArray(value);
-      const isArr = Array.isArray(value);
-
-      if (isExpandable || isArr) {
-        if (isArr) {
-          const arr = value as unknown[];
-          const isPrimitiveArr = arr.every(item => item === null || typeof item !== 'object');
-          if (isPrimitiveArr) {
-            rows.push({
-              key,
-              path,
-              depth,
-              kind: 'inline-array',
-              inlineItems: arr.map(item => item === null ? 'null' : String(item)),
-            });
-            continue;
-          }
-        }
-        const isExp = expanded.has(path);
-        rows.push({
-          key,
-          path,
-          depth,
-          kind: isArr ? 'array-open' : 'object-open',
-          itemCount: isArr ? (value as unknown[]).length : undefined,
-          isExpanded: isExp,
-        });
-        if (isExp) {
-          if (isArr) {
-            const arr = value as unknown[];
-            for (let i = 0; i < arr.length; i++) {
-              const item = arr[i];
-              const itemPath = `${path}.${i}`;
-              if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
-                rows.push({
-                  key: String(i),
-                  path: itemPath,
-                  depth: depth + 1,
-                  kind: 'object-open',
-                  isExpanded: expanded.has(itemPath),
-                });
-                if (expanded.has(itemPath)) {
-                  rows.push(...this.flattenTree(item, itemPath, depth + 2, expanded));
-                  rows.push({
-                    key: '',
-                    path: itemPath,
-                    depth: depth + 1,
-                    kind: 'object-close',
-                  });
-                }
-              } else {
-                rows.push({
-                  key: String(i),
-                  path: itemPath,
-                  depth: depth + 1,
-                  kind: 'leaf',
-                  value: item,
-                  valueType: this.getValueType(item),
-                });
-              }
-            }
-            rows.push({
-              key: '',
-              path,
-              depth,
-              kind: 'array-close',
-            });
-          } else {
-            rows.push(...this.flattenTree(value, path, depth + 1, expanded));
-            rows.push({
-              key: '',
-              path,
-              depth,
-              kind: 'object-close',
-            });
-          }
-        }
-      } else {
-        rows.push({
-          key,
-          path,
-          depth,
-          kind: 'leaf',
-          value,
-          valueType: this.getValueType(value),
-        });
-      }
-    }
-    return rows;
-  }
-
-  private getValueType(value: unknown): string {
-    if (value === null) return 'null';
-    if (typeof value === 'boolean') return 'boolean';
-    if (typeof value === 'number') return 'number';
-    if (typeof value === 'string') return 'string';
-    return 'string';
-  }
-
 }

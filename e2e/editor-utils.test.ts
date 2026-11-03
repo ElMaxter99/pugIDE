@@ -5,6 +5,7 @@ import {
   findDefinition,
   documentSymbols,
   formatPug,
+  highlightMatch,
   hoverInfoAt,
   replaceInProject,
   resolveIncludePath,
@@ -163,4 +164,13 @@ test('ordenar atributos también ordena los repartidos en varias líneas', () =>
     formatPug(src, '  ', { sortAttributes: true }),
     "div\n  a(\n    id='a1'\n    class='boton boton-primario'\n    href='https://ejemplo.com/una/ruta/bastante/larga'\n    title='un titulo largo para el enlace'\n  ) Ir\n",
   );
+});
+
+test('highlightMatch acota el contexto de una coincidencia', () => {
+  const text = 'a'.repeat(50) + 'HIT' + 'b'.repeat(100);
+  const r = highlightMatch({ path: '/x', line: 1, column: 51, text, length: 3 });
+  assert.equal(r.hit, 'HIT');
+  assert.equal(r.pre, '…' + 'a'.repeat(30));
+  assert.equal(r.post, 'b'.repeat(80));
+  assert.deepEqual(highlightMatch({ path: '/x', line: 1, column: 3, text: '  hola', length: 4 }), { pre: '', hit: 'hola', post: '' });
 });

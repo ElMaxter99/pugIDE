@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { PreferencesState } from '../../core/services/preferences.state';
 import { PageBreakIssue, PageGeometry, documentContentHeight, findPageBreakIssues, pageGeometry, paginateDocument, resetPagination } from '../../core/utils/paginate.util';
-import { MARGIN_BOX_NAMES, boxesForPage, renderContent } from '../../core/utils/page-rules.util';
+import { A11yIssue, a11yReport, buildPageChrome, describePageIssue, fitScale, pageCountFor, pageIssuesKey } from '../../core/utils/preview-layout.util';
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { InspectorState } from '../../core/state/inspector.state';
@@ -21,12 +21,13 @@ import { DEVICE_PRESETS, findDevicePreset, ColorSchemeSim } from '../../core/uti
 import { EditorState } from '../../core/state/editor.state';
 import { TerminalState } from '../../core/state/terminal.state';
 import { findPugSource } from '../../core/utils/pug-source-map.util';
+import { PdfBarComponent } from './pdf-bar.component';
 import { InspectorPanelComponent } from '../inspector/inspector-panel.component';
 
 @Component({
   selector: 'app-preview-panel',
   standalone: true,
-  imports: [InspectorPanelComponent],
+  imports: [InspectorPanelComponent, PdfBarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="preview-section">
@@ -117,27 +118,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
         </div>
       </div>
       @if (previewState.isPdf()) {
-        <div class="pdf-bar">
-          <span class="pdf-size" [title]="previewState.pageSize().source === 'css' ? 'Tamaño leído de @page { size }' : 'Sin @page en la plantilla: A4 por defecto'">
-            {{ previewState.pageSize().label }} · {{ previewState.pageSize().width }}×{{ previewState.pageSize().height }}px
-            @if (previewState.pageSize().source === 'default') { <em>(por defecto)</em> } @else if (previewState.pageSize().source === 'manual') { <em>(girado)</em> }
-          </span>
-          <div class="device-switcher">
-            <button class="device-btn" [class.active]="isLandscape()" title="Horizontal" (click)="setOrientation('landscape')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">crop_landscape</span>
-            </button>
-            <button class="device-btn" [class.active]="!isLandscape()" title="Vertical" (click)="setOrientation('portrait')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">crop_portrait</span>
-            </button>
-          </div>
-          <span class="pdf-size">{{ pageCount() }} {{ pageCount() === 1 ? 'página' : 'páginas' }}</span>
-          @if (pageIssues().length) {
-            <span class="pdf-size pdf-warn" [title]="pageIssuesTitle()">
-              <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: -3px;">warning</span>
-              {{ pageIssues().length }} {{ pageIssues().length === 1 ? 'corte' : 'cortes' }} a revisar
-            </span>
-          }
-        </div>
+        <app-pdf-bar [pageCount]="pageCount()" [issues]="pageIssues()" />
       }
       @if (previewState.hasErrors()) {
         <div class="compile-error" role="alert">
@@ -345,24 +326,6 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       background-repeat: repeat-y;
     }
 
-    .pdf-bar {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-      padding: 4px 16px;
-      border-bottom: 1px solid var(--border-color);
-      background: var(--bg-surface-container-low);
-      flex-shrink: 0;
-    }
-
-    .pdf-size {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--text-secondary);
-      white-space: nowrap;
-    }
-
     .page-chrome {
       position: absolute;
       top: 0;
@@ -375,8 +338,6 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       color: #000;
       font: 16px 'Times New Roman', Times, serif;
     }
-
-    .pdf-warn { color: #e0a030; cursor: help; }
 
     .device-select { max-width: 150px; }
     .locale-select { max-width: 110px; }
@@ -496,8 +457,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   /** PDF: as many whole pages as the content needs, so the frame ends on a page boundary. */
   protected readonly pageCount = computed(() => {
-    const page = this.previewState.pageSize().height;
-    return Math.max(1, Math.ceil(this.contentHeight() / page));
+    return pageCountFor(this.contentHeight(), this.previewState.pageSize().height);
   });
 
   /** Hoja con sus márgenes (`@page { margin }`): lo que se descuenta del área de contenido de cada página. */
@@ -508,58 +468,11 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     this.previewState.isPdf() ? this.pageCount() * this.previewState.pageSize().height : this.previewState.deviceHeight());
 
   /** Cajas de margen (cabeceras y pies) de cada página, ya posicionadas sobre la hoja. */
-  protected readonly pageChrome = computed(() => {
-    const rules = this.previewState.pageRules();
-    if (!this.previewState.isPdf() || !(Object.keys(rules.boxes).length || Object.keys(rules.firstBoxes).length)) return [];
-    const { width, height } = this.previewState.pageSize();
-    const m = rules.margin;
-    const third = Math.max(0, width - m.left - m.right) / 3;
-    const pages = this.pageCount();
-    const items: { id: string; text: string; style: Record<string, string> }[] = [];
-    for (let k = 0; k < pages; k++) {
-      const boxes = boxesForPage(rules, k);
-      for (const name of MARGIN_BOX_NAMES) {
-        const box = boxes[name];
-        if (!box?.content) continue;
-        const isTop = name.startsWith('top');
-        const col = name.endsWith('left') ? 0 : name.endsWith('center') ? 1 : 2;
-        const align = col === 0 ? 'left' : col === 1 ? 'center' : 'right';
-        const css = { ...rules.baseStyle, ...box.style };
-        const vertical = css['vertical-align'];
-        delete css['vertical-align'];
-        const style: Record<string, string> = {
-          position: 'absolute',
-          left: `${m.left + col * third}px`,
-          top: `${isTop ? k * height : (k + 1) * height - m.bottom}px`,
-          width: `${third}px`,
-          height: `${isTop ? m.top : m.bottom}px`,
-          display: 'flex',
-          'align-items': vertical === 'top' ? 'flex-start' : vertical === 'bottom' ? 'flex-end' : 'center',
-          'justify-content': col === 0 ? 'flex-start' : col === 1 ? 'center' : 'flex-end',
-          'text-align': align,
-          'box-sizing': 'border-box',
-          overflow: 'hidden',
-          ...css,
-        };
-        items.push({ id: `${k}-${name}`, text: renderContent(box.content, k + 1, pages), style });
-      }
-    }
-    return items;
-  });
+  protected readonly pageChrome = computed(() =>
+    this.previewState.isPdf() ? buildPageChrome(this.previewState.pageRules(), this.previewState.pageSize(), this.pageCount()) : []);
 
-  protected readonly scale = computed(() => {
-    const mode = this.previewState.zoomMode();
-    if (mode !== 'fit') return mode / 100;
-    const { width, height } = this.canvasSize();
-    if (!width || !height) return 1;
-    const availW = Math.max(width - 64, 100);
-    const availH = Math.max(height - 64, 100);
-    // A PDF scrolls vertically (many pages), so it only has to fit the width.
-    const s = this.previewState.isPdf()
-      ? availW / this.frameWidth()
-      : Math.min(availW / this.frameWidth(), availH / this.frameHeight());
-    return Math.min(1, s);
-  });
+  protected readonly scale = computed(() =>
+    fitScale(this.previewState.zoomMode(), this.canvasSize(), { width: this.frameWidth(), height: this.frameHeight() }, this.previewState.isPdf()));
 
   protected readonly scalePercent = computed(() => Math.round(this.scale() * 100));
   protected readonly zoomValue = computed(() => String(this.previewState.zoomMode()));
@@ -657,17 +570,8 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     win.postMessage({ source: 'pugide-a11y-run' }, window.location.origin);
   }
 
-  private reportA11y(issues: any[]): void {
-    if (issues.length === 0) {
-      this.terminal.addEntry('success', 'A11y', 'Auditoria basica: sin problemas detectados (contraste, alt, labels, encabezados).');
-      return;
-    }
-    this.terminal.addEntry('info', 'A11y', `Auditoria basica: ${issues.length} problema(s).`);
-    for (const i of issues) {
-      const loc = this.locatePug(i.sig);
-      const where = loc ? ` (${loc.path}:${loc.line}${loc.approximate ? ' ~' : ''})` : i.htmlLine ? ` (HTML linea ${i.htmlLine})` : '';
-      this.terminal.addEntry(i.severity === 'error' ? 'error' : 'warning', 'A11y', `[${i.rule}] ${i.message} <${i.element}>${where}`);
-    }
+  private reportA11y(issues: A11yIssue[]): void {
+    for (const line of a11yReport(issues, (sig) => this.locatePug(sig))) this.terminal.addEntry(line.type, 'A11y', line.message);
   }
 
   ngAfterViewInit(): void {
@@ -694,15 +598,6 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   setDevice(name: string, width: number, height: number): void {
     this.previewState.setDevice(name, width, height);
     this.preferences.update({ previewDevice: name });
-  }
-
-  protected isLandscape(): boolean {
-    const { width, height } = this.previewState.pageSize();
-    return width >= height;
-  }
-
-  setOrientation(o: 'landscape' | 'portrait'): void {
-    this.previewState.pdfOrientation.set(o);
   }
 
   onZoom(value: string): void {
@@ -765,22 +660,12 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   /** PDF: elementos que se partirían mal al imprimir (imágenes cortadas, encabezados al final de página). */
   protected readonly pageIssues = signal<PageBreakIssue[]>([]);
-  protected readonly pageIssuesTitle = computed(() =>
-    this.pageIssues().map((i) => this.describeIssue(i)).join('\n'));
-
-  private describeIssue(i: PageBreakIssue): string {
-    const what = i.text ? `<${i.element}> «${i.text}»` : `<${i.element}>`;
-    return i.kind === 'cut'
-      ? `Página ${i.page}: ${what} se corta entre páginas (usa break-inside: avoid).`
-      : `Página ${i.page}: ${what} queda al final de la página, separado de su contenido (usa break-after: avoid o un salto antes).`;
-  }
-
   private reportPageIssues(issues: PageBreakIssue[]): void {
     this.pageIssues.set(issues);
-    const key = issues.map((i) => `${i.kind}:${i.page}:${i.element}:${i.text}`).join('|');
+    const key = pageIssuesKey(issues);
     if (key === this.lastIssueKey) return;
     this.lastIssueKey = key;
-    for (const i of issues) this.terminal.addEntry('warning', 'PDF', this.describeIssue(i));
+    for (const i of issues) this.terminal.addEntry('warning', 'PDF', describePageIssue(i));
   }
 
   private measure(): void {
