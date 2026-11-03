@@ -4,11 +4,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
-### Cambiado
-- El CI usa `actions/checkout@v5` y `actions/setup-node@v5` (Node 24): las v4 van sobre Node 20, obsoleto, y GitHub avisaba de que las forzaría a Node 24.
-- El bundle de la aplicación ya no incluye `package.json` entero (con sus dependencias de desarrollo) solo para leer la versión: se importa `version` por su nombre y el resto se descarta. Una comprobación de interfaz verifica que el Workspace muestre la versión de `package.json`.
+### Añadido
+- Content-Security-Policy y cabeceras de seguridad en `vercel.json` (`nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS). Las imágenes, fuentes y estilos remotos de las plantillas siguen funcionando; las peticiones de red (`fetch`/XHR) del JavaScript del usuario en el preview quedan bloqueadas. Las pruebas de interfaz se ejecutan con esas mismas cabeceras y fallan ante cualquier violación.
 
 ### Cambiado
+- Angular 22, TypeScript 6 y `angular-eslint` 22. `npm audit` baja de 33 a 18 avisos moderados (solo `minimatch` en `eslint`).
+- Los assets llegan al iframe del preview una sola vez (como `Blob`) y las compilaciones posteriores solo envían el documento; el iframe ya no se recarga en cada cambio. Con un fallback a `data:` si el navegador rechaza reescribir el documento.
+- El CI usa `actions/checkout@v5` y `actions/setup-node@v5` (Node 24): las v4 van sobre Node 20, obsoleto, y GitHub avisaba de que las forzaría a Node 24.
+- El bundle de la aplicación ya no incluye `package.json` entero (con sus dependencias de desarrollo) solo para leer la versión: se importa `version` por su nombre y el resto se descarta. Una comprobación de interfaz verifica que el Workspace muestre la versión de `package.json`.
 - Dependencias de desarrollo: `@angular/cli` y `@angular/build` 20.3.42 (parches de la misma línea) y se elimina `vite-plugin-node-polyfills`, que no se usaba. `npm audit` pasa de 43 avisos (4 altos, 7 bajos) a 33 moderados; los que quedan vienen de `minimatch` en `eslint` y en el CLI y solo se cierran subiendo de versión de Angular. Las dependencias de producción siguen sin vulnerabilidades.
 - El CI ejecuta también las pruebas de interfaz en Firefox y WebKit (job `ui-navegadores`, en paralelo al de Chromium). Los escenarios que solo valen en Chromium se saltan solos con un `SKIP` visible en el log.
 

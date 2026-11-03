@@ -457,6 +457,17 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   private canvasObserver: ResizeObserver | null = null;
   private assetState = inject(AssetState);
   private updateSeq = 0;
+  /**
+   * Estado del iframe del preview: 'none' (sin cargar), 'loading' (cargando el programa), 'ready' (el programa recibe
+   * documentos por mensaje, sin recargar) o 'legacy' (respaldo: `srcdoc` completo con los assets como data URI).
+   */
+  private frameState: 'none' | 'loading' | 'ready' | 'legacy' = 'none';
+  private currentHtml = '';
+  private pendingHtml: string | null = null;
+  /** Assets ya enviados a este iframe (huella de sus URL); null = el iframe es nuevo y no tiene ninguno. */
+  private sentAssetsKey: string | null = null;
+  private watchdog: ReturnType<typeof setTimeout> | null = null;
+  private watchdogFailures = 0;
 
   private readonly canvasSize = signal({ width: 0, height: 0 });
   /** Alto del contenido del documento PDF, medido dentro del iframe y recibido por mensaje. */
@@ -518,7 +529,19 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
           this.reportPageIssues(Array.isArray(d['issues']) ? (d['issues'] as PageBreakIssue[]) : []);
           break;
         case 'pugide-runtime-ready':
+          this.clearWatchdog();
+          this.watchdogFailures = 0;
+          if (this.frameState === 'loading' && d['hasDoc'] === false) {
+            this.frameState = 'ready';
+            this.sentAssetsKey = null; // iframe nuevo: aún no tiene assets
+            if (this.pendingHtml !== null) this.deliver();
+          }
           this.sendFrameState();
+          break;
+        case 'pugide-doc-error':
+          // El navegador no dejó reescribir el documento o crear las URL: se vuelve al srcdoc completo.
+          this.clearWatchdog();
+          this.useLegacy();
           break;
       }
     } catch {
@@ -624,6 +647,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.canvasObserver?.disconnect();
     window.removeEventListener('message', this.messageListener);
+    this.clearWatchdog();
   }
 
   onIframeLoad(): void {
@@ -695,15 +719,94 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Muestra el HTML en el iframe aislado (`srcdoc`, origen opaco) junto con el programa que pagina, mide e
-   * imprime desde dentro. El estado compilado no cambia: solo el documento que se enseña lleva ese programa.
+   * Muestra el HTML en el iframe aislado (`srcdoc`, origen opaco). El iframe se carga una vez con el programa de
+   * `preview-runtime.js` (pagina, mide e imprime desde dentro) y después recibe cada compilación por `postMessage`
+   * (`pugide-doc`): el HTML conserva las URL `blob:` de los assets como marcador y el programa las sustituye por URL
+   * propias creadas a partir de los `Blob` que la app le envía (`pugide-assets`) solo cuando los assets cambian, sin
+   * volver a codificarlos en base64 en cada compilación. El estado compilado no cambia.
+   * Respaldo: si no hay programa, o el navegador no admite reescribir el documento, se usa un `srcdoc` completo con
+   * los assets como data URI (`withDataUris`), que es más lento pero equivalente.
    */
   private async updatePreview(html: string): Promise<void> {
     const seq = ++this.updateSeq;
     const runtime = await loadPreviewRuntime();
     if (seq !== this.updateSeq || !this.previewFrame) return; // llegó una compilación más reciente
+    this.currentHtml = html;
+    if (!runtime) {
+      this.frameState = this.frameState === 'legacy' ? 'legacy' : 'none';
+      this.previewFrame.nativeElement.srcdoc = this.withDataUris(html);
+      return;
+    }
+    if (this.frameState === 'legacy') {
+      this.renderLegacy(html, runtime);
+      return;
+    }
+    this.pendingHtml = html;
+    if (this.frameState === 'ready') this.deliver();
+    else if (this.frameState === 'none') this.loadShell(runtime);
+    // 'loading': el documento pendiente se envía cuando el programa avise de que está listo.
+  }
+
+  private loadShell(runtime: string): void {
+    this.frameState = 'loading';
+    this.sentAssetsKey = null;
+    this.armWatchdog(() => this.useLegacy());
+    this.previewFrame.nativeElement.srcdoc = `<!doctype html><html><body><script>${runtime}</script></body></html>`;
+  }
+
+  /** Envía al iframe el documento pendiente, precedido de los assets si cambiaron desde la última vez. */
+  private deliver(): void {
+    const html = this.pendingHtml;
+    if (html === null) return;
+    this.pendingHtml = null;
+    this.sendAssetsIfChanged();
+    this.postToFrame({ source: 'pugide-doc', html: html ? pinBaseUrl(html) : '' });
+    // El programa avisa al terminar de escribirlo; si no (el documento navegó fuera, p. ej. un enlace), se recarga el iframe.
+    this.armWatchdog(() => {
+      this.frameState = 'none';
+      if (++this.watchdogFailures > 1) {
+        this.useLegacy();
+        return;
+      }
+      this.pendingHtml = this.currentHtml;
+      void loadPreviewRuntime().then((rt) => (rt ? this.loadShell(rt) : this.useLegacy()));
+    });
+  }
+
+  private sendAssetsIfChanged(): void {
+    const entries = this.assetState.blobEntries();
+    const key = entries.map((e) => e.url).sort().join('|');
+    if (key === (this.sentAssetsKey ?? '')) {
+      this.sentAssetsKey = key;
+      return;
+    }
+    this.sentAssetsKey = key;
+    this.postToFrame({ source: 'pugide-assets', files: entries });
+  }
+
+  private useLegacy(): void {
+    this.frameState = 'legacy';
+    this.pendingHtml = null;
+    void loadPreviewRuntime().then((rt) => this.renderLegacy(this.currentHtml, rt));
+  }
+
+  private renderLegacy(html: string, runtime: string): void {
+    if (!this.previewFrame) return;
     const doc = html && runtime ? injectIntoBody(this.withDataUris(html), `<script>${runtime}</script>`) : this.withDataUris(html);
     this.previewFrame.nativeElement.srcdoc = doc;
+  }
+
+  private armWatchdog(onTimeout: () => void): void {
+    this.clearWatchdog();
+    this.watchdog = setTimeout(() => {
+      this.watchdog = null;
+      onTimeout();
+    }, 4000);
+  }
+
+  private clearWatchdog(): void {
+    if (this.watchdog) clearTimeout(this.watchdog);
+    this.watchdog = null;
   }
 }
 

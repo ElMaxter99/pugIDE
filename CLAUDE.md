@@ -4,7 +4,7 @@ Guía para agentes y colaboradores que trabajan en PugIDE. Detalle técnico en [
 
 ## Qué es PugIDE
 
-IDE de Pug/Jade 100% en el navegador (Angular 20, componentes standalone, signals).
+IDE de Pug/Jade 100% en el navegador (Angular 22, componentes standalone, signals).
 
 ## Filosofía (no negociable)
 
