@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>V-03 Actualización de PugIDE</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#ddb7ff}a:hover{color:#ffffff}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 900px; box-sizing: border-box; padding: 48px 56px; background: #110c15; color: #eadfed; font-family: 'Geist', system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column; gap: 40px">
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <h1 style="margin: 0; font-size: 28px; font-weight: 600">Actualización de la app</h1>
+    <p style="margin: 0; color: #cfc2d6; max-width: 760px; line-height: 1.5">Dos momentos: al entrar (se aplica sola, porque aún no hay trabajo en curso) y mientras se trabaja (solo se avisa; nunca se recarga sin que lo pidas).</p>
+  </div>
+
+  <section style="display: flex; flex-direction: column; gap: 12px">
+    <h2 style="margin: 0; font-size: 18px; font-weight: 600">1 · Mientras trabajas: aviso discreto</h2>
+    <div style="border: 1px solid #4d4354; border-radius: 8px; overflow: hidden; background: #16111b">
+      <header style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 16px; background: #231e27; border-bottom: 1px solid #4d4354">
+        <span style="font-weight: 600; font-size: 16px">PugIDE</span>
+        <span style="color: #cfc2d6">Informe trimestral</span>
+      </header>
+      <div role="status" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 16px; background: #0f2a31; border-bottom: 1px solid #03b5d3; color: #eadfed">
+        <span style="flex: 1 1 320px; min-width: 0; line-height: 1.45"><strong>Hay una versión nueva de PugIDE.</strong> Tu trabajo está guardado; se aplica al recargar.</span>
+        <button style="background: #ddb7ff; color: #490080; border: none; border-radius: 4px; padding: 6px 14px; font-size: 13px; font-weight: 600; min-height: 32px">Actualizar ahora</button>
+        <button style="background: transparent; color: #eadfed; border: 1px solid #988d9f; border-radius: 4px; padding: 6px 14px; font-size: 13px; min-height: 32px">Más tarde</button>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; min-height: 180px">
+        <div style="flex: 0 0 200px; background: #1f1a23; border-right: 1px solid #4d4354; padding: 12px 16px; color: #cfc2d6">main.pug<br>mixins.pug</div>
+        <div style="flex: 1 1 300px; padding: 12px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 20px; color: #eadfed; white-space: pre">html
+  body
+    h1= titulo</div>
+      </div>
+    </div>
+    <p style="margin: 0; color: #cfc2d6; line-height: 1.5; max-width: 760px">«Más tarde» oculta el aviso hasta la próxima comprobación (10 minutos o al volver a la pestaña). «Actualizar ahora» guarda la sesión y recarga.</p>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: 12px">
+    <h2 style="margin: 0; font-size: 18px; font-weight: 600">2 · Al entrar: se actualiza sola</h2>
+    <div style="border: 1px solid #4d4354; border-radius: 8px; background: #16111b; min-height: 240px; display: flex; align-items: center; justify-content: center; padding: 32px">
+      <div role="status" style="width: 380px; max-width: 100%; box-sizing: border-box; padding: 24px; background: #231e27; border: 1px solid #4d4354; border-radius: 12px; display: flex; flex-direction: column; gap: 8px; text-align: center">
+        <span style="font-weight: 600; font-size: 18px">Actualizando a la última versión…</span>
+        <span style="color: #cfc2d6; line-height: 1.5">Un momento: PugIDE se recarga sola. Tus proyectos no se tocan.</span>
+      </div>
+    </div>
+    <p style="margin: 0; color: #cfc2d6; line-height: 1.5; max-width: 760px">Solo si la versión nueva llega en los primeros segundos y todavía no has editado nada. Si no hay conexión, se entra con la versión que ya tenías, sin avisos.</p>
+  </section>
+
+  <p style="margin: 0"><a href="V-01-IDE.dc.html">Volver a V-01 IDE</a></p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
