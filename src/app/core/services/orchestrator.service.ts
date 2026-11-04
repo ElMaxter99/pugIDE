@@ -15,6 +15,8 @@ import { FileHistoryService } from './file-history.service';
 import { FileVersion } from '../utils/history.util';
 import { loadHelpers } from '../utils/helpers.util';
 import { buildDiagnostics, Diagnostic } from '../utils/diagnostics.util';
+import { includeSpecifier, includesFile } from '../utils/error-explain.util';
+import { appendMixin, insertInclude, replaceOnLine } from '../utils/fix-apply.util';
 import { PreferencesState } from './preferences.state';
 import { ProjectState } from '../state/project.state';
 import { PersistenceService, ProjectSessionState } from './persistence.service';
@@ -26,7 +28,7 @@ import { AssetState, AssetFile } from '../state/asset.state';
 import { AssetStorageService } from './asset-storage.service';
 import { inlineLocalStylesheets, isStylePath } from '../utils/style-refs.util';
 import { ASSET_EXT_RE, mimeForPath, refToPath, rewriteRefs } from '../utils/asset.util';
-import { PugVariable } from '../models/index';
+import { DiagnosticFix, PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
 import { buildDataSkeleton } from '../utils/data-skeleton.util';
 import { errorifyData, mockifyData, mockLeaf } from '../utils/mock-data.util';
@@ -219,15 +221,17 @@ export class OrchestratorService {
       }));
 
       for (const error of compileResult.errors) {
+        const at = error.path ?? entryPath;
         this.terminalState.addEntry(
           error.severity,
           error.source,
-          `Line ${error.line ?? '?'} - ${error.message}`
+          `Line ${error.line ?? '?'} - ${error.message}${error.hint ? `\n${error.hint}` : ''}`,
+          error.line ? { path: at, line: error.line } : undefined,
         );
       }
 
       for (const scssError of scssResult.errors) {
-        this.terminalState.addEntry('error', 'scss', `${scssError.path} - ${scssError.line ? `línea ${scssError.line}: ` : ''}${scssError.message}`);
+        this.terminalState.addEntry('error', 'scss', `${scssError.path} - ${scssError.line ? `línea ${scssError.line}: ` : ''}${scssError.message}`, scssError.line ? { path: scssError.path, line: scssError.line } : undefined);
       }
 
       if (parseResult.errors.length === 0 && compileResult.errors.length === 0) {
@@ -658,6 +662,54 @@ export class OrchestratorService {
 
   private randomSeed(): number {
     return Math.floor(Math.random() * 2147483647);
+  }
+
+  /** Aplica un arreglo propuesto por un diagnóstico (crear mixin, añadir include, corregir una errata) y recompila. */
+  applyFix(fix: DiagnosticFix): void {
+    const files = this.editorState.files();
+    // Un solo aviso a Monaco con todos los archivos tocados: avisos seguidos se pisarían (cada uno reemplaza las rutas del anterior).
+    const touched = new Set<string>();
+    const write = (path: string, content: string): void => {
+      if (!files.has(path)) {
+        this.addFile(path, path.split('/').pop() ?? path, content);
+        return;
+      }
+      files.set(path, content);
+      if (this.editorState.activeTab()?.path === path) this.editorState.updateContent(content);
+      touched.add(path);
+    };
+    const withInclude = (from: string, target: string): void => {
+      const src = files.get(from);
+      if (src === undefined || includesFile(src, target)) return;
+      write(from, insertInclude(src, includeSpecifier(from, target)));
+    };
+
+    let reveal: { path: string; line: number } | null = null;
+    if (fix.kind === 'createMixin') {
+      const r = appendMixin(files.get(fix.path) ?? '', fix.name);
+      write(fix.path, r.content);
+      if (fix.includeFrom) withInclude(fix.includeFrom, fix.path);
+      reveal = { path: fix.path, line: r.line };
+    } else if (fix.kind === 'addInclude') {
+      withInclude(fix.path, fix.target);
+    } else {
+      const src = files.get(fix.path);
+      const next = src === undefined ? null : replaceOnLine(src, fix.line, fix.from, fix.to);
+      if (next === null) {
+        this.terminalState.addEntry('warning', 'Fix', `No se pudo aplicar «${fix.label}»: el código ya no coincide. Vuelve a compilar.`);
+        return;
+      }
+      write(fix.path, next);
+    }
+    if (touched.size) this.editorState.notifyFileSync([...touched]);
+    this.projectState.setProject(this.projectState.projectName(), files);
+    this.terminalState.addEntry('success', 'Fix', fix.label);
+    // Monaco aplica el cambio en el siguiente ciclo; cambiar de pestaña antes lo dejaría sobre el modelo equivocado.
+    if (reveal) {
+      const target = reveal;
+      setTimeout(() => this.editorState.revealLine(target.path, target.line), 150);
+    }
+    void this.manualCompile();
   }
 
   addFile(path: string, name: string, content = ''): void {

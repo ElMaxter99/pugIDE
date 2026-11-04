@@ -62,7 +62,7 @@ Las pruebas van bien (unitarias, e2e, interfaz en tres navegadores, accesibilida
 
 | # | Fase | Por qué ahora | Tamaño |
 |---|---|---|---|
-| 8 | Errores y diagnóstico | Es lo que más tiempo hace perder con plantillas reales (el caso `+azBody`) | M |
+| 8 | Errores y diagnóstico | Es lo que más tiempo hace perder con plantillas reales (un mixin que se llama pero no existe) | M |
 | 7 | Informes largos y PDF | Los informes con tablas largas son el uso real (modelo 187) | M–L |
 | 9 | Proyectos e importación | Entrar con un proyecto ajeno debe ser inmediato | M |
 | 11 | Seguridad endurecida | Cierra la deuda de `unsafe-inline`/`unsafe-eval` | L |
@@ -75,7 +75,7 @@ Las pruebas van bien (unitarias, e2e, interfaz en tres navegadores, accesibilida
 - **8.1 Más causas explicadas** (hoy: mixin no definido y variable no definida). Añadir: `include`/`extends` que no encuentra el archivo, `Cannot read properties of undefined` (un dato que falta en el JSON, con el nombre del dato), indentación inconsistente, etiquetas o paréntesis sin cerrar. Hecho cuando cada causa tiene mensaje en español, archivo:línea y una prueba.
 - **8.2 Panel de problemas.** Lista de todos los diagnósticos (hoy el aviso muestra el primero), cada uno clicable, con F8 / Mayús+F8 para saltar entre ellos. Hecho cuando se puede recorrer un proyecto con varios errores sin tocar el ratón.
 - **8.3 Terminal enlazada.** Las entradas con ubicación (`main.pug:52`) abren el archivo en esa línea.
-- **8.4 Arreglo rápido.** Para «mixin no definido»: acción «Crear `mixin azBody()` en `mixins.pug`» y «¿Quisiste decir `+saludo`?». Para «mixin definido en un archivo sin `include`»: «Añadir `include`».
+- **8.4 Arreglo rápido.** Para «mixin no definido»: acción «Crear `mixin tarjeta()` en `mixins.pug`» y «¿Quisiste decir `+saludo`?». Para «mixin definido en un archivo sin `include`»: «Añadir `include`».
 
 ### Fase 7. Informes largos y PDF
 

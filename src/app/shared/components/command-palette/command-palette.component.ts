@@ -3,6 +3,7 @@ import { AnalyticsService } from '../../../core/services/analytics.service';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { ProjectIoService } from '../../../core/services/project-io.service';
 import { PreferencesState } from '../../../core/services/preferences.state';
+import { DiagnosticsState } from '../../../core/state/diagnostics.state';
 import { EditorState } from '../../../core/state/editor.state';
 import { PreviewState } from '../../../core/state/preview.state';
 import { UiState } from '../../../core/state/ui.state';
@@ -82,6 +83,13 @@ export class CommandPaletteComponent {
   private editorState = inject(EditorState);
   private previewState = inject(PreviewState);
   private injector = inject(Injector);
+  private diagnosticsState = inject(DiagnosticsState);
+
+  /** Salta al siguiente/anterior problema de todo el proyecto (el F8 de Monaco solo recorre el archivo abierto). */
+  private goToProblem(direction: 1 | -1): void {
+    const d = this.diagnosticsState.step(direction);
+    if (d) this.editorState.revealLine(d.path, d.line);
+  }
   private searchInput = viewChild<ElementRef<HTMLInputElement>>('search');
 
   private restoreFocus: (() => void) | null = null;
@@ -91,6 +99,8 @@ export class CommandPaletteComponent {
   private commands = computed<PaletteCommand[]>(() => {
     if (!this.ui.paletteOpen()) return [];
     const list: PaletteCommand[] = [
+      { group: 'Problemas', title: 'Ir al siguiente problema', keywords: 'error errores siguiente next', run: () => this.goToProblem(1) },
+      { group: 'Problemas', title: 'Ir al problema anterior', keywords: 'error errores anterior previous', run: () => this.goToProblem(-1) },
       { group: 'Proyecto', title: 'Compilar ahora', keywords: 'preview render ctrl+enter', run: () => void this.orchestrator.manualCompile() },
       { group: 'Proyecto', title: 'Guardar', keywords: 'ctrl+s', run: () => this.orchestrator.saveFile() },
       { group: 'Archivos', title: 'Historial del archivo…', keywords: 'versiones restaurar volver atrás cambios diff', run: () => this.ui.historyOpen.set(true) },

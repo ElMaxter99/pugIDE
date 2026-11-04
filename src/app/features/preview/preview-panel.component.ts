@@ -20,6 +20,8 @@ import { openInHost } from '../../core/render/preview-host';
 import { A11yIssue, a11yReport, buildPageChrome, describePageIssue, fitScale, pageCountFor, pageIssuesKey } from '../../core/utils/preview-layout.util';
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
+import { DiagnosticsState } from '../../core/state/diagnostics.state';
+import { ProblemsListComponent } from './problems-list.component';
 import { ProjectIoService } from '../../core/services/project-io.service';
 import { InspectorState } from '../../core/state/inspector.state';
 import { DEVICE_PRESETS, findDevicePreset, ColorSchemeSim } from '../../core/utils/device-presets.util';
@@ -32,7 +34,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
 @Component({
   selector: 'app-preview-panel',
   standalone: true,
-  imports: [InspectorPanelComponent, PdfBarComponent],
+  imports: [InspectorPanelComponent, PdfBarComponent, ProblemsListComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="preview-section" aria-label="Vista previa">
@@ -143,8 +145,19 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
               Ir al error ({{ loc.name }}:{{ loc.line }})
             </button>
           }
+          @if (previewState.errors()[0].fix; as fix) {
+            <button class="compile-error-btn compile-error-fix" (click)="orchestrator.applyFix(fix)">{{ fix.label }}</button>
+          }
+          @if (diagnosticsState.diagnostics().length > 1) {
+            <button class="compile-error-btn" (click)="problemsOpen.update(v => !v)" [attr.aria-expanded]="problemsOpen()">
+              {{ problemsOpen() ? 'Ocultar problemas' : 'Todos los problemas (' + diagnosticsState.diagnostics().length + ')' }}
+            </button>
+          }
           <button class="compile-error-btn" (click)="terminal.isVisible.set(true)">Ver terminal</button>
         </div>
+        @if (problemsOpen() && diagnosticsState.diagnostics().length > 1) {
+          <app-problems-list />
+        }
       }
       <div class="preview-viewport">
         <div class="preview-canvas" #canvas>
@@ -720,6 +733,9 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     if (!e || !e.line || !path) return null;
     return { path, line: e.line, name: path.split('/').pop() ?? path };
   });
+
+  protected problemsOpen = signal(false);
+  protected diagnosticsState = inject(DiagnosticsState);
 
   goToError(): void {
     const loc = this.errorLocation();

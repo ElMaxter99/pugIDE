@@ -21,3 +21,5 @@ export { limitScale, MAX_CANVAS_SIDE, MAX_CANVAS_PIXELS } from '../../src/app/co
 export * from '../../src/app/core/utils/history.util';
 export * from '../../src/app/core/utils/markdown.util';
 export * from '../../src/app/core/utils/html-injection.util';
+export * from '../../src/app/core/utils/error-explain.util';
+export * from '../../src/app/core/utils/fix-apply.util';

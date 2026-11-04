@@ -1,5 +1,6 @@
 import type { CompileError } from '../models/index';
-import { explainRuntimeError, explainUnknownFilter, splitPugMessage } from '../utils/diagnostics.util';
+import { explainUnknownFilter, splitPugMessage } from '../utils/diagnostics.util';
+import { explainError } from '../utils/error-explain.util';
 import { loadHelpers } from '../utils/helpers.util';
 import { createTranslator, TRANSLATE_FNS } from '../utils/i18n.util';
 import { renderMarkdown } from '../utils/markdown.util';
@@ -91,13 +92,17 @@ export function renderPug(bundle: PugBundle, req: RenderRequest): RenderResponse
     // La ubicación que Pug escribe en el mensaje manda: en Safari los errores traen su propia `line`/`column`
     // (las del JavaScript compilado de la plantilla, no las del `.pug`).
     const fromPug = split.path !== undefined && split.line !== undefined;
+    const path = fromPug ? known(split.path) : known(error.filename);
+    const line = fromPug ? split.line : error.line;
+    const explained = explainError(split.message, { files, path: path ?? req.entryPath, line });
     errors.push({
       message: explainUnknownFilter(split.message),
       source: 'pug',
-      path: fromPug ? known(split.path) : known(error.filename),
-      line: fromPug ? split.line : error.line,
+      path,
+      line,
       column: fromPug ? split.column : error.column,
-      hint: explainRuntimeError(split.message, files),
+      ...(explained ? { hint: explained.hint } : {}),
+      ...(explained?.fix ? { fix: explained.fix } : {}),
       severity: 'error',
     });
   }

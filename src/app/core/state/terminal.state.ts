@@ -23,13 +23,14 @@ export class TerminalState {
     this.entries().filter((e) => e.type === 'warning').length
   );
 
-  addEntry(type: TerminalEntry['type'], source: string, message: string): void {
+  addEntry(type: TerminalEntry['type'], source: string, message: string, loc?: { path: string; line: number }): void {
     const entry: TerminalEntry = {
       id: crypto.randomUUID(),
       timestamp: Date.now(),
       type,
       source,
       message,
+      ...(loc ? { path: loc.path, line: loc.line } : {}),
     };
     this.entries.update((entries) => [...entries.slice(-999), entry]);
   }

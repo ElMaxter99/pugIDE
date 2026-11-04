@@ -10,7 +10,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [0.4.1] - 2026-11-04
 
 ### Añadido
-- Los errores de ejecución de Pug se explican: si se llama a `+azBody` y ningún archivo define ese mixin, el aviso del preview lo dice, lista los mixins que sí existen y, si el mixin está definido en un archivo que no se incluye, indica el `include` que falta. Lo mismo para variables no definidas. El aviso ya no arrastra la ruta ni el fragmento de código y tiene un botón «Ir al error (archivo:línea)» que abre el archivo y deja la línea a la vista.
+- Los errores de ejecución de Pug se explican: si se llama a `+tarjeta` y ningún archivo define ese mixin, el aviso del preview lo dice, lista los mixins que sí existen y, si el mixin está definido en un archivo que no se incluye, indica el `include` que falta. Lo mismo para variables no definidas. El aviso ya no arrastra la ruta ni el fragmento de código y tiene un botón «Ir al error (archivo:línea)» que abre el archivo y deja la línea a la vista.
 
 ### Corregido
 - **Ctrl+V no pegaba en el editor** en Chrome, Edge y Safari (sin ningún error; en Firefox sí). El polyfill de `process` declaraba `versions.node`, Monaco se creía en Node/Electron y enlazaba Ctrl+V por su cuenta en lugar de dejar pegar al navegador. Los bundles de Pug (que sí necesitan `process.versions.node`) reciben ahora su propio `process` local en vez de uno global. Como consecuencia Monaco detecta bien la plataforma: en Mac los atajos usan Cmd (antes Ctrl) y liberar el foco del editor es Ctrl+Mayús+M. Hay una prueba de pegado con el teclado.
