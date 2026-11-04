@@ -20,7 +20,7 @@ Todo cambio en lo que ve el usuario (pantallas, flujos, textos de pantalla) se d
 ## Dos tipos de mesa
 
 1. **Fieles a la app (capturas del DOM real).** `V-01`, `V-02`, `V-04` a `V-27`, `Tokens` y `Componentes` no se dibujan a mano: las genera [`design/tools/`](tools) a partir de la app compilada. Así coinciden con la app en medidas, colores, tipografía y textos. Cuando la UI cambia, se regeneran (ver [Mantener el lienzo fiel](../docs/brand/DESIGN_TOKENS.md#cómo-mantener-el-lienzo-fiel)).
-2. **Diseños nuevos (diseño primero).** Se dibujan a mano en una fila nueva con los tokens y los componentes. Hoy: `V-03` (aviso de actualización de la 0.5.1) y `V-28` a `V-33` (instantáneas del proyecto, 0.6; muestran además el botón de cámara nuevo en la barra superior). Al programarse, se sustituye por la captura real (V-03 ya está programada en la 0.5.1; falta sustituirla por la captura).
+2. **Diseños nuevos (diseño primero).** Se dibujan a mano en una fila nueva con los tokens y los componentes. Hoy: `V-03` (aviso de actualización de la 0.5.1) y `V-28` a `V-35` (instantáneas del proyecto, 0.6; muestran además el botón de cámara nuevo en la barra superior). Al programarse, se sustituye por la captura real (V-03 ya está programada en la 0.5.1; falta sustituirla por la captura).
 
 ## Mesas
 
@@ -64,6 +64,8 @@ Estado «fiel a la 0.5»: generada de la app de este repositorio (0.4.1 más los
 | V-31 Instantáneas vacío | Diálogo sin ninguna instantánea | [`V-31-Instantaneas-vacio.dc.html`](canvas/V-31-Instantaneas-vacio.dc.html) | `project-snapshots-dialog` | Diseño de la 0.6; dibujado a mano |
 | V-32 Instantáneas tope | 20 de 20: aviso de que se eliminará la más antigua antes de guardar | [`V-32-Instantaneas-tope.dc.html`](canvas/V-32-Instantaneas-tope.dc.html) | `project-snapshots-dialog` | Diseño de la 0.6; dibujado a mano |
 | V-33 Instantáneas no cabe | Error: el proyecto supera el tope de 25 MB por instantánea | [`V-33-Instantaneas-no-cabe.dc.html`](canvas/V-33-Instantaneas-no-cabe.dc.html) | `project-snapshots-dialog` | Diseño de la 0.6; dibujado a mano |
+| V-34 Restaurar con el tope | Confirmación de restaurar con 20 de 20: avisa de que la copia automática elimina la más antigua | [`V-34-Instantaneas-restaurar-tope.dc.html`](canvas/V-34-Instantaneas-restaurar-tope.dc.html) | `snapshot-restore-confirm` | Diseño de la 0.6; dibujado a mano |
+| V-35 Instantánea guardada | Aviso tras guardar una instantánea | [`V-35-Instantaneas-guardada.dc.html`](canvas/V-35-Instantaneas-guardada.dc.html) | `project-snapshots-dialog` | Diseño de la 0.6; dibujado a mano |
 
 `canvas/canvas.json` es el índice del lienzo (posición, tamaño, título y enlaces entre mesas; filas y notas). Los `*.dc.html` son HTML real con un bloque de script mínimo; se abren dentro del lienzo, no sueltos en el navegador. `canvas/` es copia exacta de lo publicado.
 
