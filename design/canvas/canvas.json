@@ -1,0 +1,17 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-04T10:30:00Z" },
+  "title": "PugIDE · Diseño de la interfaz",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 1080, "title": "Tokens de diseño" },
+    "V-01-IDE.dc.html": { "x": 1360, "y": 0, "w": 1440, "h": 900, "title": "V-01 IDE: editor, datos y preview", "expand": "fill", "is_interactive": true },
+    "V-02-Errores.dc.html": { "x": 2880, "y": 0, "w": 1440, "h": 900, "title": "V-02 Errores: explicación y arreglos", "expand": "fill", "is_interactive": true }
+  },
+  "order": ["Main.dc.html", "V-01-IDE.dc.html", "V-02-Errores.dc.html"],
+  "notes": {
+    "titulo": { "x": 0, "y": -300, "text": "Versión 0.5 · errores explicados, PDF y proyectos", "kind": "title1", "maxW": 4320 }
+  },
+  "designSystems": []
+}

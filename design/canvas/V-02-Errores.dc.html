@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>V-02 Errores explicados en PugIDE</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#ddb7ff}a:hover{color:#ffffff}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #16111b; color: #eadfed; font-family: 'Geist', system-ui, sans-serif; font-size: 13px">
+
+  <header style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 16px; background: #231e27; border-bottom: 1px solid #4d4354">
+    <a href="V-01-IDE.dc.html" style="font-weight: 600; font-size: 16px; color: #eadfed; text-decoration: none">← PugIDE</a>
+    <span style="color: #cfc2d6">Informe trimestral</span>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; flex-grow: 1; min-height: 0">
+
+    <section style="flex: 1 1 400px; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid #4d4354">
+      <div style="display: flex; background: #231e27; border-bottom: 1px solid #4d4354">
+        <span style="padding: 8px 16px; border-bottom: 2px solid #ddb7ff">main.pug</span>
+        <span style="padding: 8px 16px; color: #cfc2d6">mixins.pug</span>
+      </div>
+      <div style="padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 20px; background: #16111b">
+        <div style="white-space: pre">html</div>
+        <div style="white-space: pre">  body</div>
+        <div style="white-space: pre">    .informe</div>
+        <div style="white-space: pre">      +<span style="text-decoration: underline wavy #ffb4ab; text-underline-offset: 3px">tarjeta</span>(resumen)</div>
+        <div style="margin: 8px 0 0; padding: 10px 12px; max-width: 520px; background: #2e2832; border: 1px solid #4d4354; border-radius: 8px; font-family: 'Geist', sans-serif">
+          <p style="margin: 0 0 6px; font-weight: 600; color: #ffb4ab">pug_mixins.tarjeta is not a function</p>
+          <p style="margin: 0 0 8px; color: #cfc2d6; line-height: 1.4">Se llama a +tarjeta, pero ningún archivo define <code style="font-family: 'JetBrains Mono', monospace">mixin tarjeta(...)</code>.</p>
+          <span style="display: inline-block; padding: 4px 10px; background: #ddb7ff; color: #490080; border-radius: 4px; font-weight: 600">Arreglo rápido: Crear mixin tarjeta en mixins.pug</span>
+        </div>
+      </div>
+    </section>
+
+    <section style="flex: 1 1 460px; min-width: 0; display: flex; flex-direction: column; background: #231e27">
+      <div role="alert" style="display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; padding: 8px 12px; background: rgba(255,82,82,0.12); border-bottom: 1px solid rgba(255,82,82,0.4); color: #ffb4ab">
+        <span style="flex: 1 1 260px; min-width: 0; line-height: 1.45">
+          <strong>Error de compilación:</strong> pug_mixins.tarjeta is not a function
+          <span style="display: block; margin-top: 2px; color: #cfc2d6">Se llama a +tarjeta, pero ningún archivo define mixin tarjeta(...). Mixins definidos en el proyecto: +saludo. Defínelo (por ejemplo en mixins.pug) y añade el include.</span>
+        </span>
+        <button style="background: transparent; color: #ffb4ab; border: 1px solid #ffb4ab; border-radius: 4px; padding: 4px 10px; min-height: 32px">Ir al error (main.pug:4)</button>
+        <button style="background: transparent; color: #ddb7ff; border: 1px solid #ddb7ff; border-radius: 4px; padding: 4px 10px; min-height: 32px">Crear mixin tarjeta en mixins.pug</button>
+        <button onClick="{{toggle}}" aria-expanded="{{open}}" style="background: transparent; color: #ffb4ab; border: 1px solid #ffb4ab; border-radius: 4px; padding: 4px 10px; min-height: 32px">{{toggleLabel}}</button>
+      </div>
+
+      <sc-if value="{{open}}" hint-placeholder-val="{{ true }}">
+        <ul aria-label="Problemas del proyecto" style="list-style: none; margin: 0; padding: 6px 12px 10px; background: rgba(255,82,82,0.06); border-bottom: 1px solid rgba(255,82,82,0.4); display: flex; flex-direction: column; gap: 8px">
+          <sc-for list="{{problems}}" as="p" hint-placeholder-count="2">
+            <li style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap">
+              <button style="background: transparent; color: #ffb4ab; border: 1px solid #ffb4ab; border-radius: 4px; padding: 2px 8px; font-size: 12px">{{p.where}}</button>
+              <span style="flex: 1 1 240px; min-width: 0">
+                <span style="display: block">{{p.message}}</span>
+                <span style="display: block; color: #cfc2d6">{{p.hint}}</span>
+              </span>
+              <sc-if value="{{p.fix}}" hint-placeholder-val="{{ true }}">
+                <button style="background: transparent; color: #ddb7ff; border: 1px solid #ddb7ff; border-radius: 4px; padding: 2px 8px; font-size: 12px">{{p.fix}}</button>
+              </sc-if>
+            </li>
+          </sc-for>
+        </ul>
+      </sc-if>
+
+      <div style="flex-grow: 1; padding: 24px; background: #110c15; display: flex; align-items: flex-start; justify-content: center">
+        <p style="margin: 0; color: #cfc2d6; max-width: 320px; text-align: center; line-height: 1.5">La vista previa mantiene la última versión que compiló bien hasta que se corrige el error.</p>
+      </div>
+
+      <div style="background: #1f1a23; border-top: 1px solid #4d4354; padding: 8px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; display: flex; flex-direction: column; gap: 4px">
+        <div><span style="color: #988d9f">09:41:07</span> <span style="color: #ffb4ab">[pug]</span> Line 4 - pug_mixins.tarjeta is not a function <a href="V-02-Errores.dc.html" style="color: #ddb7ff">main.pug:4</a></div>
+        <div><span style="color: #988d9f">09:41:09</span> <span style="color: #a6e3a1">[Fix]</span> Crear mixin tarjeta en mixins.pug</div>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  state = { open: true };
+  renderVals() {
+    const open = this.state.open;
+    return {
+      open,
+      toggleLabel: open ? 'Ocultar problemas' : 'Todos los problemas (2)',
+      toggle: () => this.setState({ open: !this.state.open }),
+      problems: [
+        { where: 'main.pug:4', message: 'pug_mixins.tarjeta is not a function', hint: 'Se llama a +tarjeta, pero ningún archivo define mixin tarjeta(...).', fix: 'Crear mixin tarjeta en mixins.pug' },
+        { where: 'translations.json:1', message: 'JSON no válido: Unexpected end of JSON input', hint: '', fix: '' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
