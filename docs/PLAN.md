@@ -8,10 +8,10 @@ Actualizado el 2026-11-04. El análisis inicial (v0.3.1) se hizo el 2026-11-03; 
 |---|---|
 | `npm run build:prod` | OK (incluye la comprobación de que `render-sandbox.js` y `preview-runtime.js` corresponden a sus fuentes) |
 | `npm run lint` | OK |
-| `npm run test:unit` | 127 pruebas |
+| `npm run test:unit` | 146 pruebas |
 | `npm run test:e2e` | 237 comprobaciones (servicios reales de la app en Node, render en línea) |
-| `npm run test:ui` en Chromium | 307 comprobaciones |
-| `PUGIDE_BROWSER=firefox` / `webkit` | 279 y 274 comprobaciones (los escenarios 03, 05, 21 y 23 solo valen en Chromium o en Chromium y Firefox y se muestran como `SKIP` con el motivo). Corren también en el CI (`ui-firefox`, `ui-webkit`) |
+| `npm run test:ui` en Chromium | 430 comprobaciones |
+| `PUGIDE_BROWSER=firefox` / `webkit` | 331 y 326 comprobaciones (los escenarios 03, 05, 21, 23, 25, 27 y 28 solo valen en Chromium, o en Chromium y Firefox y se muestran como `SKIP` con el motivo). Corren también en el CI (`ui-firefox`, `ui-webkit`) |
 | Accesibilidad (axe-core) | 0 incumplimientos en 12 pantallas y diálogos, tema oscuro y claro, más recorrido por teclado |
 | `npm audit --omit=dev` | 0 vulnerabilidades en dependencias de producción |
 | `npm audit` (todo) | 18 moderados, 0 altos y 0 bajos (antes 43: 4 altos y 7 bajos). Todos de herramientas de desarrollo (ver sección 3) |
@@ -54,6 +54,7 @@ Prioridad: **A** = afecta al uso diario, **B** = mejora clara, **C** = deseable.
 | Seguimiento | CI también en Firefox y WebKit (#32); `@angular/cli` y `@angular/build` 20.3.42 y una devDependency sin uso menos: `npm audit` pasa de 43 a 33 avisos y sin altos ni bajos |
 | Seguimiento 2 | Angular 22 y TypeScript 6; CSP y cabeceras de seguridad; assets entregados al preview una sola vez |
 | Seguimiento 3 | Errores explicados y con arreglo (fase 8), cabeceras de tabla repetidas (7.1, 7.4), soltar carpetas y `.zip` (9.1), `release:check` (13.3) |
+| Seguimiento 4 | Instantáneas de proyecto, huérfanas y viudas y avisos de `string()`/`element()` en el PDF, mediciones y optimización del paginado de tablas, CSP de la app sin `unsafe-inline` ni `unsafe-eval` |
 
 ## 5. Plan de mejoras e implementaciones
 
@@ -66,29 +67,29 @@ Las pruebas van bien (unitarias, e2e, interfaz en tres navegadores, accesibilida
 - ✅ **8.3 Terminal enlazada:** las entradas con ubicación abren `archivo:línea`.
 - ✅ **8.4 Arreglos con un clic:** crear el mixin, añadir el `include`, corregir una errata; también como arreglo rápido de Monaco (`Ctrl+.`).
 
-### Fase 7. Informes largos y PDF (parcial)
+### Fase 7. Informes largos y PDF ✅
 
 - ✅ **7.1 Cabeceras de tabla repetidas** en cada hoja (`thead`), con y sin márgenes, como Chromium (que no repite una cabecera de más de un cuarto de hoja). El `tfoot` no se repite.
-- ⏳ **7.2 Huérfanas y viudas** (`orphans`/`widows`).
-- ⏳ **7.3 `string()` y `element()`** en cabeceras y pies (límite conocido de la emulación).
+- ✅ **7.2 Huérfanas y viudas** (`orphans`/`widows`) como Chromium (medido con `page.pdf()`), con y sin márgenes; escenario 28.
+- ✅ **7.3 `string()` y `element()`:** Chromium 141 no los implementa (descarta la declaración y la caja sale vacía), así que no se emulan: el preview avisa y oculta la caja.
 - ✅ **7.4 Avisos de corte con la regla CSS concreta** y un selector del elemento.
-- ⏳ **7.5 Medición** con una tabla de miles de filas: tiempo de paginado y de compilación, y un presupuesto. La repetición de cabeceras copia el estilo calculado de cada celda, así que conviene medir tablas grandes con cabecera.
+- ✅ **7.5 Medición** de tablas con cabecera repetida (500, 2000 y 5000 filas) y optimización: el estilo de la cabecera se calcula una vez y se clona por hoja. Queda un residuo: una maquetación completa de la tabla por hoja (5000 filas ≈ 2,5 s); quitarlo exigiría predecir posiciones sin leer el DOM.
 
-### Fase 9. Proyectos e importación (parcial)
+### Fase 9. Proyectos e importación ✅
 
 - ✅ **9.1 Soltar sobre el árbol:** una carpeta o un `.zip` abren un proyecto nuevo (el anterior queda en «Mis proyectos»); varias carpetas o archivos de texto sueltos se añaden sin sobrescribir. La lectura de carpetas se prueba con entradas simuladas, no con una carpeta real arrastrada.
-- ⏳ **9.2 Instantáneas de proyecto con nombre** (hoy el historial es por archivo): guardar, comparar y restaurar el proyecto entero.
+- ✅ **9.2 Instantáneas de proyecto con nombre:** guardar, comparar y restaurar el proyecto entero (mesas V-28 a V-35 del lienzo, pendientes de aprobar; tope de 20 y 25 MB; escenario 29).
 - ✅ **9.3 Assets que faltan:** ya existía la lista «Faltan N archivo(s)» del árbol, con subida directa de cada uno.
 
 ### Fase 11. Seguridad endurecida
 
-- ⏳ **11.1 CSP sin `unsafe-inline` ni `unsafe-eval`** en `script-src`: preview y render pasan a documentos propios (`src=` en lugar de `srcdoc`) con CSP por cabecera. Es un cambio grande y de riesgo en producción: hay que probarlo contra el despliegue real (Vercel), no solo contra el servidor de pruebas.
+- ✅ **11.1 CSP sin `unsafe-inline` ni `unsafe-eval`** en `script-src` de la app: preview, render y pestaña nueva en documentos propios con CSP por cabecera. Probado contra el servidor de pruebas con las mismas cabeceras, no contra Vercel: hay una checklist manual en `docs/ARCHITECTURE.md`.
 - 👤 **11.2 Protección de ramas:** `ui-firefox` y `ui-webkit` requeridos en `master`; `release` sin force-push ni borrado.
 
 ### Fase 10. Rendimiento
 
-- ⏳ **10.1 Medir el efecto real** de enviar los assets una sola vez (no hay cifras antes/después).
-- ⏳ **10.2 No recompilar lo que no cambia**, solo si la medición lo justifica.
+- ✅ **10.1 Medido:** el envío de assets una sola vez baja el cambio de código con un asset de 3 MB de 577 a 336 ms (`npm run perf`).
+- ✅ **10.2** No hace falta: las mediciones no lo justifican.
 
 ### Fase 12. Accesibilidad real y Mac
 
