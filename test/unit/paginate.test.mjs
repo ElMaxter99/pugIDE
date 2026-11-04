@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { straddlesPage, isOrphanHeading } from './.build/units.mjs';
+import { straddlesPage, isOrphanHeading, selectorFor } from './.build/units.mjs';
 
 const PAGE = 1000;
 
@@ -65,4 +65,11 @@ test('con márgenes cero pushTarget coincide con el comportamiento anterior', ()
 test('isOrphanHeading respeta el margen inferior', () => {
   assert.equal(isOrphanHeading(850, 40, 1000, 40, 80), true);  // acaba a 890, el contenido llega a 920
   assert.equal(isOrphanHeading(700, 40, 1000, 40, 80), false);
+});
+
+test('selectorFor cita el elemento con su id, su primera clase o solo la etiqueta', () => {
+  assert.equal(selectorFor({ tagName: 'IMG', id: 'logo', classList: ['a'] }), 'img#logo');
+  assert.equal(selectorFor({ tagName: 'P', id: '', classList: ['1mal', 'nota'] }), 'p.nota');
+  assert.equal(selectorFor({ tagName: 'H2', id: '', classList: [] }), 'h2');
+  assert.equal(selectorFor({ tagName: 'DIV', id: 'a b', classList: [] }), 'div');
 });

@@ -38,8 +38,9 @@ test('buildPageChrome posiciona cabeceras y pies en cada hoja', () => {
 test('avisos de PDF: texto y clave estable', () => {
   const cut = { kind: 'cut', page: 2, element: 'img', text: '' };
   const orphan = { kind: 'orphan', page: 3, element: 'h2', text: 'Título' };
-  assert.match(describePageIssue(cut), /Página 2: <img> se corta/);
-  assert.match(describePageIssue(orphan), /Página 3: <h2> «Título» queda al final/);
+  assert.match(describePageIssue(cut), /Página 2: <img> se corta entre páginas\. Prueba con la regla CSS `img \{ break-inside: avoid; \}`/);
+  assert.match(describePageIssue({ ...cut, selector: 'img.logo' }), /`img\.logo \{ break-inside: avoid; \}`/);
+  assert.match(describePageIssue(orphan), /Página 3: <h2> «Título» queda al final.*`h2 \{ break-after: avoid; \}`/);
   assert.equal(pageIssuesKey([cut, orphan]), 'cut:2:img:|orphan:3:h2:Título');
 });
 

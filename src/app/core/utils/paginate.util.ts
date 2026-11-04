@@ -10,12 +10,15 @@ import type { PageMargins } from './page-rules.util';
  * With `@page { margin }` each sheet has a content area smaller than the sheet: the document gets
  * the margins as padding and everything is laid out so that nothing lands in the margin bands
  * between pages (text blocks are split line by line with a spacer, table rows and atomic
- * elements are moved whole). Orphans/widows are not emulated.
+ * elements are moved whole). Una tabla con `thead` repite su cabecera al empezar cada hoja nueva (no el `tfoot`).
+ * Orphans/widows are not emulated.
  */
 const MARK = 'data-pg-orig';
 const SPACER = 'data-pg-spacer';
 const HTML_MARK = 'data-pg-html';
 const EPS = 0.5;
+/** Fracción máxima del área de contenido que puede ocupar una cabecera de tabla para que se repita en cada hoja. */
+const MAX_REPEATED_HEADER = 0.25;
 
 const FORCED = new Set(['page', 'always', 'left', 'right', 'recto', 'verso']);
 const ATOMIC_TAGS = new Set(['IMG', 'SVG', 'FIGURE', 'CANVAS', 'VIDEO', 'PRE', 'BLOCKQUOTE']);
@@ -233,6 +236,50 @@ function pushTableRow(doc: Document, row: HTMLElement, height: number): void {
   row.parentNode?.insertBefore(spacer, row);
 }
 
+/**
+ * Cabecera que se repite en cada página de una tabla (`thead` con `display: table-header-group`, que es el valor por
+ * defecto): sus filas, si `row` es una fila del cuerpo de esa tabla. La impresión real la repite al continuar la tabla.
+ */
+function repeatingHeader(win: Window, row: HTMLElement, g: PageGeometry): { table: HTMLElement; rows: HTMLElement[] } | null {
+  const parent = row.parentElement;
+  if (!parent || parent.tagName === 'THEAD' || parent.tagName === 'TFOOT') return null;
+  const table = row.closest('table');
+  const head = table?.tHead;
+  if (!table || !head || head.contains(row) || win.getComputedStyle(head).display !== 'table-header-group') return null;
+  const rows = Array.from(head.rows);
+  // Chromium no repite una cabecera que ocupa más de un cuarto del área de contenido de la hoja (medido con page.pdf()).
+  if (!rows.length || head.getBoundingClientRect().height > contentHeight(g) * MAX_REPEATED_HEADER) return null;
+  return { table, rows };
+}
+
+/** Copia en línea el estilo calculado de `src` (y de sus descendientes) a `dst`: la copia ya no depende de selectores como `thead th`. */
+function inlineComputedStyle(win: Window, src: Element, dst: Element): void {
+  const target = (dst as HTMLElement).style; // los SVG también tienen `style`; sin él (nodo raro) se salta
+  if (target) {
+    const cs = win.getComputedStyle(src);
+    for (let i = 0; i < cs.length; i++) {
+      const name = cs[i];
+      target.setProperty(name, cs.getPropertyValue(name), cs.getPropertyPriority(name));
+    }
+  }
+  for (let i = 0; i < src.children.length && i < dst.children.length; i++) inlineComputedStyle(win, src.children[i], dst.children[i]);
+}
+
+/**
+ * Copia de las filas de la cabecera delante de `row` (marcadas como relleno para que `resetPagination` las quite).
+ * Van dentro del cuerpo de la tabla, así que llevan su estilo en línea: `thead th { ... }` ya no les aplicaría.
+ */
+function insertHeaderCopy(win: Window, row: HTMLElement, header: HTMLElement[]): void {
+  for (const h of header) {
+    const copy = h.cloneNode(true) as HTMLElement;
+    inlineComputedStyle(win, h, copy);
+    copy.setAttribute(SPACER, '');
+    copy.removeAttribute('id');
+    copy.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+    row.parentNode?.insertBefore(copy, row);
+  }
+}
+
 export function paginateDocument(doc: Document, geometry: PageGeometry | number): void {
   const g = typeof geometry === 'number' ? pageGeometry(geometry) : geometry;
   const win = doc.defaultView;
@@ -264,10 +311,30 @@ export function paginateDocument(doc: Document, geometry: PageGeometry | number)
     if (cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed') continue;
 
     if (cs.display === 'table-row') {
-      if (gap) {
+      const header = repeatingHeader(win, el, g);
+      let pushed = false;
+      // Una tabla con cabecera repetida se pagina por filas aunque no haya márgenes: la fila que no cabe pasa a la hoja siguiente.
+      if (gap || header) {
         const r = el.getBoundingClientRect();
         const target = pushTarget(g, r.top + win.scrollY, r.height);
-        if (target !== null) pushTableRow(doc, el, target - (r.top + win.scrollY));
+        if (target !== null) {
+          pushTableRow(doc, el, target - (r.top + win.scrollY));
+          pushed = true;
+        }
+      }
+      if (header) {
+        // Primera fila de una hoja que no es la de arranque de la tabla: la cabecera se repite encima.
+        // Una fila recién empujada ya está al principio de su hoja (el redondeo de la tabla puede dejar 1 px de desvío).
+        const y = el.getBoundingClientRect().top + win.scrollY;
+        const k = pageOf(g, y);
+        const tableTop = header.table.getBoundingClientRect().top + win.scrollY;
+        const startsPage = k > pageOf(g, tableTop) && Math.abs(y - pageTop(g, k)) < 1.5;
+        if (pushed || startsPage) {
+          insertHeaderCopy(win, el, header.rows);
+          const r = el.getBoundingClientRect();
+          const target = pushTarget(g, r.top + win.scrollY, r.height);
+          if (target !== null) pushTableRow(doc, el, target - (r.top + win.scrollY));
+        }
       }
       continue;
     }
@@ -327,9 +394,19 @@ export interface PageBreakIssue {
   page: number;
   element: string;
   text: string;
+  /** Selector CSS para el elemento (`img.logo`, `#resumen`, `h2`), para proponer la regla que lo arregla. */
+  selector?: string;
 }
 
 const CUT_TAGS = new Set(['IMG', 'SVG', 'FIGURE', 'PRE', 'BLOCKQUOTE', 'CANVAS', 'VIDEO']);
+
+/** Selector corto para citar un elemento en un aviso: `tag#id`, `tag.clase` o `tag`. No es único, es una pista legible. */
+export function selectorFor(el: Element): string {
+  const tag = el.tagName.toLowerCase();
+  if (el.id && /^[A-Za-z][\w-]*$/.test(el.id)) return `${tag}#${el.id}`;
+  const cls = Array.from(el.classList).find((c) => /^[A-Za-z_][\w-]*$/.test(c));
+  return cls ? `${tag}.${cls}` : tag;
+}
 
 /**
  * Elementos que en la impresión quedarían mal partidos: imágenes, figuras o bloques que cruzan el
@@ -352,9 +429,9 @@ export function findPageBreakIssues(doc: Document, geometry: PageGeometry | numb
     const text = (el.textContent ?? el.getAttribute('alt') ?? '').trim().replace(/\s+/g, ' ').slice(0, 40);
     const page = pageOf(g, y) + 1;
     if (isHeading) {
-      if (isOrphanHeading(y, rect.height, g.pageHeight, 40, g.marginBottom)) issues.push({ kind: 'orphan-heading', page, element: tag.toLowerCase(), text });
+      if (isOrphanHeading(y, rect.height, g.pageHeight, 40, g.marginBottom)) issues.push({ kind: 'orphan-heading', page, element: tag.toLowerCase(), text, selector: selectorFor(el) });
     } else if (pushTarget(g, y, rect.height) !== null) {
-      issues.push({ kind: 'cut', page, element: tag.toLowerCase(), text });
+      issues.push({ kind: 'cut', page, element: tag.toLowerCase(), text, selector: selectorFor(el) });
     }
   }
   return issues;
