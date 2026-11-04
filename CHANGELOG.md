@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Añadido
+- `docs/RELEASE.md`: cómo se publica una versión (versión, CHANGELOG, tag, release de GitHub) y cómo se despliega (producción = rama `release` en Vercel), con comprobaciones y vuelta atrás.
+
 ## [0.4.1] - 2026-11-04
 
 ### Añadido
