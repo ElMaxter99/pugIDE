@@ -1,5 +1,6 @@
 import { collectMixins, documentSymbols, formatPug, hoverInfoAt } from '../../core/utils/pug-editor.util';
-import type { PugVariable } from '../../core/models/index';
+import type { DiagnosticFix, PugVariable } from '../../core/models/index';
+import type { Diagnostic } from '../../core/utils/diagnostics.util';
 
 /** Lo que los proveedores de lenguaje necesitan del editor, sin depender de Angular. */
 export interface PugLanguageDeps {
@@ -10,7 +11,12 @@ export interface PugLanguageDeps {
   /** Variables detectadas por el parser. */
   variables: () => PugVariable[];
   sortAttributes: () => boolean;
+  /** Problemas de la última compilación (los arreglos rápidos salen de los que traen `fix`). */
+  diagnostics: () => Diagnostic[];
+  applyFix: (fix: DiagnosticFix) => void;
 }
+
+const APPLY_FIX_COMMAND = 'pugide.applyFix';
 
 /**
  * Registra en Monaco los servicios de Pug: completado de variables y mixins (`+`), hover de mixins e
@@ -104,5 +110,21 @@ export function registerPugLanguage(monaco: any, deps: PugLanguageDeps): { dispo
     },
   });
 
-  return [completion, hover, symbols, formatting];
+  // Arreglos rápidos (bombilla / Ctrl+.) para los problemas que PugIDE sabe resolver.
+  const command = monaco.editor.registerCommand(APPLY_FIX_COMMAND, (_accessor: unknown, fix: DiagnosticFix) => deps.applyFix(fix));
+  const quickFix = monaco.languages.registerCodeActionProvider('pug', {
+    provideCodeActions: (model: any, range: any) => {
+      const actions = deps.diagnostics()
+        .filter((d) => d.fix && d.path === model.uri.path && d.line >= range.startLineNumber && d.line <= range.endLineNumber)
+        .map((d) => ({
+          title: d.fix!.label,
+          kind: 'quickfix',
+          isPreferred: true,
+          command: { id: APPLY_FIX_COMMAND, title: d.fix!.label, arguments: [d.fix] },
+        }));
+      return { actions, dispose: () => undefined };
+    },
+  }, { providedCodeActionKinds: ['quickfix'] });
+
+  return [completion, hover, symbols, formatting, command, quickFix];
 }

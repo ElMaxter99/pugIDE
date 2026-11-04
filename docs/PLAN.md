@@ -1,6 +1,6 @@
 # Estado y plan de PugIDE (v0.4.1)
 
-Actualizado el 2026-11-03. El análisis inicial (v0.3.1) se hizo el mismo día; las seis fases que salieron de él están hechas y resumidas en la sección 4.
+Actualizado el 2026-11-04. El análisis inicial (v0.3.1) se hizo el 2026-11-03; las seis fases que salieron de él están hechas y resumidas en la sección 4.
 
 ## 1. Qué se ha verificado (ejecutado)
 
@@ -8,15 +8,15 @@ Actualizado el 2026-11-03. El análisis inicial (v0.3.1) se hizo el mismo día; 
 |---|---|
 | `npm run build:prod` | OK (incluye la comprobación de que `render-sandbox.js` y `preview-runtime.js` corresponden a sus fuentes) |
 | `npm run lint` | OK |
-| `npm run test:unit` | 109 pruebas |
+| `npm run test:unit` | 127 pruebas |
 | `npm run test:e2e` | 237 comprobaciones (servicios reales de la app en Node, render en línea) |
-| `npm run test:ui` en Chromium | 172 comprobaciones |
-| `PUGIDE_BROWSER=firefox` / `webkit` | 161 comprobaciones cada uno (los escenarios 03 y 05 solo valen en Chromium y se muestran como `SKIP` con el motivo). Corren también en el CI (`ui-firefox`, `ui-webkit`) |
+| `npm run test:ui` en Chromium | 307 comprobaciones |
+| `PUGIDE_BROWSER=firefox` / `webkit` | 279 y 274 comprobaciones (los escenarios 03, 05, 21 y 23 solo valen en Chromium o en Chromium y Firefox y se muestran como `SKIP` con el motivo). Corren también en el CI (`ui-firefox`, `ui-webkit`) |
 | Accesibilidad (axe-core) | 0 incumplimientos en 12 pantallas y diálogos, tema oscuro y claro, más recorrido por teclado |
 | `npm audit --omit=dev` | 0 vulnerabilidades en dependencias de producción |
 | `npm audit` (todo) | 18 moderados, 0 altos y 0 bajos (antes 43: 4 altos y 7 bajos). Todos de herramientas de desarrollo (ver sección 3) |
 
-Sin verificar: lector de pantalla real, Safari real (WebKit de Playwright no es Safari), pantallas táctiles y móvil (fuera de alcance: PugIDE es una herramienta de escritorio).
+Sin verificar: lector de pantalla real, Safari real y un Mac real (WebKit de Playwright se identifica como Macintosh pero no es Safari), pantallas táctiles y móvil (fuera de alcance: PugIDE es una herramienta de escritorio).
 
 ## 2. Qué funciona
 
@@ -51,14 +51,55 @@ Prioridad: **A** = afecta al uso diario, **B** = mejora clara, **C** = deseable.
 | 4. Extras | Helpers del usuario, captura PNG, historial local por archivo |
 | 5. Aislamiento | Plantillas, helpers y preview en iframes de origen opaco; página anfitriona para pestañas nuevas y SVG |
 | 6. Calidad | Accesibilidad con axe y teclado, pruebas en Firefox y WebKit, `:markdown`, métodos de helpers, render en Worker, mediciones de rendimiento |
-| Seguimiento 2 | Angular 22 y TypeScript 6; CSP y cabeceras de seguridad; assets entregados al preview una sola vez |
 | Seguimiento | CI también en Firefox y WebKit (#32); `@angular/cli` y `@angular/build` 20.3.42 y una devDependency sin uso menos: `npm audit` pasa de 43 a 33 avisos y sin altos ni bajos |
+| Seguimiento 2 | Angular 22 y TypeScript 6; CSP y cabeceras de seguridad; assets entregados al preview una sola vez |
+| Seguimiento 3 | Errores explicados y con arreglo (fase 8), cabeceras de tabla repetidas (7.1, 7.4), soltar carpetas y `.zip` (9.1), `release:check` (13.3) |
 
-## 5. Siguientes pasos posibles
+## 5. Plan de mejoras e implementaciones
 
-1. Probar con un lector de pantalla y corregir lo que salga (A).
-2. Mover preview y render a documentos propios con CSP por cabecera para quitar `unsafe-inline`/`unsafe-eval` (B).
-3. Hacer `ui-firefox` y `ui-webkit` comprobaciones requeridas en la protección de `master` (ajuste del repositorio).
+Las pruebas van bien (unitarias, e2e, interfaz en tres navegadores, accesibilidad automática), así que el plan se centra en producto. Estado tras la 0.4.1 y el trabajo posterior (✅ hecho, ⏳ pendiente, 👤 lo debe hacer una persona).
+
+### Fase 8. Errores y diagnóstico ✅
+
+- ✅ **8.1 Más causas explicadas:** mixin no definido o sin `include`, `include`/`extends` inexistente, dato `undefined` (Chrome, Firefox y Safari), variable o función inexistente, indentación, paréntesis sin cerrar, texto suelto.
+- ✅ **8.2 Lista de problemas:** todos los diagnósticos, clicables, con su explicación y su arreglo; «Ir al siguiente/anterior problema» en la paleta (el F8 de Monaco recorre el archivo abierto).
+- ✅ **8.3 Terminal enlazada:** las entradas con ubicación abren `archivo:línea`.
+- ✅ **8.4 Arreglos con un clic:** crear el mixin, añadir el `include`, corregir una errata; también como arreglo rápido de Monaco (`Ctrl+.`).
+
+### Fase 7. Informes largos y PDF (parcial)
+
+- ✅ **7.1 Cabeceras de tabla repetidas** en cada hoja (`thead`), con y sin márgenes, como Chromium (que no repite una cabecera de más de un cuarto de hoja). El `tfoot` no se repite.
+- ⏳ **7.2 Huérfanas y viudas** (`orphans`/`widows`).
+- ⏳ **7.3 `string()` y `element()`** en cabeceras y pies (límite conocido de la emulación).
+- ✅ **7.4 Avisos de corte con la regla CSS concreta** y un selector del elemento.
+- ⏳ **7.5 Medición** con una tabla de miles de filas: tiempo de paginado y de compilación, y un presupuesto. La repetición de cabeceras copia el estilo calculado de cada celda, así que conviene medir tablas grandes con cabecera.
+
+### Fase 9. Proyectos e importación (parcial)
+
+- ✅ **9.1 Soltar sobre el árbol:** una carpeta o un `.zip` abren un proyecto nuevo (el anterior queda en «Mis proyectos»); varias carpetas o archivos de texto sueltos se añaden sin sobrescribir. La lectura de carpetas se prueba con entradas simuladas, no con una carpeta real arrastrada.
+- ⏳ **9.2 Instantáneas de proyecto con nombre** (hoy el historial es por archivo): guardar, comparar y restaurar el proyecto entero.
+- ✅ **9.3 Assets que faltan:** ya existía la lista «Faltan N archivo(s)» del árbol, con subida directa de cada uno.
+
+### Fase 11. Seguridad endurecida
+
+- ⏳ **11.1 CSP sin `unsafe-inline` ni `unsafe-eval`** en `script-src`: preview y render pasan a documentos propios (`src=` en lugar de `srcdoc`) con CSP por cabecera. Es un cambio grande y de riesgo en producción: hay que probarlo contra el despliegue real (Vercel), no solo contra el servidor de pruebas.
+- 👤 **11.2 Protección de ramas:** `ui-firefox` y `ui-webkit` requeridos en `master`; `release` sin force-push ni borrado.
+
+### Fase 10. Rendimiento
+
+- ⏳ **10.1 Medir el efecto real** de enviar los assets una sola vez (no hay cifras antes/después).
+- ⏳ **10.2 No recompilar lo que no cambia**, solo si la medición lo justifica.
+
+### Fase 12. Accesibilidad real y Mac
+
+- 👤 **12.1 Lector de pantalla** (NVDA, VoiceOver u Orca) sobre las pantallas principales.
+- 👤 **12.2 Atajos en un Mac real:** desde la 0.4.1 Monaco usa Cmd en Mac y soltar el foco del editor es Ctrl+Mayús+M; solo se ha probado con el WebKit de Playwright.
+
+### Fase 13. Mantenimiento (parcial)
+
+- ⏳ **13.1** Los 18 avisos moderados de `npm audit` (`minimatch` dentro de `eslint`): subir `eslint` cuando salga una versión con `minimatch` 11.
+- ⏳ **13.2** Revisión de dependencias cada mes y subida de Angular en cuanto salga cada versión mayor.
+- ✅ **13.3** `npm run release:check` comprueba la coherencia de la versión antes de etiquetar (ver `docs/RELEASE.md`).
 
 ## 6. Notas
 

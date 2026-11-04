@@ -6,6 +6,8 @@ import { ProjectState } from '../../../core/state/project.state';
 import { EditorState } from '../../../core/state/editor.state';
 import { AssetState } from '../../../core/state/asset.state';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
+import { ProjectIoService } from '../../../core/services/project-io.service';
+import type { EntryLike } from '../../../core/utils/drop-import.util';
 import { openInHost } from '../../../core/render/preview-host';
 import { isFontPath } from '../../../core/utils/asset.util';
 import { getFileIcon } from '../../../core/utils/file-icon.util';
@@ -193,6 +195,7 @@ export class FileTreeComponent {
   private editorState = inject(EditorState);
   protected assetState = inject(AssetState);
   private orchestrator = inject(OrchestratorService);
+  private projectIo = inject(ProjectIoService);
   protected dragOver = signal(false);
   /** Fila que tiene (o tuvo) el foco: el árbol es una sola parada de Tab y las flechas mueven el foco entre filas. */
   protected focusPath = signal<string | null>(null);
@@ -211,8 +214,15 @@ export class FileTreeComponent {
   protected async onDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
     this.dragOver.set(false);
-    const files = Array.from(event.dataTransfer?.files ?? []);
-    if (files.length > 0) await this.orchestrator.addAssets(files);
+    // Las entradas y los archivos hay que sacarlos del evento antes de cualquier `await`: después el navegador los invalida.
+    const dt = event.dataTransfer;
+    const entries = Array.from(dt?.items ?? [])
+      .filter((i) => i.kind === 'file')
+      .map((i) => i.webkitGetAsEntry?.() as EntryLike | null | undefined)
+      .filter((e): e is EntryLike => !!e);
+    const files = Array.from(dt?.files ?? []);
+    if (files.length === 0 && entries.length === 0) return;
+    await this.projectIo.importDropped(entries, files);
   }
 
   protected fileIcon(node: FileNode): string {

@@ -110,8 +110,19 @@ export interface CompileError {
   column?: number;
   /** Explicación de la causa probable y cómo arreglarla, cuando el mensaje de Pug es críptico. */
   hint?: string;
+  /** Arreglo que PugIDE puede aplicar con un clic. */
+  fix?: DiagnosticFix;
   severity: 'error' | 'warning';
 }
+
+/** Arreglo automático de un problema: se aplica sobre los archivos del proyecto (`OrchestratorService.applyFix`). */
+export type DiagnosticFix =
+  /** Añade `mixin name()` al final de `path` (lo crea si no existe) y, si `includeFrom` no lo incluye, añade el `include`. */
+  | { kind: 'createMixin'; label: string; name: string; path: string; includeFrom?: string }
+  /** Añade `include <target>` al principio de `path`. */
+  | { kind: 'addInclude'; label: string; path: string; target: string }
+  /** Sustituye `from` por `to` en la línea indicada de `path`. */
+  | { kind: 'replaceOnLine'; label: string; path: string; line: number; from: string; to: string };
 
 export interface TerminalEntry {
   id: string;
@@ -119,6 +130,9 @@ export interface TerminalEntry {
   type: 'info' | 'error' | 'warning' | 'success' | 'debug';
   source: string;
   message: string;
+  /** Ubicación en el proyecto: la terminal la convierte en un enlace que abre el archivo en esa línea. */
+  path?: string;
+  line?: number;
 }
 
 export interface InspectorNode {

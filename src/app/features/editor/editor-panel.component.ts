@@ -343,6 +343,8 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       files: this.liveFiles,
       variables: () => this.parserState.variables(),
       sortAttributes: () => this.preferences.sortAttributes(),
+      diagnostics: () => this.diagnosticsState.diagnostics(),
+      applyFix: (fix) => this.orchestrator.applyFix(fix),
     }));
     this.editor.addAction({
       id: 'pug.searchInProject',
@@ -606,7 +608,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
         if (end <= start) { start = 1; end = Math.max(max, 2); }
         return {
           severity: d.severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
-          message: d.message,
+          message: d.hint ? `${d.message}\n${d.hint}` : d.message,
           source: d.source,
           startLineNumber: line, startColumn: start, endLineNumber: line, endColumn: end,
         };

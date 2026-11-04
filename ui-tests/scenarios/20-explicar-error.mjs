@@ -7,7 +7,7 @@ export default async function (env) {
     session: {
       projectName: 'Mixin ausente',
       files: {
-        '/main.pug': 'html\n  body\n    include ./mixins\n' + '    //- relleno\n'.repeat(60) + '    .report\n      +azBody(1)\n',
+        '/main.pug': 'html\n  body\n    include ./mixins\n' + '    //- relleno\n'.repeat(60) + '    .report\n      +tarjeta(1)\n',
         '/mixins.pug': 'mixin saludo(nombre)\n  p Hola, #{nombre}\n',
       },
       openTabPaths: ['/mixins.pug'],
@@ -17,9 +17,9 @@ export default async function (env) {
   const { page } = app;
   const banner = page.locator('.compile-error');
   await banner.waitFor({ timeout: 10000 });
-  const text = await banner.innerText();
+  const text = await banner.textContent();
   check('20 el aviso no arrastra la ruta ni el fragmento de código', !text.includes('|') && !text.includes('/main.pug:'), text);
-  check('20 el aviso explica que el mixin azBody no está definido', /azBody/.test(text) && /ningún archivo define/.test(text), text);
+  check('20 el aviso explica que el mixin tarjeta no está definido', /tarjeta/.test(text) && /ningún archivo define/.test(text), text);
   check('20 el aviso lista los mixins que sí existen', text.includes('+saludo'), text);
   const btn = banner.getByRole('button', { name: /Ir al error \(main\.pug:65\)/ });
   check('20 hay un botón que apunta a main.pug:65', (await btn.count()) === 1, text);

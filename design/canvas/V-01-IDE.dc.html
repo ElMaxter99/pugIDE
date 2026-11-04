@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>V-01 IDE de PugIDE</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#ddb7ff}a:hover{color:#ffffff}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #16111b; color: #eadfed; font-family: 'Geist', system-ui, sans-serif; font-size: 13px">
+
+  <header style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 16px; background: #231e27; border-bottom: 1px solid #4d4354">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; color: #eadfed; text-decoration: none">
+      <span style="display: inline-block; width: 24px; height: 24px; border-radius: 6px; background: #b76dff"></span>PugIDE
+    </a>
+    <span style="color: #cfc2d6">Informe trimestral</span>
+    <span style="flex-grow: 1"></span>
+    <button style="background: #2e2832; color: #eadfed; border: 1px solid #4d4354; border-radius: 4px; padding: 6px 12px; font-size: 13px; min-height: 32px">Mis proyectos</button>
+    <button style="background: #2e2832; color: #eadfed; border: 1px solid #4d4354; border-radius: 4px; padding: 6px 12px; font-size: 13px; min-height: 32px">Compartir</button>
+    <button style="background: #ddb7ff; color: #490080; border: none; border-radius: 4px; padding: 6px 14px; font-size: 13px; font-weight: 600; min-height: 32px">Exportar</button>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; flex-grow: 1; min-height: 0">
+
+    <aside style="flex: 0 0 240px; box-sizing: border-box; background: #1f1a23; border-right: 1px solid #4d4354; padding: 12px 0; display: flex; flex-direction: column; gap: 4px">
+      <p style="margin: 0 16px 8px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #cfc2d6">Workspace</p>
+      <sc-for list="{{files}}" as="f" hint-placeholder-count="6">
+        <div style="padding: 5px 16px; padding-left: {{f.indent}}px; background: {{f.bg}}; color: {{f.color}}; font-size: 13px">{{f.name}}</div>
+      </sc-for>
+      <p style="margin: 16px 16px 4px; font-size: 11px; color: #cfc2d6">Arrastra aquí una carpeta o un .zip para importarlo.</p>
+    </aside>
+
+    <section style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid #4d4354">
+      <div style="display: flex; background: #231e27; border-bottom: 1px solid #4d4354">
+        <span style="padding: 8px 16px; border-bottom: 2px solid #ddb7ff; color: #eadfed">main.pug</span>
+        <span style="padding: 8px 16px; color: #cfc2d6">mixins.pug</span>
+      </div>
+      <pre style="margin: 0; padding: 16px; flex-grow: 1; background: #16111b; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 20px; color: #eadfed; overflow: auto; white-space: pre">{{code}}</pre>
+      <div style="display: flex; flex-direction: column; border-top: 1px solid #4d4354; background: #1f1a23">
+        <div style="display: flex; gap: 16px; padding: 8px 16px; border-bottom: 1px solid #4d4354">
+          <span style="font-weight: 600">Datos</span><span style="color: #cfc2d6">Juego: Estándar</span>
+        </div>
+        <div style="padding: 10px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #cfc2d6; line-height: 18px">{{data}}</div>
+      </div>
+    </section>
+
+    <section style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; background: #231e27">
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border-bottom: 1px solid #4d4354">
+        <span style="font-weight: 600">Vista previa</span>
+        <span style="flex-grow: 1"></span>
+        <button style="background: #39323d; color: #eadfed; border: 1px solid #4d4354; border-radius: 4px; padding: 4px 10px; min-height: 32px">Escritorio</button>
+        <button style="background: #ddb7ff; color: #490080; border: none; border-radius: 4px; padding: 4px 10px; font-weight: 600; min-height: 32px">PDF</button>
+        <span style="color: #cfc2d6">A4 · 3 páginas</span>
+      </div>
+      <div style="flex-grow: 1; display: flex; align-items: flex-start; justify-content: center; padding: 24px; background: #110c15">
+        <div style="width: 300px; background: #ffffff; color: #1a1c1c; padding: 24px; border-radius: 2px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); font-size: 12px; line-height: 1.5">
+          <p style="margin: 0 0 8px; font-size: 18px; font-weight: 600">Informe trimestral</p>
+          <p style="margin: 0 0 12px; color: #4d4354">Cliente: Marta Soler Vidal · T3 2026</p>
+          <div style="display: flex; justify-content: space-between; border-top: 1px solid #cfc2d6; padding: 6px 0"><span>Renta fija</span><span>12.480,00 €</span></div>
+          <div style="display: flex; justify-content: space-between; border-top: 1px solid #cfc2d6; padding: 6px 0"><span>Renta variable</span><span>8.215,40 €</span></div>
+          <div style="display: flex; justify-content: space-between; border-top: 1px solid #cfc2d6; padding: 6px 0; font-weight: 600"><span>Total</span><span>20.695,40 €</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer style="background: #1f1a23; border-top: 1px solid #4d4354; padding: 8px 16px; display: flex; flex-direction: column; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px">
+    <div style="display: flex; gap: 16px; font-family: 'Geist', sans-serif; font-size: 13px"><span style="font-weight: 600">Terminal</span><span style="color: #a6e3a1">0 errores</span><span style="color: #fabc4e">1 aviso</span></div>
+    <div><span style="color: #988d9f">09:41:02</span> <span style="color: #a6e3a1">[Compiler]</span> Compilado en 38,4 ms</div>
+    <div><span style="color: #988d9f">09:41:02</span> <span style="color: #fabc4e">[Calidad]</span> Datos que la plantilla no parece usar: atributosExtra.</div>
+    <div><a href="V-02-Errores.dc.html" style="font-family: 'Geist', sans-serif">Ver cómo se muestran los errores (V-02)</a></div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const sel = (name, indent, active) => ({ name, indent, bg: active ? 'rgba(221,183,255,0.1)' : 'transparent', color: active ? '#ddb7ff' : '#eadfed' });
+    return {
+      files: [
+        sel('▾ partials', 16, false),
+        sel('card.pug', 32, false),
+        sel('footer.pug', 32, false),
+        sel('main.pug', 16, true),
+        sel('mixins.pug', 16, false),
+        sel('▾ locales/es-ES', 16, false),
+        sel('translations.json', 32, false)
+      ],
+      code: "include ./mixins\ndoctype html\nhtml\n  head\n    title Informe trimestral\n    style.\n      body { font: 12pt Arial }\n      thead { display: table-header-group }\n  body\n    h1= titulo\n    table\n      thead\n        tr\n          th Concepto\n          th Importe\n      tbody\n        each fila in filas\n          tr\n            td= fila.concepto\n            td= fila.importe",
+      data: '{ "titulo": "Informe trimestral", "filas": [ { "concepto": "Renta fija", "importe": "12.480,00 €" }, … ] }'
+    };
+  }
+}
+</script>
+</body>
+</html>

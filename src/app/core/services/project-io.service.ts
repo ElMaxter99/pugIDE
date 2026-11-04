@@ -13,6 +13,8 @@ import {
   SHARE_URL_WARN_LENGTH, SharePayload, ShareDecodeError, buildShareUrl, decodeShare, encodeShare, splitAssetsForShare,
 } from '../utils/share.util';
 import { captureHtmlToPng } from '../utils/capture.util';
+import { collectDropped, DroppedFile, EntryLike, isZip } from '../utils/drop-import.util';
+import { isStylePath } from '../utils/style-refs.util';
 import { buildStandaloneHtml } from '../utils/export-html.util';
 import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
 
@@ -144,6 +146,55 @@ export class ProjectIoService {
         assets.push({ path, mime: mimeForPath(path), data: new Uint8Array(await file.arrayBuffer()) });
       }
     }
+  }
+
+  /**
+   * Lo que se suelta sobre el árbol de archivos. Una sola carpeta o un `.zip` se abren como proyecto nuevo (el actual se
+   * guarda antes en «Mis proyectos»); varias cosas, o archivos sueltos, se añaden al proyecto actual sin sobrescribir.
+   * `entries` y `loose` deben leerse del evento de forma síncrona: el navegador los invalida tras el primer `await`.
+   */
+  async importDropped(entries: EntryLike[], loose: File[]): Promise<void> {
+    try {
+      const dirs = entries.filter((e) => e.isDirectory);
+      if (dirs.length === 1 && entries.length === 1) {
+        const { files, assets, ignored } = await this.readDropped(await collectDropped(entries, { intoRoot: true }), true);
+        if (ignored.length) this.terminalState.addEntry('info', 'Import', `Sin importar (tipo no soportado): ${ignored.slice(0, 8).join(', ')}${ignored.length > 8 ? '…' : ''}`);
+        this.finishImport(files, dirs[0].name, assets);
+        if (files.size) this.terminalState.addEntry('info', 'Import', 'El proyecto anterior está en «Mis proyectos».');
+        return;
+      }
+      if (dirs.length === 0 && loose.length === 1 && isZip(loose[0].name)) {
+        await this.importFromZipFile(loose[0]);
+        return;
+      }
+      if (dirs.length) {
+        const { files, assets } = await this.readDropped(await collectDropped(entries), true);
+        this.orchestrator.addDroppedFiles(files, assets);
+        return;
+      }
+      // Archivos sueltos: los de texto del proyecto (Pug, JSON, JS…) se añaden tal cual; hojas de estilo, imágenes y fuentes siguen su camino de siempre.
+      const text = loose.filter((f) => TEXT_FILE_RE.test(f.name) && !isStylePath(f.name));
+      const rest = loose.filter((f) => !text.includes(f));
+      if (text.length) {
+        const { files } = await this.readDropped(text.map((file) => ({ path: '/' + file.name.replace(/\s+/g, '-'), file })), false);
+        this.orchestrator.addDroppedFiles(files, []);
+      }
+      if (rest.length) await this.orchestrator.addAssets(rest);
+    } catch (err) {
+      this.terminalState.addEntry('error', 'Import', `No se pudo importar lo soltado: ${(err as Error).message ?? err}`);
+    }
+  }
+
+  private async readDropped(list: DroppedFile[], includeStyles: boolean): Promise<{ files: Map<string, string>; assets: AssetFile[]; ignored: string[] }> {
+    const files = new Map<string, string>();
+    const assets: AssetFile[] = [];
+    const ignored: string[] = [];
+    for (const { path, file } of list) {
+      if (TEXT_FILE_RE.test(path) && (includeStyles || !isStylePath(path))) files.set(path, await file.text());
+      else if (ASSET_EXT_RE.test(path)) assets.push({ path, mime: mimeForPath(path), data: new Uint8Array(await file.arrayBuffer()) });
+      else ignored.push(path);
+    }
+    return { files, assets, ignored };
   }
 
   async importFromZipFile(file: File): Promise<void> {

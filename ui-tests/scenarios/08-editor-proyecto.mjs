@@ -68,6 +68,8 @@ export default async function (env) {
   const dlg = page.locator('[role="dialog"][aria-label="Atajos de teclado"]');
   await dlg.waitFor({ timeout: 4000 });
   check('08 el diálogo de atajos lista Ctrl+Shift+F', (await dlg.innerText()).includes('Ctrl+Shift+F'));
+  // El diálogo cierra con Escape cuando el foco está dentro de él: se espera a que lo reciba (si no, la tecla se pierde).
+  await waitUntil(() => dlg.evaluate((el) => el.contains(document.activeElement)), 4000);
   await page.keyboard.press('Escape');
   await dlg.waitFor({ state: 'detached', timeout: 4000 }).catch(() => {});
   check('08 Escape cierra el diálogo de atajos', (await dlg.count()) === 0);

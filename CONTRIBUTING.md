@@ -14,6 +14,8 @@ PugIDE es 100% local: no se añaden backends ni envíos de código del usuario a
 4. Commits pequeños y descriptivos (`feat(data): ...`, `fix(parser): ...`).
 5. Abre un PR explicando qué cambia y por qué.
 
+Los cambios visibles se diseñan antes en el lienzo («diseño primero»): [design/README.md](design/README.md).
+
 Publicar una versión y desplegar (tags, rama `release`, Vercel): [docs/RELEASE.md](docs/RELEASE.md).
 
 ## Estilo

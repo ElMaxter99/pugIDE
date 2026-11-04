@@ -14,6 +14,18 @@ IDE de Pug/Jade 100% en el navegador (Angular 22, componentes standalone, signal
 - **Plantillas reales multi-archivo.** Proyectos con carpetas, `include`, `extends`, estilos CSS/SCSS/Sass/Less y assets locales (imágenes y fuentes en IndexedDB, servidos como `blob:`), no ejemplos de un solo archivo.
 - **Licencia MIT con atribución:** se conserva el aviso de copyright y la atribución al autor original.
 
+## Diseño primero
+
+Todo cambio en lo que ve el usuario (pantallas, flujos, textos de pantalla) se diseña **antes de programarlo** en el lienzo de diseño de claude.ai (artifact *Design (canvas)*), y la persona responsable lo aprueba allí. Detalle y enlace en [design/README.md](design/README.md).
+
+- El lienzo es único: «PugIDE · Diseño de la interfaz». Si no existe, créalo una vez con ese título, guarda su enlace en `design/README.md` y úsalo siempre; no crees otro.
+- Una mesa (*artboard*) por pantalla con identificador y nombre (`V-01 IDE…`, `V-02 …`). PugIDE es de escritorio: páginas fluidas de 1280–1440 px, sin móvil. Mesas interactivas y enlazadas entre sí.
+- Los tokens salen de `src/styles.scss` y `docs/brand/DESIGN_TOKENS.md` (mesa «Tokens de diseño»); no inventes colores ni tipografías.
+- Cada versión va en una fila nueva del lienzo con solo las mesas que cambian.
+- Datos ficticios realistas (nada de lorem ipsum); accesible como se dibuja: contraste AA, `<button>` y `<a href>` reales.
+- Al terminar el diseño, pasa el enlace y una lista corta de decisiones por tomar con tu recomendación. **No programes la interfaz hasta que esté aprobada.** Lo que no se ve (motor, pruebas, rendimiento, docs) avanza sin esperar.
+- Tras la aprobación, copia `canvas.json` y los `*.dc.html` a `design/canvas/` en la misma PR que registra el cambio, actualiza la tabla de mesas de `design/README.md` y el CHANGELOG. La PR de código enlaza la mesa que implementa. Si al programar hay que apartarse del diseño, primero se corrige el lienzo.
+
 ## Flujo principal
 
 parser -> datos -> orquestador -> compilador -> preview. Ver `src/app/core/services/orchestrator.service.ts` (`processCode`).

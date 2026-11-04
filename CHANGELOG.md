@@ -5,12 +5,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [Sin publicar]
 
 ### Añadido
+- **Errores explicados y con arreglo.** Más causas con explicación en español (`include`/`extends` inexistente, dato `undefined` en Chrome, Firefox y Safari, variable o función que no existe, indentación, paréntesis sin cerrar, texto suelto) y arreglos con un clic: crear el mixin que falta, añadir el `include`, corregir una errata («¿Quisiste decir +saludo?»). Salen en el aviso del preview, en una lista de todos los problemas con enlace al archivo y la línea, y como arreglo rápido de Monaco (`Ctrl+.`). Paleta: «Ir al siguiente/anterior problema». Las entradas de la terminal con ubicación enlazan a `archivo:línea`.
+- **PDF:** las cabeceras de tabla (`thead`) se repiten al empezar cada hoja, con o sin márgenes de `@page`, como en la impresión real de Chromium (que no repite una cabecera de más de un cuarto de hoja; el preview tampoco). Los avisos de corte proponen la regla CSS concreta con un selector.
+- **Soltar archivos sobre el árbol:** una carpeta o un `.zip` abren un proyecto nuevo (el anterior queda en «Mis proyectos»); varias carpetas o archivos de texto sueltos se añaden al proyecto sin sobrescribir lo existente.
+- **Diseño primero:** lienzo de diseño de claude.ai («PugIDE · Diseño de la interfaz») con la mesa de tokens y las pantallas V-01 (IDE) y V-02 (errores); copia versionada en `design/canvas/`, proceso en `design/README.md`, regla en `CLAUDE.md` y tokens documentados en `docs/brand/DESIGN_TOKENS.md`.
+- `npm run release:check`: comprueba que la versión es coherente en `package.json`, `package-lock.json`, el README, `docs/PLAN.md` y el CHANGELOG antes de etiquetar.
 - `docs/RELEASE.md`: cómo se publica una versión (versión, CHANGELOG, tag, release de GitHub) y cómo se despliega (producción = rama `release` en Vercel), con comprobaciones y vuelta atrás.
 
 ## [0.4.1] - 2026-11-04
 
 ### Añadido
-- Los errores de ejecución de Pug se explican: si se llama a `+azBody` y ningún archivo define ese mixin, el aviso del preview lo dice, lista los mixins que sí existen y, si el mixin está definido en un archivo que no se incluye, indica el `include` que falta. Lo mismo para variables no definidas. El aviso ya no arrastra la ruta ni el fragmento de código y tiene un botón «Ir al error (archivo:línea)» que abre el archivo y deja la línea a la vista.
+- Los errores de ejecución de Pug se explican: si se llama a `+tarjeta` y ningún archivo define ese mixin, el aviso del preview lo dice, lista los mixins que sí existen y, si el mixin está definido en un archivo que no se incluye, indica el `include` que falta. Lo mismo para variables no definidas. El aviso ya no arrastra la ruta ni el fragmento de código y tiene un botón «Ir al error (archivo:línea)» que abre el archivo y deja la línea a la vista.
 
 ### Corregido
 - **Ctrl+V no pegaba en el editor** en Chrome, Edge y Safari (sin ningún error; en Firefox sí). El polyfill de `process` declaraba `versions.node`, Monaco se creía en Node/Electron y enlazaba Ctrl+V por su cuenta en lugar de dejar pegar al navegador. Los bundles de Pug (que sí necesitan `process.versions.node`) reciben ahora su propio `process` local en vez de uno global. Como consecuencia Monaco detecta bien la plataforma: en Mac los atajos usan Cmd (antes Ctrl) y liberar el foco del editor es Ctrl+Mayús+M. Hay una prueba de pegado con el teclado.

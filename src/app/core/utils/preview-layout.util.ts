@@ -75,9 +75,10 @@ export function buildPageChrome(rules: PageRules, sheet: { width: number; height
 /** Texto del aviso de un elemento que se parte mal al imprimir. */
 export function describePageIssue(i: PageBreakIssue): string {
   const what = i.text ? `<${i.element}> «${i.text}»` : `<${i.element}>`;
+  const sel = i.selector ?? i.element;
   return i.kind === 'cut'
-    ? `Página ${i.page}: ${what} se corta entre páginas (usa break-inside: avoid).`
-    : `Página ${i.page}: ${what} queda al final de la página, separado de su contenido (usa break-after: avoid o un salto antes).`;
+    ? `Página ${i.page}: ${what} se corta entre páginas. Prueba con la regla CSS \`${sel} { break-inside: avoid; }\`.`
+    : `Página ${i.page}: ${what} queda al final de la página, separado de su contenido. Prueba con \`${sel} { break-after: avoid; }\` o con un salto de página antes (\`break-before: page\`).`;
 }
 
 /** Identidad de un conjunto de avisos, para no repetirlos en la terminal al reflujo. */

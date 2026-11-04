@@ -1,4 +1,4 @@
-import { CompileError, ParseError } from '../models/index';
+import { CompileError, DiagnosticFix, ParseError } from '../models/index';
 
 /** Problema localizado en un archivo del proyecto; se dibuja como marcador en el editor. */
 export interface Diagnostic {
@@ -10,6 +10,10 @@ export interface Diagnostic {
   message: string;
   severity: 'error' | 'warning';
   source: string;
+  /** Causa probable y cómo arreglarla, si se reconoce el error. */
+  hint?: string;
+  /** Arreglo que PugIDE puede aplicar con un clic. */
+  fix?: DiagnosticFix;
 }
 
 /** Error de una hoja de estilos ya localizado (sass/less/CSS). */
@@ -67,7 +71,7 @@ export function buildDiagnostics(input: {
     out.push(d);
   };
 
-  const fromPug = (e: { message: string; line?: number; column?: number; filename?: string; path?: string; severity: 'error' | 'warning' }, source: string): Diagnostic | null => {
+  const fromPug = (e: { message: string; line?: number; column?: number; filename?: string; path?: string; severity: 'error' | 'warning'; hint?: string; fix?: DiagnosticFix }, source: string): Diagnostic | null => {
     const split = splitPugMessage(e.message);
     const path = e.path ?? split.path ?? e.filename ?? input.entryPath;
     const line = e.line || split.line;
@@ -79,6 +83,8 @@ export function buildDiagnostics(input: {
       message: split.message,
       severity: e.severity,
       source,
+      ...(e.hint ? { hint: e.hint } : {}),
+      ...(e.fix ? { fix: e.fix } : {}),
     };
   };
 
@@ -111,50 +117,4 @@ export function explainUnknownFilter(message: string): string {
   const m = /unknown filter "(:?[\w-]+)"/.exec(message);
   if (!m) return message;
   return `${message}\n\nEl filtro ${m[1]} no está disponible en PugIDE (corre en el navegador, sin paquetes de Node). Disponibles: ${AVAILABLE_FILTERS.join(', ')}.`;
-}
-
-const MIXIN_DEF_RE = /^[ \t]*mixin[ \t]+([\w-]+)/gm;
-
-/** Mixins definidos en cada archivo `.pug`/`.jade` del proyecto: nombre -> rutas donde se definen. */
-export function collectMixinDefinitions(files: Map<string, string>): Map<string, string[]> {
-  const out = new Map<string, string[]>();
-  for (const [path, content] of files) {
-    if (!/\.(pug|jade)$/i.test(path)) continue;
-    for (const m of content.matchAll(MIXIN_DEF_RE)) {
-      const list = out.get(m[1]) ?? [];
-      if (!list.includes(path)) list.push(path);
-      out.set(m[1], list);
-    }
-  }
-  return out;
-}
-
-const baseName = (path: string): string => path.split('/').pop() ?? path;
-
-/**
- * Traduce los errores de ejecución más crípticos de Pug a una causa probable y cómo arreglarla.
- * `pug_mixins.azBody is not a function` significa que se llama a `+azBody` y no hay ningún mixin con ese nombre
- * en los archivos que la plantilla incluye.
- */
-export function explainRuntimeError(message: string, files?: Map<string, string>): string | undefined {
-  const mixin = /pug_mixins(?:\.([\w$]+)|\["([^"]+)"\]) is not a function/.exec(message);
-  if (mixin) {
-    const name = mixin[1] ?? mixin[2];
-    const defs = files ? collectMixinDefinitions(files) : new Map<string, string[]>();
-    const where = defs.get(name);
-    if (where?.length) {
-      const list = where.map((p) => `«${baseName(p)}»`).join(', ');
-      return `Se llama a +${name}, pero el archivo que lo define (${list}) no llega a incluirse. Añade \`include ${baseName(where[0])}\` antes de usarlo (la ruta es relativa al archivo que lo incluye).`;
-    }
-    const known = [...defs.keys()];
-    const near = known.find((k) => k.toLowerCase() === name.toLowerCase());
-    if (near) return `Se llama a +${name}, pero el mixin se llama «${near}»: Pug distingue mayúsculas y minúsculas.`;
-    const have = known.length ? ` Mixins definidos en el proyecto: ${known.map((k) => '+' + k).join(', ')}.` : ' El proyecto no define ningún mixin.';
-    return `Se llama a +${name}, pero ningún archivo define \`mixin ${name}(...)\`.${have} Defínelo (por ejemplo en mixins.pug) y añade el \`include\`.`;
-  }
-  const undef = /^(\w+) is not defined$/m.exec(message);
-  if (undef) {
-    return `La variable «${undef[1]}» no existe: añádela en el editor de datos o declárala con \`- var ${undef[1]} = ...\` antes de usarla.`;
-  }
-  return undefined;
 }

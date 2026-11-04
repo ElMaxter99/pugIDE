@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tokens de diseño de PugIDE</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#ddb7ff}a:hover{color:#ffffff}
+</style>
+</helmet>
+<div style="width: 1280px; box-sizing: border-box; padding: 56px 64px; background: #16111b; color: #eadfed; font-family: 'Geist', system-ui, sans-serif; display: flex; flex-direction: column; gap: 40px">
+  <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <p style="margin: 0; font-size: 14px; color: #cfc2d6; letter-spacing: 0.08em; text-transform: uppercase">PugIDE · Sistema visual</p>
+      <h1 style="margin: 0; font-size: 44px; font-weight: 600; line-height: 1.1">Tokens de diseño</h1>
+      <p style="margin: 0; font-size: 16px; line-height: 1.5; color: #cfc2d6; max-width: 640px">Sacados de <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px">src/styles.scss</span>. Toda pantalla nueva usa estas variables, en tema oscuro (por defecto) y claro.</p>
+    </div>
+    <a href="V-01-IDE.dc.html" style="display: inline-block; padding: 12px 20px; border-radius: 8px; background: #ddb7ff; color: #490080; font-weight: 600; font-size: 15px; text-decoration: none">Ver V-01 IDE</a>
+  </div>
+
+  <section style="display: flex; flex-direction: column; gap: 16px">
+    <h2 style="margin: 0; font-size: 22px; font-weight: 600">Tema oscuro</h2>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+      <sc-for list="{{dark}}" as="sw" hint-placeholder-count="8">
+        <div style="display: flex; flex-direction: column; border: 1px solid #4d4354; border-radius: 8px; overflow: hidden; background: #231e27">
+          <div style="height: 64px; background: {{sw.value}}"></div>
+          <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 14px; font-weight: 500">{{sw.name}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #cfc2d6">{{sw.var}} · {{sw.value}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: 16px">
+    <h2 style="margin: 0; font-size: 22px; font-weight: 600">Tema claro</h2>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+      <sc-for list="{{light}}" as="sw" hint-placeholder-count="8">
+        <div style="display: flex; flex-direction: column; border: 1px solid #4d4354; border-radius: 8px; overflow: hidden; background: #f9f9f9; color: #1a1c1c">
+          <div style="height: 64px; background: {{sw.value}}; border-bottom: 1px solid #cfc2d6"></div>
+          <div style="padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 14px; font-weight: 500">{{sw.name}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #4d4354">{{sw.var}} · {{sw.value}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px">
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <h2 style="margin: 0; font-size: 22px; font-weight: 600">Tipografía</h2>
+      <p style="margin: 0; font-size: 28px; font-weight: 600">Geist · interfaz</p>
+      <p style="margin: 0; font-size: 15px; line-height: 1.5; color: #cfc2d6">Texto de interfaz a 13–15 px; títulos de diálogo a 18–22 px. Texto secundario siempre con contraste AA.</p>
+      <p style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 15px; background: #110c15; border: 1px solid #4d4354; border-radius: 4px; padding: 12px 14px">+tarjeta("hola")  // JetBrains Mono · código</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <h2 style="margin: 0; font-size: 22px; font-weight: 600">Radios</h2>
+      <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap">
+        <sc-for list="{{radii}}" as="r" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 8px; align-items: center">
+            <div style="width: 88px; height: 88px; background: #39323d; border: 1px solid #4d4354; border-radius: {{r.value}}"></div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #cfc2d6">{{r.name}} {{r.value}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      dark: [
+        { name: 'Fondo', var: '--bg-primary', value: '#16111b' },
+        { name: 'Superficie', var: '--bg-secondary', value: '#231e27' },
+        { name: 'Superficie alta', var: '--bg-surface-container-high', value: '#2e2832' },
+        { name: 'Campo de entrada', var: '--bg-input', value: '#110c15' },
+        { name: 'Acento', var: '--accent-color', value: '#ddb7ff' },
+        { name: 'Secundario', var: '--secondary-color', value: '#4cd7f6' },
+        { name: 'Error', var: '--error-color', value: '#ffb4ab' },
+        { name: 'Éxito', var: '--success-color', value: '#a6e3a1' }
+      ],
+      light: [
+        { name: 'Fondo', var: '--bg-primary', value: '#f9f9f9' },
+        { name: 'Superficie', var: '--bg-secondary', value: '#eeeeee' },
+        { name: 'Superficie alta', var: '--bg-surface-container-high', value: '#e8e8e8' },
+        { name: 'Campo de entrada', var: '--bg-input', value: '#ffffff' },
+        { name: 'Acento', var: '--accent-color', value: '#8127cf' },
+        { name: 'Texto', var: '--text-primary', value: '#1a1c1c' },
+        { name: 'Error', var: '--error-color', value: '#ba1a1a' },
+        { name: 'Éxito', var: '--success-color', value: '#1b6a20' }
+      ],
+      radii: [
+        { name: '--radius', value: '4px' },
+        { name: '--radius-lg', value: '8px' },
+        { name: '--radius-xl', value: '12px' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

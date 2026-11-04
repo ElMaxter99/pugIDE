@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: 8cd7e1a6f9e3d2b9
+// pugide-runtime source-hash: 363c02788c74de5c
 "use strict";
 (() => {
   // src/app/core/utils/paginate.util.ts
@@ -6,6 +6,7 @@
   var SPACER = "data-pg-spacer";
   var HTML_MARK = "data-pg-html";
   var EPS = 0.5;
+  var MAX_REPEATED_HEADER = 0.25;
   var FORCED = /* @__PURE__ */ new Set(["page", "always", "left", "right", "recto", "verso"]);
   var ATOMIC_TAGS = /* @__PURE__ */ new Set(["IMG", "SVG", "FIGURE", "CANVAS", "VIDEO", "PRE", "BLOCKQUOTE"]);
   function pageGeometry(pageHeight, margin) {
@@ -170,6 +171,37 @@
     spacer.appendChild(cell);
     row.parentNode?.insertBefore(spacer, row);
   }
+  function repeatingHeader(win, row, g) {
+    const parent = row.parentElement;
+    if (!parent || parent.tagName === "THEAD" || parent.tagName === "TFOOT") return null;
+    const table = row.closest("table");
+    const head = table?.tHead;
+    if (!table || !head || head.contains(row) || win.getComputedStyle(head).display !== "table-header-group") return null;
+    const rows = Array.from(head.rows);
+    if (!rows.length || head.getBoundingClientRect().height > contentHeight(g) * MAX_REPEATED_HEADER) return null;
+    return { table, rows };
+  }
+  function inlineComputedStyle(win, src, dst) {
+    const target = dst.style;
+    if (target) {
+      const cs = win.getComputedStyle(src);
+      for (let i = 0; i < cs.length; i++) {
+        const name = cs[i];
+        target.setProperty(name, cs.getPropertyValue(name), cs.getPropertyPriority(name));
+      }
+    }
+    for (let i = 0; i < src.children.length && i < dst.children.length; i++) inlineComputedStyle(win, src.children[i], dst.children[i]);
+  }
+  function insertHeaderCopy(win, row, header) {
+    for (const h of header) {
+      const copy = h.cloneNode(true);
+      inlineComputedStyle(win, h, copy);
+      copy.setAttribute(SPACER, "");
+      copy.removeAttribute("id");
+      copy.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+      row.parentNode?.insertBefore(copy, row);
+    }
+  }
   function paginateDocument(doc, geometry2) {
     const g = typeof geometry2 === "number" ? pageGeometry(geometry2) : geometry2;
     const win = doc.defaultView;
@@ -196,10 +228,27 @@
       const cs = win.getComputedStyle(el);
       if (cs.display === "none" || cs.position === "absolute" || cs.position === "fixed") continue;
       if (cs.display === "table-row") {
-        if (gap) {
+        const header = repeatingHeader(win, el, g);
+        let pushed = false;
+        if (gap || header) {
           const r = el.getBoundingClientRect();
           const target = pushTarget(g, r.top + win.scrollY, r.height);
-          if (target !== null) pushTableRow(doc, el, target - (r.top + win.scrollY));
+          if (target !== null) {
+            pushTableRow(doc, el, target - (r.top + win.scrollY));
+            pushed = true;
+          }
+        }
+        if (header) {
+          const y2 = el.getBoundingClientRect().top + win.scrollY;
+          const k = pageOf(g, y2);
+          const tableTop = header.table.getBoundingClientRect().top + win.scrollY;
+          const startsPage = k > pageOf(g, tableTop) && Math.abs(y2 - pageTop(g, k)) < 1.5;
+          if (pushed || startsPage) {
+            insertHeaderCopy(win, el, header.rows);
+            const r = el.getBoundingClientRect();
+            const target = pushTarget(g, r.top + win.scrollY, r.height);
+            if (target !== null) pushTableRow(doc, el, target - (r.top + win.scrollY));
+          }
         }
         continue;
       }
@@ -241,6 +290,12 @@
     return left < slack && left > -EPS;
   }
   var CUT_TAGS = /* @__PURE__ */ new Set(["IMG", "SVG", "FIGURE", "PRE", "BLOCKQUOTE", "CANVAS", "VIDEO"]);
+  function selectorFor(el) {
+    const tag = el.tagName.toLowerCase();
+    if (el.id && /^[A-Za-z][\w-]*$/.test(el.id)) return `${tag}#${el.id}`;
+    const cls = Array.from(el.classList).find((c) => /^[A-Za-z_][\w-]*$/.test(c));
+    return cls ? `${tag}.${cls}` : tag;
+  }
   function findPageBreakIssues(doc, geometry2) {
     const g = typeof geometry2 === "number" ? pageGeometry(geometry2) : geometry2;
     const win = doc.defaultView;
@@ -258,9 +313,9 @@
       const text = (el.textContent ?? el.getAttribute("alt") ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
       const page = pageOf(g, y) + 1;
       if (isHeading) {
-        if (isOrphanHeading(y, rect.height, g.pageHeight, 40, g.marginBottom)) issues2.push({ kind: "orphan-heading", page, element: tag.toLowerCase(), text });
+        if (isOrphanHeading(y, rect.height, g.pageHeight, 40, g.marginBottom)) issues2.push({ kind: "orphan-heading", page, element: tag.toLowerCase(), text, selector: selectorFor(el) });
       } else if (pushTarget(g, y, rect.height) !== null) {
-        issues2.push({ kind: "cut", page, element: tag.toLowerCase(), text });
+        issues2.push({ kind: "cut", page, element: tag.toLowerCase(), text, selector: selectorFor(el) });
       }
     }
     return issues2;

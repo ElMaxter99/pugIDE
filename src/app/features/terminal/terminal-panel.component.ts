@@ -8,6 +8,7 @@ import {
   HostListener,
 } from "@angular/core";
 
+import { EditorState } from '../../core/state/editor.state';
 import { TerminalState } from "../../core/state/terminal.state";
 
 @Component({
@@ -134,6 +135,10 @@ import { TerminalState } from "../../core/state/terminal.state";
             <span class="log-time">{{ formatTime(entry.timestamp) }}</span>
             <span class="log-source">[{{ entry.source }}]</span>
             <span class="log-message">{{ entry.message }}</span>
+            @if (entry.path && entry.line) {
+              <button class="log-link" type="button" (click)="goTo(entry.path, entry.line)"
+                [attr.aria-label]="'Ir a ' + fileName(entry.path) + ', línea ' + entry.line">{{ fileName(entry.path) }}:{{ entry.line }}</button>
+            }
           </div>
         }
         @if (terminalState.filteredEntries().length === 0) {
@@ -280,6 +285,18 @@ import { TerminalState } from "../../core/state/terminal.state";
       .log-message {
         color: var(--text-primary);
         word-break: break-word;
+        white-space: pre-wrap;
+      }
+      .log-link {
+        background: transparent;
+        border: none;
+        padding: 0 2px;
+        color: var(--accent-color);
+        font: inherit;
+        text-decoration: underline;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
 
       .log-info .log-message {
@@ -314,6 +331,15 @@ export class TerminalPanelComponent {
   @ViewChild("outputEl") outputEl!: ElementRef<HTMLDivElement>;
 
   protected terminalState = inject(TerminalState);
+  private editorState = inject(EditorState);
+
+  protected goTo(path: string, line: number): void {
+    this.editorState.revealLine(path, line);
+  }
+
+  protected fileName(path: string): string {
+    return path.split('/').pop() ?? path;
+  }
 
   constructor() {
     effect(() => {
