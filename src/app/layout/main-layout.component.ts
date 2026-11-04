@@ -17,6 +17,7 @@ import { ProjectState } from '../core/state/project.state';
 import { PreferencesState } from '../core/services/preferences.state';
 import { PersistenceService, ProjectSessionState } from '../core/services/persistence.service';
 import { FileHistoryDialogComponent } from '../shared/components/file-history-dialog/file-history-dialog.component';
+import { ProjectSnapshotsDialogComponent } from '../shared/components/project-snapshots-dialog/project-snapshots-dialog.component';
 import { UpdateBarComponent } from '../shared/components/update-notice/update-bar.component';
 import { ShortcutsDialogComponent } from '../shared/components/shortcuts-dialog/shortcuts-dialog.component';
 import { UiState } from '../core/state/ui.state';
@@ -45,6 +46,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     CommandPaletteComponent,
     ShortcutsDialogComponent,
     FileHistoryDialogComponent,
+    ProjectSnapshotsDialogComponent,
     UpdateBarComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,6 +70,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-statusbar />
       <app-command-palette />
       <app-file-history-dialog [isOpen]="ui.historyOpen()" (closed)="ui.historyOpen.set(false)" />
+      <app-project-snapshots-dialog [isOpen]="ui.snapshotsOpen()" (closed)="ui.snapshotsOpen.set(false)" />
       <app-shortcuts-dialog [isOpen]="ui.shortcutsOpen()" (closed)="ui.shortcutsOpen.set(false)" />
       <app-dialog
         [config]="addLocaleDialog"

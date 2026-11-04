@@ -104,6 +104,7 @@ export class CommandPaletteComponent {
       { group: 'Proyecto', title: 'Compilar ahora', keywords: 'preview render ctrl+enter', run: () => void this.orchestrator.manualCompile() },
       { group: 'Proyecto', title: 'Guardar', keywords: 'ctrl+s', run: () => this.orchestrator.saveFile() },
       { group: 'Archivos', title: 'Historial del archivo…', keywords: 'versiones restaurar volver atrás cambios diff', run: () => this.ui.historyOpen.set(true) },
+      { group: 'Proyecto', title: 'Instantáneas del proyecto…', keywords: 'guardar comparar restaurar versiones copia snapshot volver atrás', run: () => this.ui.snapshotsOpen.set(true) },
       { group: 'Proyecto', title: 'Mis proyectos…', keywords: 'abrir cambiar biblioteca', run: () => this.ui.projectsOpen.set(true) },
       { group: 'Proyecto', title: 'Nuevo proyecto vacío', run: () => void this.orchestrator.createProject() },
       ...PROJECT_TEMPLATES.map((t) => ({

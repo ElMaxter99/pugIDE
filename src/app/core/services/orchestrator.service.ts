@@ -13,6 +13,10 @@ import { TerminalState } from '../state/terminal.state';
 import { DiagnosticsState } from '../state/diagnostics.state';
 import { FileHistoryService } from './file-history.service';
 import { FileVersion } from '../utils/history.util';
+import { ProjectSnapshotService, RestoreOutcome, SaveOutcome } from './project-snapshot.service';
+import { SnapshotState } from '../state/snapshot.state';
+import type { SnapshotContent, SnapshotMeta } from '../models/project-snapshot.model';
+import { autoSnapshotName, cleanSnapshotName, defaultSnapshotName, diffAssetMaps, diffFileMaps, formatBytes } from '../utils/snapshot.util';
 import { loadHelpers } from '../utils/helpers.util';
 import { buildDiagnostics, Diagnostic } from '../utils/diagnostics.util';
 import { includeSpecifier, includesFile } from '../utils/error-explain.util';
@@ -58,6 +62,8 @@ export class OrchestratorService {
   private assetState = inject(AssetState);
   private assetStorage = inject(AssetStorageService);
   private library = inject(ProjectLibraryService);
+  private snapshots = inject(ProjectSnapshotService);
+  private snapshotState = inject(SnapshotState);
 
   private codeChange$ = new Subject<string>();
   private isProcessing = false;
@@ -407,6 +413,7 @@ export class OrchestratorService {
     if (wasCurrent) this.projectState.projectId.set(null); // evita que el guardado previo al cambio lo vuelva a escribir
     await this.library.remove(id);
     void this.history.removeProject(id);
+    void this.snapshots.removeProject(id);
     if (!wasCurrent) return;
     const next = (await this.library.list())[0];
     if (!next || !(await this.openProject(next.id))) await this.createProject();
@@ -534,6 +541,134 @@ export class OrchestratorService {
     this.terminalState.addEntry('success', 'Historial', `${path} vuelve a una versión anterior (el estado previo queda en el historial).`);
     this.saveSession();
     void this.manualCompile();
+  }
+
+  // ---- Instantáneas del proyecto ----
+
+  /** El proyecto tal como está ahora (incluido lo que se está escribiendo) en forma de instantánea. */
+  currentSnapshotContent(): SnapshotContent {
+    const files: Record<string, string> = {};
+    for (const path of this.editorState.files().keys()) files[path] = this.currentContent(path);
+    return {
+      files,
+      assets: [...this.assetState.assets().values()].map((a) => ({ path: a.path, mime: a.mime, data: a.data })),
+      datasets: this.dataState.snapshotDatasets(),
+    };
+  }
+
+  /** Vuelve a leer las instantáneas del proyecto activo. */
+  async refreshSnapshots(): Promise<SnapshotMeta[]> {
+    const pid = this.projectState.projectId();
+    this.snapshotState.loading.set(true);
+    const list = pid ? await this.snapshots.list(pid) : [];
+    this.snapshotState.items.set(list);
+    this.snapshotState.loading.set(false);
+    return list;
+  }
+
+  /** Contenido guardado de una instantánea (para compararla). */
+  loadSnapshotContent(id: string): Promise<SnapshotContent | null> {
+    return this.snapshots.load(id);
+  }
+
+  /**
+   * Guarda una instantánea del proyecto actual. Sin `replaceOldest`, si ya hay 20 no guarda y devuelve `full`
+   * (la interfaz lo avisa antes de eliminar nada). Un proyecto demasiado grande no se guarda y se dice por qué.
+   */
+  async saveSnapshot(rawName: string | null, opts: { auto?: boolean; replaceOldest?: boolean } = {}): Promise<SaveOutcome> {
+    const pid = this.projectState.projectId();
+    if (!pid) return { ok: false, reason: 'unavailable' };
+    const at = Date.now();
+    const name = (rawName && cleanSnapshotName(rawName)) || defaultSnapshotName(at);
+    const outcome = await this.snapshots.save(pid, name, this.currentSnapshotContent(), { ...opts, at });
+    if (outcome.ok) {
+      this.terminalState.addEntry('success', 'Instantáneas', `Instantánea «${name}» guardada${outcome.replaced ? `; se eliminó la más antigua («${outcome.replaced.name}»)` : ''}.`);
+    } else if (outcome.reason === 'too-big') {
+      this.terminalState.addEntry('warning', 'Instantáneas', `No se guardó «${name}»: el proyecto ocupa ${formatBytes(outcome.bytes)} y el tope por instantánea es ${formatBytes(outcome.max)}.`);
+    } else if (outcome.reason === 'unavailable') {
+      this.terminalState.addEntry('warning', 'Instantáneas', `No se pudo guardar «${name}» en el navegador (almacenamiento lleno o bloqueado).`);
+    }
+    await this.refreshSnapshots();
+    return outcome;
+  }
+
+  async renameSnapshot(id: string, rawName: string): Promise<boolean> {
+    const pid = this.projectState.projectId();
+    const name = cleanSnapshotName(rawName);
+    if (!pid || !name) return false;
+    const ok = await this.snapshots.rename(pid, id, name);
+    await this.refreshSnapshots();
+    return ok;
+  }
+
+  async deleteSnapshot(id: string): Promise<boolean> {
+    const ok = await this.snapshots.remove(id);
+    await this.refreshSnapshots();
+    return ok;
+  }
+
+  /**
+   * Restaura el proyecto a una instantánea. Antes guarda el estado actual como «Antes de restaurar…» (si eso no es
+   * posible, no se restaura nada) y el historial por archivo de lo que cambia. Los archivos modificados se aplican como
+   * ediciones del editor, así que Ctrl+Z los deshace. Conserva el nombre del proyecto, las pestañas que siguen existiendo
+   * y el historial; trae de la instantánea archivos, assets y juegos de datos (idiomas incluidos).
+   */
+  async restoreSnapshot(id: string, opts: { replaceOldest?: boolean } = {}): Promise<RestoreOutcome> {
+    const pid = this.projectState.projectId();
+    if (!pid) return { ok: false, reason: 'unavailable' };
+    const meta = this.snapshotState.items().find((s) => s.id === id) ?? (await this.refreshSnapshots()).find((s) => s.id === id);
+    const target = meta ? await this.snapshots.load(id) : null;
+    if (!meta || !target) return { ok: false, reason: 'missing' };
+
+    const safety = await this.saveSnapshot(autoSnapshotName(meta.name), { auto: true, replaceOldest: opts.replaceOldest });
+    if (!safety.ok) return safety;
+
+    const current = this.currentSnapshotContent();
+    const files = this.editorState.files();
+    const wanted = new Map(Object.entries(target.files));
+    const changes = diffFileMaps(wanted, new Map(Object.entries(current.files)));
+
+    // El historial por archivo conserva lo que se va a cambiar o quitar.
+    for (const path of [...changes.modified, ...changes.added]) {
+      void this.history.record(pid, path, current.files[path], 'antes de restaurar', { previous: this.seen.get(this.historyKey(pid, path)) });
+    }
+    for (const path of changes.added) {
+      files.delete(path);
+      this.seen.delete(this.historyKey(pid, path));
+      this.editorState.closeTabByPath(path);
+    }
+    const touched = [...changes.modified, ...changes.removed];
+    for (const path of touched) {
+      const text = wanted.get(path) ?? '';
+      files.set(path, text);
+      this.seen.set(this.historyKey(pid, path), text);
+    }
+    const active = this.editorState.activeTab();
+    if (active && changes.modified.includes(active.path)) this.editorState.updateContent(wanted.get(active.path) ?? '');
+    // Monaco recibe los cambios como ediciones (Ctrl+Z los deshace).
+    if (touched.length) this.editorState.notifyFileSync(touched);
+    if (!this.editorState.activeTab()) {
+      const first = [...files.keys()].find((p) => p.endsWith('.pug')) ?? [...files.keys()][0];
+      if (first) this.editorState.openFile(first, first.split('/').pop() ?? first, getFileType(first), files.get(first) ?? '');
+    }
+
+    const assetsChanged = (() => {
+      const d = diffAssetMaps(new Map(target.assets.map((a) => [a.path, a])), new Map(current.assets.map((a) => [a.path, a])));
+      return d.added.length + d.removed.length + d.modified.length > 0;
+    })();
+    if (assetsChanged) {
+      this.assetState.replaceAll(target.assets.map((a) => ({ path: a.path, mime: a.mime, data: a.data })));
+      this.refreshTree();
+    }
+    if (target.datasets && JSON.stringify(target.datasets) !== JSON.stringify(current.datasets)) this.dataState.restoreDatasets(target.datasets);
+
+    this.projectState.setProject(this.projectState.projectName(), files);
+    if (assetsChanged) this.refreshTree();
+    this.terminalState.addEntry('success', 'Instantáneas', `Proyecto restaurado a «${meta.name}» (el estado anterior queda en «${safety.meta.name}»).`);
+    this.saveSession();
+    if (assetsChanged) void this.saveAssets();
+    void this.manualCompile();
+    return { ok: true, safety: safety.meta, replaced: safety.replaced };
   }
 
   /** Replaces the whole in-memory project (used by import) and recompiles from scratch. */
