@@ -1,6 +1,28 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isHelperPath, helperPaths, loadHelpers, HELPERS_TEMPLATE } from './.build/units.mjs';
+import { isHelperPath, helperPaths, loadHelpers, helperExportNames, HELPERS_TEMPLATE } from './.build/units.mjs';
+
+test('helperExportNames lee los nombres exportados sin ejecutar el código', () => {
+  const files = new Map([
+    ['/helpers.js', [
+      '// exports.falso = 1',
+      "const secret = 'module.exports = { fake: 1 }';",
+      'module.exports = {',
+      "  money: (n) => new Intl.NumberFormat('es-ES').format(n),",
+      '  formatDate(d) { return { dentro: 1 }; },',
+      '  async load() {}, get prop() { return 1; },',
+      "  'con-guion': 1, short, ...resto,",
+      '  utils: { upper: (s) => s, no: 2 },',
+      '};',
+    ].join('\n')],
+    ['/helpers/extra.js', 'exports.double = (x) => x * 2; module.exports.triple = 3; obj.exports.nope = 1;'],
+    ['/main.pug', 'module.exports = { fuera: 1 }'],
+  ]);
+  assert.deepEqual([...helperExportNames(files)].sort(), ['con-guion', 'double', 'formatDate', 'load', 'money', 'prop', 'short', 'triple', 'utils']);
+  assert.equal(helperExportNames(new Map([['/main.pug', 'p x']])).size, 0);
+  // Nunca ejecuta el archivo
+  assert.doesNotThrow(() => helperExportNames(new Map([['/helpers.js', 'throw new Error("x"); module.exports = { a: 1 }']])));
+});
 
 test('isHelperPath: /helpers.js y /helpers/*.js', () => {
   for (const ok of ['/helpers.js', '/helpers/dates.js', '/helpers/a/b.js', '/Helpers.JS']) assert.ok(isHelperPath(ok), ok);

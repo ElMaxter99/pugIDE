@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: 363c02788c74de5c
+// pugide-runtime source-hash: af8b4f4bc88c5429
 "use strict";
 (() => {
   // src/app/core/utils/paginate.util.ts
@@ -410,7 +410,19 @@
     observer.observe(document.body);
     void document.fonts?.ready.then(() => reflow());
   }
+  function onAnchorClick(e) {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    const target = e.target instanceof Element ? e.target.closest("a[href], area[href]") : null;
+    const href = target?.getAttribute("href");
+    if (!target || !href || !href.startsWith("#") || (target.getAttribute("target") ?? "_self") !== "_self") return;
+    e.preventDefault();
+    location.hash = href;
+  }
   function writeDocument(html) {
+    if (window.origin !== "null") {
+      post({ source: "pugide-doc-error" });
+      return;
+    }
     try {
       stats.docs++;
       const out = mapUrls(html);
@@ -418,6 +430,7 @@
       document.write(out);
       document.close();
       window.addEventListener("message", onMessage);
+      document.addEventListener("click", onAnchorClick);
       for (const u of retired) URL.revokeObjectURL(u);
       retired = [];
       paginatedHeight = -1;

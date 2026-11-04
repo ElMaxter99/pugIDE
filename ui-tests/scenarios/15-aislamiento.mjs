@@ -42,7 +42,13 @@ export default async function (env) {
     !!text && /ls:SecurityError parent:SecurityError idb:SecurityError cookie(:SecurityError|=)(\s|$)/.test(text), String(text));
 
   const sandboxes = await page.evaluate(() => [...document.querySelectorAll('iframe')].map((f) => ({ cls: f.className, sandbox: f.getAttribute('sandbox') })));
-  check('15 ningún iframe de contenido del usuario tiene allow-same-origin', sandboxes.length >= 2 && sandboxes.every((f) => f.sandbox && !f.sandbox.includes('allow-same-origin')), JSON.stringify(sandboxes));
+  // En producción el aislamiento viene de la cabecera `Content-Security-Policy: sandbox` de los documentos propios (sin atributo,
+  // para que el service worker los sirva sin conexión): lo que importa es que el origen de cada marco sea opaco.
+  const origins = [];
+  for (const f of page.frames().filter((x) => x !== page.mainFrame())) origins.push(await f.evaluate(() => self.origin).catch(() => 'error'));
+  check('15 ningún iframe de contenido del usuario tiene allow-same-origin y todos son de origen opaco',
+    sandboxes.length >= 2 && origins.length >= 2 && sandboxes.every((f) => !(f.sandbox ?? '').includes('allow-same-origin')) && origins.every((o) => o === 'null'),
+    JSON.stringify({ sandboxes, origins }));
   check('15 la app no puede leer el DOM del preview', await page.evaluate(() => { try { return document.querySelector('.preview-iframe').contentDocument === null; } catch { return true; } }));
 
   // El inspector, la auditoría y el modo de color siguen funcionando por mensajes
@@ -115,8 +121,11 @@ async function pestanaNueva(env) {
     return false;
   }, 8000);
   check('15 la pestaña nueva muestra el preview', !!shown);
-  const host = await popup.evaluate(() => ({ url: location.pathname, title: document.title, sandbox: document.querySelector('iframe')?.getAttribute('sandbox') }));
-  check('15 es la página anfitriona, con el HTML en un iframe sin allow-same-origin', host.url.endsWith('/assets/preview-host.html') && host.sandbox && !host.sandbox.includes('allow-same-origin'), JSON.stringify(host));
+  const host = await popup.evaluate(() => ({ url: location.pathname, title: document.title, sandbox: document.querySelector('iframe')?.getAttribute('sandbox') ?? '' }));
+  const hostOrigins = [];
+  for (const f of popup.frames().filter((x) => x !== popup.mainFrame())) hostOrigins.push(await f.evaluate(() => self.origin).catch(() => 'error'));
+  check('15 es la página anfitriona, con el HTML en un iframe de origen opaco (sin allow-same-origin)',
+    host.url.endsWith('/assets/preview-host.html') && !host.sandbox.includes('allow-same-origin') && hostOrigins.length >= 1 && hostOrigins.every((o) => o === 'null'), JSON.stringify({ host, hostOrigins }));
   check('15 el script del usuario no puede cambiar la página de la app', host.title === 'Vista previa · PugIDE', host.title);
   await popup.close();
   await app.close();
@@ -190,7 +199,7 @@ async function urlsRelativas(env) {
   const k = box.width / r.w;
   await page.mouse.click(box.x + r.x * k, box.y + r.y * k);
   await page.waitForTimeout(300);
-  check('15 un enlace #ancla se queda en el documento del preview', (await frame.evaluate(() => location.href)) === 'about:srcdoc#fin' && (await previewText(page)).includes('Relativas'), await frame.evaluate(() => location.href));
+  check('15 un enlace #ancla se queda en el documento del preview', (await frame.evaluate(() => location.href)).endsWith('/assets/preview-frame.html#fin') && (await previewText(page)).includes('Relativas'), await frame.evaluate(() => location.href));
   check('15 sin errores no controlados (URLs relativas)', app.errors.length === 0, app.errors.join(' | '));
   await app.close();
 }

@@ -13,31 +13,6 @@
 </head>
 <body>
   <p id="wait">Cargando la vista previa…</p>
-  <script>
-    // Página de PugIDE que muestra contenido del usuario en una pestaña propia SIN ejecutarlo con los
-    // permisos de la app: el HTML va en un iframe `sandbox` sin `allow-same-origin` (origen opaco) y las
-    // imágenes en <img>, que no ejecuta scripts (un SVG con <script> abierto como documento sí lo haría).
-    (function () {
-      var opener = window.opener;
-      if (!opener) { document.body.innerHTML = '<p>Abre esta vista previa desde PugIDE.</p>'; return; }
-      window.addEventListener('message', function (e) {
-        if (e.source !== opener || e.origin !== location.origin) return;
-        var d = e.data;
-        if (!d) return;
-        if (d.kind === 'html' && typeof d.html === 'string') {
-          var frame = document.createElement('iframe');
-          frame.setAttribute('sandbox', 'allow-scripts allow-modals');
-          frame.srcdoc = d.html;
-          document.body.replaceChildren(frame);
-        } else if (d.kind === 'image' && typeof d.url === 'string' && d.url.indexOf('blob:') === 0) {
-          var img = new Image();
-          img.src = d.url;
-          img.alt = '';
-          document.body.replaceChildren(img);
-        }
-      });
-      opener.postMessage({ source: 'pugide-host-ready' }, location.origin);
-    })();
-  </script>
+  <script src="preview-host.js"></script>
 </body>
 </html>

@@ -13,7 +13,7 @@ import { TerminalState } from '../state/terminal.state';
 import { DiagnosticsState } from '../state/diagnostics.state';
 import { FileHistoryService } from './file-history.service';
 import { FileVersion } from '../utils/history.util';
-import { loadHelpers } from '../utils/helpers.util';
+import { helperExportNames } from '../utils/helpers.util';
 import { buildDiagnostics, Diagnostic } from '../utils/diagnostics.util';
 import { includeSpecifier, includesFile } from '../utils/error-explain.util';
 import { appendMixin, insertInclude, replaceOnLine } from '../utils/fix-apply.util';
@@ -135,8 +135,8 @@ export class OrchestratorService {
       }
 
       const parseResult = await this.parser.parse(entryCode, entryPath, files);
-      // Lo que exportan los helpers (/helpers.js) no es un dato: no se crean campos para esos nombres.
-      const helperNames = new Set(Object.keys(loadHelpers(files).helpers));
+      // Lo que exportan los helpers (/helpers.js) no es un dato: no se crean campos para esos nombres (se leen del texto: el JS del usuario solo se ejecuta en el Worker aislado del render).
+      const helperNames = helperExportNames(files);
       if (helperNames.size) parseResult.variables = parseResult.variables.filter((v) => !helperNames.has(v.path.split('.')[0]));
       this.parserState.updateFromParseResult(parseResult);
       this.parserState.setParsing(false);

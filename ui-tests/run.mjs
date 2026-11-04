@@ -3,6 +3,8 @@
 //   npm run build:prod && npm run test:ui
 //
 // Chromium: se usa el de Playwright (`npx playwright install chromium`) o el indicado en PUGIDE_CHROMIUM.
+// PUGIDE_NO_HEADERS=1 sirve sin las cabeceras de vercel.json (como `ng serve`): ejercita los respaldos con `sandbox` en el atributo
+// (el 18 y los que comprueban el camino de producción —15 en el ancla, 19— no valen así; úsalo con p. ej. `node ui-tests/run.mjs 01 02 17`).
 // Otros navegadores: `PUGIDE_BROWSER=firefox node ui-tests/run.mjs` (o `webkit`); antes `npx playwright-core install firefox webkit`
 // (y `install-deps webkit` en Linux). Los escenarios que solo valen para Chromium se marcan con `export const browsers`.
 import http from 'node:http';
@@ -36,7 +38,7 @@ function serve() {
     if (!existsSync(file) || statSync(file).isDirectory()) file = join(dist, 'index.html');
     // Cabeceras de producción (CSP incluida), leídas de vercel.json; las rutas SPA sirven index.html con las de su ruta.
     const served = '/' + file.slice(dist.length + 1).split(sep).join('/');
-    res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', ...headersFor(served === '/index.html' ? pathname : served) });
+    res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream', ...(process.env.PUGIDE_NO_HEADERS ? {} : headersFor(served === '/index.html' ? pathname : served)) });
     createReadStream(file).pipe(res);
   });
   return new Promise((r) => server.listen(0, '127.0.0.1', () => r(server)));
