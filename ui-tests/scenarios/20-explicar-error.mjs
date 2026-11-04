@@ -17,7 +17,7 @@ export default async function (env) {
   const { page } = app;
   const banner = page.locator('.compile-error');
   await banner.waitFor({ timeout: 10000 });
-  const text = await banner.innerText();
+  const text = await banner.textContent();
   check('20 el aviso no arrastra la ruta ni el fragmento de código', !text.includes('|') && !text.includes('/main.pug:'), text);
   check('20 el aviso explica que el mixin tarjeta no está definido', /tarjeta/.test(text) && /ningún archivo define/.test(text), text);
   check('20 el aviso lista los mixins que sí existen', text.includes('+saludo'), text);

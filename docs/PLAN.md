@@ -8,15 +8,15 @@ Actualizado el 2026-11-04. El análisis inicial (v0.3.1) se hizo el 2026-11-03; 
 |---|---|
 | `npm run build:prod` | OK (incluye la comprobación de que `render-sandbox.js` y `preview-runtime.js` corresponden a sus fuentes) |
 | `npm run lint` | OK |
-| `npm run test:unit` | 109 pruebas |
+| `npm run test:unit` | 127 pruebas |
 | `npm run test:e2e` | 237 comprobaciones (servicios reales de la app en Node, render en línea) |
-| `npm run test:ui` en Chromium | 172 comprobaciones |
-| `PUGIDE_BROWSER=firefox` / `webkit` | 161 comprobaciones cada uno (los escenarios 03 y 05 solo valen en Chromium y se muestran como `SKIP` con el motivo). Corren también en el CI (`ui-firefox`, `ui-webkit`) |
+| `npm run test:ui` en Chromium | 307 comprobaciones |
+| `PUGIDE_BROWSER=firefox` / `webkit` | 279 y 274 comprobaciones (los escenarios 03, 05, 21 y 23 solo valen en Chromium o en Chromium y Firefox y se muestran como `SKIP` con el motivo). Corren también en el CI (`ui-firefox`, `ui-webkit`) |
 | Accesibilidad (axe-core) | 0 incumplimientos en 12 pantallas y diálogos, tema oscuro y claro, más recorrido por teclado |
 | `npm audit --omit=dev` | 0 vulnerabilidades en dependencias de producción |
 | `npm audit` (todo) | 18 moderados, 0 altos y 0 bajos (antes 43: 4 altos y 7 bajos). Todos de herramientas de desarrollo (ver sección 3) |
 
-Sin verificar: lector de pantalla real, Safari real (WebKit de Playwright no es Safari), pantallas táctiles y móvil (fuera de alcance: PugIDE es una herramienta de escritorio).
+Sin verificar: lector de pantalla real, Safari real y un Mac real (WebKit de Playwright se identifica como Macintosh pero no es Safari), pantallas táctiles y móvil (fuera de alcance: PugIDE es una herramienta de escritorio).
 
 ## 2. Qué funciona
 
@@ -51,66 +51,55 @@ Prioridad: **A** = afecta al uso diario, **B** = mejora clara, **C** = deseable.
 | 4. Extras | Helpers del usuario, captura PNG, historial local por archivo |
 | 5. Aislamiento | Plantillas, helpers y preview en iframes de origen opaco; página anfitriona para pestañas nuevas y SVG |
 | 6. Calidad | Accesibilidad con axe y teclado, pruebas en Firefox y WebKit, `:markdown`, métodos de helpers, render en Worker, mediciones de rendimiento |
+| Seguimiento 3 | Errores explicados y con arreglo (fase 8), cabeceras de tabla repetidas (7.1, 7.4), soltar carpetas y `.zip` (9.1), `release:check` (13.3) |
 | Seguimiento 2 | Angular 22 y TypeScript 6; CSP y cabeceras de seguridad; assets entregados al preview una sola vez |
 | Seguimiento | CI también en Firefox y WebKit (#32); `@angular/cli` y `@angular/build` 20.3.42 y una devDependency sin uso menos: `npm audit` pasa de 43 a 33 avisos y sin altos ni bajos |
 
 ## 5. Plan de mejoras e implementaciones
 
-Las pruebas van bien (unitarias, e2e, interfaz en tres navegadores, accesibilidad automática), así que el plan se centra en producto. Cada ítem lleva su criterio de «hecho»; la tabla de tamaños es orientativa (S = un PR corto, M = un PR medio, L = varios PR).
+Las pruebas van bien (unitarias, e2e, interfaz en tres navegadores, accesibilidad automática), así que el plan se centra en producto. Estado tras la 0.4.1 y el trabajo posterior (✅ hecho, ⏳ pendiente, 👤 lo debe hacer una persona).
 
-### Orden recomendado
+### Fase 8. Errores y diagnóstico ✅
 
-| # | Fase | Por qué ahora | Tamaño |
-|---|---|---|---|
-| 8 | Errores y diagnóstico | Es lo que más tiempo hace perder con plantillas reales (un mixin que se llama pero no existe) | M |
-| 7 | Informes largos y PDF | Los informes con tablas largas son el uso real (modelo 187) | M–L |
-| 9 | Proyectos e importación | Entrar con un proyecto ajeno debe ser inmediato | M |
-| 11 | Seguridad endurecida | Cierra la deuda de `unsafe-inline`/`unsafe-eval` | L |
-| 10 | Rendimiento | Medir antes de tocar | S–M |
-| 12 | Accesibilidad real y Mac | Depende de personas con lector de pantalla y Mac | S |
-| 13 | Mantenimiento | Evita que las dependencias se acumulen | S |
+- ✅ **8.1 Más causas explicadas:** mixin no definido o sin `include`, `include`/`extends` inexistente, dato `undefined` (Chrome, Firefox y Safari), variable o función inexistente, indentación, paréntesis sin cerrar, texto suelto.
+- ✅ **8.2 Lista de problemas:** todos los diagnósticos, clicables, con su explicación y su arreglo; «Ir al siguiente/anterior problema» en la paleta (el F8 de Monaco recorre el archivo abierto).
+- ✅ **8.3 Terminal enlazada:** las entradas con ubicación abren `archivo:línea`.
+- ✅ **8.4 Arreglos con un clic:** crear el mixin, añadir el `include`, corregir una errata; también como arreglo rápido de Monaco (`Ctrl+.`).
 
-### Fase 8. Errores y diagnóstico
+### Fase 7. Informes largos y PDF (parcial)
 
-- **8.1 Más causas explicadas** (hoy: mixin no definido y variable no definida). Añadir: `include`/`extends` que no encuentra el archivo, `Cannot read properties of undefined` (un dato que falta en el JSON, con el nombre del dato), indentación inconsistente, etiquetas o paréntesis sin cerrar. Hecho cuando cada causa tiene mensaje en español, archivo:línea y una prueba.
-- **8.2 Panel de problemas.** Lista de todos los diagnósticos (hoy el aviso muestra el primero), cada uno clicable, con F8 / Mayús+F8 para saltar entre ellos. Hecho cuando se puede recorrer un proyecto con varios errores sin tocar el ratón.
-- **8.3 Terminal enlazada.** Las entradas con ubicación (`main.pug:52`) abren el archivo en esa línea.
-- **8.4 Arreglo rápido.** Para «mixin no definido»: acción «Crear `mixin tarjeta()` en `mixins.pug`» y «¿Quisiste decir `+saludo`?». Para «mixin definido en un archivo sin `include`»: «Añadir `include`».
+- ✅ **7.1 Cabeceras de tabla repetidas** en cada hoja (`thead`), con y sin márgenes, como Chromium (que no repite una cabecera de más de un cuarto de hoja). El `tfoot` no se repite.
+- ⏳ **7.2 Huérfanas y viudas** (`orphans`/`widows`).
+- ⏳ **7.3 `string()` y `element()`** en cabeceras y pies (límite conocido de la emulación).
+- ✅ **7.4 Avisos de corte con la regla CSS concreta** y un selector del elemento.
+- ⏳ **7.5 Medición** con una tabla de miles de filas: tiempo de paginado y de compilación, y un presupuesto. La repetición de cabeceras copia el estilo calculado de cada celda, así que conviene medir tablas grandes con cabecera.
 
-### Fase 7. Informes largos y PDF
+### Fase 9. Proyectos e importación (parcial)
 
-- **7.1 Cabeceras de tabla repetidas.** `thead` (y `tfoot`) se repiten en cada página cuando una tabla se parte, como hace la impresión real. Es el hueco más visible para informes con tablas largas. Hecho cuando el preview PDF y la impresión del navegador coinciden en una tabla de más de una página.
-- **7.2 Huérfanas y viudas** (`orphans`/`widows`) en el paginado.
-- **7.3 `string()` y `element()`** en cabeceras y pies (límite conocido de la emulación).
-- **7.4 Avisos más útiles.** El aviso «se corta entre páginas» propone la regla concreta (`break-inside: avoid` en qué selector).
-- **7.5 Medición** con una tabla de miles de filas: tiempo de paginado y de compilación, y un presupuesto.
-
-### Fase 9. Proyectos e importación
-
-- **9.1 Arrastrar y soltar** una carpeta o un `.zip` en el Workspace (hoy se importa `.zip` desde el menú; comprobar qué falta de carpeta y de arrastrar).
-- **9.2 Instantáneas de proyecto con nombre** (hoy el historial es por archivo): guardar, comparar y restaurar el proyecto entero.
-- **9.3 Resolución de rutas absolutas de assets** (`/fonts/...`) con aviso claro si el archivo no está en el proyecto, para plantillas copiadas de otro sitio.
+- ✅ **9.1 Soltar sobre el árbol:** una carpeta o un `.zip` abren un proyecto nuevo (el anterior queda en «Mis proyectos»); varias carpetas o archivos de texto sueltos se añaden sin sobrescribir. La lectura de carpetas se prueba con entradas simuladas, no con una carpeta real arrastrada.
+- ⏳ **9.2 Instantáneas de proyecto con nombre** (hoy el historial es por archivo): guardar, comparar y restaurar el proyecto entero.
+- ✅ **9.3 Assets que faltan:** ya existía la lista «Faltan N archivo(s)» del árbol, con subida directa de cada uno.
 
 ### Fase 11. Seguridad endurecida
 
-- **11.1 CSP sin `unsafe-inline` ni `unsafe-eval`** en `script-src`: preview y render pasan a documentos propios (`src=` en lugar de `srcdoc`) con CSP por cabecera. Hecho cuando las cabeceras de producción no necesitan esas dos palabras y la suite pasa con ellas.
-- **11.2 Protección de ramas** (ajuste del repositorio, una persona): `ui-firefox` y `ui-webkit` requeridos en `master`; `release` sin force-push ni borrado.
+- ⏳ **11.1 CSP sin `unsafe-inline` ni `unsafe-eval`** en `script-src`: preview y render pasan a documentos propios (`src=` en lugar de `srcdoc`) con CSP por cabecera. Es un cambio grande y de riesgo en producción: hay que probarlo contra el despliegue real (Vercel), no solo contra el servidor de pruebas.
+- 👤 **11.2 Protección de ramas:** `ui-firefox` y `ui-webkit` requeridos en `master`; `release` sin force-push ni borrado.
 
 ### Fase 10. Rendimiento
 
-- **10.1 Medir el efecto real** de enviar los assets una sola vez (hoy no hay cifras antes/después).
-- **10.2 No recompilar lo que no cambia**: si solo cambian los datos, reutilizar la plantilla compilada. Solo si la medición lo justifica.
+- ⏳ **10.1 Medir el efecto real** de enviar los assets una sola vez (no hay cifras antes/después).
+- ⏳ **10.2 No recompilar lo que no cambia**, solo si la medición lo justifica.
 
 ### Fase 12. Accesibilidad real y Mac
 
-- **12.1 Lector de pantalla** (NVDA, VoiceOver u Orca) sobre las pantallas principales, y corregir lo que salga. Lo debe hacer una persona.
-- **12.2 Atajos en un Mac real.** Desde la 0.4.1 Monaco usa Cmd en Mac y soltar el foco del editor es Ctrl+Mayús+M; solo se ha probado con el WebKit de Playwright, que se identifica como Mac.
+- 👤 **12.1 Lector de pantalla** (NVDA, VoiceOver u Orca) sobre las pantallas principales.
+- 👤 **12.2 Atajos en un Mac real:** desde la 0.4.1 Monaco usa Cmd en Mac y soltar el foco del editor es Ctrl+Mayús+M; solo se ha probado con el WebKit de Playwright.
 
-### Fase 13. Mantenimiento
+### Fase 13. Mantenimiento (parcial)
 
-- **13.1** Los 18 avisos moderados de `npm audit` (`minimatch` dentro de `eslint`): subir `eslint` cuando salga una versión con `minimatch` 11.
-- **13.2** Revisión de dependencias cada mes y subida de Angular en cuanto salga cada versión mayor, sin dejar que se acumulen.
-- **13.3** Script que compruebe los pasos mecánicos de `docs/RELEASE.md` (versión de `package.json` = sección del CHANGELOG = badge del README) antes de etiquetar.
+- ⏳ **13.1** Los 18 avisos moderados de `npm audit` (`minimatch` dentro de `eslint`): subir `eslint` cuando salga una versión con `minimatch` 11.
+- ⏳ **13.2** Revisión de dependencias cada mes y subida de Angular en cuanto salga cada versión mayor.
+- ✅ **13.3** `npm run release:check` comprueba la coherencia de la versión antes de etiquetar (ver `docs/RELEASE.md`).
 
 ## 6. Notas
 

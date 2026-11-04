@@ -25,6 +25,7 @@
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
+    "release:check": "node scripts/check-release.mjs",
     "prebuild": "node scripts/validate-build.js",
     "test:ui": "node ui-tests/run.mjs",
     "test:unit": "node test/unit/build.mjs && node --test test/unit/*.test.mjs"

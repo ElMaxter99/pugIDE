@@ -55,15 +55,21 @@ export default async function (env) {
   check('24 el proyecto toma el nombre del zip', (await page.locator('.workspace-name').innerText()).trim() === 'Informe-trimestral', await page.locator('.workspace-name').innerText());
   check('24 el preview muestra el contenido del zip', !!(await waitUntil(async () => (await previewText(page)).includes('Hola desde el zip'), 8000)), await previewText(page));
   check('24 el proyecto anterior ya no está abierto', !(await paths(page)).includes('/extra.pug'));
-  await page.keyboard.press('Control+k');
-  await page.locator('[aria-label="Paleta de comandos"]').waitFor();
-  await page.keyboard.type('Mis proyectos');
-  await page.keyboard.press('Enter');
-  const dialog = page.locator('[aria-label="Mis proyectos"]');
-  await dialog.waitFor({ timeout: 4000 });
-  const names = await dialog.locator('.row .name').allInnerTexts();
+  // El guardado en la biblioteca es asíncrono (IndexedDB): se reabre el diálogo hasta que aparece el proyecto anterior.
+  let names = [];
+  for (let i = 0; i < 6 && !names.includes('Base'); i++) {
+    await page.keyboard.press('Control+k');
+    await page.locator('[aria-label="Paleta de comandos"]').waitFor();
+    await page.keyboard.type('Mis proyectos');
+    await page.keyboard.press('Enter');
+    const dialog = page.locator('[aria-label="Mis proyectos"]');
+    await dialog.waitFor({ timeout: 4000 });
+    names = await dialog.locator('.row .name').allInnerTexts();
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'detached', timeout: 4000 }).catch(() => {});
+    if (!names.includes('Base')) await page.waitForTimeout(500);
+  }
   check('24 el proyecto anterior queda guardado en Mis proyectos', names.includes('Base'), names.join(' | '));
-  await page.keyboard.press('Escape');
   check('24 sin errores no controlados', app.errors.length === 0, app.errors.join(' | '));
   await app.close();
 }
