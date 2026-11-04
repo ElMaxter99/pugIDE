@@ -712,6 +712,34 @@ export class OrchestratorService {
     void this.manualCompile();
   }
 
+  /** Añade al proyecto actual archivos soltados (carpetas incluidas) sin sobrescribir los que ya existen. */
+  addDroppedFiles(files: Map<string, string>, assets: AssetFile[]): void {
+    const current = this.editorState.files();
+    const added: string[] = [];
+    const skipped: string[] = [];
+    this.editorState.files.update((f) => {
+      for (const [path, content] of files) {
+        if (f.has(path)) skipped.push(path);
+        else { f.set(path, content); added.push(path); }
+      }
+      return f;
+    });
+    for (const a of assets) {
+      if (this.assetState.assets().has(a.path)) skipped.push(a.path);
+      else { this.assetState.add(a.path, a.data, a.mime); added.push(a.path); }
+    }
+    if (skipped.length) {
+      this.terminalState.addEntry('warning', 'Import', `Ya existían y no se sobrescriben: ${skipped.slice(0, 8).join(', ')}${skipped.length > 8 ? '…' : ''}`);
+    }
+    if (added.length === 0) return;
+    this.projectState.setProject(this.projectState.projectName(), current);
+    this.refreshTree();
+    const firstPug = [...files.keys()].find((p) => /\.(pug|jade)$/i.test(p));
+    if (firstPug && !this.editorState.activeTab()) this.editorState.openFile(firstPug, firstPug.split('/').pop() ?? firstPug, getFileType(firstPug), files.get(firstPug) ?? '');
+    this.terminalState.addEntry('success', 'Import', `Añadido${added.length === 1 ? '' : 's'} ${added.length} archivo${added.length === 1 ? '' : 's'}: ${added.slice(0, 8).join(', ')}${added.length > 8 ? '…' : ''}`);
+    void this.manualCompile();
+  }
+
   addFile(path: string, name: string, content = ''): void {
     this.editorState.files.update((f) => { f.set(path, content); return f; });
     this.projectState.setProject(
