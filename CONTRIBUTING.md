@@ -14,6 +14,8 @@ PugIDE es 100% local: no se añaden backends ni envíos de código del usuario a
 4. Commits pequeños y descriptivos (`feat(data): ...`, `fix(parser): ...`).
 5. Abre un PR explicando qué cambia y por qué.
 
+Publicar una versión y desplegar (tags, rama `release`, Vercel): [docs/RELEASE.md](docs/RELEASE.md).
+
 ## Estilo
 
 Componentes standalone con OnPush y signals; lógica en servicios; utilidades puras en `core/utils`.

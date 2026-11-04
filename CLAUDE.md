@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guía para agentes y colaboradores que trabajan en PugIDE. Detalle técnico en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Guía para agentes y colaboradores que trabajan en PugIDE. Detalle técnico en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Publicar versiones y desplegar: [docs/RELEASE.md](docs/RELEASE.md) (producción = rama `release`).
 
 ## Qué es PugIDE
 
