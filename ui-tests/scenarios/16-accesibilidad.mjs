@@ -132,7 +132,8 @@ async function teclado(env) {
   check('16 teclado: el árbol de archivos y las pestañas son paradas de Tab', stops.some((s) => s.name === 'main.pug') && stops.filter((s) => s.cls?.includes('tab-main')).length === 1, JSON.stringify(stops.map((s) => s.name)));
   check('16 teclado: se llega hasta el editor', stops.at(-1)?.monaco === true, JSON.stringify(stops.at(-1)));
   // Ctrl+M libera el foco del editor: el siguiente Tab sale de él
-  await page.keyboard.press('Control+m');
+  // En Mac (el WebKit de Playwright se identifica como Macintosh) Monaco usa Ctrl+Mayús+M para esto.
+  await page.keyboard.press(process.env.PUGIDE_BROWSER === 'webkit' ? 'Control+Shift+m' : 'Control+m');
   await page.keyboard.press('Tab');
   const out = await page.evaluate(() => !document.activeElement?.classList.contains('inputarea'));
   check('16 teclado: Ctrl+M + Tab saca el foco del editor (no hay trampa de teclado)', out);

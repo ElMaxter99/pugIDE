@@ -1,4 +1,4 @@
-import { check, openApp, previewText, waitUntil } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, CMD } from '../lib.mjs';
 
 const session = {
   projectName: 'Historial',
@@ -59,7 +59,7 @@ export default async function (env) {
 
   // Ctrl+Z en el editor deshace la restauración
   await page.locator('.monaco-editor').first().click();
-  await page.keyboard.press('Control+z');
+  await page.keyboard.press(CMD + '+z');
   const undone = await waitUntil(async () => (await model(page)) === edited);
   check('14 Ctrl+Z deshace la restauración', !!undone, String(await model(page)));
 

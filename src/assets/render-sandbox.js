@@ -1,7 +1,22 @@
-// pugide-runtime source-hash: df7fc0dc2ee3e263
+// pugide-runtime source-hash: c364d4284f3adf75
 "use strict";
 (() => {
   // src/app/core/utils/diagnostics.util.ts
+  var HEADER_RE = /^(\/[^\n]*?):(\d+)(?::(\d+))?(?:\n|$)/;
+  function splitPugMessage(raw) {
+    const text = (raw ?? "").replace(/\r\n/g, "\n");
+    const m = HEADER_RE.exec(text);
+    if (!m) return { message: text.trim() };
+    const rest = text.slice(m[0].length);
+    const cut = rest.indexOf("\n\n");
+    const message = (cut >= 0 ? rest.slice(cut + 2) : rest).trim();
+    return {
+      path: m[1],
+      line: Number(m[2]),
+      column: m[3] ? Number(m[3]) : void 0,
+      message: message || text.trim()
+    };
+  }
   var AVAILABLE_FILTERS = [":cdata", ":markdown", ":markdown-it", ":marked"];
   function explainUnknownFilter(message) {
     const m = /unknown filter "(:?[\w-]+)"/.exec(message);
@@ -9,6 +24,42 @@
     return `${message}
 
 El filtro ${m[1]} no est\xE1 disponible en PugIDE (corre en el navegador, sin paquetes de Node). Disponibles: ${AVAILABLE_FILTERS.join(", ")}.`;
+  }
+  var MIXIN_DEF_RE = /^[ \t]*mixin[ \t]+([\w-]+)/gm;
+  function collectMixinDefinitions(files) {
+    const out = /* @__PURE__ */ new Map();
+    for (const [path, content] of files) {
+      if (!/\.(pug|jade)$/i.test(path)) continue;
+      for (const m of content.matchAll(MIXIN_DEF_RE)) {
+        const list = out.get(m[1]) ?? [];
+        if (!list.includes(path)) list.push(path);
+        out.set(m[1], list);
+      }
+    }
+    return out;
+  }
+  var baseName = (path) => path.split("/").pop() ?? path;
+  function explainRuntimeError(message, files) {
+    const mixin = /pug_mixins(?:\.([\w$]+)|\["([^"]+)"\]) is not a function/.exec(message);
+    if (mixin) {
+      const name = mixin[1] ?? mixin[2];
+      const defs = files ? collectMixinDefinitions(files) : /* @__PURE__ */ new Map();
+      const where = defs.get(name);
+      if (where?.length) {
+        const list = where.map((p) => `\xAB${baseName(p)}\xBB`).join(", ");
+        return `Se llama a +${name}, pero el archivo que lo define (${list}) no llega a incluirse. A\xF1ade \`include ${baseName(where[0])}\` antes de usarlo (la ruta es relativa al archivo que lo incluye).`;
+      }
+      const known = [...defs.keys()];
+      const near = known.find((k) => k.toLowerCase() === name.toLowerCase());
+      if (near) return `Se llama a +${name}, pero el mixin se llama \xAB${near}\xBB: Pug distingue may\xFAsculas y min\xFAsculas.`;
+      const have = known.length ? ` Mixins definidos en el proyecto: ${known.map((k) => "+" + k).join(", ")}.` : " El proyecto no define ning\xFAn mixin.";
+      return `Se llama a +${name}, pero ning\xFAn archivo define \`mixin ${name}(...)\`.${have} Def\xEDnelo (por ejemplo en mixins.pug) y a\xF1ade el \`include\`.`;
+    }
+    const undef = /^(\w+) is not defined$/m.exec(message);
+    if (undef) {
+      return `La variable \xAB${undef[1]}\xBB no existe: a\xF1\xE1dela en el editor de datos o decl\xE1rala con \`- var ${undef[1]} = ...\` antes de usarla.`;
+    }
+    return void 0;
   }
 
   // src/app/core/utils/helpers.util.ts
@@ -307,12 +358,16 @@ ${body}
       html = compiledFn(locals);
     } catch (err) {
       const error = err;
+      const split = splitPugMessage(error.message ?? "Compilation error");
+      const known = (p) => p && files?.has(p) ? p : void 0;
+      const fromPug = split.path !== void 0 && split.line !== void 0;
       errors.push({
-        message: explainUnknownFilter(error.message ?? "Compilation error"),
+        message: explainUnknownFilter(split.message),
         source: "pug",
-        path: error.filename && files?.has(error.filename) ? error.filename : void 0,
-        line: error.line,
-        column: error.column,
+        path: fromPug ? known(split.path) : known(error.filename),
+        line: fromPug ? split.line : error.line,
+        column: fromPug ? split.column : error.column,
+        hint: explainRuntimeError(split.message, files),
         severity: "error"
       });
     }

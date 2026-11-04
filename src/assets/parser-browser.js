@@ -1,25 +1,5 @@
 (function() {
   const g = globalThis;
-  if (!g.process) {
-    g.process = {
-      browser: true,
-      env: {},
-      version: "",
-      versions: { node: "0.0.0" },
-      platform: "browser",
-      nextTick: function(fn) {
-        setTimeout(fn, 0);
-      },
-      cwd: function() {
-        return "/";
-      },
-      argv: [],
-      stdout: { write: function() {
-      } },
-      stderr: { write: function() {
-      } }
-    };
-  }
   if (!g.assert) {
     g.assert = function(value, message) {
       if (!value) throw new Error(message || "Assertion failed");
@@ -67,8 +47,8 @@
       if (id === "util") return { format: function() {
         return "";
       } };
-      if (id === "path") return { join: function() {
-        return Array.prototype.join.call(arguments, "/");
+      if (id === "path") return { join: function(...parts) {
+        return parts.join("/");
       } };
       if (id === "fs") return {};
       if (id === "buffer") return { Buffer: g.Buffer };
@@ -80,14 +60,49 @@
 "use strict";
 (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
-  var __commonJS = (cb, mod) => function __require() {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  var __esm = (fn, res, err) => function __init() {
+    if (err) throw err[0];
+    try {
+      return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+    } catch (e) {
+      throw err = [e], e;
+    }
   };
+  var __commonJS = (cb, mod) => function __require() {
+    try {
+      return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    } catch (e) {
+      throw mod = 0, e;
+    }
+  };
+
+  // scripts/process-shim.mjs
+  var process;
+  var init_process_shim = __esm({
+    "scripts/process-shim.mjs"() {
+      "use strict";
+      process = {
+        browser: true,
+        env: {},
+        version: "",
+        versions: { node: "0.0.0" },
+        platform: "browser",
+        nextTick: (fn) => setTimeout(fn, 0),
+        cwd: () => "/",
+        argv: [],
+        stdout: { write() {
+        } },
+        stderr: { write() {
+        } }
+      };
+    }
+  });
 
   // node_modules/has-symbols/shams.js
   var require_shams = __commonJS({
     "node_modules/has-symbols/shams.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = function hasSymbols() {
         if (typeof Symbol !== "function" || typeof Object.getOwnPropertySymbols !== "function") {
           return false;
@@ -143,6 +158,7 @@
   var require_shams2 = __commonJS({
     "node_modules/has-tostringtag/shams.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var hasSymbols = require_shams();
       module.exports = function hasToStringTagShams() {
         return hasSymbols() && !!Symbol.toStringTag;
@@ -154,6 +170,7 @@
   var require_es_object_atoms = __commonJS({
     "node_modules/es-object-atoms/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Object;
     }
   });
@@ -162,6 +179,7 @@
   var require_es_errors = __commonJS({
     "node_modules/es-errors/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Error;
     }
   });
@@ -170,6 +188,7 @@
   var require_eval = __commonJS({
     "node_modules/es-errors/eval.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = EvalError;
     }
   });
@@ -178,6 +197,7 @@
   var require_range = __commonJS({
     "node_modules/es-errors/range.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = RangeError;
     }
   });
@@ -186,6 +206,7 @@
   var require_ref = __commonJS({
     "node_modules/es-errors/ref.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = ReferenceError;
     }
   });
@@ -194,6 +215,7 @@
   var require_syntax = __commonJS({
     "node_modules/es-errors/syntax.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = SyntaxError;
     }
   });
@@ -202,6 +224,7 @@
   var require_type = __commonJS({
     "node_modules/es-errors/type.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = TypeError;
     }
   });
@@ -210,6 +233,7 @@
   var require_uri = __commonJS({
     "node_modules/es-errors/uri.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = URIError;
     }
   });
@@ -218,6 +242,7 @@
   var require_abs = __commonJS({
     "node_modules/math-intrinsics/abs.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Math.abs;
     }
   });
@@ -226,6 +251,7 @@
   var require_floor = __commonJS({
     "node_modules/math-intrinsics/floor.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Math.floor;
     }
   });
@@ -234,6 +260,7 @@
   var require_max = __commonJS({
     "node_modules/math-intrinsics/max.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Math.max;
     }
   });
@@ -242,6 +269,7 @@
   var require_min = __commonJS({
     "node_modules/math-intrinsics/min.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Math.min;
     }
   });
@@ -250,6 +278,7 @@
   var require_pow = __commonJS({
     "node_modules/math-intrinsics/pow.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Math.pow;
     }
   });
@@ -258,6 +287,7 @@
   var require_round = __commonJS({
     "node_modules/math-intrinsics/round.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Math.round;
     }
   });
@@ -266,6 +296,7 @@
   var require_isNaN = __commonJS({
     "node_modules/math-intrinsics/isNaN.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Number.isNaN || function isNaN2(a) {
         return a !== a;
       };
@@ -276,6 +307,7 @@
   var require_sign = __commonJS({
     "node_modules/math-intrinsics/sign.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var $isNaN = require_isNaN();
       module.exports = function sign(number) {
         if ($isNaN(number) || number === 0) {
@@ -290,6 +322,7 @@
   var require_gOPD = __commonJS({
     "node_modules/gopd/gOPD.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Object.getOwnPropertyDescriptor;
     }
   });
@@ -298,6 +331,7 @@
   var require_gopd = __commonJS({
     "node_modules/gopd/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var $gOPD = require_gOPD();
       if ($gOPD) {
         try {
@@ -314,6 +348,7 @@
   var require_es_define_property = __commonJS({
     "node_modules/es-define-property/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var $defineProperty = Object.defineProperty || false;
       if ($defineProperty) {
         try {
@@ -330,6 +365,7 @@
   var require_has_symbols = __commonJS({
     "node_modules/has-symbols/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var origSymbol = typeof Symbol !== "undefined" && Symbol;
       var hasSymbolSham = require_shams();
       module.exports = function hasNativeSymbols() {
@@ -354,6 +390,7 @@
   var require_Reflect_getPrototypeOf = __commonJS({
     "node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = typeof Reflect !== "undefined" && Reflect.getPrototypeOf || null;
     }
   });
@@ -362,6 +399,7 @@
   var require_Object_getPrototypeOf = __commonJS({
     "node_modules/get-proto/Object.getPrototypeOf.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var $Object = require_es_object_atoms();
       module.exports = $Object.getPrototypeOf || null;
     }
@@ -371,6 +409,7 @@
   var require_implementation = __commonJS({
     "node_modules/function-bind/implementation.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var ERROR_MESSAGE = "Function.prototype.bind called on incompatible ";
       var toStr = Object.prototype.toString;
       var max = Math.max;
@@ -447,6 +486,7 @@
   var require_function_bind = __commonJS({
     "node_modules/function-bind/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var implementation = require_implementation();
       module.exports = Function.prototype.bind || implementation;
     }
@@ -456,6 +496,7 @@
   var require_functionCall = __commonJS({
     "node_modules/call-bind-apply-helpers/functionCall.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Function.prototype.call;
     }
   });
@@ -464,6 +505,7 @@
   var require_functionApply = __commonJS({
     "node_modules/call-bind-apply-helpers/functionApply.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = Function.prototype.apply;
     }
   });
@@ -472,6 +514,7 @@
   var require_reflectApply = __commonJS({
     "node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = typeof Reflect !== "undefined" && Reflect && Reflect.apply;
     }
   });
@@ -480,6 +523,7 @@
   var require_actualApply = __commonJS({
     "node_modules/call-bind-apply-helpers/actualApply.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var bind = require_function_bind();
       var $apply = require_functionApply();
       var $call = require_functionCall();
@@ -492,6 +536,7 @@
   var require_call_bind_apply_helpers = __commonJS({
     "node_modules/call-bind-apply-helpers/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var bind = require_function_bind();
       var $TypeError = require_type();
       var $call = require_functionCall();
@@ -509,6 +554,7 @@
   var require_get = __commonJS({
     "node_modules/dunder-proto/get.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var callBind = require_call_bind_apply_helpers();
       var gOPD = require_gopd();
       var hasProtoAccessor;
@@ -540,6 +586,7 @@
   var require_get_proto = __commonJS({
     "node_modules/get-proto/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var reflectGetProto = require_Reflect_getPrototypeOf();
       var originalGetProto = require_Object_getPrototypeOf();
       var getDunderProto = require_get();
@@ -560,6 +607,7 @@
   var require_hasown = __commonJS({
     "node_modules/hasown/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var call = Function.prototype.call;
       var $hasOwn = Object.prototype.hasOwnProperty;
       var bind = require_function_bind();
@@ -571,6 +619,7 @@
   var require_get_intrinsic = __commonJS({
     "node_modules/get-intrinsic/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var undefined2;
       var $Object = require_es_object_atoms();
       var $Error = require_es_errors();
@@ -902,6 +951,7 @@
   var require_call_bound = __commonJS({
     "node_modules/call-bound/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var GetIntrinsic = require_get_intrinsic();
       var callBindBasic = require_call_bind_apply_helpers();
       var $indexOf = callBindBasic([GetIntrinsic("%String.prototype.indexOf%")]);
@@ -925,6 +975,7 @@
   var require_is_arguments = __commonJS({
     "node_modules/is-arguments/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var hasToStringTag = require_shams2()();
       var callBound = require_call_bound();
       var $toString = callBound("Object.prototype.toString");
@@ -952,6 +1003,7 @@
   var require_is_regex = __commonJS({
     "node_modules/is-regex/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var callBound = require_call_bound();
       var hasToStringTag = require_shams2()();
       var hasOwn = require_hasown();
@@ -1021,6 +1073,7 @@
   var require_safe_regex_test = __commonJS({
     "node_modules/safe-regex-test/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var callBound = require_call_bound();
       var isRegex = require_is_regex();
       var $exec = callBound("RegExp.prototype.exec");
@@ -1040,6 +1093,7 @@
   var require_generator_function = __commonJS({
     "node_modules/generator-function/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var cached = (
         /** @type {GeneratorFunctionConstructor} */
         function* () {
@@ -1053,6 +1107,7 @@
   var require_is_generator_function = __commonJS({
     "node_modules/is-generator-function/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var callBound = require_call_bound();
       var safeRegexTest = require_safe_regex_test();
       var isFnRegex = safeRegexTest(/^\s*(?:function)?\*/);
@@ -1085,6 +1140,7 @@
   var require_is_callable = __commonJS({
     "node_modules/is-callable/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var fnToStr = Function.prototype.toString;
       var reflectApply = typeof Reflect === "object" && Reflect !== null && Reflect.apply;
       var badArrayLike;
@@ -1203,6 +1259,7 @@
   var require_for_each = __commonJS({
     "node_modules/for-each/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var isCallable = require_is_callable();
       var toStr = Object.prototype.toString;
       var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -1263,6 +1320,7 @@
   var require_possible_typed_array_names = __commonJS({
     "node_modules/possible-typed-array-names/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = [
         "Float16Array",
         "Float32Array",
@@ -1284,6 +1342,7 @@
   var require_available_typed_arrays = __commonJS({
     "node_modules/available-typed-arrays/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var possibleNames = require_possible_typed_array_names();
       var g = typeof globalThis === "undefined" ? global : globalThis;
       module.exports = function availableTypedArrays() {
@@ -1302,6 +1361,7 @@
   var require_define_data_property = __commonJS({
     "node_modules/define-data-property/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var $defineProperty = require_es_define_property();
       var $SyntaxError = require_syntax();
       var $TypeError = require_type();
@@ -1350,6 +1410,7 @@
   var require_has_property_descriptors = __commonJS({
     "node_modules/has-property-descriptors/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var $defineProperty = require_es_define_property();
       var hasPropertyDescriptors = function hasPropertyDescriptors2() {
         return !!$defineProperty;
@@ -1372,6 +1433,7 @@
   var require_set_function_length = __commonJS({
     "node_modules/set-function-length/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var GetIntrinsic = require_get_intrinsic();
       var define2 = require_define_data_property();
       var hasDescriptors = require_has_property_descriptors()();
@@ -1425,6 +1487,7 @@
   var require_applyBind = __commonJS({
     "node_modules/call-bind-apply-helpers/applyBind.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var bind = require_function_bind();
       var $apply = require_functionApply();
       var actualApply = require_actualApply();
@@ -1438,6 +1501,7 @@
   var require_call_bind = __commonJS({
     "node_modules/call-bind/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var setFunctionLength = require_set_function_length();
       var $defineProperty = require_es_define_property();
       var callBindBasic = require_call_bind_apply_helpers();
@@ -1463,6 +1527,7 @@
   var require_which_typed_array = __commonJS({
     "node_modules/which-typed-array/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var forEach = require_for_each();
       var availableTypedArrays = require_available_typed_arrays();
       var callBind = require_call_bind();
@@ -1587,6 +1652,7 @@
   var require_is_typed_array = __commonJS({
     "node_modules/is-typed-array/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var whichTypedArray = require_which_typed_array();
       module.exports = function isTypedArray(value) {
         return !!whichTypedArray(value);
@@ -1598,6 +1664,7 @@
   var require_types = __commonJS({
     "node_modules/util/support/types.js"(exports) {
       "use strict";
+      init_process_shim();
       var isArgumentsObject = require_is_arguments();
       var isGeneratorFunction = require_is_generator_function();
       var whichTypedArray = require_which_typed_array();
@@ -1827,6 +1894,7 @@
   // node_modules/util/support/isBufferBrowser.js
   var require_isBufferBrowser = __commonJS({
     "node_modules/util/support/isBufferBrowser.js"(exports, module) {
+      init_process_shim();
       module.exports = function isBuffer(arg) {
         return arg && typeof arg === "object" && typeof arg.copy === "function" && typeof arg.fill === "function" && typeof arg.readUInt8 === "function";
       };
@@ -1836,6 +1904,7 @@
   // node_modules/inherits/inherits_browser.js
   var require_inherits_browser = __commonJS({
     "node_modules/inherits/inherits_browser.js"(exports, module) {
+      init_process_shim();
       if (typeof Object.create === "function") {
         module.exports = function inherits(ctor, superCtor) {
           if (superCtor) {
@@ -1868,6 +1937,7 @@
   // node_modules/util/util.js
   var require_util = __commonJS({
     "node_modules/util/util.js"(exports) {
+      init_process_shim();
       var getOwnPropertyDescriptors = Object.getOwnPropertyDescriptors || function getOwnPropertyDescriptors2(obj) {
         var keys = Object.keys(obj);
         var descriptors = {};
@@ -2428,6 +2498,7 @@
   var require_errors = __commonJS({
     "node_modules/assert/build/internal/errors.js"(exports, module) {
       "use strict";
+      init_process_shim();
       function _typeof(o) {
         "@babel/helpers - typeof";
         return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o2) {
@@ -2666,6 +2737,7 @@
   var require_assertion_error = __commonJS({
     "node_modules/assert/build/internal/assert/assertion_error.js"(exports, module) {
       "use strict";
+      init_process_shim();
       function ownKeys(e, r) {
         var t = Object.keys(e);
         if (Object.getOwnPropertySymbols) {
@@ -3168,6 +3240,7 @@
   var require_isArguments = __commonJS({
     "node_modules/object-keys/isArguments.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var toStr = Object.prototype.toString;
       module.exports = function isArguments(value) {
         var str = toStr.call(value);
@@ -3184,6 +3257,7 @@
   var require_implementation2 = __commonJS({
     "node_modules/object-keys/implementation.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var keysShim;
       if (!Object.keys) {
         has = Object.prototype.hasOwnProperty;
@@ -3316,6 +3390,7 @@
   var require_object_keys = __commonJS({
     "node_modules/object-keys/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var slice = Array.prototype.slice;
       var isArgs = require_isArguments();
       var origKeys = Object.keys;
@@ -3350,6 +3425,7 @@
   var require_implementation3 = __commonJS({
     "node_modules/object.assign/implementation.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var objectKeys = require_object_keys();
       var hasSymbols = require_shams()();
       var callBound = require_call_bound();
@@ -3395,6 +3471,7 @@
   var require_polyfill = __commonJS({
     "node_modules/object.assign/polyfill.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var implementation = require_implementation3();
       var lacksProperEnumerationOrder = function() {
         if (!Object.assign) {
@@ -3444,6 +3521,7 @@
   var require_implementation4 = __commonJS({
     "node_modules/object-is/implementation.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var numberIsNaN = function(value) {
         return value !== value;
       };
@@ -3466,6 +3544,7 @@
   var require_polyfill2 = __commonJS({
     "node_modules/object-is/polyfill.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var implementation = require_implementation4();
       module.exports = function getPolyfill() {
         return typeof Object.is === "function" ? Object.is : implementation;
@@ -3477,6 +3556,7 @@
   var require_callBound = __commonJS({
     "node_modules/call-bind/callBound.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var GetIntrinsic = require_get_intrinsic();
       var callBind = require_call_bind();
       var $indexOf = callBind(GetIntrinsic("String.prototype.indexOf"));
@@ -3494,6 +3574,7 @@
   var require_define_properties = __commonJS({
     "node_modules/define-properties/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var keys = require_object_keys();
       var hasSymbols = typeof Symbol === "function" && typeof /* @__PURE__ */ Symbol("foo") === "symbol";
       var toStr = Object.prototype.toString;
@@ -3538,6 +3619,7 @@
   var require_shim = __commonJS({
     "node_modules/object-is/shim.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var getPolyfill = require_polyfill2();
       var define2 = require_define_properties();
       module.exports = function shimObjectIs() {
@@ -3556,6 +3638,7 @@
   var require_object_is = __commonJS({
     "node_modules/object-is/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var define2 = require_define_properties();
       var callBind = require_call_bind();
       var implementation = require_implementation4();
@@ -3575,6 +3658,7 @@
   var require_implementation5 = __commonJS({
     "node_modules/is-nan/implementation.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = function isNaN2(value) {
         return value !== value;
       };
@@ -3585,6 +3669,7 @@
   var require_polyfill3 = __commonJS({
     "node_modules/is-nan/polyfill.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var implementation = require_implementation5();
       module.exports = function getPolyfill() {
         if (Number.isNaN && Number.isNaN(NaN) && !Number.isNaN("a")) {
@@ -3599,6 +3684,7 @@
   var require_shim2 = __commonJS({
     "node_modules/is-nan/shim.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var define2 = require_define_properties();
       var getPolyfill = require_polyfill3();
       module.exports = function shimNumberIsNaN() {
@@ -3617,6 +3703,7 @@
   var require_is_nan = __commonJS({
     "node_modules/is-nan/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var callBind = require_call_bind();
       var define2 = require_define_properties();
       var implementation = require_implementation5();
@@ -3636,6 +3723,7 @@
   var require_comparisons = __commonJS({
     "node_modules/assert/build/internal/util/comparisons.js"(exports, module) {
       "use strict";
+      init_process_shim();
       function _slicedToArray(arr, i) {
         return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
       }
@@ -4157,6 +4245,7 @@
   var require_assert = __commonJS({
     "node_modules/assert/build/assert.js"(exports, module) {
       "use strict";
+      init_process_shim();
       function _typeof(o) {
         "@babel/helpers - typeof";
         return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o2) {
@@ -4688,6 +4777,7 @@
   // node_modules/acorn/dist/acorn.js
   var require_acorn = __commonJS({
     "node_modules/acorn/dist/acorn.js"(exports, module) {
+      init_process_shim();
       (function(global2, factory) {
         typeof exports === "object" && typeof module !== "undefined" ? factory(exports) : typeof define === "function" && define.amd ? define(["exports"], factory) : (global2 = global2 || self, factory(global2.acorn = {}));
       })(exports, (function(exports2) {
@@ -9418,6 +9508,7 @@
   var require_object_assign = __commonJS({
     "node_modules/object-assign/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var getOwnPropertySymbols = Object.getOwnPropertySymbols;
       var hasOwnProperty = Object.prototype.hasOwnProperty;
       var propIsEnumerable = Object.prototype.propertyIsEnumerable;
@@ -9488,6 +9579,7 @@
   var require_is_expression = __commonJS({
     "node_modules/is-expression/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var acorn = require_acorn();
       var objectAssign = require_object_assign();
       module.exports = isExpression;
@@ -9528,6 +9620,7 @@
   var require_character_parser = __commonJS({
     "node_modules/character-parser/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var objIsRegex = require_is_regex();
       exports = module.exports = parse;
       var TOKEN_TYPES = exports.TOKEN_TYPES = {
@@ -9811,6 +9904,7 @@
   var require_lib = __commonJS({
     "node_modules/pug-error/lib/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       Object.defineProperty(exports, "__esModule", { value: true });
       function makeError(code, message, options) {
         var line = options.line;
@@ -9865,6 +9959,7 @@
   var require_pug_lexer = __commonJS({
     "node_modules/pug-lexer/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var assert = require_assert();
       var isExpression = require_is_expression();
       var characterParser = require_character_parser();
@@ -11211,6 +11306,7 @@
   var require_token_stream = __commonJS({
     "node_modules/token-stream/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = TokenStream;
       function TokenStream(tokens) {
         if (!Array.isArray(tokens)) {
@@ -11246,6 +11342,7 @@
   var require_inline_tags = __commonJS({
     "node_modules/pug-parser/lib/inline-tags.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = [
         "a",
         "abbr",
@@ -11274,6 +11371,7 @@
   var require_pug_parser = __commonJS({
     "node_modules/pug-parser/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var assert = require_assert();
       var TokenStream = require_token_stream();
       var error = require_lib();
@@ -12423,6 +12521,7 @@
   var require_fs_shim = __commonJS({
     "src/assets/fs-shim.cjs"(exports, module) {
       "use strict";
+      init_process_shim();
       var pugFs = globalThis.__pugFs;
       module.exports = {
         readFileSync: function(path, options) {
@@ -12475,6 +12574,7 @@
   var require_path_browserify = __commonJS({
     "node_modules/path-browserify/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       function assertPath(path) {
         if (typeof path !== "string") {
           throw new TypeError("Path must be a string. Received " + JSON.stringify(path));
@@ -12882,6 +12982,7 @@
   var require_pug_walk = __commonJS({
     "node_modules/pug-walk/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       module.exports = walkAST;
       function walkAST(ast, before, after, options) {
         if (after && typeof after === "object" && typeof options === "undefined") {
@@ -12996,6 +13097,7 @@
   var require_pug_load = __commonJS({
     "node_modules/pug-load/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var fs = require_fs_shim();
       var path = require_path_browserify();
       var walk = require_pug_walk();
@@ -13103,6 +13205,7 @@
   var require_pug_linker = __commonJS({
     "node_modules/pug-linker/index.js"(exports, module) {
       "use strict";
+      init_process_shim();
       var assert = require_assert();
       var walk = require_pug_walk();
       function error() {
@@ -13302,6 +13405,7 @@
   // src/assets/parser-entry.cjs
   var require_parser_entry = __commonJS({
     "src/assets/parser-entry.cjs"() {
+      init_process_shim();
       try {
         lexer = require_pug_lexer();
         parser = require_pug_parser();

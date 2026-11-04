@@ -1,5 +1,5 @@
 import type { CompileError } from '../models/index';
-import { explainUnknownFilter } from '../utils/diagnostics.util';
+import { explainRuntimeError, explainUnknownFilter, splitPugMessage } from '../utils/diagnostics.util';
 import { loadHelpers } from '../utils/helpers.util';
 import { createTranslator, TRANSLATE_FNS } from '../utils/i18n.util';
 import { renderMarkdown } from '../utils/markdown.util';
@@ -85,12 +85,19 @@ export function renderPug(bundle: PugBundle, req: RenderRequest): RenderResponse
     html = compiledFn(locals);
   } catch (err: unknown) {
     const error = err as { message?: string; line?: number; column?: number; filename?: string };
+    // Los errores de ejecución traen la ubicación dentro del texto (`/main.pug:52` + fragmento de código).
+    const split = splitPugMessage(error.message ?? 'Compilation error');
+    const known = (p?: string): string | undefined => (p && files?.has(p) ? p : undefined);
+    // La ubicación que Pug escribe en el mensaje manda: en Safari los errores traen su propia `line`/`column`
+    // (las del JavaScript compilado de la plantilla, no las del `.pug`).
+    const fromPug = split.path !== undefined && split.line !== undefined;
     errors.push({
-      message: explainUnknownFilter(error.message ?? 'Compilation error'),
+      message: explainUnknownFilter(split.message),
       source: 'pug',
-      path: error.filename && files?.has(error.filename) ? error.filename : undefined,
-      line: error.line,
-      column: error.column,
+      path: fromPug ? known(split.path) : known(error.filename),
+      line: fromPug ? split.line : error.line,
+      column: fromPug ? split.column : error.column,
+      hint: explainRuntimeError(split.message, files),
       severity: 'error',
     });
   }
