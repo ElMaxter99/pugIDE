@@ -15,7 +15,6 @@ import { PreferencesState } from '../../core/services/preferences.state';
 import { PageBreakIssue, PageGeometry, pageGeometry } from '../../core/utils/paginate.util';
 import { AssetState } from '../../core/state/asset.state';
 import { injectIntoBody, pinBaseUrl } from '../../core/utils/html-injection.util';
-import { loadPreviewRuntime } from '../../core/render/preview-runtime';
 import { openInHost } from '../../core/render/preview-host';
 import { A11yIssue, a11yReport, buildPageChrome, describePageIssue, fitScale, pageCountFor, pageIssuesKey } from '../../core/utils/preview-layout.util';
 import { PreviewState } from '../../core/state/preview.state';
@@ -172,7 +171,6 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
               #previewFrame
               class="preview-iframe"
               title="Vista previa de la plantilla"
-              sandbox="allow-scripts allow-modals"
               [style.width.px]="frameWidth()"
               [style.height.px]="frameHeight()"
               [style.transform]="'scale(' + scale() + ')'"
@@ -484,7 +482,6 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   });
   private canvasObserver: ResizeObserver | null = null;
   private assetState = inject(AssetState);
-  private updateSeq = 0;
   /**
    * Estado del iframe del preview: 'none' (sin cargar), 'loading' (cargando el programa), 'ready' (el programa recibe
    * documentos por mensaje, sin recargar) o 'legacy' (respaldo: `srcdoc` completo con los assets como data URI).
@@ -763,39 +760,49 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   /**
-   * Muestra el HTML en el iframe aislado (`srcdoc`, origen opaco). El iframe se carga una vez con el programa de
-   * `preview-runtime.js` (pagina, mide e imprime desde dentro) y después recibe cada compilación por `postMessage`
-   * (`pugide-doc`): el HTML conserva las URL `blob:` de los assets como marcador y el programa las sustituye por URL
-   * propias creadas a partir de los `Blob` que la app le envía (`pugide-assets`) solo cuando los assets cambian, sin
-   * volver a codificarlos en base64 en cada compilación. El estado compilado no cambia.
-   * Respaldo: si no hay programa, o el navegador no admite reescribir el documento, se usa un `srcdoc` completo con
-   * los assets como data URI (`withDataUris`), que es más lento pero equivalente.
+   * Respaldo: añade el programa del preview como `<script src>` absoluto (un `srcdoc` hereda la CSP de la app, que admite
+   * scripts propios pero no inline; sin cabeceras, como en `ng serve`, no hay CSP y funciona igual).
    */
-  private async updatePreview(html: string): Promise<void> {
-    const seq = ++this.updateSeq;
-    const runtime = await loadPreviewRuntime();
-    if (seq !== this.updateSeq || !this.previewFrame) return; // llegó una compilación más reciente
+  private withLegacyRuntime(html: string): string {
+    return html ? injectIntoBody(html, `<script src="${new URL('assets/preview-runtime.js', document.baseURI).href}"></script>`) : html;
+  }
+
+  /**
+   * Muestra el HTML en el iframe aislado (origen opaco). El iframe se carga una vez con `assets/preview-frame.html`
+   * (documento propio, con su Content-Security-Policy por cabecera: con `srcdoc` el código del usuario heredaría la
+   * CSP de la app, que no admite scripts inline ni `eval`), cuyo programa `preview-runtime.js` pagina, mide e imprime
+   * desde dentro. Después recibe cada compilación por `postMessage` (`pugide-doc`): el HTML conserva las URL `blob:`
+   * de los assets como marcador y el programa las sustituye por URL propias creadas a partir de los `Blob` que la app
+   * le envía (`pugide-assets`) solo cuando los assets cambian, sin volver a codificarlos en base64 en cada
+   * compilación. El estado compilado no cambia.
+   * Respaldo: si el documento no es de origen opaco (servidor sin las cabeceras de vercel.json, como `ng serve`), el
+   * navegador no deja reescribirlo o el iframe no confirma, se usa un `srcdoc` completo con `sandbox` en el atributo y los
+   * assets como data URI (`withDataUris`). Hereda la CSP de la app: con las cabeceras de producción el programa carga
+   * (`script-src 'self'`) pero los `<script>` inline de la plantilla no se ejecutan; sin cabeceras funciona todo.
+   */
+  private updatePreview(html: string): void {
     this.currentHtml = html;
-    if (!runtime) {
-      this.frameState = this.frameState === 'legacy' ? 'legacy' : 'none';
-      this.previewFrame.nativeElement.srcdoc = this.withDataUris(html);
-      return;
-    }
     if (this.frameState === 'legacy') {
-      this.renderLegacy(html, runtime);
+      this.renderLegacy(html);
       return;
     }
     this.pendingHtml = html;
     if (this.frameState === 'ready') this.deliver();
-    else if (this.frameState === 'none') this.loadShell(runtime);
+    else if (this.frameState === 'none') this.loadShell();
     // 'loading': el documento pendiente se envía cuando el programa avise de que está listo.
   }
 
-  private loadShell(runtime: string): void {
+  private loadShell(): void {
     this.frameState = 'loading';
     this.sentAssetsKey = null;
     this.armWatchdog(() => this.useLegacy());
-    this.previewFrame.nativeElement.srcdoc = `<!doctype html><html><body><script>${runtime}</script></body></html>`;
+    const frame = this.previewFrame.nativeElement;
+    // Sin atributo `sandbox`: el aislamiento lo da la cabecera `Content-Security-Policy: sandbox` de ese documento (origen
+    // opaco igualmente) y así la navegación del iframe pasa por el service worker, que no intercepta las de un iframe con
+    // el atributo (sin conexión no cargaría). El programa se niega a recibir el HTML si el documento no es de origen opaco.
+    frame.removeAttribute('sandbox');
+    frame.removeAttribute('srcdoc');
+    frame.src = 'assets/preview-frame.html';
   }
 
   /** Envía al iframe el documento pendiente, precedido de los assets si cambiaron desde la última vez. */
@@ -813,7 +820,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
         return;
       }
       this.pendingHtml = this.currentHtml;
-      void loadPreviewRuntime().then((rt) => (rt ? this.loadShell(rt) : this.useLegacy()));
+      this.loadShell();
     });
   }
 
@@ -831,13 +838,16 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   private useLegacy(): void {
     this.frameState = 'legacy';
     this.pendingHtml = null;
-    void loadPreviewRuntime().then((rt) => this.renderLegacy(this.currentHtml, rt));
+    this.renderLegacy(this.currentHtml);
   }
 
-  private renderLegacy(html: string, runtime: string): void {
+  private renderLegacy(html: string): void {
     if (!this.previewFrame) return;
-    const doc = html && runtime ? injectIntoBody(this.withDataUris(html), `<script>${runtime}</script>`) : this.withDataUris(html);
-    this.previewFrame.nativeElement.srcdoc = doc;
+    const frame = this.previewFrame.nativeElement;
+    // Respaldo: aquí el aislamiento es el atributo, que se fija antes de navegar.
+    frame.setAttribute('sandbox', 'allow-scripts allow-modals');
+    frame.removeAttribute('src');
+    frame.srcdoc = this.withLegacyRuntime(this.withDataUris(html));
   }
 
   private armWatchdog(onTimeout: () => void): void {

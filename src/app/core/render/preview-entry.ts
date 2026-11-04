@@ -118,8 +118,30 @@ function observeBody(): void {
   void document.fonts?.ready.then(() => reflow());
 }
 
+/**
+ * Los enlaces `#ancla` se resuelven contra la base fijada (`about:srcdoc`, ver `pinBaseUrl`), que ya no es la URL de este
+ * documento (ahora es `assets/preview-frame.html`): navegarían fuera. Se atienden aquí con `location.hash`, que sí es
+ * relativo al documento y activa el desplazamiento y `:target`. Respeta `preventDefault` de la plantilla.
+ */
+function onAnchorClick(e: MouseEvent): void {
+  if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+  const target = e.target instanceof Element ? e.target.closest('a[href], area[href]') : null;
+  const href = target?.getAttribute('href');
+  if (!target || !href || !href.startsWith('#') || (target.getAttribute('target') ?? '_self') !== '_self') return;
+  e.preventDefault();
+  location.hash = href;
+}
+
 /** Sustituye el documento por `html` sin recargar el iframe (conserva este programa y los assets). */
 function writeDocument(html: string): void {
+  // Solo se escribe contenido del usuario si este documento es de origen opaco (la cabecera `Content-Security-Policy:
+  // sandbox` de `assets/preview-frame.html` o el atributo `sandbox` del iframe). Sin ninguno de los dos —servidor sin las
+  // cabeceras de vercel.json, como `ng serve`— tendría el origen de la app: la app recibe el aviso y usa el respaldo
+  // con `sandbox` en el atributo.
+  if (window.origin !== 'null') {
+    post({ source: 'pugide-doc-error' });
+    return;
+  }
   try {
     stats.docs++;
     const out = mapUrls(html);
@@ -128,6 +150,7 @@ function writeDocument(html: string): void {
     document.close();
     // `document.open()` borra los listeners de la ventana.
     window.addEventListener('message', onMessage);
+    document.addEventListener('click', onAnchorClick);
     for (const u of retired) URL.revokeObjectURL(u);
     retired = [];
     paginatedHeight = -1;

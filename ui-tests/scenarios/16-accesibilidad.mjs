@@ -1,8 +1,10 @@
 import { check, openApp, previewText, waitUntil } from '../lib.mjs';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
-const AXE = require.resolve('axe-core/axe.min.js');
+// La CSP de la app no admite scripts inline: axe se evalúa por el protocolo (`evaluate`), que no pasa por ella.
+const AXE_SOURCE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 
 /**
  * Auditoría automática (axe-core: etiquetas, nombres accesibles, contraste, puntos de referencia, encabezados…) de
@@ -14,7 +16,7 @@ async function audit(page, label) {
   // Los diálogos entran con una animación de opacidad: se mide el contraste cuando ya terminó, no a medias.
   // Las infinitas (el punto «live» del preview) nunca terminan: solo se esperan las finitas.
   await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))));
-  await page.addScriptTag({ path: AXE });
+  if (!(await page.evaluate(() => typeof globalThis.axe !== 'undefined'))) await page.evaluate(AXE_SOURCE);
   const res = await page.evaluate(() => axe.run(document, { exclude: [['.monaco-editor'], ['.preview-iframe']], resultTypes: ['violations'] }));
   const detail = res.violations
     .map((v) => `${v.id} [${v.impact}] x${v.nodes.length}: ${v.nodes.slice(0, 2).map((n) => n.target.join('>').replace(/\[_ngcontent[^\]]*\]/g, '').slice(0, 60)).join(' ; ')}`)

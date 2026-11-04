@@ -58,6 +58,83 @@ export function loadHelpers(files: ReadonlyMap<string, string>): LoadedHelpers {
   return value;
 }
 
+type Tok = { t: 'id' | 'str' | 'p'; v: string };
+
+/** Divide el código en identificadores, cadenas y signos; descarta comentarios y números. Suficiente para leer claves. */
+function tokenize(code: string): Tok[] {
+  const out: Tok[] = [];
+  let i = 0;
+  while (i < code.length) {
+    const c = code[i];
+    if (c === '/' && code[i + 1] === '/') { while (i < code.length && code[i] !== '\n') i++; continue; }
+    if (c === '/' && code[i + 1] === '*') { const e = code.indexOf('*/', i + 2); i = e < 0 ? code.length : e + 2; continue; }
+    if (c === '"' || c === "'" || c === '`') {
+      let j = i + 1;
+      let v = '';
+      while (j < code.length && code[j] !== c) { if (code[j] === '\\') j++; v += code[j] ?? ''; j++; }
+      out.push({ t: 'str', v });
+      i = j + 1;
+      continue;
+    }
+    if (/[A-Za-z_$]/.test(c)) {
+      let j = i + 1;
+      while (j < code.length && /[\w$]/.test(code[j])) j++;
+      out.push({ t: 'id', v: code.slice(i, j) });
+      i = j;
+      continue;
+    }
+    if (/\s/.test(c)) { i++; continue; }
+    if (/\d/.test(c)) { while (i < code.length && /[\w.]/.test(code[i])) i++; continue; }
+    out.push({ t: 'p', v: c });
+    i++;
+  }
+  return out;
+}
+
+/**
+ * Nombres que exportan los archivos de helpers, leídos del texto SIN ejecutarlos: `module.exports = { a, b: …, c() {} }`
+ * y `exports.x = …` / `module.exports.x = …`. La app no ejecuta el JavaScript del usuario (corre solo en el Worker del
+ * render, aislado); para quitar de las variables de datos lo que es un helper basta con los nombres. Lo que no se
+ * reconoce (`Object.assign(module.exports, …)`, claves calculadas) no se quita: se tratará como un dato más.
+ */
+export function helperExportNames(files: ReadonlyMap<string, string>): Set<string> {
+  const names = new Set<string>();
+  for (const path of helperPaths(files.keys())) {
+    const toks = tokenize(files.get(path) ?? '');
+    for (let i = 0; i < toks.length; i++) {
+      let at = -1;
+      if (toks[i].v === 'module' && toks[i + 1]?.v === '.' && toks[i + 2]?.v === 'exports') at = i + 3;
+      else if (toks[i].t === 'id' && toks[i].v === 'exports' && toks[i - 1]?.v !== '.') at = i + 1;
+      if (at < 0) continue;
+      if (toks[at]?.v === '.' && toks[at + 1]?.t === 'id' && toks[at + 2]?.v === '=') names.add(toks[at + 1].v);
+      else if (toks[at]?.v === '=' && toks[at + 1]?.v === '{') readObjectKeys(toks, at + 2, names);
+    }
+  }
+  return names;
+}
+
+/** Claves del primer nivel de un objeto literal cuyo «{» está justo antes de la posición indicada. */
+function readObjectKeys(toks: Tok[], start: number, names: Set<string>): void {
+  let depth = 1;
+  let expectKey = true;
+  for (let i = start; i < toks.length && depth > 0; i++) {
+    const tk = toks[i];
+    if (tk.t === 'p') {
+      if ('{[('.includes(tk.v)) depth++;
+      else if ('}])'.includes(tk.v)) depth--;
+      else if (depth === 1 && tk.v === ',') expectKey = true;
+      else if (depth === 1 && tk.v === '.') expectKey = false; // `...otro`: no es una clave
+      continue;
+    }
+    if (depth !== 1 || !expectKey) continue;
+    // `async`, `get` y `set` son modificadores si les sigue otro nombre.
+    if (tk.t === 'id' && ['async', 'get', 'set'].includes(tk.v) && toks[i + 1]?.t !== 'p') continue;
+    const next = toks[i + 1]?.v;
+    if (next === ':' || next === ',' || next === '}' || next === '(') names.add(tk.v);
+    expectKey = false;
+  }
+}
+
 function describeHelperError(err: unknown): string {
   const e = err as { name?: string; message?: string };
   return `${e.name ?? 'Error'}: ${e.message ?? String(err)}`;

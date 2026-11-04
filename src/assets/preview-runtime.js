@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: a4612f30fef7f158
+// pugide-runtime source-hash: 276394ebe04f1623
 "use strict";
 (() => {
   // src/app/core/utils/page-rules.util.ts
@@ -505,7 +505,19 @@ ${inline}`).map((f) => ({ kind: "unsupported", page: 0, element: f === "string" 
     observer.observe(document.body);
     void document.fonts?.ready.then(() => reflow());
   }
+  function onAnchorClick(e) {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    const target = e.target instanceof Element ? e.target.closest("a[href], area[href]") : null;
+    const href = target?.getAttribute("href");
+    if (!target || !href || !href.startsWith("#") || (target.getAttribute("target") ?? "_self") !== "_self") return;
+    e.preventDefault();
+    location.hash = href;
+  }
   function writeDocument(html) {
+    if (window.origin !== "null") {
+      post({ source: "pugide-doc-error" });
+      return;
+    }
     try {
       stats.docs++;
       const out = mapUrls(html);
@@ -513,6 +525,7 @@ ${inline}`).map((f) => ({ kind: "unsupported", page: 0, element: f === "string" 
       document.write(out);
       document.close();
       window.addEventListener("message", onMessage);
+      document.addEventListener("click", onAnchorClick);
       for (const u of retired) URL.revokeObjectURL(u);
       retired = [];
       paginatedHeight = -1;
