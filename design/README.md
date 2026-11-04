@@ -20,7 +20,7 @@ Todo cambio en lo que ve el usuario (pantallas, flujos, textos de pantalla) se d
 ## Dos tipos de mesa
 
 1. **Fieles a la app (capturas del DOM real).** `V-01`, `V-02`, `V-04` a `V-27`, `Tokens` y `Componentes` no se dibujan a mano: las genera [`design/tools/`](tools) a partir de la app compilada. Así coinciden con la app en medidas, colores, tipografía y textos. Cuando la UI cambia, se regeneran (ver [Mantener el lienzo fiel](../docs/brand/DESIGN_TOKENS.md#cómo-mantener-el-lienzo-fiel)).
-2. **Diseños nuevos (diseño primero).** Se dibujan a mano en una fila nueva con los tokens y los componentes. Hoy: `V-03` (aviso de actualización de la 0.5.1). Al programarse, se sustituye por la captura real.
+2. **Diseños nuevos (diseño primero).** Se dibujan a mano en una fila nueva con los tokens y los componentes. Hoy: `V-03` (aviso de actualización de la 0.5.1). Al programarse, se sustituye por la captura real (V-03 ya está programada en la 0.5.1; falta sustituirla por la captura).
 
 ## Mesas
 
@@ -33,7 +33,7 @@ Estado «fiel a la 0.5»: generada de la app de este repositorio (0.4.1 más los
 | Componentes (claro) | Igual, tema claro | [`Componentes-claro.dc.html`](canvas/Componentes-claro.dc.html) | varios | Fiel a la 0.5 |
 | V-01 IDE | Editor, datos, preview y terminal con el proyecto «Informe trimestral» | [`V-01-IDE.dc.html`](canvas/V-01-IDE.dc.html) | `layout/main-layout`, `topbar`, `sidebar`, `editor-panel`, `smart-data-editor`, `preview-panel`, `terminal-panel`, `statusbar` | Fiel a la 0.5 |
 | V-02 Errores | Error de compilación con arreglo, lista de problemas y terminal | [`V-02-Errores.dc.html`](canvas/V-02-Errores.dc.html) | `preview-panel` (`.compile-error`), `problems-list`, `terminal-panel` | Fiel a la 0.5 |
-| V-03 Actualización | Aviso de versión nueva y recarga automática | [`V-03-Actualizacion.dc.html`](canvas/V-03-Actualizacion.dc.html) | (por programar) | Diseño de la 0.5.1, sin implementar; no es captura |
+| V-03 Actualización | Aviso de versión nueva y recarga automática | [`V-03-Actualizacion.dc.html`](canvas/V-03-Actualizacion.dc.html) | `AppUpdateService`, `UpdateBarComponent`, `UpdateOverlayComponent` | Diseño de la 0.5.1, ya implementado; sigue siendo un dibujo, no una captura |
 | V-04 Inicio | Página de presentación completa | [`V-04-Inicio.dc.html`](canvas/V-04-Inicio.dc.html) | `features/landing` | Fiel a la 0.5 |
 | V-05 IDE claro | V-01 en tema claro | [`V-05-IDE-claro.dc.html`](canvas/V-05-IDE-claro.dc.html) | igual que V-01 | Fiel a la 0.5 |
 | V-06 PDF | Preview en modo PDF: hojas, barra de página | [`V-06-PDF.dc.html`](canvas/V-06-PDF.dc.html) | `preview-panel`, `pdf-bar` | Fiel a la 0.5 |

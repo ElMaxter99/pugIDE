@@ -361,7 +361,7 @@
       "x": -560,
       "y": 1410,
       "w": 440,
-      "text": "V-03 (aviso de actualización de la 0.5.1) es un diseño aprobado todavía sin programar: no es una captura de la app. Cuando se implemente se sustituirá por la captura real y se anotará en design/README.md.",
+      "text": "V-03 (aviso de actualización de la 0.5.1) es un diseño dibujado a mano, no una captura. Ya está programado en la 0.5.1 (AppUpdateService, barra «Hay una versión nueva…» y mensaje «Actualizando…»); cuando se pueda, se sustituirá por la captura real con design/tools.",
       "size": "s",
       "fill": "purple"
     }

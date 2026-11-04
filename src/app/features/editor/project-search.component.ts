@@ -50,7 +50,7 @@ import { ReplaceResult, SearchMatch, highlightMatch, replaceInProject, searchPro
     .replace-btn:hover:not(:disabled) { border-color: var(--accent-color); }
     .replace-btn:disabled { opacity: 0.5; cursor: default; }
     .search-summary { padding: 0 10px 4px; font-size: 11px; color: var(--text-secondary); }
-    .search-results { overflow: auto; font-size: 12px; }
+    .search-results { overflow: auto; font-size: 12px; flex: 1 1 auto; min-height: 96px; }
     .result-file { padding: 4px 10px; color: var(--text-primary); font-weight: 600; }
     .result-line { display: flex; gap: 8px; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text-secondary); padding: 2px 10px 2px 18px; cursor: pointer; font-family: var(--font-mono); font-size: 12px; }
     .result-line:hover { background: rgba(255, 255, 255, 0.06); }
