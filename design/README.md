@@ -20,7 +20,7 @@ Todo cambio en lo que ve el usuario (pantallas, flujos, textos de pantalla) se d
 ## Dos tipos de mesa
 
 1. **Fieles a la app (capturas del DOM real).** `V-01`, `V-02`, `V-04` a `V-27`, `Tokens` y `Componentes` no se dibujan a mano: las genera [`design/tools/`](tools) a partir de la app compilada. Así coinciden con la app en medidas, colores, tipografía y textos. Cuando la UI cambia, se regeneran (ver [Mantener el lienzo fiel](../docs/brand/DESIGN_TOKENS.md#cómo-mantener-el-lienzo-fiel)).
-2. **Diseños nuevos (diseño primero).** Se dibujan a mano en una fila nueva con los tokens y los componentes. Hoy: `V-03` (aviso de actualización de la 0.5.1). Al programarse, se sustituye por la captura real (V-03 ya está programada en la 0.5.1; falta sustituirla por la captura).
+2. **Diseños nuevos (diseño primero).** Se dibujan a mano en una fila nueva con los tokens y los componentes. Hoy: `V-03` (aviso de actualización de la 0.5.1) y `V-28` a `V-33` (instantáneas del proyecto, 0.6; muestran además el botón de cámara nuevo en la barra superior). Al programarse, se sustituye por la captura real (V-03 ya está programada en la 0.5.1; falta sustituirla por la captura).
 
 ## Mesas
 
@@ -58,6 +58,12 @@ Estado «fiel a la 0.5»: generada de la app de este repositorio (0.4.1 más los
 | V-25 Errores claro | V-02 en tema claro | [`V-25-Errores-claro.dc.html`](canvas/V-25-Errores-claro.dc.html) | igual que V-02 | Fiel a la 0.5 |
 | V-26 PDF claro | V-06 en tema claro | [`V-26-PDF-claro.dc.html`](canvas/V-26-PDF-claro.dc.html) | igual que V-06 | Fiel a la 0.5 |
 | V-27 Proyectos claro | V-11 en tema claro | [`V-27-Proyectos-claro.dc.html`](canvas/V-27-Proyectos-claro.dc.html) | igual que V-11 | Fiel a la 0.5 |
+| V-28 Instantáneas | Diálogo «Instantáneas del proyecto»: guardar con nombre, lista (fecha, archivos, assets, tamaño), Comparar, Restaurar, Renombrar, Eliminar | [`V-28-Instantaneas.dc.html`](canvas/V-28-Instantaneas.dc.html) | `project-snapshots-dialog` | Diseño de la 0.6; dibujado a mano |
+| V-29 Comparar instantánea | Archivos añadidos, eliminados y modificados con recuentos y diff del archivo elegido | [`V-29-Instantaneas-comparar.dc.html`](canvas/V-29-Instantaneas-comparar.dc.html) | `snapshot-compare` | Diseño de la 0.6; dibujado a mano |
+| V-30 Restaurar instantánea | Confirmación: qué cambia y aviso de la copia automática «Antes de restaurar» | [`V-30-Instantaneas-restaurar.dc.html`](canvas/V-30-Instantaneas-restaurar.dc.html) | `snapshot-restore-confirm` | Diseño de la 0.6; dibujado a mano |
+| V-31 Instantáneas vacío | Diálogo sin ninguna instantánea | [`V-31-Instantaneas-vacio.dc.html`](canvas/V-31-Instantaneas-vacio.dc.html) | `project-snapshots-dialog` | Diseño de la 0.6; dibujado a mano |
+| V-32 Instantáneas tope | 20 de 20: aviso de que se eliminará la más antigua antes de guardar | [`V-32-Instantaneas-tope.dc.html`](canvas/V-32-Instantaneas-tope.dc.html) | `project-snapshots-dialog` | Diseño de la 0.6; dibujado a mano |
+| V-33 Instantáneas no cabe | Error: el proyecto supera el tope de 25 MB por instantánea | [`V-33-Instantaneas-no-cabe.dc.html`](canvas/V-33-Instantaneas-no-cabe.dc.html) | `project-snapshots-dialog` | Diseño de la 0.6; dibujado a mano |
 
 `canvas/canvas.json` es el índice del lienzo (posición, tamaño, título y enlaces entre mesas; filas y notas). Los `*.dc.html` son HTML real con un bloque de script mínimo; se abren dentro del lienzo, no sueltos en el navegador. `canvas/` es copia exacta de lo publicado.
 
@@ -96,4 +102,4 @@ La fuente de iconos (subconjunto de Material Symbols) se sube como recurso del l
 
 ## Pendientes de diseño
 
-Instantáneas de proyecto con nombre (9.2), pantalla de importación al soltar una carpeta (9.1) y el flujo de CSP/seguridad si cambia algo visible. Ver [docs/PLAN.md](../docs/PLAN.md).
+Pantalla de importación al soltar una carpeta (9.1) y el flujo de CSP/seguridad si cambia algo visible. Ver [docs/PLAN.md](../docs/PLAN.md).

@@ -235,6 +235,52 @@
       "title": "V-03 Actualización: aviso y recarga",
       "is_interactive": true,
       "expand": "fill"
+    },
+    "V-28-Instantaneas.dc.html": {
+      "x": 0,
+      "y": 22416,
+      "w": 1440,
+      "h": 900,
+      "title": "V-28 Instantáneas del proyecto: lista, guardar y acciones",
+      "is_interactive": true
+    },
+    "V-29-Instantaneas-comparar.dc.html": {
+      "x": 1520,
+      "y": 22416,
+      "w": 1440,
+      "h": 900,
+      "title": "V-29 Comparar instantánea: añadidos, eliminados y modificados",
+      "is_interactive": true
+    },
+    "V-30-Instantaneas-restaurar.dc.html": {
+      "x": 3040,
+      "y": 22416,
+      "w": 1440,
+      "h": 900,
+      "title": "V-30 Restaurar instantánea: confirmación con copia automática",
+      "is_interactive": true
+    },
+    "V-31-Instantaneas-vacio.dc.html": {
+      "x": 4560,
+      "y": 22416,
+      "w": 1440,
+      "h": 900,
+      "title": "V-31 Instantáneas: estado vacío"
+    },
+    "V-32-Instantaneas-tope.dc.html": {
+      "x": 0,
+      "y": 23736,
+      "w": 1440,
+      "h": 900,
+      "title": "V-32 Instantáneas: tope de 20 y sustitución de la más antigua",
+      "is_interactive": true
+    },
+    "V-33-Instantaneas-no-cabe.dc.html": {
+      "x": 1520,
+      "y": 23736,
+      "w": 1440,
+      "h": 900,
+      "title": "V-33 Instantáneas: el proyecto no cabe"
     }
   },
   "order": [
@@ -267,7 +313,13 @@
     "V-25-Errores-claro.dc.html",
     "V-26-PDF-claro.dc.html",
     "V-27-Proyectos-claro.dc.html",
-    "V-03-Actualizacion.dc.html"
+    "V-03-Actualizacion.dc.html",
+    "V-28-Instantaneas.dc.html",
+    "V-29-Instantaneas-comparar.dc.html",
+    "V-30-Instantaneas-restaurar.dc.html",
+    "V-31-Instantaneas-vacio.dc.html",
+    "V-32-Instantaneas-tope.dc.html",
+    "V-33-Instantaneas-no-cabe.dc.html"
   ],
   "notes": {
     "fila-ref": {
@@ -364,6 +416,28 @@
       "text": "V-03 (aviso de actualización de la 0.5.1) es un diseño dibujado a mano, no una captura. Ya está programado en la 0.5.1 (AppUpdateService, barra «Hay una versión nueva…» y mensaje «Actualizando…»); cuando se pueda, se sustituirá por la captura real con design/tools.",
       "size": "s",
       "fill": "purple"
+    },
+    "fila-06-a": {
+      "x": 0,
+      "y": 22176,
+      "text": "Versión 0.6 · instantáneas del proyecto (9.2)",
+      "kind": "title1",
+      "maxW": 6000
+    },
+    "fila-06-b": {
+      "x": 0,
+      "y": 23496,
+      "text": "Versión 0.6 · instantáneas: tope y tamaño",
+      "kind": "title1",
+      "maxW": 3000
+    },
+    "nota-v06": {
+      "x": -560,
+      "y": 1880,
+      "w": 440,
+      "text": "Versión 0.6 (diseño primero, pendiente de aprobar). Instantáneas con nombre del proyecto entero: archivos de texto, juegos de datos, idiomas y assets, solo en este navegador (IndexedDB). Botón de cámara en la barra superior, junto al nombre del proyecto, y comando «Instantáneas del proyecto…» en la paleta. Máximo 20 por proyecto y 25 MB por instantánea; nunca se sustituye ni se omite nada sin avisar. Restaurar guarda antes «Antes de restaurar…».",
+      "size": "s",
+      "fill": "teal"
     }
   },
   "designSystems": []
