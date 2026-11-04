@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: 276394ebe04f1623
+// pugide-runtime source-hash: 1e7b279103cd2447
 "use strict";
 (() => {
   // src/app/core/utils/page-rules.util.ts
@@ -278,14 +278,18 @@
     }
     for (let i = 0; i < src.children.length && i < dst.children.length; i++) inlineComputedStyle(win, src.children[i], dst.children[i]);
   }
-  function insertHeaderCopy(win, row, header) {
+  function insertHeaderCopy(win, row, header, templates) {
     for (const h of header) {
-      const copy = h.cloneNode(true);
-      inlineComputedStyle(win, h, copy);
-      copy.setAttribute(SPACER, "");
-      copy.removeAttribute("id");
-      copy.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
-      row.parentNode?.insertBefore(copy, row);
+      let template = templates.get(h);
+      if (!template) {
+        template = h.cloneNode(true);
+        inlineComputedStyle(win, h, template);
+        template.setAttribute(SPACER, "");
+        template.removeAttribute("id");
+        template.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+        templates.set(h, template);
+      }
+      row.parentNode?.insertBefore(template.cloneNode(true), row);
     }
   }
   function paginateDocument(doc, geometry2) {
@@ -297,6 +301,7 @@
     applyRootPadding(doc, g);
     const gap = hasVerticalMargins(g);
     const forcedAfter = /* @__PURE__ */ new Set();
+    const headerTemplates = /* @__PURE__ */ new Map();
     const top = (el) => el.getBoundingClientRect().top + win.scrollY;
     const pushTo = (el, target) => {
       const cs = win.getComputedStyle(el);
@@ -325,12 +330,15 @@
           }
         }
         if (header) {
-          const y2 = el.getBoundingClientRect().top + win.scrollY;
-          const k = pageOf(g, y2);
-          const tableTop = header.table.getBoundingClientRect().top + win.scrollY;
-          const startsPage = k > pageOf(g, tableTop) && Math.abs(y2 - pageTop(g, k)) < 1.5;
-          if (pushed || startsPage) {
-            insertHeaderCopy(win, el, header.rows);
+          let startsPage = pushed;
+          if (!startsPage) {
+            const y2 = el.getBoundingClientRect().top + win.scrollY;
+            const k = pageOf(g, y2);
+            const tableTop = header.table.getBoundingClientRect().top + win.scrollY;
+            startsPage = k > pageOf(g, tableTop) && Math.abs(y2 - pageTop(g, k)) < 1.5;
+          }
+          if (startsPage) {
+            insertHeaderCopy(win, el, header.rows, headerTemplates);
             const r = el.getBoundingClientRect();
             const target = pushTarget(g, r.top + win.scrollY, r.height);
             if (target !== null) pushTableRow(doc, el, target - (r.top + win.scrollY));

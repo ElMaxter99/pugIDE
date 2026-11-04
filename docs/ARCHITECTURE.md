@@ -138,6 +138,33 @@ Como tiene el origen de la app no ejecuta nada del usuario: su único script es 
 
 Chromium, esta máquina, tiempo desde editar el archivo hasta ver el cambio en el preview (incluye los 300 ms de debounce), mediana de 10–12 ediciones, comparando la versión anterior al aislamiento con la actual: proyecto normal 335 → 343 ms; 723 KB de datos 344 → 380 ms (los datos se copian al Worker en cada compilación); un asset de 3 MB 333 → 485 ms (el preview recibe los assets como `data:` en cada documento: el coste crece con el tamaño de los assets). Arranque hasta ver el preview: 796 → 784 ms.
 
+### Tablas grandes en PDF y assets pesados
+
+`npm run build:prod && npm run perf` (`scripts/perf.mjs`, Chromium, no corre en el CI) repite las medidas siguientes sobre el build actual e imprime una tabla con la mediana y el rango; `--runs N`, `--rows 500,2000`, `--only tablas|assets` y `--dist <carpeta>` (otro build, para comparar versiones) ajustan la ejecución. Las medidas viven en `ui-tests/perf-lib.mjs`, que comparte con el escenario `27-rendimiento.mjs`.
+
+Método. Cada ejecución abre un contexto nuevo con un proyecto de una plantilla en modo PDF (A4, sin márgenes): una tabla con `thead` de tres columnas y N filas de 28 px generadas por un bucle de Pug. *Paginado* = ms entre el mensaje `pugide-layout` enviado al iframe y el `pugide-layout-result` de vuelta, es decir `resetPagination` + `paginateDocument` + `findPageBreakIssues` + medir, con el documento ya asentado. *Cambio de código* = ms desde `setValue` en Monaco hasta que llega el resultado de maquetación del documento nuevo (debounce de 300 ms + compilación + escritura del documento + paginado). Para el asset: un cambio de código con un SVG de 3 MB subido al proyecto, hasta que el preview muestra el texto nuevo y la imagen cargada (el SVG evita medir la decodificación de una imagen real). Mediana de 5–7 ejecuciones en esta máquina (rango entre corchetes), ms:
+
+| Medida | Antes | Después |
+|---|---|---|
+| Paginado, 500 filas (14 págs.) | 85 [81–99] | 53 [51–75] |
+| Paginado, 2000 filas (55 págs.) | 725 [697–779] | 396 [347–488] |
+| Paginado, 5000 filas (136 págs.) | 4662 [4428–5028] | 2496 [2179–3559] |
+| Cambio de código, 500 filas | 525 [494–584] | 452 [439–496] |
+| Cambio de código, 2000 filas | 1867 [1851–1925] | 1206 [1151–1249] |
+| Cambio de código, 5000 filas | 10328 [10075–10413] | 5719 [5325–6998] |
+| Cambio de código con asset de 3 MB | 577 [556–613] (commit `dd73608`, `data:` en cada compilación) | 336 [333–338] (assets una sola vez) |
+
+Los assets enviados una sola vez ya eran correctos: 3 MB cuestan unos 35 ms por encima del debounce de 300 ms (antes ~280 ms), así que no se tocó nada ahí. Con 2000 filas el paginado ya estaba por debajo del umbral que nos pusimos (1,5 s), pero escalaba mal (10 veces más filas, 55 veces más tiempo), así que se optimizó de forma localizada, sin cambiar el algoritmo:
+
+- Un perfil de CPU de `paginateDocument` con 5000 filas mostró que el 85 % del tiempo era `getBoundingClientRect` y otro 9 % `inlineComputedStyle`: cada hoja nueva tocaba el DOM (fila de relleno y copia de la cabecera) y las lecturas siguientes obligaban a maquetar de nuevo toda la tabla, varias veces por hoja (de ahí el coste cuadrático).
+- La copia de la cabecera calculaba cientos de propiedades de estilo de cada celda por hoja (y leer `width`/`height` fuerza maquetar). Ahora se calcula una sola vez por fila de cabecera y las hojas siguientes clonan esa plantilla (`insertHeaderCopy`).
+- Tras empujar una fila se leían su posición y la de la tabla solo para decidir algo que ya se sabía (una fila empujada empieza hoja). Ahora esas lecturas solo se hacen si la fila no se empujó.
+- El HTML paginado es el mismo, byte a byte, en tablas de prueba con y sin márgenes, con una o dos filas de cabecera, sin cabecera y con filas altas (salvo, en estas últimas, unas centésimas de píxel en el ancho en línea que se copia a la cabecera); el número de páginas y el alto no cambian, y los escenarios 03, 15, 19 y 23 (comparan con `page.pdf()`) siguen pasando.
+
+Queda una maquetación completa de la tabla por hoja, así que el coste sigue creciendo más que lineal (5000 filas ≈ 2,5 s). Quitarla exigiría predecir las posiciones sin leer el DOM, un cambio de algoritmo que no compensa con tablas de hasta ~2000 filas (≈ 0,4 s); queda como siguiente paso si alguien necesita tablas de miles de filas.
+
+Presupuesto del escenario `27-rendimiento.mjs` (solo Chromium, unas 10 veces lo medido para no ser intermitente): paginar 2000 filas con cabecera < 5 s y un cambio de código con un asset de 3 MB < 3 s. Solo detecta regresiones graves (volver a reenviar los assets en cada compilación, o a forzar una maquetación por fila); para comparar de verdad usa `npm run perf`.
+
 ## Captura PNG
 
 `capture.util.ts` (`captureHtmlToPng`): toma el HTML autocontenido de «Exportar HTML» (assets como `data:`), lo maqueta en un iframe oculto con `sandbox="allow-same-origin"` (sin scripts) con el ancho y alto de viewport del dispositivo o de la hoja, espera tipografías e imágenes, resuelve las `@media` y `@supports` con ese ancho y deja una sola hoja de estilos (`flattenStyles`: Firefox evalúa las media queries de un SVG con otro viewport), serializa `documentElement` con `XMLSerializer` dentro de un `<foreignObject>` de un SVG y lo dibuja en un canvas (`limitScale` baja la escala por encima de 16384 px de lado o 100 Mpx). `ProjectIoService.exportPng` lo descarga. Se prueba en los tres navegadores en `ui-tests/scenarios/13-captura-png.mjs` (tamaño, fondo, colores y media queries).

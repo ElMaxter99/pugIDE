@@ -367,14 +367,20 @@ function inlineComputedStyle(win: Window, src: Element, dst: Element): void {
  * Copia de las filas de la cabecera delante de `row` (marcadas como relleno para que `resetPagination` las quite).
  * Van dentro del cuerpo de la tabla, así que llevan su estilo en línea: `thead th { ... }` ya no les aplicaría.
  */
-function insertHeaderCopy(win: Window, row: HTMLElement, header: HTMLElement[]): void {
+function insertHeaderCopy(win: Window, row: HTMLElement, header: HTMLElement[], templates: Map<HTMLElement, HTMLElement>): void {
   for (const h of header) {
-    const copy = h.cloneNode(true) as HTMLElement;
-    inlineComputedStyle(win, h, copy);
-    copy.setAttribute(SPACER, '');
-    copy.removeAttribute('id');
-    copy.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
-    row.parentNode?.insertBefore(copy, row);
+    // El estilo calculado se copia una sola vez por fila de cabecera (son cientos de propiedades por celda y, al leer
+    // `width`/`height`, forzaría una maquetación de toda la tabla por hoja); las demás hojas clonan esa plantilla.
+    let template = templates.get(h);
+    if (!template) {
+      template = h.cloneNode(true) as HTMLElement;
+      inlineComputedStyle(win, h, template);
+      template.setAttribute(SPACER, '');
+      template.removeAttribute('id');
+      template.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+      templates.set(h, template);
+    }
+    row.parentNode?.insertBefore(template.cloneNode(true), row);
   }
 }
 
@@ -388,6 +394,7 @@ export function paginateDocument(doc: Document, geometry: PageGeometry | number)
   const gap = hasVerticalMargins(g);
 
   const forcedAfter = new Set<Element>();
+  const headerTemplates = new Map<HTMLElement, HTMLElement>();
   const top = (el: Element) => el.getBoundingClientRect().top + win.scrollY;
 
   const pushTo = (el: HTMLElement, target: number) => {
@@ -423,12 +430,16 @@ export function paginateDocument(doc: Document, geometry: PageGeometry | number)
       if (header) {
         // Primera fila de una hoja que no es la de arranque de la tabla: la cabecera se repite encima.
         // Una fila recién empujada ya está al principio de su hoja (el redondeo de la tabla puede dejar 1 px de desvío).
-        const y = el.getBoundingClientRect().top + win.scrollY;
-        const k = pageOf(g, y);
-        const tableTop = header.table.getBoundingClientRect().top + win.scrollY;
-        const startsPage = k > pageOf(g, tableTop) && Math.abs(y - pageTop(g, k)) < 1.5;
-        if (pushed || startsPage) {
-          insertHeaderCopy(win, el, header.rows);
+        // Solo se mide si no se acaba de empujar: cada lectura tras tocar el DOM fuerza maquetar toda la tabla.
+        let startsPage = pushed;
+        if (!startsPage) {
+          const y = el.getBoundingClientRect().top + win.scrollY;
+          const k = pageOf(g, y);
+          const tableTop = header.table.getBoundingClientRect().top + win.scrollY;
+          startsPage = k > pageOf(g, tableTop) && Math.abs(y - pageTop(g, k)) < 1.5;
+        }
+        if (startsPage) {
+          insertHeaderCopy(win, el, header.rows, headerTemplates);
           const r = el.getBoundingClientRect();
           const target = pushTarget(g, r.top + win.scrollY, r.height);
           if (target !== null) pushTableRow(doc, el, target - (r.top + win.scrollY));
