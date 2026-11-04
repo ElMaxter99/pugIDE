@@ -51,9 +51,9 @@ Prioridad: **A** = afecta al uso diario, **B** = mejora clara, **C** = deseable.
 | 4. Extras | Helpers del usuario, captura PNG, historial local por archivo |
 | 5. Aislamiento | Plantillas, helpers y preview en iframes de origen opaco; página anfitriona para pestañas nuevas y SVG |
 | 6. Calidad | Accesibilidad con axe y teclado, pruebas en Firefox y WebKit, `:markdown`, métodos de helpers, render en Worker, mediciones de rendimiento |
-| Seguimiento 3 | Errores explicados y con arreglo (fase 8), cabeceras de tabla repetidas (7.1, 7.4), soltar carpetas y `.zip` (9.1), `release:check` (13.3) |
-| Seguimiento 2 | Angular 22 y TypeScript 6; CSP y cabeceras de seguridad; assets entregados al preview una sola vez |
 | Seguimiento | CI también en Firefox y WebKit (#32); `@angular/cli` y `@angular/build` 20.3.42 y una devDependency sin uso menos: `npm audit` pasa de 43 a 33 avisos y sin altos ni bajos |
+| Seguimiento 2 | Angular 22 y TypeScript 6; CSP y cabeceras de seguridad; assets entregados al preview una sola vez |
+| Seguimiento 3 | Errores explicados y con arreglo (fase 8), cabeceras de tabla repetidas (7.1, 7.4), soltar carpetas y `.zip` (9.1), `release:check` (13.3) |
 
 ## 5. Plan de mejoras e implementaciones
 

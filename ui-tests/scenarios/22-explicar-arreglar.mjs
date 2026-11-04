@@ -1,4 +1,4 @@
-import { check, openApp, previewText, waitUntil } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, CMD } from '../lib.mjs';
 
 const model = (page, path) => page.evaluate((p) => window.monaco.editor.getModels().find((m) => m.uri.path === p)?.getValue() ?? null, path);
 const activePath = (page) => page.evaluate(() => window.monaco.editor.getEditors()[0].getModel()?.uri.path);
@@ -67,5 +67,17 @@ export default async function (env) {
   await link.click();
   check('22 el enlace de la terminal abre main.pug en esa línea', !!(await waitUntil(async () => (await activePath(page)) === '/main.pug' && (await activeLine(page)) === 4, 4000)), `${await activePath(page)}:${await activeLine(page)}`);
   check('22 sin errores no controlados (varios problemas)', app.errors.length === 0, app.errors.join(' | '));
+  await app.close();
+
+  // 5. Arreglo rápido de Monaco (Ctrl+.) sobre la línea con el error
+  app = await open(env, { '/main.pug': 'include ./mixins\nhtml\n  body\n    +saluda("Ana")\n', '/mixins.pug': 'mixin saludo(n)\n  p Hola #{n}\n' });
+  await banner(app.page).waitFor({ timeout: 10000 });
+  await app.page.evaluate(() => { const e = window.monaco.editor.getEditors()[0]; e.setPosition({ lineNumber: 4, column: 7 }); e.focus(); });
+  await app.page.keyboard.press(CMD + '+.');
+  const action = app.page.locator('.action-widget .action', { hasText: 'Cambiar +saluda por +saludo' });
+  await action.first().waitFor({ timeout: 5000 }).catch(() => {});
+  check('22 Ctrl+. ofrece el arreglo rápido en la línea del error', (await action.count()) >= 1, await app.page.locator('.action-widget').allInnerTexts().then((x) => x.join('|')).catch(() => 'sin widget'));
+  await app.page.keyboard.press('Enter');
+  check('22 aplicar el arreglo rápido corrige la errata', !!(await waitUntil(async () => (await previewText(app.page)).includes('Hola Ana'), 8000)), await previewText(app.page));
   await app.close();
 }
