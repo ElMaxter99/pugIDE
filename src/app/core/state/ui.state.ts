@@ -13,4 +13,6 @@ export class UiState {
   readonly addLocaleOpen = signal(false);
   /** Diálogo con el historial de versiones del archivo activo. */
   readonly historyOpen = signal(false);
+  /** Diálogo de instantáneas del proyecto (guardar, comparar, restaurar). */
+  readonly snapshotsOpen = signal(false);
 }

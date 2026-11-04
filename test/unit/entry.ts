@@ -24,3 +24,4 @@ export * from '../../src/app/core/utils/html-injection.util';
 export * from '../../src/app/core/utils/error-explain.util';
 export * from '../../src/app/core/utils/fix-apply.util';
 export * from '../../src/app/core/utils/drop-import.util';
+export * from '../../src/app/core/utils/snapshot.util';

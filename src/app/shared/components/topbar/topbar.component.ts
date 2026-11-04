@@ -30,6 +30,9 @@ import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.comp
             <span aria-hidden="true" class="material-symbols-outlined">folder_open</span>
             {{ projectState.projectName() }}
           </button>
+          <button class="icon-btn" title="Instantáneas del proyecto: guardar, comparar y restaurar" aria-label="Instantáneas del proyecto" data-testid="open-snapshots" (click)="ui.snapshotsOpen.set(true)">
+            <span aria-hidden="true" class="material-symbols-outlined">photo_camera</span>
+          </button>
           <button class="text-btn" title="Paleta de comandos (Ctrl+K)" (click)="ui.paletteOpen.set(true)">
             <span aria-hidden="true" class="material-symbols-outlined">keyboard_command_key</span>
             Comandos
