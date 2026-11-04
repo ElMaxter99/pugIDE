@@ -1,6 +1,40 @@
-// pugide-runtime source-hash: 363c02788c74de5c
+// pugide-runtime source-hash: a4612f30fef7f158
 "use strict";
 (() => {
+  // src/app/core/utils/page-rules.util.ts
+  var PX_PER_UNIT = { px: 1, pt: 96 / 72, pc: 16, in: 96, mm: 96 / 25.4, cm: 96 / 2.54, q: 96 / 101.6 };
+  function stripComments(css) {
+    let out = "";
+    let quote = "";
+    for (let i = 0; i < css.length; i++) {
+      const c = css[i];
+      if (quote) {
+        out += c;
+        if (c === "\\") out += css[++i] ?? "";
+        else if (c === quote) quote = "";
+      } else if (c === '"' || c === "'") {
+        quote = c;
+        out += c;
+      } else if (c === "/" && css[i + 1] === "*") {
+        const end = css.indexOf("*/", i + 2);
+        i = end === -1 ? css.length : end + 1;
+      } else out += c;
+    }
+    return out;
+  }
+  function blankStrings(css) {
+    return stripComments(css).replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+  }
+  var USES_STRING = /(?:^|[^\w-])(?:string-set\s*:|string\s*\()/i;
+  var USES_ELEMENT = /(?:^|[^\w-])(?:element|running)\s*\(/i;
+  function findUnsupportedPagedFeatures(css) {
+    const text = blankStrings(css);
+    const out = [];
+    if (USES_STRING.test(text)) out.push("string");
+    if (USES_ELEMENT.test(text)) out.push("element");
+    return out;
+  }
+
   // src/app/core/utils/paginate.util.ts
   var MARK = "data-pg-orig";
   var SPACER = "data-pg-spacer";
@@ -128,37 +162,89 @@
     const target = off > 0 ? node.splitText(off) : node;
     target.parentNode?.insertBefore(spacer, target);
   }
+  function linesToKeep(total, fit, orphans, widows) {
+    if (total <= 0) return 0;
+    if (fit >= total) return total;
+    const o = Math.max(1, Math.floor(orphans));
+    const w = Math.max(1, Math.floor(widows));
+    if (fit < o) return 0;
+    return total - fit < w ? Math.min(fit, Math.max(total - w, o)) : fit;
+  }
+  function measureLines(doc, el, lineHeight) {
+    const win = doc.defaultView;
+    const range = doc.createRange();
+    const rects = [];
+    for (const run of collectText(el).runs) {
+      range.selectNodeContents(run.node);
+      for (const r of Array.from(range.getClientRects())) if (r.height > 0) rects.push(r);
+    }
+    el.querySelectorAll("br").forEach((br) => {
+      const r = br.getBoundingClientRect();
+      if (r.height > 0 && !br.closest(`[${SPACER}]`)) rects.push(r);
+    });
+    rects.sort((a, b) => a.top + a.height / 2 - (b.top + b.height / 2));
+    const step = lineHeight > 0 ? lineHeight : Math.min(...rects.map((r) => r.height));
+    const lines = [];
+    for (const r of rects) {
+      const center = r.top + r.height / 2;
+      const cur = lines[lines.length - 1];
+      if (cur && center - cur.first <= step * 0.5) {
+        cur.top = Math.min(cur.top, r.top);
+        cur.bottom = Math.max(cur.bottom, r.bottom);
+      } else lines.push({ top: r.top, bottom: r.bottom, center, first: center });
+    }
+    return lines.map((l) => {
+      const center = l.center + win.scrollY;
+      return lineHeight > 0 ? { top: center - lineHeight / 2, bottom: center + lineHeight / 2, center } : { top: l.top + win.scrollY, bottom: l.bottom + win.scrollY, center };
+    });
+  }
+  function lineStartIndex(doc, runs, total, lines, line) {
+    const threshold = (lines[line - 1].center + lines[line].center) / 2;
+    let lo = 0;
+    let hi = total - 1;
+    while (lo < hi) {
+      const mid = lo + hi >> 1;
+      const rect = charRect(doc, runs, total, mid);
+      if (rect && (rect.top + rect.bottom) / 2 > threshold) hi = mid;
+      else lo = mid + 1;
+    }
+    return charRect(doc, runs, total, lo)?.idx ?? null;
+  }
   function splitTextBlock(doc, el, g, push) {
     const win = doc.defaultView;
-    let page = pageOf(g, el.getBoundingClientRect().top + win.scrollY);
-    for (let guard = 0; guard < 60; guard++) {
+    const cs = win.getComputedStyle(el);
+    const orphans = parseInt(cs.getPropertyValue("orphans"), 10) || 2;
+    const widows = parseInt(cs.getPropertyValue("widows"), 10) || 2;
+    const lineHeight = parseFloat(cs.lineHeight) || 0;
+    const top = () => el.getBoundingClientRect().top + win.scrollY;
+    let page = pageOf(g, top());
+    let done = 0;
+    for (let guard = 0; guard < 80; guard++) {
       const limit = pageBottom(g, page) + EPS;
       if (el.getBoundingClientRect().bottom + win.scrollY <= limit) return;
+      const lines = measureLines(doc, el, lineHeight);
+      const rest = lines.length - done;
+      if (rest <= 0) return;
+      let fit = 0;
+      while (done + fit < lines.length && lines[done + fit].bottom <= limit) fit++;
+      if (fit >= rest) return;
+      const atTop = done === 0 ? top() <= pageTop(g, page) + 1.5 : lines[done].top <= pageTop(g, page) + 1.5;
+      let keep = linesToKeep(rest, fit, orphans, widows);
+      if (keep === 0) {
+        if (done === 0 && !atTop) {
+          push(el, pageTop(g, page + 1));
+          page++;
+          continue;
+        }
+        keep = Math.max(fit, 1);
+      }
+      if (keep >= rest) return;
       const { runs, total } = collectText(el);
-      if (total === 0) return;
-      const last = charRect(doc, runs, total, total - 1);
-      const lastVisible = last ?? charRect(doc, runs, total, 0);
-      if (!lastVisible || lastVisible.bottom <= limit) return;
-      const first = charRect(doc, runs, total, 0);
-      if (!first) return;
-      if (first.bottom > limit) {
-        push(el, pageTop(g, page + 1));
-        page++;
-        continue;
-      }
-      let lo = 0;
-      let hi = total - 1;
-      while (lo < hi) {
-        const mid = lo + hi >> 1;
-        const rect = charRect(doc, runs, total, mid);
-        if (rect && rect.bottom > limit) hi = mid;
-        else lo = mid + 1;
-      }
-      const line = charRect(doc, runs, total, lo);
-      if (!line) return;
-      const height = pageTop(g, page + 1) - line.top;
-      if (height <= 0) return;
-      insertSpacer(doc, runs, line.idx, height);
+      const idx = total ? lineStartIndex(doc, runs, total, lines, done + keep) : null;
+      const height = pageTop(g, page + 1) - lines[done + keep].top;
+      if (idx === null || height <= 0.01) return;
+      insertSpacer(doc, runs, idx, height);
+      done += keep;
       page++;
     }
   }
@@ -274,9 +360,12 @@
         }
         continue;
       }
-      if (gap && isLeafTextBlock(el, win, cs)) {
-        const target = pushTarget(g, y, 0.01);
-        if (target !== null) pushTo(el, target);
+      const crosses = rect.bottom + win.scrollY > pageBottom(g, pageOf(g, y)) + EPS;
+      if ((gap || crosses && !el.closest("td,th")) && isLeafTextBlock(el, win, cs)) {
+        if (gap) {
+          const target = pushTarget(g, y, 0.01);
+          if (target !== null) pushTo(el, target);
+        }
         splitTextBlock(doc, el, g, pushTo);
       }
     }
@@ -296,12 +385,18 @@
     const cls = Array.from(el.classList).find((c) => /^[A-Za-z_][\w-]*$/.test(c));
     return cls ? `${tag}.${cls}` : tag;
   }
+  function findUnsupportedIssues(doc) {
+    const css = Array.from(doc.querySelectorAll("style")).map((s) => s.textContent ?? "").join("\n");
+    const inline = Array.from(doc.querySelectorAll('[style*="string"],[style*="running"],[style*="element"]')).map((e) => e.getAttribute("style") ?? "").join(";");
+    return findUnsupportedPagedFeatures(`${css}
+${inline}`).map((f) => ({ kind: "unsupported", page: 0, element: f === "string" ? "string()" : "element()", text: "" }));
+  }
   function findPageBreakIssues(doc, geometry2) {
     const g = typeof geometry2 === "number" ? pageGeometry(geometry2) : geometry2;
     const win = doc.defaultView;
     const body = doc.body;
     if (!win || !body || g.pageHeight <= 0) return [];
-    const issues2 = [];
+    const issues2 = [...findUnsupportedIssues(doc)];
     for (const el of Array.from(body.querySelectorAll("*"))) {
       const tag = el.tagName.toUpperCase();
       const isHeading = /^H[1-6]$/.test(tag);

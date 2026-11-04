@@ -1,4 +1,4 @@
-import type { PageMargins } from './page-rules.util';
+import { findUnsupportedPagedFeatures, type PageMargins } from './page-rules.util';
 
 /**
  * Screen emulation of CSS paged media for the PDF preview. The browser only paginates when
@@ -11,7 +11,7 @@ import type { PageMargins } from './page-rules.util';
  * the margins as padding and everything is laid out so that nothing lands in the margin bands
  * between pages (text blocks are split line by line with a spacer, table rows and atomic
  * elements are moved whole). Una tabla con `thead` repite su cabecera al empezar cada hoja nueva (no el `tfoot`).
- * Orphans/widows are not emulated.
+ * Los párrafos que cruzan el salto se reparten como Chromium con `orphans` / `widows` (`linesToKeep`), con o sin márgenes.
  */
 const MARK = 'data-pg-orig';
 const SPACER = 'data-pg-spacer';
@@ -185,42 +185,140 @@ function insertSpacer(doc: Document, runs: TextRun[], index: number, height: num
 }
 
 /**
- * Parte un bloque de texto que cruza el final del contenido de una hoja: el primer renglón que no
- * cabe y todos los siguientes bajan a la hoja siguiente (varias veces si el bloque es muy largo).
+ * Cuántas líneas de un párrafo se quedan al final de una hoja, como reparte Chromium con `orphans` y `widows`
+ * (medido con `page.pdf()`): `total` líneas por colocar, de las que `fit` caben en la hoja. Devuelve `total` si
+ * caben todas, 0 si el párrafo entero baja a la hoja siguiente (cabrían menos de `orphans`), o el número de líneas
+ * que se quedan; si dejar `widows` líneas abajo obliga a subir líneas a la hoja siguiente, se hace mientras queden
+ * al menos `orphans` arriba, y si no se puede cumplir las dos, se prefieren las huérfanas (las viudas se ignoran).
+ */
+export function linesToKeep(total: number, fit: number, orphans: number, widows: number): number {
+  if (total <= 0) return 0;
+  if (fit >= total) return total;
+  const o = Math.max(1, Math.floor(orphans));
+  const w = Math.max(1, Math.floor(widows));
+  if (fit < o) return 0;
+  return total - fit < w ? Math.min(fit, Math.max(total - w, o)) : fit;
+}
+
+/**
+ * Reparto completo de un párrafo de `total` líneas en hojas de `pageLines` líneas cuando a la primera le caben
+ * `firstFit`: líneas que van a cada hoja (un 0 inicial = el párrafo entero baja). Es la lógica de `splitTextBlock`
+ * sin DOM, para poder probarla.
+ */
+export function planLineFragments(total: number, firstFit: number, pageLines: number, orphans: number, widows: number): number[] {
+  const out: number[] = [];
+  let remaining = total;
+  let fit = firstFit;
+  for (let guard = 0; remaining > 0 && guard < 10000; guard++) {
+    let keep = linesToKeep(remaining, fit, orphans, widows);
+    if (keep === 0) {
+      if (fit >= pageLines || out.length > 0) keep = Math.max(fit, 1); // ya está arriba de una hoja: no hay a dónde moverlo
+      else { out.push(0); fit = pageLines; continue; }
+    }
+    out.push(keep);
+    remaining -= keep;
+    fit = pageLines;
+  }
+  return out;
+}
+
+interface LineBox {
+  top: number;
+  bottom: number;
+  center: number;
+}
+
+/**
+ * Líneas (en coordenadas de documento) de un bloque de texto, de arriba abajo. Se agrupan los rectángulos de cada
+ * nodo de texto y de cada `<br>` por la posición vertical de su centro; si el `line-height` es un tamaño fijo, la
+ * línea ocupa ese alto (es lo que Chromium reparte entre hojas), y si no, la unión de sus rectángulos.
+ */
+function measureLines(doc: Document, el: HTMLElement, lineHeight: number): LineBox[] {
+  const win = doc.defaultView!;
+  const range = doc.createRange();
+  const rects: DOMRect[] = [];
+  for (const run of collectText(el).runs) {
+    range.selectNodeContents(run.node);
+    for (const r of Array.from(range.getClientRects())) if (r.height > 0) rects.push(r);
+  }
+  el.querySelectorAll('br').forEach((br) => {
+    const r = br.getBoundingClientRect();
+    if (r.height > 0 && !br.closest(`[${SPACER}]`)) rects.push(r);
+  });
+  rects.sort((a, b) => a.top + a.height / 2 - (b.top + b.height / 2));
+  const step = lineHeight > 0 ? lineHeight : Math.min(...rects.map((r) => r.height));
+  const lines: { top: number; bottom: number; center: number; first: number }[] = [];
+  for (const r of rects) {
+    const center = r.top + r.height / 2;
+    const cur = lines[lines.length - 1];
+    if (cur && center - cur.first <= step * 0.5) {
+      cur.top = Math.min(cur.top, r.top);
+      cur.bottom = Math.max(cur.bottom, r.bottom);
+    } else lines.push({ top: r.top, bottom: r.bottom, center, first: center });
+  }
+  return lines.map((l) => {
+    const center = l.center + win.scrollY;
+    return lineHeight > 0
+      ? { top: center - lineHeight / 2, bottom: center + lineHeight / 2, center }
+      : { top: l.top + win.scrollY, bottom: l.bottom + win.scrollY, center };
+  });
+}
+
+/** Índice del primer carácter de la línea `line` de `lines` (la primera con el centro por debajo del punto medio con la anterior). */
+function lineStartIndex(doc: Document, runs: TextRun[], total: number, lines: LineBox[], line: number): number | null {
+  const threshold = (lines[line - 1].center + lines[line].center) / 2;
+  let lo = 0;
+  let hi = total - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    const rect = charRect(doc, runs, total, mid);
+    if (rect && (rect.top + rect.bottom) / 2 > threshold) hi = mid;
+    else lo = mid + 1;
+  }
+  return charRect(doc, runs, total, lo)?.idx ?? null;
+}
+
+/**
+ * Parte un bloque de texto que cruza el final del contenido de una hoja, como Chromium: las líneas que no caben
+ * bajan a la hoja siguiente (varias veces si el bloque es muy largo), respetando `orphans` y `widows` (por defecto 2):
+ * nunca menos de `orphans` líneas al final de una hoja ni menos de `widows` al principio de la siguiente; si no
+ * se pueden cumplir, el párrafo entero baja.
  */
 function splitTextBlock(doc: Document, el: HTMLElement, g: PageGeometry, push: (el: HTMLElement, y: number) => void): void {
   const win = doc.defaultView!;
-  let page = pageOf(g, el.getBoundingClientRect().top + win.scrollY);
-  for (let guard = 0; guard < 60; guard++) {
+  const cs = win.getComputedStyle(el);
+  const orphans = parseInt(cs.getPropertyValue('orphans'), 10) || 2;
+  const widows = parseInt(cs.getPropertyValue('widows'), 10) || 2;
+  const lineHeight = parseFloat(cs.lineHeight) || 0; // `normal` → NaN → 0
+  const top = () => el.getBoundingClientRect().top + win.scrollY;
+  let page = pageOf(g, top());
+  let done = 0; // líneas ya colocadas en hojas anteriores
+  for (let guard = 0; guard < 80; guard++) {
     const limit = pageBottom(g, page) + EPS;
     if (el.getBoundingClientRect().bottom + win.scrollY <= limit) return; // cabe entero: nada que partir
+    const lines = measureLines(doc, el, lineHeight);
+    const rest = lines.length - done;
+    if (rest <= 0) return;
+    let fit = 0;
+    while (done + fit < lines.length && lines[done + fit].bottom <= limit) fit++;
+    if (fit >= rest) return; // las líneas caben (lo que se pasa es el relleno del bloque)
+    const atTop = done === 0 ? top() <= pageTop(g, page) + 1.5 : lines[done].top <= pageTop(g, page) + 1.5;
+    let keep = linesToKeep(rest, fit, orphans, widows);
+    if (keep === 0) {
+      if (done === 0 && !atTop) {
+        push(el, pageTop(g, page + 1)); // el párrafo entero baja, con su relleno y su borde
+        page++;
+        continue;
+      }
+      keep = Math.max(fit, 1); // ya está arriba de una hoja: no hay a dónde moverlo
+    }
+    if (keep >= rest) return;
     const { runs, total } = collectText(el);
-    if (total === 0) return;
-    const last = charRect(doc, runs, total, total - 1);
-    const lastVisible = last ?? charRect(doc, runs, total, 0);
-    if (!lastVisible || lastVisible.bottom <= limit) return;
-    const first = charRect(doc, runs, total, 0);
-    if (!first) return;
-    if (first.bottom > limit) {
-      // Ni el primer renglón cabe: baja el bloque entero.
-      push(el, pageTop(g, page + 1));
-      page++;
-      continue;
-    }
-    // Búsqueda binaria del primer carácter cuyo renglón se pasa del límite.
-    let lo = 0;
-    let hi = total - 1;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      const rect = charRect(doc, runs, total, mid);
-      if (rect && rect.bottom > limit) hi = mid;
-      else lo = mid + 1;
-    }
-    const line = charRect(doc, runs, total, lo);
-    if (!line) return;
-    const height = pageTop(g, page + 1) - line.top;
-    if (height <= 0) return;
-    insertSpacer(doc, runs, line.idx, height);
+    const idx = total ? lineStartIndex(doc, runs, total, lines, done + keep) : null;
+    const height = pageTop(g, page + 1) - lines[done + keep].top;
+    if (idx === null || height <= 0.01) return;
+    insertSpacer(doc, runs, idx, height);
+    done += keep;
     page++;
   }
 }
@@ -365,9 +463,13 @@ export function paginateDocument(doc: Document, geometry: PageGeometry | number)
       }
       continue;
     }
-    if (gap && isLeafTextBlock(el, win, cs)) {
-      const target = pushTarget(g, y, 0.01); // ¿empieza dentro de un margen?
-      if (target !== null) pushTo(el, target);
+    // Sin márgenes solo interesa el bloque que cruza el final de la hoja (huérfanas y viudas); dentro de una celda, la fila decide.
+    const crosses = rect.bottom + win.scrollY > pageBottom(g, pageOf(g, y)) + EPS;
+    if ((gap || (crosses && !el.closest('td,th'))) && isLeafTextBlock(el, win, cs)) {
+      if (gap) {
+        const target = pushTarget(g, y, 0.01); // ¿empieza dentro de un margen?
+        if (target !== null) pushTo(el, target);
+      }
       splitTextBlock(doc, el, g, pushTo);
     }
   }
@@ -389,8 +491,9 @@ export function isOrphanHeading(y: number, height: number, pageHeight: number, s
 }
 
 export interface PageBreakIssue {
-  kind: 'cut' | 'orphan-heading';
-  /** Número de página (1 = primera) donde ocurre. */
+  /** `unsupported`: el HTML usa `string()`/`element()` y similares, que Chromium no imprime (`element` = `'string()'` o `'element()'`, sin página). */
+  kind: 'cut' | 'orphan-heading' | 'unsupported';
+  /** Número de página (1 = primera) donde ocurre (0 en `unsupported`). */
   page: number;
   element: string;
   text: string;
@@ -408,6 +511,13 @@ export function selectorFor(el: Element): string {
   return cls ? `${tag}.${cls}` : tag;
 }
 
+/** Avisos de `string()` / `string-set` / `element()` / `running()` en las hojas de estilo del documento (Chromium no los implementa). */
+function findUnsupportedIssues(doc: Document): PageBreakIssue[] {
+  const css = Array.from(doc.querySelectorAll('style')).map((s) => s.textContent ?? '').join('\n');
+  const inline = Array.from(doc.querySelectorAll('[style*="string"],[style*="running"],[style*="element"]')).map((e) => e.getAttribute('style') ?? '').join(';');
+  return findUnsupportedPagedFeatures(`${css}\n${inline}`).map((f) => ({ kind: 'unsupported', page: 0, element: f === 'string' ? 'string()' : 'element()', text: '' }));
+}
+
 /**
  * Elementos que en la impresión quedarían mal partidos: imágenes, figuras o bloques que cruzan el
  * salto de página y encabezados al final de una página. Se llama después de `paginateDocument`.
@@ -417,7 +527,7 @@ export function findPageBreakIssues(doc: Document, geometry: PageGeometry | numb
   const win = doc.defaultView;
   const body = doc.body;
   if (!win || !body || g.pageHeight <= 0) return [];
-  const issues: PageBreakIssue[] = [];
+  const issues: PageBreakIssue[] = [...findUnsupportedIssues(doc)];
   for (const el of Array.from(body.querySelectorAll<HTMLElement>('*'))) {
     const tag = el.tagName.toUpperCase();
     const isHeading = /^H[1-6]$/.test(tag);
