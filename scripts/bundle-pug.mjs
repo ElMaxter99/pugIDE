@@ -19,7 +19,7 @@ import path from 'node:path';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-// The banner polyfill (process/assert/Buffer/require shims) is derived from
+// The banner polyfill (assert/Buffer/require shims) is derived from
 // src/polyfills.ts — the same file Angular loads at app boot — via esbuild's
 // TS-stripping transform, so there is exactly one hand-maintained copy of
 // this logic instead of two that can silently drift apart.
@@ -32,6 +32,8 @@ const shared = {
   platform: 'browser',
   target: 'es2020',
   banner: { js: banner },
+  // `process` local al bundle, no global (ver scripts/process-shim.mjs)
+  inject: [path.join(rootDir, 'scripts/process-shim.mjs')],
   alias: {
     path: 'path-browserify',
     fs: path.join(rootDir, 'src/assets/fs-shim.cjs'),

@@ -1,21 +1,9 @@
 (function () {
   const g = globalThis as any;
 
-  // process polyfill
-  if (!g.process) {
-    g.process = {
-      browser: true,
-      env: {},
-      version: '',
-      versions: { node: '0.0.0' },
-      platform: 'browser',
-      nextTick: function (fn: Function) { setTimeout(fn, 0); },
-      cwd: function () { return '/'; },
-      argv: [],
-      stdout: { write: function () {} },
-      stderr: { write: function () {} },
-    };
-  }
+  // `process` NO se define aquí a propósito: Monaco lo toma por un entorno Node/Electron si ve
+  // `process.versions.node` y enlaza Ctrl+V por su cuenta (execCommand('paste')), con lo que el navegador deja de
+  // pegar en Chromium y WebKit. Los bundles de Pug reciben su propio `process` local (scripts/process-shim.mjs).
 
   // assert polyfill
   if (!g.assert) {

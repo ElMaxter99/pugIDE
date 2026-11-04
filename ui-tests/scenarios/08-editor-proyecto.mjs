@@ -1,4 +1,4 @@
-import { check, openApp, previewText, waitUntil } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, CMD } from '../lib.mjs';
 
 const MAIN = "doctype html\nhtml\n  body\n    include partials/card\n    h1 hola mundo\n    +card('x')\nmixin local(a)\n  p= a\nblock foot\n";
 const CARD = "mixin card(t)\n  p hola #{t}\n";
@@ -48,7 +48,7 @@ export default async function (env) {
 
   // Ctrl+Z deshace el reemplazo en el archivo activo
   await page.locator('.monaco-editor').first().click();
-  await page.keyboard.press('Control+z');
+  await page.keyboard.press(CMD + '+z');
   const undone = await waitUntil(async () => (await model(page, '/main.pug')) === MAIN);
   check('08 Ctrl+Z deshace el reemplazo en el archivo abierto', !!undone, String(await model(page, '/main.pug')));
   // ...y en el archivo que no estaba abierto, al abrirlo

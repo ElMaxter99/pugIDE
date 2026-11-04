@@ -7,6 +7,11 @@ export function check(name, ok, extra = '') {
   if (!ok) stats.fails++;
 }
 
+/**
+ * Tecla de comando de Monaco: el WebKit de Playwright se identifica como Macintosh (aunque corra en Linux), así que
+ * Monaco espera Cmd (Meta) y no Ctrl para deshacer, pegar, etc. En Chromium y Firefox es Ctrl.
+ */
+export const CMD = process.env.PUGIDE_BROWSER === 'webkit' ? 'Meta' : 'Control';
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Espera (hasta `timeout` ms) a que `fn` devuelva algo verdadero; devuelve su último valor. */
