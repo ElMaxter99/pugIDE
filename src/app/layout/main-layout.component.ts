@@ -17,6 +17,7 @@ import { ProjectState } from '../core/state/project.state';
 import { PreferencesState } from '../core/services/preferences.state';
 import { PersistenceService, ProjectSessionState } from '../core/services/persistence.service';
 import { FileHistoryDialogComponent } from '../shared/components/file-history-dialog/file-history-dialog.component';
+import { UpdateBarComponent } from '../shared/components/update-notice/update-bar.component';
 import { ShortcutsDialogComponent } from '../shared/components/shortcuts-dialog/shortcuts-dialog.component';
 import { UiState } from '../core/state/ui.state';
 import { CommandPaletteComponent } from '../shared/components/command-palette/command-palette.component';
@@ -44,11 +45,13 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     CommandPaletteComponent,
     ShortcutsDialogComponent,
     FileHistoryDialogComponent,
+    UpdateBarComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="app-layout">
       <app-topbar />
+      <app-update-bar />
       <div class="app-content">
         <div class="app-body">
           <app-sidebar />

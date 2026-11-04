@@ -1,20 +1,24 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AnalyticsService } from './core/services/analytics.service';
+import { AppUpdateService } from './core/services/app-update.service';
+import { UpdateOverlayComponent } from './shared/components/update-notice/update-overlay.component';
 import { ConsentBannerComponent } from './shared/components/consent-banner/consent-banner.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ConsentBannerComponent],
+  imports: [RouterOutlet, ConsentBannerComponent, UpdateOverlayComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <router-outlet />
     <app-consent-banner />
+    <app-update-overlay />
   `,
 })
 export class AppComponent {
   constructor() {
     inject(AnalyticsService).init();
+    inject(AppUpdateService).start();
   }
 }

@@ -4,7 +4,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
-## [0.5.0] - 2026-11-04
+## [0.5.1] - 2026-11-04
+
+### Corregido
+- **La app no se actualizaba sola**: había que borrar la caché para ver la versión nueva. El service worker servía la versión guardada y descargaba la nueva en segundo plano, pero solo la usaba en una recarga posterior y sin avisar. Ahora (`AppUpdateService`):
+  - Al entrar comprueba enseguida (antes esperaba hasta 30 s); si la versión nueva llega en los primeros 20 s y no has tocado nada, se aplica y recarga sola con el mensaje «Actualizando a la última versión…».
+  - Mientras trabajas comprueba cada 10 minutos y al volver a la pestaña; si hay versión nueva muestra una barra fina con «Actualizar ahora» y «Más tarde». Nunca recarga sola mientras trabajas, y guarda la sesión antes de recargar.
+  - Si el service worker queda en un estado irrecuperable, recarga.
+  - Quien ya tiene una versión anterior necesitará una recarga extra (o dos) para llegar a esta; a partir de aquí se actualiza sola.
 
 ### Añadido
 - **Errores explicados y con arreglo.** Más causas con explicación en español (`include`/`extends` inexistente, dato `undefined` en Chrome, Firefox y Safari, variable o función que no existe, indentación, paréntesis sin cerrar, texto suelto) y arreglos con un clic: crear el mixin que falta, añadir el `include`, corregir una errata («¿Quisiste decir +saludo?»). Salen en el aviso del preview, en una lista de todos los problemas con enlace al archivo y la línea, y como arreglo rápido de Monaco (`Ctrl+.`). Paleta: «Ir al siguiente/anterior problema». Las entradas de la terminal con ubicación enlazan a `archivo:línea`.
