@@ -42,6 +42,9 @@ test('avisos de PDF: texto y clave estable', () => {
   assert.match(describePageIssue({ ...cut, selector: 'img.logo' }), /`img\.logo \{ break-inside: avoid; \}`/);
   assert.match(describePageIssue(orphan), /Página 3: <h2> «Título» queda al final.*`h2 \{ break-after: avoid; \}`/);
   assert.equal(pageIssuesKey([cut, orphan]), 'cut:2:img:|orphan:3:h2:Título');
+  const str = { kind: 'unsupported', page: 0, element: 'string()', text: '' };
+  assert.match(describePageIssue(str), /^PDF: `string\(\)` y `string-set` no los imprime Chromium.*texto fijo o `counter\(page\)`/);
+  assert.match(describePageIssue({ ...str, element: 'element()' }), /`element\(\)` y `position: running\(\)` no los imprime Chromium/);
 });
 
 test('a11yReport: sin problemas, con ubicación en Pug y con línea de HTML', () => {

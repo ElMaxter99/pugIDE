@@ -74,6 +74,11 @@ export function buildPageChrome(rules: PageRules, sheet: { width: number; height
 
 /** Texto del aviso de un elemento que se parte mal al imprimir. */
 export function describePageIssue(i: PageBreakIssue): string {
+  if (i.kind === 'unsupported') {
+    return i.element === 'string()'
+      ? 'PDF: `string()` y `string-set` no los imprime Chromium (la caja de margen sale vacía y el preview la oculta). Usa un texto fijo o `counter(page)` en `@top-center`, `@bottom-center`, etc.'
+      : 'PDF: `element()` y `position: running()` no los imprime Chromium (la caja de margen sale vacía y el preview la oculta). Usa un texto fijo o `counter(page)` en `@top-center`, `@bottom-center`, etc.';
+  }
   const what = i.text ? `<${i.element}> «${i.text}»` : `<${i.element}>`;
   const sel = i.selector ?? i.element;
   return i.kind === 'cut'
