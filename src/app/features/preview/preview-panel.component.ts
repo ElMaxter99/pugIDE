@@ -405,6 +405,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
     .compile-error {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 8px;
       padding: 6px 12px;
       background: rgba(255, 82, 82, 0.12);
@@ -413,7 +414,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       font-size: 12px;
     }
     .compile-error-text {
-      flex: 1;
+      flex: 1 1 220px;
       min-width: 0;
       max-height: 96px;
       overflow: auto;
