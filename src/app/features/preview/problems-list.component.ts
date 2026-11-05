@@ -41,7 +41,7 @@ import type { Diagnostic } from '../../core/utils/diagnostics.util';
       border-bottom: 1px solid rgba(255, 82, 82, 0.4);
       font-size: 12px;
     }
-    .diag-row { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; color: var(--text-primary); }
+    .diag-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; padding: 3px 0; color: var(--text-primary); }
     .diag-row.warning .diag-go { color: var(--warning-color); }
     .diag-go, .diag-fix {
       background: transparent;
@@ -56,7 +56,7 @@ import type { Diagnostic } from '../../core/utils/diagnostics.util';
     }
     .diag-go { color: var(--error-color); }
     .diag-fix { color: var(--accent-color); }
-    .diag-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .diag-text { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
     .diag-msg { display: block; }
     .diag-hint { display: block; color: var(--text-secondary); }
   `],

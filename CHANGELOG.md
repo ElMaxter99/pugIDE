@@ -4,10 +4,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.6.0] - 2026-11-05
+
 ### Añadido
+- **README rehecho**, más visual y explicativo, con capturas nuevas de la app y **versión en inglés** (`README.en.md`, que se actualiza junto con el español). `npm run screenshots` (`scripts/screenshots.mjs`) regenera las capturas desde el build, reutilizando las escenas del lienzo de diseño. `npm run release:check` comprueba también el badge de versión del README en inglés.
 - **Instantáneas del proyecto con nombre:** guarda, compara y restaura el proyecto entero (archivos, datos, idiomas y assets) desde el botón de cámara de la barra superior o la paleta («Instantáneas del proyecto…»). Hasta 20 por proyecto y 25 MB por instantánea, solo en este navegador. Restaurar guarda antes una copia automática «Antes de restaurar…» y aplica los archivos como ediciones del editor, así que `Ctrl+Z` y el historial por archivo siguen funcionando. Nunca se sustituye ni se omite nada sin avisar. Diseño en el lienzo (mesas V-28 a V-35).
 - **PDF:** aviso en la barra y en la terminal cuando el HTML usa `string()`, `string-set`, `element()` o `position: running()`, que Chromium no imprime (la caja de margen sale vacía y el preview la oculta); sugiere un texto fijo o `counter(page)`.
 - `npm run perf` (`scripts/perf.mjs`) y escenario `27-rendimiento` con presupuestos holgados; método y tabla antes/después en «Rendimiento (medido)» de `docs/ARCHITECTURE.md`.
+
+### Corregido
+- **Lista de todos los problemas:** el texto de cada problema se aplastaba en una columna estrecha (una palabra por línea) junto a sus botones; ahora cada fila envuelve.
 
 ### Cambiado
 - **PDF:** los párrafos largos se reparten entre hojas como la impresión real de Chromium con `orphans` y `widows` (2 por defecto): nunca menos de `orphans` líneas al final de una hoja ni menos de `widows` al principio de la siguiente, con y sin márgenes de `@page`, y respetando `break-inside: avoid`. La barra del PDF dice «N avisos a revisar».

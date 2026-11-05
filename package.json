@@ -1,6 +1,6 @@
 {
   "name": "pug-ide",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "license": "MIT",
   "author": "ElMaxter99 (https://github.com/ElMaxter99)",
   "repository": {
@@ -26,6 +26,7 @@
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
     "release:check": "node scripts/check-release.mjs",
+    "screenshots": "node scripts/screenshots.mjs",
     "prebuild": "node scripts/validate-build.js",
     "test:ui": "node ui-tests/run.mjs",
     "perf": "node scripts/perf.mjs",
