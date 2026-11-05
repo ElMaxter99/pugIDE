@@ -297,6 +297,93 @@
       "h": 900,
       "title": "V-35 Instantánea guardada: aviso de confirmación",
       "is_interactive": true
+    },
+    "P-01-Diagnostico.dc.html": {
+      "x": 0,
+      "y": 25056,
+      "w": 1440,
+      "h": 1650,
+      "title": "P-01 Diagnóstico: la pantalla principal, medida"
+    },
+    "P-10-Diagnostico-errores.dc.html": {
+      "x": 1520,
+      "y": 25056,
+      "w": 1440,
+      "h": 1620,
+      "title": "P-10 Diagnóstico: errores, paleta y primer uso"
+    },
+    "P-02-IDE-propuesto.dc.html": {
+      "x": 0,
+      "y": 27126,
+      "w": 1440,
+      "h": 900,
+      "title": "P-02 IDE propuesto: barra simple, editor y preview amplios",
+      "is_interactive": true
+    },
+    "P-08-Disposicion.dc.html": {
+      "x": 1520,
+      "y": 27126,
+      "w": 1440,
+      "h": 1620,
+      "title": "P-08 Presets de disposición y tiradores"
+    },
+    "P-11-Menus.dc.html": {
+      "x": 3040,
+      "y": 27126,
+      "w": 1440,
+      "h": 900,
+      "title": "P-11 Menús Proyecto y Exportar"
+    },
+    "P-03-Problemas.dc.html": {
+      "x": 0,
+      "y": 29166,
+      "w": 1440,
+      "h": 900,
+      "title": "P-03 Panel «Problemas» unificado",
+      "is_interactive": true
+    },
+    "P-04-Barra-preview.dc.html": {
+      "x": 1520,
+      "y": 29166,
+      "w": 1440,
+      "h": 1220,
+      "title": "P-04 Barra del preview rediseñada"
+    },
+    "P-09-Registro.dc.html": {
+      "x": 3040,
+      "y": 29166,
+      "w": 1440,
+      "h": 900,
+      "title": "P-09 Terminal sin ruido: Registro"
+    },
+    "P-05-Datos.dc.html": {
+      "x": 0,
+      "y": 30806,
+      "w": 1440,
+      "h": 1300,
+      "title": "P-05 Panel de datos simplificado"
+    },
+    "P-07-Paleta.dc.html": {
+      "x": 1520,
+      "y": 30806,
+      "w": 1440,
+      "h": 940,
+      "title": "P-07 Paleta de comandos mejorada"
+    },
+    "P-06-Primer-uso.dc.html": {
+      "x": 3040,
+      "y": 30806,
+      "w": 1440,
+      "h": 900,
+      "title": "P-06 Primer uso: bienvenida con plantillas",
+      "is_interactive": true
+    },
+    "P-12-Recorrido.dc.html": {
+      "x": 4560,
+      "y": 30806,
+      "w": 1440,
+      "h": 1400,
+      "title": "P-12 Primer uso: recorrido de 4 pasos"
     }
   },
   "order": [
@@ -337,7 +424,19 @@
     "V-32-Instantaneas-tope.dc.html",
     "V-33-Instantaneas-no-cabe.dc.html",
     "V-34-Instantaneas-restaurar-tope.dc.html",
-    "V-35-Instantaneas-guardada.dc.html"
+    "V-35-Instantaneas-guardada.dc.html",
+    "P-01-Diagnostico.dc.html",
+    "P-10-Diagnostico-errores.dc.html",
+    "P-02-IDE-propuesto.dc.html",
+    "P-08-Disposicion.dc.html",
+    "P-11-Menus.dc.html",
+    "P-03-Problemas.dc.html",
+    "P-04-Barra-preview.dc.html",
+    "P-09-Registro.dc.html",
+    "P-05-Datos.dc.html",
+    "P-07-Paleta.dc.html",
+    "P-06-Primer-uso.dc.html",
+    "P-12-Recorrido.dc.html"
   ],
   "notes": {
     "fila-ref": {
@@ -454,6 +553,74 @@
       "y": 1880,
       "w": 440,
       "text": "Versión 0.6 (diseño primero, pendiente de aprobar). Instantáneas con nombre del proyecto entero: archivos de texto, juegos de datos, idiomas y assets, solo en este navegador (IndexedDB). Botón de cámara en la barra superior, junto al nombre del proyecto, y comando «Instantáneas del proyecto…» en la paleta. Máximo 20 por proyecto y 25 MB por instantánea; nunca se sustituye ni se omite nada sin avisar. Restaurar guarda antes «Antes de restaurar…». Si el navegador no deja escribir (almacenamiento lleno o bloqueado) se muestra el mismo aviso rojo de V-33 con otro texto.",
+      "size": "s",
+      "fill": "teal"
+    },
+    "fila-p07-diag": {
+      "x": 0,
+      "y": 24816,
+      "text": "Propuesta 0.7 · diagnóstico de la app actual (0.5.1)",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "fila-p07-ide": {
+      "x": 0,
+      "y": 26886,
+      "text": "Propuesta 0.7 · el IDE propuesto: barra, menús y disposición",
+      "kind": "title1",
+      "maxW": 4480
+    },
+    "fila-p07-err": {
+      "x": 0,
+      "y": 28926,
+      "text": "Propuesta 0.7 · problemas, preview y registro",
+      "kind": "title1",
+      "maxW": 4480
+    },
+    "fila-p07-dat": {
+      "x": 0,
+      "y": 30566,
+      "text": "Propuesta 0.7 · datos, paleta y primer uso",
+      "kind": "title1",
+      "maxW": 6000
+    },
+    "nota-p07-convencion": {
+      "x": -560,
+      "y": 25056,
+      "w": 440,
+      "text": "Propuesta 0.7 (pendiente de aprobar). Las mesas P-NN son propuestas de diseño: nada de esto está programado. Los V-NN son lo ya implementado y no se han tocado. Una mesa por tema o estado; solo tema oscuro porque la propuesta no cambia el tema claro. Si se aprueba una mesa, pasa a V-NN con el siguiente número libre y se implementa.",
+      "size": "s",
+      "fill": "blue"
+    },
+    "nota-p07-antes": {
+      "x": -560,
+      "y": 25576,
+      "w": 440,
+      "text": "ANTES / DESPUÉS. «Antes» es el marcado real de la app 0.5.1 (generado con design/tools/build.mjs sobre el build de producción, no dibujado). «Después» está dibujado a mano con los tokens de styles.scss, las medidas de V-01 y el icono de la fuente de la app; los iconos nuevos (puntos, ajustes, bombilla, reloj, teclado) van en trazo y se añadirán al subconjunto con npm run fonts:icons.",
+      "size": "s",
+      "fill": "green"
+    },
+    "nota-p07-medidas": {
+      "x": -560,
+      "y": 26096,
+      "w": 440,
+      "text": "Medidas. Las cifras de los hallazgos salen de medir el DOM con Playwright (1440×900, tema oscuro, «Informe trimestral»): número de controles, anchos de panel, altos de barra, contraste y tamaño de objetivo. El zoom «Ajustar» de cada disposición usa la misma fórmula que la app: (ancho del preview − 64 px) / 1440. Las llamadas amarillas numeradas de P-01 y P-10 remiten a las tarjetas de debajo.",
+      "size": "s",
+      "fill": "orange"
+    },
+    "nota-p07-orden": {
+      "x": -560,
+      "y": 26616,
+      "w": 440,
+      "text": "Orden recomendado. Oleada 1 (bajo riesgo): P-09 registro, P-07 paleta y los textos en español. Oleada 2: P-04 barra del preview, P-05 datos, P-11 menús. Oleada 3 (la más profunda): P-08 disposición, P-03 problemas unificados y P-06/P-12 primer uso. Detalle, riesgos y decisiones en design/propuestas/0.7-mejoras-funcionales.md.",
+      "size": "s",
+      "fill": "purple"
+    },
+    "nota-p07-decisiones": {
+      "x": -560,
+      "y": 27136,
+      "w": 440,
+      "text": "Decisiones por tomar (con recomendación): 1) llamar «Registro» a la terminal (sí); 2) datos como pestaña del panel lateral en la disposición por defecto (sí); 3) Autocompilar baja a la barra de estado (sí); 4) bienvenida solo en el primer uso y recorrido opcional (sí); 5) disposición por defecto «Editor + vista previa» (sí, con «como hoy» a un clic). Lista completa en el documento.",
       "size": "s",
       "fill": "teal"
     }
