@@ -73,3 +73,57 @@ test('selectorFor cita el elemento con su id, su primera clase o solo la etiquet
   assert.equal(selectorFor({ tagName: 'H2', id: '', classList: [] }), 'h2');
   assert.equal(selectorFor({ tagName: 'DIV', id: 'a b', classList: [] }), 'div');
 });
+
+import { linesToKeep, planLineFragments } from './.build/units.mjs';
+
+// Datos medidos con page.pdf() de Chromium 141 (Playwright): párrafo de 10 líneas, `k` caben en la hoja; resultado = líneas en la hoja 1.
+test('linesToKeep: orphans y widows por defecto (2), como Chromium', () => {
+  const kept = (k) => linesToKeep(10, k, 2, 2);
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(kept), [0, 0, 2, 3, 4, 5, 6, 7, 8, 8, 10]);
+});
+
+test('linesToKeep: valores explícitos de orphans y widows', () => {
+  const row = (o, w) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((k) => linesToKeep(10, k, o, w));
+  assert.deepEqual(row(1, 1), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.deepEqual(row(3, 3), [0, 0, 0, 3, 4, 5, 6, 7, 7, 7, 10]);
+  assert.deepEqual(row(4, 4), [0, 0, 0, 0, 4, 5, 6, 6, 6, 6, 10]);
+  assert.deepEqual(row(4, 1), [0, 0, 0, 0, 4, 5, 6, 7, 8, 9, 10]);
+  assert.deepEqual(row(1, 4), [0, 1, 2, 3, 4, 5, 6, 6, 6, 6, 10]);
+});
+
+test('linesToKeep: bloques de una o dos líneas y valores imposibles de cumplir a la vez', () => {
+  assert.equal(linesToKeep(1, 0, 2, 2), 0); // una línea nunca se parte: o cabe o baja
+  assert.equal(linesToKeep(1, 1, 2, 2), 1);
+  assert.equal(linesToKeep(2, 1, 2, 2), 0); // 1+1 incumpliría las dos: baja entera
+  assert.equal(linesToKeep(2, 1, 1, 1), 1); // con 1 y 1 sí se puede partir
+  assert.equal(linesToKeep(3, 2, 2, 2), 2); // 2+1: se cumple orphans, las viudas se ignoran
+  assert.equal(linesToKeep(3, 2, 3, 3), 0);
+  assert.equal(linesToKeep(4, 3, 3, 3), 3);
+  assert.equal(linesToKeep(5, 4, 3, 3), 3); // sube una línea para dejar 2 abajo (lo más cerca de 3 sin romper orphans)
+  assert.equal(linesToKeep(5, 4, 4, 2), 4);
+  assert.equal(linesToKeep(5, 3, 2, 4), 2);
+  assert.equal(linesToKeep(0, 0, 2, 2), 0);
+  assert.equal(linesToKeep(10, 5, 0, 0), 5); // valores no válidos se tratan como 1
+});
+
+test('planLineFragments: párrafos largos repartidos en hojas de 46 líneas (medido con Chromium)', () => {
+  const plan = (n, k, o, w) => planLineFragments(n, k, 46, o, w);
+  assert.deepEqual(plan(60, 20, 2, 2), [20, 40]);
+  assert.deepEqual(plan(60, 3, 4, 4), [0, 46, 14]);
+  assert.deepEqual(plan(60, 3, 3, 5), [3, 46, 11]);
+  assert.deepEqual(plan(95, 2, 2, 2), [2, 46, 45, 2]);
+  assert.deepEqual(plan(95, 3, 2, 2), [3, 46, 46]);
+  assert.deepEqual(plan(95, 0, 2, 2), [0, 46, 46, 3]);
+  assert.deepEqual(plan(95, 0, 4, 4), [0, 46, 45, 4]);
+  assert.deepEqual(plan(95, 0, 3, 5), [0, 46, 44, 5]);
+  assert.deepEqual(plan(95, 2, 1, 1), [2, 46, 46, 1]);
+  assert.deepEqual(plan(100, 5, 2, 2), [5, 46, 46, 3]);
+  assert.deepEqual(plan(2, 1, 2, 2), [0, 2]);
+  assert.deepEqual(plan(5, 4, 3, 3), [3, 2]);
+  // Siempre suman el total y ninguna hoja pasa de 46 líneas
+  for (let n = 1; n <= 120; n++) for (let k = 0; k <= 46; k++) for (const [o, w] of [[1, 1], [2, 2], [3, 3], [4, 2], [2, 4]]) {
+    const frags = plan(n, k, o, w);
+    assert.equal(frags.reduce((a, b) => a + b, 0), n);
+    assert.ok(frags.every((f, i) => f <= 46 && (f > 0 || i === 0)));
+  }
+});

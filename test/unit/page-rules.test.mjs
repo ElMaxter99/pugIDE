@@ -76,3 +76,26 @@ test('CSS roto o sin cerrar no lanza', () => {
   assert.doesNotThrow(() => parsePageRules('<style>@page {</style>'));
   assert.equal(parsePageRules(css('@page :blank { margin: 50mm }')).margin.top, 0);
 });
+
+import { findUnsupportedPagedFeatures } from './.build/units.mjs';
+
+test('findUnsupportedPagedFeatures detecta string-set, string(), element() y running()', () => {
+  assert.deepEqual(findUnsupportedPagedFeatures('h1 { string-set: titulo content() }'), ['string']);
+  assert.deepEqual(findUnsupportedPagedFeatures('@page { @top-center { content: string(titulo) } }'), ['string']);
+  assert.deepEqual(findUnsupportedPagedFeatures('#cab { position: running(cab) } @page { @top-center { content: element(cab) } }'), ['element']);
+  assert.deepEqual(findUnsupportedPagedFeatures('h1 { string-set: t content() } .x { position: running(x) }'), ['string', 'element']);
+});
+
+test('findUnsupportedPagedFeatures ignora lo que no es una función ni una propiedad', () => {
+  assert.deepEqual(findUnsupportedPagedFeatures('@page { @top-center { content: "string(x) element(y)" } }'), []);
+  assert.deepEqual(findUnsupportedPagedFeatures('/* string-set: a b */ p { color: red }'), []);
+  assert.deepEqual(findUnsupportedPagedFeatures('.my-string(x), .getelement(y) { }'), []);
+  assert.deepEqual(findUnsupportedPagedFeatures('@page { @bottom-right { content: "Página " counter(page) } }'), []);
+});
+
+test('parsePageRules descarta el content con string()/element(), como Chromium', () => {
+  const rules = parsePageRules(css('@page { size: A4; margin: 20mm; @top-center { content: string(titulo) } @top-left { content: "Fijo " string(t) } @bottom-center { content: counter(page) } }'));
+  assert.equal(rules.boxes['top-center']?.content, undefined);
+  assert.equal(rules.boxes['top-left']?.content, undefined);
+  assert.deepEqual(rules.boxes['bottom-center'].content, [{ kind: 'page' }]);
+});

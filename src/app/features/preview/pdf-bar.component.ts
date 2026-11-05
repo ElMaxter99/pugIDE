@@ -3,7 +3,7 @@ import { PreviewState } from '../../core/state/preview.state';
 import { PageBreakIssue } from '../../core/utils/paginate.util';
 import { describePageIssue } from '../../core/utils/preview-layout.util';
 
-/** Barra del modo PDF: tamaño de hoja, orientación, número de páginas y cortes a revisar. */
+/** Barra del modo PDF: tamaño de hoja, orientación, número de páginas y avisos a revisar (cortes y funciones sin soporte). */
 @Component({
   selector: 'app-pdf-bar',
   standalone: true,
@@ -26,7 +26,7 @@ import { describePageIssue } from '../../core/utils/preview-layout.util';
       @if (issues().length) {
         <span class="pdf-size pdf-warn" [title]="issuesTitle()">
           <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px; vertical-align: -3px;">warning</span>
-          {{ issues().length }} {{ issues().length === 1 ? 'corte' : 'cortes' }} a revisar
+          {{ issues().length }} {{ issues().length === 1 ? 'aviso' : 'avisos' }} a revisar
         </span>
       }
     </div>

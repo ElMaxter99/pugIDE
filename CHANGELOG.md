@@ -4,6 +4,16 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Añadido
+- **Instantáneas del proyecto con nombre:** guarda, compara y restaura el proyecto entero (archivos, datos, idiomas y assets) desde el botón de cámara de la barra superior o la paleta («Instantáneas del proyecto…»). Hasta 20 por proyecto y 25 MB por instantánea, solo en este navegador. Restaurar guarda antes una copia automática «Antes de restaurar…» y aplica los archivos como ediciones del editor, así que `Ctrl+Z` y el historial por archivo siguen funcionando. Nunca se sustituye ni se omite nada sin avisar. Diseño en el lienzo (mesas V-28 a V-35).
+- **PDF:** aviso en la barra y en la terminal cuando el HTML usa `string()`, `string-set`, `element()` o `position: running()`, que Chromium no imprime (la caja de margen sale vacía y el preview la oculta); sugiere un texto fijo o `counter(page)`.
+- `npm run perf` (`scripts/perf.mjs`) y escenario `27-rendimiento` con presupuestos holgados; método y tabla antes/después en «Rendimiento (medido)» de `docs/ARCHITECTURE.md`.
+
+### Cambiado
+- **PDF:** los párrafos largos se reparten entre hojas como la impresión real de Chromium con `orphans` y `widows` (2 por defecto): nunca menos de `orphans` líneas al final de una hoja ni menos de `widows` al principio de la siguiente, con y sin márgenes de `@page`, y respetando `break-inside: avoid`. La barra del PDF dice «N avisos a revisar».
+- **Rendimiento:** el paginado de tablas grandes en modo PDF es ~2 veces más rápido (2000 filas con cabecera: 725 → 396 ms; 5000 filas: 4,7 → 2,5 s). El envío de assets una sola vez ya era rápido (cambio de código con un asset de 3 MB: 577 → 336 ms frente a reinyectar `data:` en cada compilación).
+- **Seguridad:** la CSP de la app (`/`, `/ide`) ya no admite `'unsafe-inline'` ni `'unsafe-eval'` en `script-src`; queda `'self'` más el hash del único script inline de `index.html`. El preview, el render y la pestaña nueva usan documentos propios (`preview-frame.html`, `render-frame.html`, `preview-host.html`) con su CSP por cabecera, origen opaco por la directiva `sandbox` y `connect-src` más estricta (sin `'self'`). La app ya no ejecuta `helpers.js` en el hilo principal: sus nombres se leen del texto (límite: `Object.assign(module.exports, …)` y las claves calculadas no se reconocen y se tratan como datos); el código del usuario solo corre en el Worker aislado. Los enlaces `#ancla` del preview se resuelven con `location.hash` y el service worker precarga los documentos nuevos.
+
 ## [0.5.1] - 2026-11-04
 
 ### Corregido

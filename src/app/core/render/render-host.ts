@@ -96,17 +96,37 @@ export class SandboxRenderHost implements RenderHost {
   }
 
   private async boot(): Promise<void> {
+    try {
+      await this.bootFrame(false);
+    } catch (err) {
+      if (!(err instanceof NotIsolatedError)) throw err;
+      // El documento no llegó con la cabecera `sandbox` (servidor sin las cabeceras de vercel.json, como `ng serve`): se
+      // vuelve a crear con el atributo `sandbox`, que da el mismo aislamiento (con las cabeceras de producción no llega a ocurrir).
+      this.removeFrame();
+      await this.bootFrame(true);
+    }
+  }
+
+  /**
+   * `attributeSandbox` false (producción): el iframe carga `assets/render-frame.html`, un documento propio con su CSP por
+   * cabecera, que incluye `sandbox` (origen opaco) y, a diferencia de un `srcdoc`, no hereda la CSP de la app (sin
+   * `unsafe-eval`, que Pug necesita). Sin el atributo `sandbox`, la navegación pasa por el service worker (con el
+   * atributo no, y sin conexión no cargaría). true (respaldo): `sandbox` en el atributo y `srcdoc` con el mismo programa.
+   */
+  private async bootFrame(attributeSandbox: boolean): Promise<void> {
     this.bootError = null;
     const [pug, runtime] = await Promise.all([fetchText('assets/pug-browser.js'), fetchText('assets/render-sandbox.js')]);
+    const frameHtml = attributeSandbox ? await fetchText('assets/render-frame.html') : '';
     const frame = document.createElement('iframe');
-    frame.setAttribute('sandbox', 'allow-scripts');
+    if (attributeSandbox) frame.setAttribute('sandbox', 'allow-scripts');
     frame.setAttribute('aria-hidden', 'true');
     frame.setAttribute('tabindex', '-1');
     frame.title = 'Entorno aislado de render';
     frame.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-10px;top:-10px;visibility:hidden;';
     const booted = this.waitFor('pugide-render-boot');
     window.addEventListener('message', this.listener);
-    frame.srcdoc = BOOTSTRAP_HTML;
+    if (attributeSandbox) frame.srcdoc = frameHtml; // hereda la CSP de la app: solo funciona sin cabeceras (dev)
+    else frame.src = 'assets/render-frame.html';
     document.body.appendChild(frame);
     this.frame = frame;
     await booted;
@@ -116,6 +136,13 @@ export class SandboxRenderHost implements RenderHost {
     frame.contentWindow!.postMessage({ pugideInit: pug + '\n;\n' + runtime }, '*');
     await ready;
     this.checkBoot();
+  }
+
+  private removeFrame(): void {
+    window.removeEventListener('message', this.listener);
+    this.frame?.remove();
+    this.frame = null;
+    this.signals.clear();
   }
 
   private checkBoot(): void {
@@ -147,7 +174,7 @@ export class SandboxRenderHost implements RenderHost {
     if (d.source === 'pugide-render-error') {
       // El Worker no pudo arrancar: se avisa a quien espere el arranque.
       const message = String((d as { message?: unknown }).message ?? 'error desconocido');
-      this.bootError = new Error(`El entorno aislado de render falló al arrancar: ${message}`);
+      this.bootError = message === NOT_ISOLATED ? new NotIsolatedError() : new Error(`El entorno aislado de render falló al arrancar: ${message}`);
       for (const [name, fire] of [...this.signals]) { this.signals.delete(name); fire(); }
       return;
     }
@@ -172,29 +199,20 @@ export class SandboxRenderHost implements RenderHost {
   }
 }
 
+/** Aviso de `render-frame.js` cuando su documento no es de origen opaco. */
+const NOT_ISOLATED = 'not-isolated';
+
+class NotIsolatedError extends Error {
+  constructor() {
+    super('El documento del render no está aislado.');
+  }
+}
+
 async function fetchText(url: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`No se pudo cargar ${url} (${res.status})`);
   return res.text();
 }
-
-/**
- * Documento inicial del iframe: arranca el código del render como Worker y hace de puente de mensajes entre la
- * app y el Worker (el Worker no puede hablar directamente con la página que lo contiene).
- */
-const BOOTSTRAP_HTML =
-  '<!doctype html><meta charset="utf-8"><script>' +
-  'var worker=null;' +
-  'function fail(m){parent.postMessage({source:"pugide-render-error",message:String(m)},"*")}' +
-  'addEventListener("message",function(e){if(e.source!==parent)return;var d=e.data;if(!d)return;' +
-  'if(typeof d.pugideInit==="string"){try{' +
-  'worker=new Worker(URL.createObjectURL(new Blob([d.pugideInit],{type:"text/javascript"})));' +
-  'worker.onmessage=function(m){parent.postMessage(m.data,"*")};' +
-  'worker.onerror=function(m){fail(m.message||"error en el Worker")};' +
-  '}catch(err){fail(err)}}' +
-  'else if(d.source==="pugide-render-req"&&worker){worker.postMessage(d)}});' +
-  'parent.postMessage({source:"pugide-render-boot"},"*");' +
-  '</script>';
 
 /** Host por defecto: aislado en el navegador, en línea si no hay DOM (Node). */
 export function createRenderHost(): RenderHost {

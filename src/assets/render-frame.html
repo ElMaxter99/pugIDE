@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Entorno aislado de render</title>
+<!-- Documento propio del iframe oculto del render (ver docs/ARCHITECTURE.md, «Seguridad: CSP y cabeceras»). Su CSP viene
+     por cabecera (vercel.json) y la heredan el Worker blob: y el JavaScript de la plantilla. El script va inline porque un
+     documento de origen opaco no recibe subrecursos del service worker (sin conexión un script externo no cargaría); la CSP lo
+     admite por HASH: si cambias el script, actualiza el sha256 de `render-frame.html` en vercel.json (la prueba 18 lo comprueba). -->
+<script>
+// Arranque del iframe oculto del render: crea el Worker con el código que le envía la app (Pug + render-sandbox) y hace de
+// puente de mensajes entre la app y el Worker (el Worker no puede hablar con la página que lo contiene).
+var worker = null;
+
+function fail(message) {
+  parent.postMessage({ source: 'pugide-render-error', message: String(message) }, '*');
+}
+
+addEventListener('message', function (e) {
+  if (e.source !== parent) return;
+  var d = e.data;
+  if (!d) return;
+  if (typeof d.pugideInit === 'string') {
+    try {
+      worker = new Worker(URL.createObjectURL(new Blob([d.pugideInit], { type: 'text/javascript' })));
+      worker.onmessage = function (m) { parent.postMessage(m.data, '*'); };
+      worker.onerror = function (m) { fail(m.message || 'error en el Worker'); };
+    } catch (err) {
+      fail(err);
+    }
+  } else if (d.source === 'pugide-render-req' && worker) {
+    worker.postMessage(d);
+  }
+});
+
+// Solo se arranca el Worker si este documento es de origen opaco (cabecera `Content-Security-Policy: sandbox` o atributo
+// `sandbox`); si no, la app lo vuelve a crear con el atributo.
+if (self.origin === 'null') parent.postMessage({ source: 'pugide-render-boot' }, '*');
+else fail('not-isolated');
+</script>

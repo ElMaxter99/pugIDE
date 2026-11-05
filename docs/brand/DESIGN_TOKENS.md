@@ -77,3 +77,7 @@ Checklist rápida para quien cambia la UI:
 - [ ] ¿Cambió un token? `tokens.mjs` y la tabla de esta página.
 - [ ] ¿Texto de pantalla nuevo? En español, con datos realistas.
 - [ ] `design/canvas/` copiado al lienzo y README/CHANGELOG actualizados.
+
+## Tokens reservados (sin uso directo hoy)
+
+Definidos en `src/styles.scss` pero sin ningún `var(--…)` en la app: `--accent-hover`, `--bg-close`, `--bg-tertiary`, `--error-container`, `--tertiary-container`, `--info-color`, `--text-on-secondary` y los colores por lenguaje (`--pug-color`, `--scss-color`, `--json-color`, `--js-color`, `--html-color`, `--css-color`). Se conservan como parte de la paleta de roles; si una pantalla nueva necesita uno de ellos, se usa en lugar de inventar un color. Antes de borrar uno, comprobar con `grep -rn -e "--nombre" src` que sigue sin usarse.

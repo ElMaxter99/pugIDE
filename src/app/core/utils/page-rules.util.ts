@@ -134,6 +134,30 @@ function decodeCssString(raw: string): string {
   });
 }
 
+/** Quita el contenido de las cadenas entre comillas (`"string(x)"` no es una función). */
+function blankStrings(css: string): string {
+  return stripComments(css).replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+}
+
+/** Funciones de CSS Generated Content for Paged Media que Chromium no implementa (comprobado con `page.pdf()` en Chromium 141). */
+export type UnsupportedPagedFeature = 'string' | 'element';
+
+const USES_STRING = /(?:^|[^\w-])(?:string-set\s*:|string\s*\()/i;
+const USES_ELEMENT = /(?:^|[^\w-])(?:element|running)\s*\(/i;
+
+/**
+ * Qué funciones sin soporte en Chromium usa el CSS: `string-set` / `string()` (texto del capítulo en la cabecera) y
+ * `element()` / `position: running()` (elemento en una caja de margen). Chromium descarta esas declaraciones y la caja
+ * sale vacía, así que el preview no las emula: avisa. Cada característica aparece una vez.
+ */
+export function findUnsupportedPagedFeatures(css: string): UnsupportedPagedFeature[] {
+  const text = blankStrings(css);
+  const out: UnsupportedPagedFeature[] = [];
+  if (USES_STRING.test(text)) out.push('string');
+  if (USES_ELEMENT.test(text)) out.push('element');
+  return out;
+}
+
 /** `"Página " counter(page) " de " counter(pages)` → partes. `none` / `normal` → null. */
 export function parseContent(value: string): ContentPart[] | null {
   const v = value.trim();
@@ -184,7 +208,8 @@ function parseBoxBody(body: string): MarginBox {
     const prop = decl.slice(0, i).trim().toLowerCase();
     const value = decl.slice(i + 1).replace(/!important\s*$/i, '');
     if (prop === 'content') {
-      box.content = parseContent(value);
+      // Chromium descarta un `content` con string()/element() (no los implementa): la caja sale vacía, no a medias.
+      if (findUnsupportedPagedFeatures(value).length === 0) box.content = parseContent(value);
     } else collectStyle(box.style, prop, value);
   }
   return box;
