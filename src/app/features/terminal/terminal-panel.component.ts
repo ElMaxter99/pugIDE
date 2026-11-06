@@ -19,59 +19,40 @@ import { TerminalState } from "../../core/state/terminal.state";
   template: `
     <div class="terminal-panel">
       <div class="terminal-header">
-        <div class="terminal-tabs">
+        <div class="terminal-tabs" role="group" aria-label="Filtro del Registro">
+          <span class="terminal-title">Registro</span>
           <button
             class="terminal-tab"
+            type="button"
+            data-testid="log-filter-essential"
+            [class.active]="terminalState.activeFilter() === 'essential'"
+            [attr.aria-pressed]="terminalState.activeFilter() === 'essential'"
+            (click)="terminalState.setFilter('essential')"
+          >
+            Esenciales
+            @if (terminalState.errorCount() + terminalState.warningCount() > 0) {
+              <span class="count" [class.error]="terminalState.errorCount() > 0" [class.warning]="terminalState.errorCount() === 0">{{ terminalState.errorCount() + terminalState.warningCount() }}</span>
+            }
+          </button>
+          <button
+            class="terminal-tab"
+            type="button"
+            data-testid="log-filter-all"
             [class.active]="terminalState.activeFilter() === 'all'"
+            [attr.aria-pressed]="terminalState.activeFilter() === 'all'"
             (click)="terminalState.setFilter('all')"
           >
-            All
-            @if (terminalState.entries().length > 0) {
-              <span class="count">{{ terminalState.entries().length }}</span>
-            }
+            Todo
           </button>
-          <button
-            class="terminal-tab"
-            [class.active]="terminalState.activeFilter() === 'error'"
-            (click)="terminalState.setFilter('error')"
-          >
-            Errors
-            @if (terminalState.errorCount() > 0) {
-              <span class="count error">{{ terminalState.errorCount() }}</span>
-            }
-          </button>
-          <button
-            class="terminal-tab"
-            [class.active]="terminalState.activeFilter() === 'warning'"
-            (click)="terminalState.setFilter('warning')"
-          >
-            Warnings
-            @if (terminalState.warningCount() > 0) {
-              <span class="count warning">{{
-                terminalState.warningCount()
-              }}</span>
-            }
-          </button>
-          <button
-            class="terminal-tab"
-            [class.active]="terminalState.activeFilter() === 'info'"
-            (click)="terminalState.setFilter('info')"
-          >
-            Info
-          </button>
-          <button
-            class="terminal-tab"
-            [class.active]="terminalState.activeFilter() === 'debug'"
-            (click)="terminalState.setFilter('debug')"
-          >
-            Debug
-          </button>
+          @if (terminalState.hiddenDetailCount() > 0) {
+            <span class="hidden-note" data-testid="log-hidden-note">{{ terminalState.hiddenDetailCount() }} mensaje{{ terminalState.hiddenDetailCount() === 1 ? '' : 's' }} de detalle oculto{{ terminalState.hiddenDetailCount() === 1 ? '' : 's' }}</span>
+          }
         </div>
         <div class="terminal-actions">
           <button
             class="terminal-action"
-            title="Limpiar terminal (Ctrl+Shift+K)"
-            aria-label="Limpiar terminal (Ctrl+Shift+K)"
+            title="Limpiar el Registro (Ctrl+Shift+K)"
+            aria-label="Limpiar el Registro (Ctrl+Shift+K)"
             (click)="terminalState.clear()"
           >
             <svg
@@ -91,8 +72,8 @@ import { TerminalState } from "../../core/state/terminal.state";
           <button
             class="terminal-action"
             [class.active]="terminalState.isMaximized()"
-            title="Maximizar terminal"
-            aria-label="Maximizar terminal"
+            title="Maximizar el Registro"
+            aria-label="Maximizar el Registro"
             (click)="terminalState.toggleMaximized()"
           >
             <svg
@@ -111,8 +92,8 @@ import { TerminalState } from "../../core/state/terminal.state";
           </button>
           <button
             class="terminal-action"
-            title="Cerrar terminal"
-            aria-label="Cerrar terminal"
+            title="Cerrar el Registro"
+            aria-label="Cerrar el Registro"
             (click)="terminalState.toggle()"
           >
             <svg
@@ -131,7 +112,7 @@ import { TerminalState } from "../../core/state/terminal.state";
       </div>
       <div class="terminal-output" #outputEl>
         @for (entry of terminalState.filteredEntries(); track entry.id) {
-          <div class="log-entry" [class]="'log-' + entry.type">
+          <div class="log-entry" [class]="'log-' + entry.type" [class.log-detail]="entry.detail">
             <span class="log-time">{{ formatTime(entry.timestamp) }}</span>
             <span class="log-source">[{{ entry.source }}]</span>
             <span class="log-message">{{ entry.message }}</span>
@@ -143,7 +124,7 @@ import { TerminalState } from "../../core/state/terminal.state";
         }
         @if (terminalState.filteredEntries().length === 0) {
           <div class="empty-terminal">
-            <span>No entries</span>
+            <span>Sin mensajes</span>
           </div>
         }
       </div>
@@ -177,6 +158,27 @@ import { TerminalState } from "../../core/state/terminal.state";
       .terminal-tabs {
         display: flex;
         gap: 0;
+      }
+
+      .terminal-title {
+        display: flex;
+        align-items: center;
+        padding: 0 10px 0 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      .hidden-note {
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
+
+      .log-detail {
+        opacity: 0.7;
       }
 
       .terminal-tab {
@@ -229,8 +231,8 @@ import { TerminalState } from "../../core/state/terminal.state";
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
         border: none;
         background: none;
         color: var(--text-secondary);
@@ -362,7 +364,7 @@ export class TerminalPanelComponent {
 
   formatTime(timestamp: number): string {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString("en-US", {
+    return date.toLocaleTimeString("es-ES", {
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",

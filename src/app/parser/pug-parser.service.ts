@@ -117,8 +117,8 @@ export class PugParserService {
       } catch (err) {
         this.terminalState.addEntry(
           'error',
-          'Parser',
-          `Failed to load parser bundle: ${(err as Error).message ?? err}`
+          'Pug',
+          `No se pudo cargar el analizador de Pug: ${(err as Error).message ?? err}`
         );
       }
     }
@@ -131,8 +131,8 @@ export class PugParserService {
     } else {
       this.terminalState.addEntry(
         'error',
-        'Parser',
-        'Pug parser is unavailable — variable, mixin and include detection will not work.'
+        'Pug',
+        'El analizador de Pug no está disponible: no se detectarán variables, mixins ni includes.'
       );
     }
     this.initialized = true;
@@ -150,7 +150,7 @@ export class PugParserService {
       const variables = this.extractVariables(ast);
       return { variables, translationKeys: [...this.translationKeys] };
     } catch (err) {
-      this.terminalState.addEntry('warning', 'Parser', `Skipped ${entryPath}: ${(err as Error).message ?? 'parse error'}`);
+      this.terminalState.addEntry('warning', 'Pug', `Se omite ${entryPath}: ${(err as Error).message ?? 'error de análisis'}`);
       return { variables: [], translationKeys: [] };
     }
   }

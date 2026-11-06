@@ -55,7 +55,7 @@ export default async function (env) {
   check('13 la página corta ocupa al menos el alto del dispositivo (900 × 2)', st.height === 1800, String(st.height));
 
   // En móvil se aplican las media queries del dispositivo (caja verde) y el ancho es 390 × 2
-  await runCommand(page, 'Preview: Mobile', 'Preview: Mobile (390×844)');
+  await runCommand(page, 'Móvil', 'Cambiar dispositivo: Móvil (390×844)');
   await waitUntil(async () => (await page.locator('select.device-select').inputValue()) === 'Mobile');
   const second = page.waitForEvent('download', { timeout: 20000 });
   await runCommand(page, 'captura PNG', 'Exportar captura PNG del preview');

@@ -24,15 +24,15 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.collapsed]': 'preferences.dataCollapsed()' },
   template: `
-    <button class="rail-btn" (click)="preferences.toggleData()" title="Mostrar Data" aria-label="Mostrar Data">
+    <button class="rail-btn" (click)="preferences.toggleData()" title="Mostrar Datos" aria-label="Mostrar Datos">
       <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">right_panel_open</span>
-      <span class="rail-label">Data</span>
+      <span class="rail-label">Datos</span>
     </button>
     <section class="data-section" aria-label="Datos">
       <div class="data-header">
-        <span class="data-title">Data</span>
+        <span class="data-title">Datos</span>
         <div class="data-actions">
-          <button class="icon-btn" (click)="preferences.toggleData()" title="Colapsar Data" aria-label="Colapsar Data">
+          <button class="icon-btn" (click)="preferences.toggleData()" title="Colapsar Datos" aria-label="Colapsar Datos">
             <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">right_panel_close</span>
           </button>
           <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Cambiar al árbol visual (Ctrl+Shift+J)' : 'Cambiar al editor JSON (Ctrl+Shift+J)'" [attr.aria-label]="jsonRawMode() ? 'Modo JSON: cambiar al árbol visual' : 'Modo Árbol: cambiar al editor JSON'">
@@ -340,9 +340,9 @@ export class SmartDataEditorComponent {
     const result = parseDataJson(text);
     if (!result.ok) {
       this.jsonError.set(result.error);
-      this.terminalState.addEntry('error', 'DataEditor', result.rootNotObject
-        ? 'Invalid JSON: root must be an object, not an array or primitive'
-        : `Invalid JSON: ${result.error}`);
+      this.terminalState.addEntry('error', 'Datos', result.rootNotObject
+        ? 'JSON no válido: la raíz debe ser un objeto, no una lista ni un valor simple'
+        : `JSON no válido: ${result.error}`);
       return;
     }
     this.jsonError.set(null);
@@ -372,9 +372,9 @@ export class SmartDataEditorComponent {
   copyJsonToClipboard(): void {
     const text = stringifyData(this.dataState.data());
     navigator.clipboard.writeText(text).then(() => {
-      this.terminalState.addEntry('success', 'DataEditor', 'JSON copied to clipboard');
+      this.terminalState.addEntry('success', 'Datos', 'JSON copiado al portapapeles');
     }).catch(() => {
-      this.terminalState.addEntry('error', 'DataEditor', 'Failed to copy to clipboard');
+      this.terminalState.addEntry('error', 'Datos', 'No se pudo copiar al portapapeles');
     });
   }
 

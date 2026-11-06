@@ -63,8 +63,8 @@ export default async function (env) {
   check('15 el inspector recibe el elemento clicado en el preview aislado y su línea de Pug', !!picked, await page.locator('app-inspector-panel').innerText());
   await page.locator('button[title="Inspeccionar elemento"]').click();
 
-  await page.locator('button[title="Auditoria de accesibilidad (resultados en la terminal)"]').click();
-  const audited = await waitUntil(async () => (await page.locator('app-terminal-panel').innerText()).includes('Auditoria basica'));
+  await page.locator('button[title="Auditoría de accesibilidad (resultados en el Registro)"]').click();
+  const audited = await waitUntil(async () => (await page.locator('app-terminal-panel').innerText()).includes('Auditoría básica'));
   check('15 la auditoría de accesibilidad devuelve su informe a la terminal', !!audited);
 
   const scheme = page.locator('button[title^="Modo de color simulado"]');

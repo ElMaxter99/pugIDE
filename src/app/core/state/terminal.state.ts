@@ -6,14 +6,18 @@ export class TerminalState {
   readonly entries = signal<TerminalEntry[]>([]);
   readonly isVisible = signal(true);
   readonly isMaximized = signal(false);
-  readonly activeFilter = signal<'all' | 'error' | 'warning' | 'info' | 'success' | 'debug'>('all');
+  /** «Esenciales» oculta los mensajes de detalle; «Todo» los muestra atenuados. */
+  readonly activeFilter = signal<'essential' | 'all'>('essential');
 
   readonly filteredEntries = computed(() => {
-    const filter = this.activeFilter();
     const all = this.entries();
-    if (filter === 'all') return all;
-    return all.filter((e) => e.type === filter);
+    if (this.activeFilter() === 'all') return all;
+    return all.filter((e) => !e.detail);
   });
+
+  readonly hiddenDetailCount = computed(() =>
+    this.activeFilter() === 'all' ? 0 : this.entries().filter((e) => e.detail).length
+  );
 
   readonly errorCount = computed(() =>
     this.entries().filter((e) => e.type === 'error').length
@@ -23,13 +27,14 @@ export class TerminalState {
     this.entries().filter((e) => e.type === 'warning').length
   );
 
-  addEntry(type: TerminalEntry['type'], source: string, message: string, loc?: { path: string; line: number }): void {
+  addEntry(type: TerminalEntry['type'], source: string, message: string, loc?: { path: string; line: number }, detail = false): void {
     const entry: TerminalEntry = {
       id: crypto.randomUUID(),
       timestamp: Date.now(),
       type,
       source,
       message,
+      ...(detail ? { detail: true } : {}),
       ...(loc ? { path: loc.path, line: loc.line } : {}),
     };
     this.entries.update((entries) => [...entries.slice(-999), entry]);
@@ -47,7 +52,7 @@ export class TerminalState {
     this.isMaximized.update((v) => !v);
   }
 
-  setFilter(filter: TerminalEntry['type'] | 'all'): void {
+  setFilter(filter: 'essential' | 'all'): void {
     this.activeFilter.set(filter);
   }
 }

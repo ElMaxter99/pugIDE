@@ -45,16 +45,16 @@ type PendingAction =
         [positionX]="contextMenuX()"
         [positionY]="contextMenuY()"
         (actionSelected)="onContextAction($event)" />
-      <button class="rail-btn" (click)="preferences.toggleSidebar()" title="Mostrar Workspace" aria-label="Mostrar Workspace">
+      <button class="rail-btn" (click)="preferences.toggleSidebar()" title="Mostrar Archivos" aria-label="Mostrar Workspace">
         <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">left_panel_open</span>
-        <span class="rail-label">Workspace</span>
+        <span class="rail-label">Archivos</span>
       </button>
       <div class="sidebar-inner">
         <div class="workspace-header">
           <div class="workspace-label-row">
-            <span class="workspace-label">Workspace</span>
+            <span class="workspace-label">Archivos</span>
             <div class="workspace-actions">
-              <button class="add-btn" (click)="preferences.toggleSidebar()" title="Colapsar Workspace" aria-label="Colapsar Workspace">
+              <button class="add-btn" (click)="preferences.toggleSidebar()" title="Colapsar Archivos" aria-label="Colapsar Workspace">
                 <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">left_panel_close</span>
               </button>
               <button class="add-btn" (click)="onImportClick()" title="Importar proyecto (carpeta o .zip)" aria-label="Importar proyecto (carpeta o .zip)">

@@ -15,4 +15,10 @@ export class UiState {
   readonly historyOpen = signal(false);
   /** Diálogo de instantáneas del proyecto (guardar, comparar, restaurar). */
   readonly snapshotsOpen = signal(false);
+  /** Orden al editor desde fuera de él (paleta): `id` de la acción de Monaco o `pug.searchInProject`; `n` fuerza cada petición. */
+  readonly editorCommand = signal<{ id: string; n: number } | null>(null);
+
+  requestEditorCommand(id: string): void {
+    this.editorCommand.set({ id, n: (this.editorCommand()?.n ?? 0) + 1 });
+  }
 }

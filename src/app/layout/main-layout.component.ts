@@ -231,7 +231,7 @@ export class MainLayoutComponent implements OnInit {
     }
   }
 
-  /** Los proyectos solo viven en este navegador: si hace tiempo que no se exporta, se recuerda en la terminal. */
+  /** Los proyectos solo viven en este navegador: si hace tiempo que no se exporta, se recuerda en el Registro. */
   protected onAddLocale(code: string): void {
     this.ui.addLocaleOpen.set(false);
     if (code.trim()) this.orchestrator.addLocale(code);
@@ -306,7 +306,7 @@ export class MainLayoutComponent implements OnInit {
     const savedDatasets = saved.datasets ? parseDatasetsFile(saved.datasets) : null;
     if (savedDatasets) this.dataState.restoreDatasets(savedDatasets);
     this.orchestrator.markDataInitialized();
-    this.terminalState.addEntry('info', 'PugIDE', 'Restored your previous session.');
+    this.terminalState.addEntry('info', 'Sistema', 'Sesión anterior restaurada.', undefined, true);
     void this.orchestrator.restoreAssets();
     this.orchestrator.manualCompile();
     this.restoringSession = false;
@@ -337,7 +337,7 @@ export class MainLayoutComponent implements OnInit {
     this.dataState.setInitialData({ ...DEFAULT_PROJECT_DATA });
     this.orchestrator.markDataInitialized();
     this.previewState.setDevice('Desktop', 1200, 800);
-    this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');
+    this.terminalState.addEntry('info', 'Sistema', 'Te damos la bienvenida a PugIDE: abre un proyecto o empieza a escribir.', undefined, true);
     this.orchestrator.manualCompile();
   }
 
@@ -375,7 +375,7 @@ export class MainLayoutComponent implements OnInit {
     this.dataState.setInitialData(rawData as Record<string, unknown>);
     this.orchestrator.markDataInitialized();
     this.previewState.setDevice('Desktop', 1200, 800);
-    this.terminalState.addEntry('info', 'PugIDE', 'Welcome to PugIDE! Open a project or start coding.');
+    this.terminalState.addEntry('info', 'Sistema', 'Te damos la bienvenida a PugIDE: abre un proyecto o empieza a escribir.', undefined, true);
     this.orchestrator.manualCompile();
   }
 }

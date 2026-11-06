@@ -14,7 +14,7 @@ import { PersistenceService } from '../../../core/services/persistence.service';
   template: `
     <footer class="statusbar">
       <div class="status-left">
-        <button type="button" class="status-group" (click)="toggleTerminal()" title="Mostrar u ocultar la terminal" [attr.aria-label]="terminalState.errorCount() + (terminalState.errorCount() === 1 ? ' error' : ' errores') + ': mostrar u ocultar la terminal'">
+        <button type="button" class="status-group" (click)="toggleTerminal()" title="Mostrar u ocultar el Registro" [attr.aria-label]="terminalState.errorCount() + (terminalState.errorCount() === 1 ? ' error' : ' errores') + ': mostrar u ocultar el Registro'">
           <span aria-hidden="true" class="material-symbols-outlined error-icon">cancel</span>
           <span>{{ terminalState.errorCount() }} {{ terminalState.errorCount() === 1 ? 'error' : 'errores' }}</span>
         </button>

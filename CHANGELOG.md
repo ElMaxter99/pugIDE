@@ -4,6 +4,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+Primera oleada de la propuesta 0.7 de mejoras de interfaz (mesas P-07 y P-09 del lienzo, aprobadas): textos y accesibilidad, Registro y paleta. No mueve ningún panel.
+
+### Añadido
+- **Paleta de comandos (Ctrl+K):** arriba los **comandos recientes** (los 5 últimos, guardados en este navegador), los **atajos de teclado** a la derecha de cada comando, la coincidencia **resaltada** y un pie con las teclas. Los 11 dispositivos del preview pasan a una **sublista** («Cambiar dispositivo…»; Esc o Retroceso vuelven) y siguen encontrándose al escribir («móvil»). Nuevos comandos: «Buscar y reemplazar en el proyecto», «Ir a símbolo», «Formatear Pug» y «Mostrar u ocultar / Limpiar el Registro».
+- Escenario `30-registro-paleta` de las pruebas de interfaz y pruebas unitarias de recientes y resaltado.
+
+### Cambiado
+- **La terminal pasa a llamarse «Registro»** y se abre con el filtro **«Esenciales»** (errores, avisos y acciones); «Todo» añade el detalle (arranque, compilaciones) atenuado y «Esenciales» avisa de cuántos mensajes de detalle oculta. Todos sus mensajes y orígenes están en español, con la hora del equipo.
+- **Textos en español:** «Archivos» y «Datos» (antes «Workspace» y «Data»), «Vista previa» (antes «Live Preview»), nombres de dispositivo («Móvil», «Tableta», «Escritorio», «Portátil») y tildes de «Móvil» y «Auditoría».
+
+### Corregido
+- **Selector de dispositivo:** con «Escritorio» activo mostraba «Mobile (390x844)»; ahora refleja el dispositivo activo.
+- **Accesibilidad:** los selectores recuperan el anillo de foco con el teclado, los botones de dispositivo del preview tienen nombre accesible y los botones del Registro miden 24 px.
+
 ## [0.6.0] - 2026-11-05
 
 ### Añadido

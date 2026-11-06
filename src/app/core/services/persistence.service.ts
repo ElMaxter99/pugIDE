@@ -8,6 +8,7 @@ const CURRENT_ID_KEY = 'pug-ide-current-project';
 const ANALYTICS_CONSENT_KEY = 'pug-ide-analytics-consent';
 const LAST_BACKUP_KEY = 'pug-ide-last-backup';
 const FIRST_USE_KEY = 'pug-ide-first-use';
+const RECENT_COMMANDS_KEY = 'pug-ide-recent-commands';
 
 /** Decisión del usuario sobre la analítica anónima de visitas (null: aún no ha decidido). */
 export type AnalyticsConsent = 'granted' | 'denied';
@@ -74,6 +75,21 @@ export class PersistenceService {
     } catch {
       this.lastWriteFailed.set(true);
     }
+  }
+
+  /** Comandos de la paleta usados hace poco (identificadores, el más reciente primero). */
+  loadRecentCommands(): string[] {
+    try {
+      const raw = JSON.parse(localStorage.getItem(RECENT_COMMANDS_KEY) ?? '[]');
+      if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === 'string').slice(0, 5);
+    } catch { /* ignore */ }
+    return [];
+  }
+
+  saveRecentCommands(ids: string[]): void {
+    try {
+      localStorage.setItem(RECENT_COMMANDS_KEY, JSON.stringify(ids.slice(0, 5)));
+    } catch { /* sin almacenamiento: los recientes solo duran la sesión */ }
   }
 
   loadAnalyticsConsent(): AnalyticsConsent | null {
