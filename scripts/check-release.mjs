@@ -1,5 +1,5 @@
 // Comprueba que la versión es coherente en todos los sitios antes de etiquetar (ver docs/RELEASE.md):
-// package.json, package-lock.json, badge del README, título de docs/PLAN.md y sección fechada del CHANGELOG.
+// package.json, package-lock.json, badge del README (español e inglés), título de docs/PLAN.md y sección fechada del CHANGELOG.
 // Uso: `npm run release:check`. Sale con código 1 si algo no cuadra.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +15,7 @@ const checks = [
   ['package-lock.json (versión)', lock.version === version, `${lock.version} ≠ ${version}`],
   ['package-lock.json (paquete raíz)', lock.packages?.['']?.version === version, `${lock.packages?.['']?.version} ≠ ${version}`],
   ['badge de versión del README', read('README.md').includes(`badge/version-${version}-`), `falta badge/version-${version}-`],
+  ['badge de versión del README en inglés', read('README.en.md').includes(`badge/version-${version}-`), `falta badge/version-${version}- en README.en.md`],
   ['título de docs/PLAN.md', read('docs/PLAN.md').split('\n')[0].includes(`(v${version})`), `la primera línea no menciona (v${version})`],
   ['sección fechada del CHANGELOG', new RegExp(`^## \\[${version.replace(/\./g, '\\.')}\\] - \\d{4}-\\d{2}-\\d{2}$`, 'm').test(read('CHANGELOG.md')), `falta «## [${version}] - AAAA-MM-DD»`],
 ];

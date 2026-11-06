@@ -39,7 +39,7 @@ parser -> datos -> orquestador -> compilador -> preview. Ver `src/app/core/servi
 
 ## Convenciones
 
-- Todo el texto de UI, commits, issues y docs en español; el código (identificadores) en inglés.
+- Todo el texto de UI, commits, issues y docs en español; el código (identificadores) en inglés. Excepción: `README.en.md` es la versión en inglés del README y se actualiza junto con `README.md` (incluido el badge de versión).
 - Componentes standalone con `ChangeDetectionStrategy.OnPush`; estado con signals en `core/state`.
 - Lógica de negocio en servicios (`core/services`, `parser`, `compiler`), no en componentes.
 - Utilidades puras en `core/utils`; modelos en `core/models`.

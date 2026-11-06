@@ -1,87 +1,190 @@
+<div align="center">
+
+<img src="src/assets/PugIDE.svg" alt="PugIDE" width="96" height="96">
+
 # PugIDE
 
-Entorno de desarrollo visual para **Pug/Jade**: detecta variables, genera datos de prueba (mocks) y previsualiza el resultado en tiempo real, todo en el navegador.
+**El IDE de Pug/Jade que vive en tu navegador.**<br>
+Escribe una plantilla, mira el resultado al instante y deja que PugIDE invente los datos de prueba. Nada sale de tu máquina.
 
-![Versión](https://img.shields.io/badge/version-0.5.1-blueviolet) ![Licencia](https://img.shields.io/badge/license-MIT-green)
+**Español** · [English](README.en.md)
 
-## Capturas
+[![CI](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml/badge.svg)](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml)
+![Versión](https://img.shields.io/badge/version-0.6.0-blueviolet)
+![Licencia](https://img.shields.io/badge/license-MIT-green)
+![Angular](https://img.shields.io/badge/Angular-22-dd0031)
+![100 % local](https://img.shields.io/badge/100%25-local-success)
+![Sin backend](https://img.shields.io/badge/backend-ninguno-lightgrey)
 
-### Vista principal
+<br>
 
-![Vista principal de PugIDE](docs/screenshots/landing.png)
+<img src="docs/screenshots/ide.png" alt="PugIDE: editor, datos y vista previa en vivo" width="100%">
 
-### IDE (`/ide?demo=true`)
+</div>
 
-Editor de código, árbol de datos y vista previa en vivo, con un proyecto demo cargado.
+## ¿Qué es PugIDE?
 
-![IDE en modo demo](docs/screenshots/ide-demo.png)
+Un entorno de desarrollo visual para **Pug/Jade** pensado para plantillas reales: correos, informes, facturas y páginas con varios archivos, estilos y traducciones. Detecta las variables que usa tu plantilla, genera datos de ejemplo para rellenarlas y **repinta el resultado mientras escribes**. Todo ocurre en tu navegador: no hay servidor, no hay cuenta y tu código nunca se sube a ningún sitio.
 
-### Paleta de comandos (Ctrl/Cmd+K)
+| | |
+|---|---|
+| 🔒 **100 % local** | Sin backend ni cuenta. Tus proyectos viven en tu navegador y el JavaScript de tus plantillas corre aislado. |
+| ⚡ **Preview en vivo** | Compila al escribir, en escritorio, móvil o como página impresa (PDF). |
+| 🪄 **Mocks automáticos** | Detecta variables y claves `t('CLAVE')` y crea datos de ejemplo que luego editas. |
+| 🧩 **Proyectos reales** | Carpetas, `include`, `extends`, mixins, CSS/SCSS/Sass/Less, imágenes y fuentes. |
+| 🩺 **Errores que se entienden** | Explica qué pasa, te lleva a la línea y arregla lo típico con un clic. |
+| 📄 **PDF fiel a Chromium** | Saltos de página, cabeceras de tabla repetidas, huérfanas y viudas. |
 
-Acciones, plantillas de inicio, dispositivos del preview y apertura rápida de archivos.
+## Un vistazo
 
-![Paleta de comandos](docs/screenshots/command-palette.png)
+### 🩺 Errores explicados, con arreglo y enlace a la línea
 
-## Características
+Un error de Pug como `pug_mixins.resumenPie is not a function` pasa a ser: *«Se llama a `+resumenPie`, pero ningún archivo define ese mixin»*, con el botón **Ir al error**, la lista de **todos los problemas** del proyecto y el arreglo con un clic (**Crear el mixin**, **añadir el `include`**, corregir una errata). También como arreglo rápido de Monaco (`Ctrl+.`).
 
-- Editor Pug con resaltado de sintaxis (Monaco) y soporte multi-archivo (includes / componentes).
-- Detección automática de las variables usadas en la plantilla y editor de datos en árbol.
-- Vista previa en vivo (escritorio / móvil) con auto-compilación.
-- Consola con errores, warnings e info de compilación.
-- Importar / exportar el proyecto.
-- Autocompletado de variables detectadas y mixins del proyecto (`+` lista mixins con sus argumentos).
-- Ir a la definición de `include` / `extends` / `+mixin` con Ctrl+clic o F12.
-- Paleta de comandos con Ctrl/Cmd+K (acciones, dispositivos del preview, plantillas y apertura rápida de archivos).
-- Búsqueda en todo el proyecto con Ctrl+Shift+F (abre el archivo en la línea).
-- Buscar y reemplazar en todo el proyecto (Ctrl+Shift+F), hover de mixins e includes, "Ir a símbolo" (Ctrl+Shift+O) y diálogo de atajos (paleta de comandos).
-- Helpers propios: un `helpers.js` con `module.exports = { money, formatDate… }` hace que esas funciones estén disponibles en las plantillas (paleta → «Añadir archivo de helpers»).
-- Captura PNG del preview e historial local de versiones por archivo (paleta de comandos).
-- Formato de Pug (Shift+Alt+F). Prettier no soporta Pug de serie y `@prettier/plugin-pug` no se incluye, así que el formateador es propio y conservador: normaliza indentación, espacios y líneas en blanco, unifica comillas y espacios de los atributos simples (`a(href = "x")` → `a(href='x')`) y reparte en varias líneas las etiquetas largas. Los atributos con expresiones, las llamadas a mixins y los bloques de texto crudo se dejan como están, y solo reordena atributos si lo activas (paleta de comandos → "Formato de Pug: ordenar atributos"): `id`, `class`, el resto por orden alfabético, `data-*`, `aria-*` y al final los especiales (`@click`, `[x]`…).
-- Modo demo: abre `/ide?demo=true` para cargar un proyecto de ejemplo completo.
+<img src="docs/screenshots/errores.png" alt="Aviso de error con explicación, arreglo y lista de problemas" width="100%">
 
-- Estilos CSS, SCSS/Sass y Less compilados en el navegador; `<link>` locales y `@import`/`@use` entre archivos.
-- Preview en modo PDF / página impresa (lee `@page { size; margin }` y emula cabeceras y pies con `@top-*` / `@bottom-*`, `counter(page)` y `counter(pages)`, cuenta páginas, avisa de imágenes cortadas y encabezados huérfanos, imprimir o guardar como PDF).
-- Avisos de calidad en la terminal: datos sin usar y peso del HTML (p. ej. el límite de 102 KB de Gmail).
-- Traducciones: las claves `t('CLAVE.ANIDADA')` generan automáticamente campos editables en los datos. Para varios idiomas, usa «Añadir idioma…» (Ctrl+K): crea `locales/es-ES/translations.json`, `locales/es-CAT/translations.json`… y el preview tiene un selector de idioma; las claves nuevas se añaden vacías a todos.
-- Assets locales (imágenes y fuentes) que subes al proyecto y se guardan en tu navegador.
-- Varios proyectos guardados en tu navegador (botón con el nombre del proyecto en la barra superior): abrir, crear, renombrar, duplicar y borrar.
+### 📄 Modo PDF: la página impresa, antes de imprimir
 
-## Privacidad
+Lee tu `@page` (tamaño, márgenes, cabeceras y pies con `counter(page)`), reparte el contenido en hojas como lo haría Chromium, **repite las cabeceras de las tablas largas**, respeta `orphans`/`widows` y te avisa de lo que se partiría mal, con la regla CSS que lo arregla.
 
-**Nada sale de tu navegador.** No hay backend, ni cuenta, ni subida de código; el editor (Monaco), las tipografías y los iconos se sirven desde el propio sitio, sin CDNs. La sesión activa se guarda en el `localStorage` de tu navegador y, junto con todos tus proyectos y sus assets, en IndexedDB. Si borras los datos del sitio, lo pierdes: exporta tus proyectos.
+<img src="docs/screenshots/pdf.png" alt="Preview en modo PDF con hojas y avisos" width="100%">
 
-**El JavaScript de tus plantillas está aislado.** Lo que escribes en una plantilla o en `helpers.js` (y los `<script>` del HTML que genera) se ejecuta en iframes sin acceso a los datos de PugIDE: no puede leer tus proyectos guardados ni el resto de la página, ni aunque venga de un enlace compartido. Ese código sí puede hacer peticiones de red con lo que renderiza, como cualquier página web.
+### 📸 Instantáneas del proyecto
 
-**Analítica opcional.** Al entrar, un aviso te pregunta si permites una analítica anónima de visitas ([Vercel Web Analytics](https://vercel.com/docs/analytics): sin cookies de seguimiento y sin ningún dato de tus proyectos). Si rechazas, el script no se carga nunca. Puedes cambiar la decisión desde la paleta de comandos (Ctrl+K → "Privacidad"); retirar el permiso surte efecto al recargar la página.
+Guarda el proyecto entero con nombre (archivos, datos, idiomas y assets), **compara** con lo que tienes ahora y **restaura**. Antes de restaurar se guarda una copia automática, y `Ctrl+Z` sigue funcionando.
 
-## Importar y exportar
+<img src="docs/screenshots/instantaneas.png" alt="Diálogo de instantáneas del proyecto" width="100%">
 
-- **Exportar**: a una carpeta de tu disco (File System Access API, p. ej. Chrome/Edge) o, si no está disponible, como `.zip`. Incluye los assets.
-- **Importar**: desde una carpeta o un `.zip`; las rutas se conservan.
-- Se importan archivos de texto (`.pug`, `.jade`, `.scss`, `.sass`, `.css`, `.json`, `.js`, `.html`, `.htm`, `.md`, `.txt`) e imágenes/fuentes como assets; el resto se ignora.
+### ⌨️ Todo a un `Ctrl+K`
+
+La paleta de comandos reúne las acciones, las plantillas de inicio, los dispositivos del preview y la apertura rápida de archivos.
+
+<img src="docs/screenshots/paleta.png" alt="Paleta de comandos" width="100%">
+
+### 🌗 Tema oscuro y claro
+
+<img src="docs/screenshots/ide-claro.png" alt="PugIDE en tema claro" width="100%">
+
+## Todo lo que incluye
+
+<details open>
+<summary><strong>Editor</strong></summary>
+
+- Monaco con resaltado de Pug, soporte multiarchivo y **autocompletado** de variables detectadas y de mixins (`+` lista los mixins con sus argumentos).
+- **Ir a la definición** de `include` / `extends` / `+mixin` (Ctrl+clic o F12), hover con la firma y el número de llamadas, y «Ir a símbolo» (Ctrl+Mayús+O).
+- **Buscar y reemplazar en todo el proyecto** (Ctrl+Mayús+F), con expresiones regulares.
+- **Formateador de Pug** (Mayús+Alt+F): conservador, normaliza indentación y atributos; reordenar atributos es opcional.
+- Marcadores de error en el archivo y la línea exactos (Pug, SCSS/Sass y Less), también en parciales incluidos.
+- Deshacer de archivos, historial local por archivo (30 versiones, con diff) y **instantáneas** de proyecto.
+</details>
+
+<details>
+<summary><strong>Datos y plantillas</strong></summary>
+
+- Detección automática de variables y **editor de datos en árbol** con juegos de datos.
+- **Mocks** realistas, importación desde JSON, JSON Schema u OpenAPI.
+- **Traducciones**: las claves `t('A.B')` crean campos editables; con «Añadir idioma…» se generan `locales/es-ES/translations.json`, `locales/en/translations.json`… y el preview tiene un selector de idioma.
+- **Helpers propios**: un `helpers.js` con `module.exports = { money, formatDate… }` hace esas funciones disponibles en las plantillas.
+- Filtros `:cdata` y `:markdown`, y métodos de helpers sobre valores (`utils.upper(x)`).
+- Estilos CSS, SCSS/Sass y Less compilados en el navegador, con `<link>` locales y `@import`/`@use` entre archivos.
+- Imágenes y fuentes locales (se guardan en tu navegador y se sirven al preview).
+</details>
+
+<details>
+<summary><strong>Preview</strong></summary>
+
+- Escritorio, tablet y móvil, con escala automática y tema claro/oscuro del documento.
+- **Modo PDF** con `@page`, cabeceras y pies, avisos de corte, impresión y guardado como PDF.
+- **Captura PNG** del preview, inspector de elementos y auditoría de accesibilidad.
+- Avisos de calidad: datos sin usar, peso del HTML (p. ej. el límite de 102 KB de Gmail).
+</details>
+
+<details>
+<summary><strong>Proyectos</strong></summary>
+
+- Biblioteca de proyectos en tu navegador: abrir, crear desde plantilla, renombrar, duplicar y borrar.
+- **Importar** una carpeta o un `.zip` (también **arrastrándolos** al árbol de archivos) y **exportar** a carpeta, `.zip` o HTML autocontenido.
+- Compartir por enlace y recordatorio de copia de seguridad.
+- La app **se actualiza sola**: te avisa de las versiones nuevas sin que tengas que borrar la caché.
+</details>
+
+## Privacidad y seguridad
+
+- **Nada sale de tu navegador.** No hay backend, ni cuenta, ni subida de código. El editor, las tipografías y los iconos se sirven desde el propio sitio, sin CDNs.
+- **Tus datos viven en tu navegador** (`localStorage` e IndexedDB). Si borras los datos del sitio, los pierdes: exporta tus proyectos. La terminal te lo recuerda a los 14 días.
+- **El JavaScript de tus plantillas está aislado.** Lo que escribes en una plantilla, en `helpers.js` o en un `<script>` del HTML que genera corre en documentos de origen opaco, sin acceso a tus proyectos ni al resto de la página, y con la red bloqueada por la política de seguridad (CSP). La propia app no admite `unsafe-inline` ni `unsafe-eval` en `script-src`.
+- **Analítica opcional.** Al entrar se te pregunta si permites una analítica anónima de visitas ([Vercel Web Analytics](https://vercel.com/docs/analytics), sin cookies de seguimiento y sin ningún dato de tus proyectos). Si rechazas, el script no se carga nunca; puedes cambiarlo en Ctrl+K → «Privacidad».
+
+## Cómo funciona
+
+```
+parser  →  datos  →  orquestador  →  compilador  →  preview
+ Pug       mocks     un único flujo     Pug en un      iframe de
+ y plantillas        con debounce       Worker         origen opaco
+```
+
+Angular 22 (componentes standalone, signals), Monaco, el compilador de Pug empaquetado para el navegador, `sass` y `less` en el cliente, y el service worker de Angular para el uso sin conexión. El detalle está en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Empezar
+
+Necesitas Node.js y npm.
+
+```bash
+git clone https://github.com/ElMaxter99/pugIDE.git
+cd pugIDE
+npm install
+npm start          # http://localhost:4200
+```
+
+Abre <http://localhost:4200/ide?demo=true> para cargar un proyecto de ejemplo completo.
+
+| Comando | Para qué |
+|---|---|
+| `npm start` | Servidor de desarrollo |
+| `npm run build:prod` | Build de producción (comprueba también que los bundles del motor están al día) |
+| `npm run lint` | ESLint |
+| `npm run test:unit` | Pruebas unitarias de las utilidades puras |
+| `npm run test:e2e` | Pruebas e2e de los servicios, con el render real en Node |
+| `npm run test:ui` | Pruebas de interfaz con Playwright sobre el build (`PUGIDE_BROWSER=firefox` o `webkit` para los otros navegadores) |
+| `npm run perf` | Mediciones de rendimiento del paginado y del preview |
+| `npm run screenshots` | Regenera las capturas de este README |
+| `npm run release:check` | Comprueba que la versión es coherente antes de etiquetar |
+
+## Atajos útiles
+
+| Atajo | Acción |
+|---|---|
+| `Ctrl/Cmd + K` | Paleta de comandos |
+| `Ctrl/Cmd + Enter` | Compilar ahora |
+| `Ctrl/Cmd + S` | Guardar |
+| `Ctrl/Cmd + Mayús + F` | Buscar y reemplazar en el proyecto |
+| `Ctrl/Cmd + .` | Arreglo rápido del problema bajo el cursor |
+| `F12` · `Ctrl/Cmd + clic` | Ir a la definición |
+| `Mayús + Alt + F` | Formatear el archivo |
+| `Ctrl + M` (`Ctrl + Mayús + M` en Mac) | Soltar el foco del editor con Tab |
+
+La lista completa está en la paleta → «Atajos de teclado». En Mac, `Ctrl` equivale a `Cmd` salvo donde se indica.
 
 ## Limitaciones conocidas
 
-- `localStorage` tiene cuota (~5 MB): si un proyecto de texto es muy grande no se guarda ahí (se avisa), pero la biblioteca de IndexedDB lo conserva y se recupera al volver.
-- Importar/exportar a carpeta no funciona en Firefox/Safari (se usa `.zip`).
-- El preview PDF emula la paginación; el resultado final puede variar según el navegador al imprimir.
+- Tus proyectos solo existen en este navegador: no hay sincronización entre dispositivos ni colaboración.
 - PugIDE está pensado para el escritorio: no se ha diseñado ni probado para móvil.
-- No hay sincronización entre dispositivos ni colaboración.
-- La captura PNG no ejecuta el JavaScript de la página y, en modo PDF, captura el documento sin saltos de página.
-- Tus proyectos solo existen en este navegador: la terminal te recuerda exportar una copia si pasan 14 días.
+- El preview PDF **emula** la paginación de Chromium; el resultado final puede variar según el navegador al imprimir. `string()`, `string-set`, `element()` y `running()` no los imprime Chromium, así que PugIDE no los emula: avisa.
+- Los filtros de Pug que necesitan paquetes de Node (`:scss`, `:stylus`…) no existen en el navegador; `:markdown` es un subconjunto.
+- La captura PNG no ejecuta el JavaScript de la página.
+- Importar y exportar a carpeta usa la File System Access API (Chrome/Edge); en Firefox y Safari se usa `.zip`.
 
-Más detalle técnico en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); para colaborar, [CONTRIBUTING.md](CONTRIBUTING.md).
+## Documentación y hoja de ruta
 
-## Desarrollo
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): arquitectura, aislamiento, CSP, PDF y rendimiento medido.
+- [docs/PLAN.md](docs/PLAN.md): estado del proyecto y siguientes pasos.
+- [docs/RELEASE.md](docs/RELEASE.md): cómo se publica una versión y se despliega.
+- [CHANGELOG.md](CHANGELOG.md): qué cambia en cada versión.
+- [design/README.md](design/README.md): el lienzo de diseño («diseño primero») y los tokens de [docs/brand/DESIGN_TOKENS.md](docs/brand/DESIGN_TOKENS.md).
 
-```bash
-npm install
-npm start          # http://localhost:4200
-npm run build:prod # build de producción
-npm run test:e2e   # pruebas e2e
-```
+## Contribuir
 
-Prueba la demo en local: <http://localhost:4200/ide?demo=true>
+Las contribuciones son bienvenidas: lee [CONTRIBUTING.md](CONTRIBUTING.md) y [CLAUDE.md](CLAUDE.md). Todo el texto de la interfaz, los commits y la documentación va en español (este README tiene además una [versión en inglés](README.en.md), que se actualiza junto con él); los identificadores del código, en inglés.
 
 ## Licencia
 

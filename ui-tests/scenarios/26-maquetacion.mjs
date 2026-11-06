@@ -44,4 +44,21 @@ export default async function (env) {
   const fonts = await page.evaluate(() => [...document.querySelectorAll('h1, h2, p, a, button')].slice(0, 12).map((e) => getComputedStyle(e).fontFamily));
   check('26 la portada usa la fuente de la app (Geist Variable)', fonts.length > 0 && fonts.every((f) => f.includes('Geist Variable')), JSON.stringify([...new Set(fonts)]));
   await app.close();
+
+  // 4. Lista de todos los problemas: el texto no se aplasta junto a los botones
+  app = await openApp(env, {
+    path: '/ide',
+    session: {
+      projectName: 'Problemas',
+      files: { '/main.pug': 'html\n  body\n    +falta()\n', '/locales/es/translations.json': '{ "A": ' },
+      openTabPaths: ['/main.pug'], activeTabPath: '/main.pug',
+    },
+  });
+  page = app.page;
+  await page.locator('.compile-error').waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: /Todos los problemas/ }).click();
+  await page.locator('app-problems-list .diag-row').first().waitFor({ timeout: 4000 });
+  const widths = await page.locator('app-problems-list .diag-text').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+  check('26 en la lista de problemas el texto de cada uno ocupa un ancho legible (≥ 150 px)', widths.length === 2 && widths.every((w) => w >= 150), JSON.stringify(widths));
+  await app.close();
 }
