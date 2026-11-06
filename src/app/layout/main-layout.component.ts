@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, AfterViewInit, OnDestroy, HostListener, effect, signal, viewChild, ElementRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, OnInit, AfterViewInit, OnDestroy, HostListener, effect, signal, untracked, viewChild, ElementRef } from '@angular/core';
 import { LayoutService } from '../core/services/layout.service';
 import { layoutShortcut, panelShortcut } from '../core/utils/layout.util';
 import { ActivatedRoute } from '@angular/router';
@@ -21,6 +21,9 @@ import { PersistenceService, ProjectSessionState } from '../core/services/persis
 import { FileHistoryDialogComponent } from '../shared/components/file-history-dialog/file-history-dialog.component';
 import { ProjectSnapshotsDialogComponent } from '../shared/components/project-snapshots-dialog/project-snapshots-dialog.component';
 import { UpdateBarComponent } from '../shared/components/update-notice/update-bar.component';
+import { WelcomeDialogComponent } from '../shared/components/welcome-dialog/welcome-dialog.component';
+import { TourComponent } from '../shared/components/tour/tour.component';
+import { AnalyticsService } from '../core/services/analytics.service';
 import { ShortcutsDialogComponent } from '../shared/components/shortcuts-dialog/shortcuts-dialog.component';
 import { UiState } from '../core/state/ui.state';
 import { CommandPaletteComponent } from '../shared/components/command-palette/command-palette.component';
@@ -47,6 +50,8 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     DialogComponent,
     CommandPaletteComponent,
     ShortcutsDialogComponent,
+    WelcomeDialogComponent,
+    TourComponent,
     FileHistoryDialogComponent,
     ProjectSnapshotsDialogComponent,
     UpdateBarComponent,
@@ -58,12 +63,12 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-update-bar />
       <div class="app-content">
         <div class="app-body" #body>
-          <app-sidebar [style.flex]="'0 0 ' + layout.resolved().sidebar + 'px'" [style.width.px]="layout.resolved().sidebar" />
-          <app-editor-panel [style.flex]="'1 1 0'" />
+          <app-sidebar data-tour="files" [style.flex]="'0 0 ' + layout.resolved().sidebar + 'px'" [style.width.px]="layout.resolved().sidebar" />
+          <app-editor-panel data-tour="editor" [style.flex]="'1 1 0'" />
           @if (layout.dataVisible()) {
             <app-smart-data-editor [style.flex]="'0 0 ' + layout.resolved().data + 'px'" [style.width.px]="layout.resolved().data" />
           }
-          <app-preview-panel [style.flex]="'0 0 ' + layout.resolved().preview + 'px'" [style.width.px]="layout.resolved().preview" />
+          <app-preview-panel data-tour="preview" [style.flex]="'0 0 ' + layout.resolved().preview + 'px'" [style.width.px]="layout.resolved().preview" />
         </div>
         @if (terminalState.isVisible()) {
           <section class="app-terminal" aria-label="Problemas y Registro" [class.maximized]="terminalState.isMaximized()">
@@ -75,6 +80,8 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-command-palette />
       <app-file-history-dialog [isOpen]="ui.historyOpen()" (closed)="ui.historyOpen.set(false)" />
       <app-project-snapshots-dialog [isOpen]="ui.snapshotsOpen()" (closed)="ui.snapshotsOpen.set(false)" />
+      <app-welcome-dialog />
+      <app-tour />
       <app-shortcuts-dialog [isOpen]="ui.shortcutsOpen()" (closed)="ui.shortcutsOpen.set(false)" />
       <app-dialog
         [config]="addLocaleDialog"
@@ -148,6 +155,9 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   private projectIo = inject(ProjectIoService);
   private library = inject(ProjectLibraryService);
   protected layout = inject(LayoutService);
+  private analytics = inject(AnalyticsService);
+  /** Primer uso: la bienvenida espera a que se decida el aviso de privacidad para no solaparse con él. */
+  private welcomePending = signal(false);
   private readonly body = viewChild<ElementRef<HTMLElement>>('body');
   private bodyObserver: ResizeObserver | null = null;
   protected shareDialogOpen = signal(false);
@@ -179,6 +189,14 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     effect(() => {
       const t = this.preferences.theme();
       document.documentElement.classList.toggle('light-mode', t === 'light');
+    });
+
+    effect(() => {
+      if (!this.welcomePending() || this.analytics.consent() === null) return;
+      untracked(() => {
+        this.welcomePending.set(false);
+        this.ui.welcomeOpen.set(true);
+      });
     });
 
     effect(() => {
@@ -279,6 +297,8 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     this.orchestrator.markAssetsReady();
     this.orchestrator.adoptProjectId();
     this.loadEmptyProject();
+    // Primer uso (sin sesión ni proyecto que recuperar): se ofrece la bienvenida una sola vez.
+    if (!this.persistence.loadWelcomeSeen()) this.welcomePending.set(true);
   }
 
   onShareConfirm(): void {
@@ -376,7 +396,6 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     this.dataState.setInitialData({ ...DEFAULT_PROJECT_DATA });
     this.orchestrator.markDataInitialized();
     this.previewState.setDevice('Desktop', 1200, 800);
-    this.terminalState.addEntry('info', 'Sistema', 'Te damos la bienvenida a PugIDE: abre un proyecto o empieza a escribir.', undefined, true);
     this.orchestrator.manualCompile();
   }
 
@@ -414,7 +433,6 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     this.dataState.setInitialData(rawData as Record<string, unknown>);
     this.orchestrator.markDataInitialized();
     this.previewState.setDevice('Desktop', 1200, 800);
-    this.terminalState.addEntry('info', 'Sistema', 'Te damos la bienvenida a PugIDE: abre un proyecto o empieza a escribir.', undefined, true);
     this.orchestrator.manualCompile();
   }
 }

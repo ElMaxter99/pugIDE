@@ -34,8 +34,10 @@ export async function waitUntil(fn, timeout = 6000, step = 150) {
  * - `storage`: otras claves de `localStorage` a sembrar (`{ clave: valor }`).
  * - `consent`: decisión guardada sobre la analítica (`'denied'` por defecto, para que el aviso no estorbe;
  *   `null` = sin decidir, aparece el aviso).
+ * - `welcome`: por defecto la bienvenida de primer uso se da por vista (`pug-ide-welcome`) para que no estorbe en los
+ *   escenarios que abren `/ide` sin sesión; con `welcome: true` se parte de un primer uso de verdad.
  */
-export async function openApp(env, { path = '/ide?demo=true', session, prefs, consent = 'denied', storage, viewport = { width: 1400, height: 850 }, wait = 4000 } = {}) {
+export async function openApp(env, { path = '/ide?demo=true', session, prefs, consent = 'denied', storage, welcome = false, viewport = { width: 1400, height: 850 }, wait = 4000 } = {}) {
   const context = await env.browser.newContext({ viewport, serviceWorkers: env.serviceWorkers ?? 'block' });
   const external = [];
   const requests = [];
@@ -63,7 +65,7 @@ export async function openApp(env, { path = '/ide?demo=true', session, prefs, co
     if (p) localStorage.setItem('pug-ide-preferences', JSON.stringify(p));
     if (c) localStorage.setItem('pug-ide-analytics-consent', c);
     for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v);
-  }, [session ?? null, prefs ?? null, consent, storage ?? {}]);
+  }, [session ?? null, prefs ?? null, consent, { ...(welcome ? {} : { 'pug-ide-welcome': '1' }), ...(storage ?? {}) }]);
   const page = await context.newPage();
   page.on('worker', (w) => w.on('console', onConsole));
   const errors = [];

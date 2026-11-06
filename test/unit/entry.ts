@@ -27,3 +27,4 @@ export * from '../../src/app/core/utils/drop-import.util';
 export * from '../../src/app/core/utils/snapshot.util';
 export * from '../../src/app/core/utils/pug-vfs.util';
 export * from '../../src/app/core/utils/layout.util';
+export * from '../../src/app/core/utils/tour.util';

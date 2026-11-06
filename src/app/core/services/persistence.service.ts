@@ -10,6 +10,8 @@ const ANALYTICS_CONSENT_KEY = 'pug-ide-analytics-consent';
 const LAST_BACKUP_KEY = 'pug-ide-last-backup';
 const FIRST_USE_KEY = 'pug-ide-first-use';
 const RECENT_COMMANDS_KEY = 'pug-ide-recent-commands';
+const WELCOME_KEY = 'pug-ide-welcome';
+const TOUR_KEY = 'pug-ide-tour';
 
 /** Decisión del usuario sobre la analítica anónima de visitas (null: aún no ha decidido). */
 export type AnalyticsConsent = 'granted' | 'denied';
@@ -135,6 +137,24 @@ export class PersistenceService {
 
   saveLastBackup(at = Date.now()): void {
     try { localStorage.setItem(LAST_BACKUP_KEY, String(at)); } catch { /* ignore */ }
+  }
+
+  /** ¿Ya se enseñó la bienvenida de primer uso? Solo se ofrece una vez; si no hay almacenamiento se da por vista para no insistir. */
+  loadWelcomeSeen(): boolean {
+    try { return localStorage.getItem(WELCOME_KEY) !== null; } catch { return true; }
+  }
+
+  saveWelcomeSeen(): void {
+    try { localStorage.setItem(WELCOME_KEY, String(Date.now())); } catch { /* ignore */ }
+  }
+
+  /** ¿Se terminó o saltó ya el recorrido guiado? */
+  loadTourDone(): boolean {
+    try { return localStorage.getItem(TOUR_KEY) !== null; } catch { return true; }
+  }
+
+  saveTourDone(): void {
+    try { localStorage.setItem(TOUR_KEY, String(Date.now())); } catch { /* ignore */ }
   }
 
   /** Guarda el primer uso si aún no consta. */
