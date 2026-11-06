@@ -4,6 +4,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+Tercera oleada de la propuesta 0.7 de mejoras de interfaz (mesas P-03 y P-08 del lienzo, aprobadas): la estructura.
+
+### Añadido
+- **Panel «Problemas» único:** el panel inferior tiene dos pestañas, **«Problemas | Registro»**. «Problemas» reúne todos los diagnósticos con filtros Todos / Errores / Avisos y contadores, «Solo el archivo abierto», Anterior (`Mayús+F8`) / Siguiente (`F8`) con «n de m», la explicación de cada uno, el fragmento de código con la línea marcada y los arreglos con un clic. Los errores que no se pueden situar en un archivo y línea también se listan. El aviso grande del preview pasa a una franja **«N problemas · Ver»** y el preview **conserva la última vista correcta** («Última vista correcta · hace N s») cuando la compilación falla. Los contadores de la barra de estado abren «Problemas».
+- **Disposiciones y tiradores:** cuatro disposiciones con nombre y atajo — «Editor + vista previa» (predeterminada, `Ctrl+Alt+1`), «Editor + datos + vista previa» (`Ctrl+Alt+2`), «Foco en el editor» (`Ctrl+Alt+3`) y «Foco en la vista previa · PDF» (`Ctrl+Alt+4`) —, menú **«Disposición»** en la barra de estado y comandos en la paleta, `Ctrl+B` (panel lateral) y `Ctrl+J` (panel inferior), «Restablecer los tamaños». Tiradores entre paneles (`role="separator"`, arrastre, ← → de 16 px, `Mayús` 64 px, doble clic restablece) con mínimos por panel. Los tamaños y la disposición se recuerdan en las preferencias del usuario y no viajan con el proyecto compartido ni con las instantáneas.
+- En teclados con AltGr, `Ctrl+Alt+cifra` escribe `| @ # ~` (y Pug usa `|`), así que ahí no se secuestra la tecla: las disposiciones se cambian desde el menú o la paleta.
+
+### Cambiado
+- **Los datos pasan a una pestaña «Datos» del panel lateral** (junto a «Archivos») y dejan de ocupar una cuarta columna. Con la disposición predeterminada la vista previa mide ~660 px (antes ~390), y su barra enseña por fin los textos.
+- El Registro deja de repetir los errores de compilación: «Esenciales» ya no los incluye (viven en «Problemas»); «Todo» sí.
+- **Accesibilidad:** el Inspector se llama «Inspector» cuando enseña el texto, el lienzo del preview y la lista de atajos son enfocables por teclado.
+
 ### Añadido
 - **Previsualizar cada archivo `.pug`:** al importar varias plantillas sueltas ahora puedes elegir cuál se previsualiza. «Previsualizar este archivo» en el menú del árbol y «Previsualizar archivo…» en la paleta; el elegido lleva una marca «Vista previa» en el árbol y la elección se guarda con el proyecto («Vista previa automática» vuelve a `index`/`main`/`app` como hasta ahora). Renombrar sigue al archivo elegido; borrarlo vuelve a automático y lo anota en el Registro. Importar varias plantillas ya no cambia lo que se ve y el Registro explica cómo elegir otra. Los `.jade` valen ahora como archivo de entrada y como parciales sin extensión. Mesa P-13 del lienzo (propuesta, pendiente de revisar).
 

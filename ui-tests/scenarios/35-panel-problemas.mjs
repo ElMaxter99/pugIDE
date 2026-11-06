@@ -23,7 +23,7 @@ export default async function (env) {
 
   const tablist = page.locator('app-terminal-panel [role="tablist"]');
   check('35 el panel inferior tiene pestañas «Problemas» y «Registro»', (await tablist.getByRole('tab').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim()).join('|') === 'Problemas 2|Registro', (await tablist.innerText()).replace(/\s+/g, ' '));
-  check('35 «Problemas» es la pestaña activa y la que se ve', (await page.locator('[data-testid="tab-problems"]').getAttribute('aria-selected')) === 'true' && (await page.locator('[role="tabpanel"]').getAttribute('id')) === 'panel-problems');
+  check('35 «Problemas» es la pestaña activa y la que se ve', (await page.locator('[data-testid="tab-problems"]').getAttribute('aria-selected')) === 'true' && (await page.locator('app-terminal-panel [role="tabpanel"]').getAttribute('id')) === 'panel-problems');
   check('35 la pestaña «Problemas» cuenta el total (2)', (await page.locator('[data-testid="tab-problems-count"]').innerText()).trim() === '2');
 
   const first = rows.filter({ hasText: 'falta' }).first();
