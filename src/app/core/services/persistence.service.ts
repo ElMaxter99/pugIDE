@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { AppPreferences } from '../models/index';
 import type { DatasetsFile } from '../utils/datasets.util';
+import { DEFAULT_LAYOUT, isLayoutId, sanitizePanelSizes } from '../utils/layout.util';
 
 const STORAGE_KEY = 'pug-ide-preferences';
 const PROJECT_KEY = 'pug-ide-project';
@@ -42,12 +43,22 @@ export class PersistenceService {
     zoom: 100,
     sidebarCollapsed: false,
     dataCollapsed: false,
+    layout: DEFAULT_LAYOUT,
+    panelSizes: {},
+    sidebarTab: 'archivos',
   };
 
   loadPreferences(): AppPreferences {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return { ...this.defaults, ...JSON.parse(raw) };
+      if (raw) {
+        const saved = { ...this.defaults, ...JSON.parse(raw) } as AppPreferences;
+        // Preferencias antiguas o escritas a mano: lo que no sea válido vuelve a su valor de partida.
+        if (!isLayoutId(saved.layout)) saved.layout = DEFAULT_LAYOUT;
+        saved.panelSizes = sanitizePanelSizes(saved.panelSizes);
+        if (saved.sidebarTab !== 'datos') saved.sidebarTab = 'archivos';
+        return saved;
+      }
     } catch { /* ignore */ }
     return { ...this.defaults };
   }

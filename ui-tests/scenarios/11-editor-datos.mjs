@@ -13,6 +13,8 @@ const dsOptions = (page) => page.locator('app-dataset-bar select').first().locat
 export default async function (env) {
   const app = await openApp(env, { path: '/ide', session });
   const { page } = app;
+  // Los datos viven en la pestaña «Datos» del panel lateral (P-08)
+  await page.locator('[data-testid="tab-datos"]').click();
   const tree = page.locator('app-smart-data-editor .tree-view');
   await tree.waitFor({ timeout: 6000 });
   const text = await waitUntil(async () => (await previewText(page)).includes('Hola') && (await previewText(page)).includes('Ana'));

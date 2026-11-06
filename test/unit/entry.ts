@@ -26,3 +26,4 @@ export * from '../../src/app/core/utils/fix-apply.util';
 export * from '../../src/app/core/utils/drop-import.util';
 export * from '../../src/app/core/utils/snapshot.util';
 export * from '../../src/app/core/utils/pug-vfs.util';
+export * from '../../src/app/core/utils/layout.util';

@@ -1,4 +1,6 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, HostListener, effect, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, OnInit, AfterViewInit, OnDestroy, HostListener, effect, signal, viewChild, ElementRef } from '@angular/core';
+import { LayoutService } from '../core/services/layout.service';
+import { layoutShortcut, panelShortcut } from '../core/utils/layout.util';
 import { ActivatedRoute } from '@angular/router';
 import { TopbarComponent } from '../shared/components/topbar/topbar.component';
 import { SidebarComponent } from '../shared/components/sidebar/sidebar.component';
@@ -55,11 +57,13 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-topbar />
       <app-update-bar />
       <div class="app-content">
-        <div class="app-body">
-          <app-sidebar />
-          <app-editor-panel />
-          <app-smart-data-editor />
-          <app-preview-panel />
+        <div class="app-body" #body>
+          <app-sidebar [style.flex]="'0 0 ' + layout.resolved().sidebar + 'px'" [style.width.px]="layout.resolved().sidebar" />
+          <app-editor-panel [style.flex]="'1 1 0'" />
+          @if (layout.dataVisible()) {
+            <app-smart-data-editor [style.flex]="'0 0 ' + layout.resolved().data + 'px'" [style.width.px]="layout.resolved().data" />
+          }
+          <app-preview-panel [style.flex]="'0 0 ' + layout.resolved().preview + 'px'" [style.width.px]="layout.resolved().preview" />
         </div>
         @if (terminalState.isVisible()) {
           <section class="app-terminal" aria-label="Problemas y Registro" [class.maximized]="terminalState.isMaximized()">
@@ -109,6 +113,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     }
 
     .app-body {
+      position: relative;
       display: flex;
       flex: 1;
       min-height: 0;
@@ -128,7 +133,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     }
   `],
 })
-export class MainLayoutComponent implements OnInit {
+export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   protected ui = inject(UiState);
   private orchestrator = inject(OrchestratorService);
   private route = inject(ActivatedRoute);
@@ -137,11 +142,14 @@ export class MainLayoutComponent implements OnInit {
   private previewState = inject(PreviewState);
   private dataState = inject(DataState);
   private projectState = inject(ProjectState);
-  private preferences = inject(PreferencesState);
+  protected preferences = inject(PreferencesState);
   private persistence = inject(PersistenceService);
   private assetState = inject(AssetState);
   private projectIo = inject(ProjectIoService);
   private library = inject(ProjectLibraryService);
+  protected layout = inject(LayoutService);
+  private readonly body = viewChild<ElementRef<HTMLElement>>('body');
+  private bodyObserver: ResizeObserver | null = null;
   protected shareDialogOpen = signal(false);
   protected shareDialog: DialogConfig = {
     title: 'Abrir proyecto compartido',
@@ -194,6 +202,18 @@ export class MainLayoutComponent implements OnInit {
       if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
       this.autosaveTimer = setTimeout(() => this.orchestrator.saveSession(), 1000);
     });
+  }
+
+  ngAfterViewInit(): void {
+    const el = this.body()?.nativeElement;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    this.layout.setContainerWidth(el.clientWidth);
+    this.bodyObserver = new ResizeObserver(() => this.layout.setContainerWidth(el.clientWidth));
+    this.bodyObserver.observe(el);
+  }
+
+  ngOnDestroy(): void {
+    this.bodyObserver?.disconnect();
   }
 
   ngOnInit(): void {
@@ -316,6 +336,24 @@ export class MainLayoutComponent implements OnInit {
 
   @HostListener('window:keydown', ['$event'])
   onKeydown(event: KeyboardEvent): void {
+    // Disposición y paneles (P-08): Ctrl+Alt+1…4, Ctrl+B y Ctrl+J. Con AltGr no se secuestra la tecla (ver `layoutShortcut`).
+    const keys = {
+      ctrlKey: event.ctrlKey, metaKey: event.metaKey, altKey: event.altKey, shiftKey: event.shiftKey,
+      key: event.key, code: event.code, altGraph: !!event.getModifierState?.('AltGraph'),
+    };
+    const target = layoutShortcut(keys);
+    if (target) {
+      event.preventDefault();
+      this.layout.apply(target);
+      return;
+    }
+    const panel = panelShortcut(keys);
+    if (panel) {
+      event.preventDefault();
+      if (panel === 'sidebar') this.layout.toggleSidebar();
+      else this.layout.toggleBottom();
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault();
       this.orchestrator.saveFile();

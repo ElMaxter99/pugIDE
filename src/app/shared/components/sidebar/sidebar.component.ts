@@ -5,6 +5,7 @@ import {
   signal,
   effect,
   untracked,
+  computed,
   ViewChild,
   ElementRef,
 } from '@angular/core';
@@ -23,6 +24,9 @@ import { AssetState } from '../../../core/state/asset.state';
 import { PreferencesState } from '../../../core/services/preferences.state';
 import { APP_VERSION } from '../../../core/models/version.token';
 import { UiState } from '../../../core/state/ui.state';
+import { PanelResizerComponent } from '../panel-resizer/panel-resizer.component';
+import { LayoutService } from '../../../core/services/layout.service';
+import { SmartDataEditorComponent } from '../../../features/smart-data-editor/smart-data-editor.component';
 
 type PendingAction =
   | { type: 'newFile'; dir: string }
@@ -33,10 +37,23 @@ type PendingAction =
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [DialogComponent, ContextMenuComponent, FileTreeComponent],
+  imports: [DialogComponent, ContextMenuComponent, FileTreeComponent, SmartDataEditorComponent, PanelResizerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <aside class="sidebar" [class.collapsed]="preferences.sidebarCollapsed()">
+      @if (!preferences.sidebarCollapsed()) {
+        <app-panel-resizer
+          testId="resizer-sidebar"
+          label="Ancho del panel lateral"
+          edge="right"
+          [value]="layout.resolved().sidebar"
+          [min]="layout.resolved().limits.sidebar.min"
+          [max]="layout.resolved().limits.sidebar.max"
+          [grow]="1"
+          (sizeChange)="layout.setLive('sidebar', $event)"
+          (committed)="layout.commitLive()"
+          (restore)="layout.resetSize('sidebar')" />
+      }
       <app-dialog
         [config]="dialogConfig()"
         [isOpen]="dialogOpen()"
@@ -48,25 +65,45 @@ type PendingAction =
         [positionX]="contextMenuX()"
         [positionY]="contextMenuY()"
         (actionSelected)="onContextAction($event)" />
-      <button class="rail-btn" (click)="preferences.toggleSidebar()" title="Mostrar Archivos" aria-label="Mostrar Workspace">
-        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">left_panel_open</span>
-        <span class="rail-label">Archivos</span>
-      </button>
+      <div class="rail" role="toolbar" aria-label="Paneles recogidos" aria-orientation="vertical">
+        <button type="button" class="rail-btn" data-testid="rail-archivos" (click)="layout.openSidebar('archivos')" title="Mostrar Archivos (Ctrl+B)" aria-label="Mostrar Archivos">
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 20px;">folder_open</span>
+        </button>
+        @if (!layout.dataColumn()) {
+          <button type="button" class="rail-btn" data-testid="rail-datos" (click)="layout.openSidebar('datos')" title="Mostrar Datos" aria-label="Mostrar Datos">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 20px;">data_object</span>
+          </button>
+        }
+      </div>
       <div class="sidebar-inner">
+        <div class="sidebar-tabs">
+        <div class="tabs-list" role="tablist" aria-label="Panel lateral" (keydown)="onTabKey($event)">
+          <button type="button" role="tab" class="tab" id="tab-archivos" data-testid="tab-archivos" aria-controls="panel-archivos"
+            [class.active]="tab() === 'archivos'" [attr.aria-selected]="tab() === 'archivos'" [attr.tabindex]="tab() === 'archivos' ? 0 : -1"
+            (click)="selectTab('archivos')">Archivos</button>
+          @if (!layout.dataColumn()) {
+            <button type="button" role="tab" class="tab" id="tab-datos" data-testid="tab-datos" aria-controls="panel-datos"
+              [class.active]="tab() === 'datos'" [attr.aria-selected]="tab() === 'datos'" [attr.tabindex]="tab() === 'datos' ? 0 : -1"
+              (click)="selectTab('datos')">Datos</button>
+          }
+        </div>
+          <span class="tabs-spacer"></span>
+          <button type="button" class="add-btn" (click)="layout.toggleSidebar()" title="Recoger el panel lateral (Ctrl+B)" aria-label="Recoger el panel lateral">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">left_panel_close</span>
+          </button>
+        </div>
+
+        <div class="tab-panel" role="tabpanel" id="panel-archivos" aria-labelledby="tab-archivos" [hidden]="tab() !== 'archivos'">
         <div class="workspace-header">
           <div class="workspace-label-row">
-            <span class="workspace-label">Archivos</span>
             <div class="workspace-actions">
-              <button class="add-btn" (click)="preferences.toggleSidebar()" title="Colapsar Archivos" aria-label="Colapsar Workspace">
-                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">left_panel_close</span>
-              </button>
               <button class="add-btn" (click)="onImportClick()" title="Importar proyecto (carpeta o .zip)" aria-label="Importar proyecto (carpeta o .zip)">
                 <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">upload</span>
               </button>
               <button class="add-btn" (click)="onExportClick()" title="Exportar proyecto (carpeta o .zip)" aria-label="Exportar proyecto (carpeta o .zip)">
                 <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">download</span>
               </button>
-              <button class="add-btn" (click)="pickAssets()" title="Subir imágenes, fuentes o estilos (.css, .scss, .less)">
+              <button class="add-btn" (click)="pickAssets()" title="Subir imágenes, fuentes o estilos (.css, .scss, .less)" aria-label="Subir imágenes, fuentes o estilos">
                 <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">add_photo_alternate</span>
               </button>
               @if (orchestrator.fileUndoLabel(); as undoLabel) {
@@ -102,6 +139,13 @@ type PendingAction =
         </div>
 
         <app-file-tree (pickAsset)="pickAssets($event)" (nodeContextMenu)="onNodeContextMenu($event.event, $event.node)" />
+        </div>
+
+        @if (!layout.dataColumn()) {
+          <div class="tab-panel data-panel" role="tabpanel" id="panel-datos" aria-labelledby="tab-datos" [hidden]="tab() !== 'datos'">
+            <app-smart-data-editor [embedded]="true" />
+          </div>
+        }
       </div>
     </aside>
 
@@ -113,45 +157,75 @@ type PendingAction =
     }
 
     .sidebar {
-      width: 240px;
-      min-width: 240px;
+      width: 100%;
+      min-width: 0;
+      position: relative;
       background: var(--bg-surface-container-low);
       border-right: 1px solid var(--border-color);
       height: 100%;
+      overflow: hidden;
     }
 
-    .sidebar.collapsed {
-      width: 40px;
-      min-width: 40px;
-    }
+    /* Recogido: un raíl con un botón por panel (48 px; el ancho lo fija la disposición). */
+    .rail { display: none; }
     .sidebar.collapsed .sidebar-inner { display: none; }
-    .rail-btn { display: none; }
-    .sidebar.collapsed .rail-btn {
+    .sidebar.collapsed .rail {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
-      width: 100%;
-      padding: 12px 0;
+      gap: 4px;
+      padding: 8px 0;
+    }
+    .rail-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius);
       color: var(--text-secondary);
     }
     .rail-btn:hover { color: var(--text-primary); background: var(--bg-surface-variant); }
-    .rail-label {
-      writing-mode: vertical-rl;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
 
     .sidebar-inner {
       display: flex;
       flex-direction: column;
       height: 100%;
-      padding: 16px 0;
-      gap: 8px;
+      min-height: 0;
     }
+
+    .sidebar-tabs {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 6px 8px 0 8px;
+      border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+    .tab {
+      padding: 6px 12px;
+      min-height: 32px;
+      border-bottom: 2px solid transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .tab:hover { color: var(--text-primary); }
+    .tab.active { color: var(--text-primary); border-bottom-color: var(--accent-color); font-weight: 600; }
+    .tabs-list { display: flex; align-items: center; gap: 2px; }
+    .tabs-spacer { flex: 1; }
+
+    .tab-panel {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      padding-top: 12px;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .tab-panel[hidden] { display: none; }
+    .tab-panel.data-panel { padding-top: 0; }
 
     .workspace-header {
       padding: 0 16px;
@@ -270,6 +344,9 @@ export class SidebarComponent {
   protected version = inject(APP_VERSION);
   protected assetState = inject(AssetState);
   protected preferences = inject(PreferencesState);
+  protected layout = inject(LayoutService);
+  /** Pestaña visible: con los datos en su propia columna solo existe «Archivos». */
+  protected tab = computed<'archivos' | 'datos'>(() => (this.layout.dataColumn() ? 'archivos' : this.preferences.sidebarTab()));
   private ui = inject(UiState);
   private assetTarget: string | undefined;
 
@@ -296,6 +373,19 @@ export class SidebarComponent {
         else if (req.id === 'upload-assets') this.pickAssets();
       });
     });
+  }
+
+  protected selectTab(tab: 'archivos' | 'datos'): void {
+    this.preferences.update({ sidebarTab: tab });
+  }
+
+  /** Flechas ← → entre pestañas (patrón de pestañas de WAI-ARIA): mueven la selección y el foco. */
+  protected onTabKey(e: KeyboardEvent): void {
+    if (this.layout.dataColumn() || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End')) return;
+    e.preventDefault();
+    const next = e.key === 'ArrowLeft' || e.key === 'Home' ? 'archivos' : 'datos';
+    this.selectTab(next);
+    (document.getElementById('tab-' + next) as HTMLElement | null)?.focus();
   }
 
   /** `target`: exact path a missing reference asks for; without it the file is matched by name or goes to /assets/. */

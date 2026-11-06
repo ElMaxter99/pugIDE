@@ -29,6 +29,8 @@ import { TerminalState } from '../../core/state/terminal.state';
 import { UiState } from '../../core/state/ui.state';
 import { findPugSource } from '../../core/utils/pug-source-map.util';
 import { PdfBarComponent } from './pdf-bar.component';
+import { PanelResizerComponent } from '../../shared/components/panel-resizer/panel-resizer.component';
+import { LayoutService } from '../../core/services/layout.service';
 import { DropdownMenuComponent, MenuItem } from '../../shared/components/dropdown-menu/dropdown-menu.component';
 import { InspectorPanelComponent } from '../inspector/inspector-panel.component';
 
@@ -37,10 +39,21 @@ const NARROW_BELOW = 600;
 @Component({
   selector: 'app-preview-panel',
   standalone: true,
-  imports: [InspectorPanelComponent, PdfBarComponent, DropdownMenuComponent],
+  imports: [InspectorPanelComponent, PdfBarComponent, DropdownMenuComponent, PanelResizerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="preview-section" aria-label="Vista previa">
+      <app-panel-resizer
+        testId="resizer-preview"
+        label="Ancho de la vista previa"
+        edge="left"
+        [value]="layout.resolved().preview"
+        [min]="layout.resolved().limits.preview.min"
+        [max]="layout.resolved().limits.preview.max"
+        [grow]="-1"
+        (sizeChange)="layout.setLive('preview', $event)"
+        (committed)="layout.commitLive()"
+        (restore)="layout.resetSize('preview')" />
       <div class="preview-header" #header>
         <div class="device-switcher" role="group" aria-label="Dispositivo">
           @for (opt of segments; track opt.id) {
@@ -71,7 +84,7 @@ const NARROW_BELOW = 600;
             <option value="100" [selected]="zoomValue() === '100'">100 %</option>
           </select>
           <button type="button" class="inspector-btn" [class.icon-only]="narrow()" [class.active]="inspectorState.isActive()" [attr.aria-pressed]="inspectorState.isActive()"
-                  title="Inspeccionar elemento" aria-label="Inspeccionar elemento" (click)="inspectorState.toggleInspector()">
+                  title="Inspeccionar elemento" [attr.aria-label]="narrow() ? 'Inspeccionar elemento' : 'Inspector'" (click)="inspectorState.toggleInspector()">
             <span aria-hidden="true" class="material-symbols-outlined seg-icon">ads_click</span>
             @if (!narrow()) { <span class="seg-text">Inspector</span> }
           </button>
@@ -142,6 +155,7 @@ const NARROW_BELOW = 600;
     }
 
     .preview-section {
+      position: relative;
       display: flex;
       flex-direction: column;
       height: 100%;
@@ -387,6 +401,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   private preferences = inject(PreferencesState);
   private editorState = inject(EditorState);
   protected terminal = inject(TerminalState);
+  protected layout = inject(LayoutService);
   private ui = inject(UiState);
   protected readonly presets = DEVICE_PRESETS;
   /** Segmentado de la barra: lo que se cambia a cada rato; el resto de dispositivos vive en el menú «Vista». */

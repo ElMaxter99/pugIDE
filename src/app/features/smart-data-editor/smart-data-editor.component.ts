@@ -7,8 +7,11 @@ import {
   ViewChild,
   ElementRef,
   viewChild,
+  input,
 } from '@angular/core';
 import { DataTreeComponent } from './data-tree.component';
+import { PanelResizerComponent } from '../../shared/components/panel-resizer/panel-resizer.component';
+import { LayoutService } from '../../core/services/layout.service';
 import { DatasetBarComponent } from './dataset-bar.component';
 import { DataState } from '../../core/state/data.state';
 import { PreferencesState } from '../../core/services/preferences.state';
@@ -20,23 +23,27 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
 @Component({
   selector: 'app-smart-data-editor',
   standalone: true,
-  imports: [DatasetBarComponent, DataTreeComponent],
+  imports: [DatasetBarComponent, DataTreeComponent, PanelResizerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[class.collapsed]': 'preferences.dataCollapsed()' },
+  host: { '[class.embedded]': 'embedded()' },
   template: `
-    <button class="rail-btn" (click)="preferences.toggleData()" title="Mostrar Datos" aria-label="Mostrar Datos">
-      <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">right_panel_open</span>
-      <span class="rail-label">Datos</span>
-    </button>
     <section class="data-section" aria-label="Datos">
-      <div class="data-header">
-        <span class="data-title">Datos</span>
-        <div class="data-actions">
-          <button class="icon-btn" (click)="preferences.toggleData()" title="Colapsar Datos" aria-label="Colapsar Datos">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">right_panel_close</span>
-          </button>
+      @if (!embedded()) {
+        <app-panel-resizer
+          testId="resizer-data"
+          label="Ancho de los datos"
+          edge="left"
+          [value]="layout.resolved().data"
+          [min]="layout.resolved().limits.data.min"
+          [max]="layout.resolved().limits.data.max"
+          [grow]="-1"
+          (sizeChange)="layout.setLive('data', $event)"
+          (committed)="layout.commitLive()"
+          (restore)="layout.resetSize('data')" />
+        <div class="data-header">
+          <span class="data-title">Datos</span>
         </div>
-      </div>
+      }
 
       <div class="data-tools">
         <div class="mode-group" role="group" aria-label="Modo del editor de datos" title="Cambiar entre árbol y JSON (Ctrl+Shift+J)">
@@ -79,40 +86,18 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
       display: flex;
       flex-direction: column;
       flex: 1;
-      min-width: 300px;
+      min-width: 0;
       border-right: 1px solid var(--border-color);
       height: 100%;
       overflow: hidden;
       background: var(--bg-surface-container-low);
     }
 
-    :host(.collapsed) {
-      flex: 0 0 40px;
-      min-width: 40px;
-      width: 40px;
-    }
-    :host(.collapsed) .data-section { display: none; }
-    .rail-btn { display: none; }
-    :host(.collapsed) .rail-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      width: 100%;
-      padding: 12px 0;
-      color: var(--text-secondary);
-    }
-    .rail-btn:hover { color: var(--text-primary); background: var(--bg-surface-variant); }
-    .rail-label {
-      writing-mode: vertical-rl;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
+    /* Dentro de la pestaña «Datos» del panel lateral: sin borde propio (lo pone el panel). */
+    :host(.embedded) { border-right: 0; }
 
     .data-section {
+      position: relative;
       display: flex;
       flex-direction: column;
       flex: 1;
@@ -262,6 +247,9 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
   `],
 })
 export class SmartDataEditorComponent {
+  protected layout = inject(LayoutService);
+  /** Dentro de la pestaña «Datos» del panel lateral (sin cabecera ni borde); si no, es la columna de «Editor + datos + vista previa». */
+  readonly embedded = input(false);
   dataState = inject(DataState);
   preferences = inject(PreferencesState);
   parserState = inject(ParserState);
