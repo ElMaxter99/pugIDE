@@ -62,7 +62,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
           <app-preview-panel />
         </div>
         @if (terminalState.isVisible()) {
-          <section class="app-terminal" aria-label="Terminal" [class.maximized]="terminalState.isMaximized()">
+          <section class="app-terminal" aria-label="Problemas y Registro" [class.maximized]="terminalState.isMaximized()">
             <app-terminal-panel />
           </section>
         }

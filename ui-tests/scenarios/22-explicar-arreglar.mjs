@@ -1,9 +1,10 @@
-import { check, openApp, previewText, waitUntil, CMD } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, CMD, openLogTab, openProblemsTab } from '../lib.mjs';
 
 const model = (page, path) => page.evaluate((p) => window.monaco.editor.getModels().find((m) => m.uri.path === p)?.getValue() ?? null, path);
 const activePath = (page) => page.evaluate(() => window.monaco.editor.getEditors()[0].getModel()?.uri.path);
 const activeLine = (page) => page.evaluate(() => window.monaco.editor.getEditors()[0].getPosition()?.lineNumber);
-const banner = (page) => page.locator('.compile-error');
+// Primera fila del panel «Problemas» (el aviso con la explicación y el arreglo)
+const banner = (page) => page.locator('app-problems-panel .diag-row').first();
 
 async function open(env, files, tabs = ['/main.pug']) {
   return openApp(env, { path: '/ide', session: { projectName: 'Arreglos', files, openTabPaths: tabs, activeTabPath: '/main.pug' } });
@@ -19,7 +20,7 @@ export default async function (env) {
   const create = banner(app.page).getByRole('button', { name: 'Crear mixin tarjeta en mixins.pug' });
   check('22 hay un arreglo «Crear mixin»', (await create.count()) === 1, text);
   await create.click();
-  const created = await waitUntil(async () => /include \.\/mixins/.test((await model(app.page, '/main.pug')) ?? '') && (await app.page.locator('.compile-error').count()) === 0, 10000);
+  const created = await waitUntil(async () => /include \.\/mixins/.test((await model(app.page, '/main.pug')) ?? '') && (await app.page.locator('app-problems-panel .diag-row').count()) === 0, 10000);
   check('22 tras el arreglo main.pug incluye mixins y ya no hay error', !!created, String(await model(app.page, '/main.pug')));
   check('22 el editor salta a la definición nueva', !!(await waitUntil(async () => (await activePath(app.page)) === '/mixins.pug', 5000)), String(await activePath(app.page)));
   check('22 el mixin queda definido en mixins.pug, en la línea a la que salta', /mixin tarjeta\(\)/.test((await model(app.page, '/mixins.pug')) ?? '') && (await activeLine(app.page)) === 4, `${await activeLine(app.page)}: ${await model(app.page, '/mixins.pug')}`);
@@ -51,21 +52,26 @@ export default async function (env) {
   }, ['/main.pug', '/locales/es/translations.json']);
   const { page } = app;
   await banner(page).waitFor({ timeout: 10000 });
-  const toggle = banner(page).getByRole('button', { name: /Todos los problemas \(2\)/ });
-  check('22 el aviso ofrece ver todos los problemas', (await toggle.count()) === 1, await banner(page).textContent());
-  await toggle.click();
-  const list = page.locator('app-problems-list .diag-row');
+  check('22 la pestaña «Problemas» cuenta los dos problemas', (await page.locator('[data-testid="tab-problems-count"]').textContent()).trim() === '2');
+  const list = page.locator('app-problems-panel .diag-row');
   await waitUntil(async () => (await list.count()) === 2, 4000);
   check('22 la lista muestra los dos problemas', (await list.count()) === 2, (await list.allInnerTexts()).join(' | '));
-  await page.locator('app-problems-list .diag-go', { hasText: 'translations.json' }).click();
+  await page.locator('app-problems-panel .diag-go', { hasText: 'translations.json' }).click();
   check('22 un problema de la lista abre su archivo', !!(await waitUntil(async () => (await activePath(page)) === '/locales/es/translations.json', 4000)), String(await activePath(page)));
-  await page.locator('app-problems-list .diag-go', { hasText: 'main.pug' }).click();
+  await page.locator('app-problems-panel .diag-go', { hasText: 'main.pug' }).click();
   check('22 y otro lleva a la línea de main.pug', !!(await waitUntil(async () => (await activePath(page)) === '/main.pug' && (await activeLine(page)) === 4, 4000)), `${await activePath(page)}:${await activeLine(page)}`);
+  // El Registro conserva los errores como detalle («Todo») con su enlace a la línea
+  await openLogTab(page);
+  await page.locator('[data-testid="log-filter-all"]').click();
   const link = page.locator('.log-link', { hasText: 'main.pug:4' }).first();
-  check('22 la terminal enlaza el error a main.pug:4', (await link.count()) >= 1);
-  await page.locator('app-problems-list .diag-go', { hasText: 'translations.json' }).click();
+  await waitUntil(async () => (await link.count()) >= 1, 4000);
+  check('22 el Registro (Todo) enlaza el error a main.pug:4', (await link.count()) >= 1);
+  await openProblemsTab(page);
+  await page.locator('app-problems-panel .diag-go', { hasText: 'translations.json' }).click();
+  await waitUntil(async () => (await activePath(page)) === '/locales/es/translations.json', 4000);
+  await openLogTab(page);
   await link.click();
-  check('22 el enlace de la terminal abre main.pug en esa línea', !!(await waitUntil(async () => (await activePath(page)) === '/main.pug' && (await activeLine(page)) === 4, 4000)), `${await activePath(page)}:${await activeLine(page)}`);
+  check('22 el enlace del Registro abre main.pug en esa línea', !!(await waitUntil(async () => (await activePath(page)) === '/main.pug' && (await activeLine(page)) === 4, 4000)), `${await activePath(page)}:${await activeLine(page)}`);
   check('22 sin errores no controlados (varios problemas)', app.errors.length === 0, app.errors.join(' | '));
   await app.close();
 

@@ -39,8 +39,7 @@ const errSession = session({
 const pdfSession = session({ files: { ...FILES, '/main.pug': MAIN_PUG_PDF }, openTabPaths: ['/main.pug', '/mixins.pug', '/styles/informe.scss'] });
 
 const errors = async ({ page }) => {
-  await page.locator('.compile-error').waitFor({ timeout: 10000 });
-  await page.getByRole('button', { name: /Todos los problemas/ }).click();
+  await page.locator('app-problems-panel .diag-row').first().waitFor({ timeout: 10000 });
   await sleep(500);
 };
 const pdf = async ({ page }) => {

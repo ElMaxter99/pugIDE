@@ -1,4 +1,4 @@
-import { check, openApp, waitUntil, previewText, openViewMenu, closeViewMenu } from '../lib.mjs';
+import { check, openApp, waitUntil, previewText, openViewMenu, closeViewMenu, openLogTab } from '../lib.mjs';
 
 const session = {
   projectName: 'Informe',
@@ -18,6 +18,7 @@ export default async function (env) {
   const { page } = app;
   await page.locator('.monaco-editor').first().waitFor({ timeout: 8000 });
   await waitUntil(async () => (await previewText(page)).includes('Informe'));
+  await openLogTab(page);
   const log = page.locator('app-terminal-panel');
   const text = async () => (await log.innerText()).replace(/\s+/g, ' ');
   await waitUntil(async () => (await text()).includes('Falta 1 archivo referenciado'));

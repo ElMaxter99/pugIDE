@@ -1,8 +1,8 @@
-import { check, openApp, waitUntil } from '../lib.mjs';
+import { check, openApp, waitUntil, openLogTab } from '../lib.mjs';
 
 const DAY = 24 * 60 * 60 * 1000;
 const session = { projectName: 'Copia', files: { '/main.pug': 'p hola\n' }, openTabPaths: ['/main.pug'], activeTabPath: '/main.pug' };
-const terminal = (page) => page.locator('app-terminal-panel').innerText();
+const terminal = async (page) => { await openLogTab(page); return page.locator('app-terminal-panel').innerText(); };
 
 // Recordatorio de exportar: solo si hace tiempo, no a un usuario nuevo, y exportar lo apaga
 export default async function (env) {

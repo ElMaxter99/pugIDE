@@ -8,47 +8,59 @@ import {
   HostListener,
 } from "@angular/core";
 
+import { DiagnosticsState } from '../../core/state/diagnostics.state';
 import { EditorState } from '../../core/state/editor.state';
 import { TerminalState } from "../../core/state/terminal.state";
+import { ProblemsPanelComponent } from './problems-panel.component';
 
 @Component({
   selector: "app-terminal-panel",
   standalone: true,
-  imports: [],
+  imports: [ProblemsPanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="terminal-panel">
       <div class="terminal-header">
-        <div class="terminal-tabs" role="group" aria-label="Filtro del Registro">
-          <span class="terminal-title">Registro</span>
+        <div class="terminal-tabs" role="tablist" aria-label="Panel inferior" (keydown)="onTabKey($event)">
           <button
+            #tabProblems
             class="terminal-tab"
             type="button"
-            data-testid="log-filter-essential"
-            [class.active]="terminalState.activeFilter() === 'essential'"
-            [attr.aria-pressed]="terminalState.activeFilter() === 'essential'"
-            (click)="terminalState.setFilter('essential')"
+            role="tab"
+            id="tab-problems"
+            aria-controls="panel-problems"
+            data-testid="tab-problems"
+            [class.active]="terminalState.activeTab() === 'problems'"
+            [attr.aria-selected]="terminalState.activeTab() === 'problems'"
+            [attr.tabindex]="terminalState.activeTab() === 'problems' ? 0 : -1"
+            (click)="terminalState.activeTab.set('problems')"
           >
-            Esenciales
-            @if (terminalState.errorCount() + terminalState.warningCount() > 0) {
-              <span class="count" [class.error]="terminalState.errorCount() > 0" [class.warning]="terminalState.errorCount() === 0">{{ terminalState.errorCount() + terminalState.warningCount() }}</span>
+            Problemas
+            @if (diagnostics.counts().total > 0) {
+              <span class="count" data-testid="tab-problems-count" [class.error]="diagnostics.counts().errors > 0" [class.warning]="diagnostics.counts().errors === 0">{{ diagnostics.counts().total }}</span>
             }
           </button>
           <button
+            #tabLog
             class="terminal-tab"
             type="button"
-            data-testid="log-filter-all"
-            [class.active]="terminalState.activeFilter() === 'all'"
-            [attr.aria-pressed]="terminalState.activeFilter() === 'all'"
-            (click)="terminalState.setFilter('all')"
+            role="tab"
+            id="tab-log"
+            aria-controls="panel-log"
+            data-testid="tab-log"
+            [class.active]="terminalState.activeTab() === 'log'"
+            [attr.aria-selected]="terminalState.activeTab() === 'log'"
+            [attr.tabindex]="terminalState.activeTab() === 'log' ? 0 : -1"
+            (click)="terminalState.activeTab.set('log')"
           >
-            Todo
+            Registro
+            @if (terminalState.essentialIssueCount() > 0) {
+              <span class="count warning">{{ terminalState.essentialIssueCount() }}</span>
+            }
           </button>
-          @if (terminalState.hiddenDetailCount() > 0) {
-            <span class="hidden-note" data-testid="log-hidden-note">{{ terminalState.hiddenDetailCount() }} mensaje{{ terminalState.hiddenDetailCount() === 1 ? '' : 's' }} de detalle oculto{{ terminalState.hiddenDetailCount() === 1 ? '' : 's' }}</span>
-          }
         </div>
         <div class="terminal-actions">
+          @if (terminalState.activeTab() === 'log') {
           <button
             class="terminal-action"
             title="Limpiar el Registro (Ctrl+Shift+K)"
@@ -69,11 +81,12 @@ import { TerminalState } from "../../core/state/terminal.state";
               />
             </svg>
           </button>
+          }
           <button
             class="terminal-action"
             [class.active]="terminalState.isMaximized()"
-            title="Maximizar el Registro"
-            aria-label="Maximizar el Registro"
+            title="Maximizar el panel"
+            aria-label="Maximizar el panel"
             (click)="terminalState.toggleMaximized()"
           >
             <svg
@@ -92,8 +105,8 @@ import { TerminalState } from "../../core/state/terminal.state";
           </button>
           <button
             class="terminal-action"
-            title="Cerrar el Registro"
-            aria-label="Cerrar el Registro"
+            title="Cerrar el panel"
+            aria-label="Cerrar el panel"
             (click)="terminalState.toggle()"
           >
             <svg
@@ -109,6 +122,19 @@ import { TerminalState } from "../../core/state/terminal.state";
             </svg>
           </button>
         </div>
+      </div>
+      @if (terminalState.activeTab() === 'problems') {
+        <div class="tabpanel" role="tabpanel" id="panel-problems" aria-labelledby="tab-problems">
+          <app-problems-panel />
+        </div>
+      } @else {
+      <div class="tabpanel" role="tabpanel" id="panel-log" aria-labelledby="tab-log">
+      <div class="log-toolbar" role="group" aria-label="Filtro del Registro">
+        <button type="button" class="log-chip" data-testid="log-filter-essential" [attr.aria-pressed]="terminalState.activeFilter() === 'essential'" (click)="terminalState.setFilter('essential')">Esenciales</button>
+        <button type="button" class="log-chip" data-testid="log-filter-all" [attr.aria-pressed]="terminalState.activeFilter() === 'all'" (click)="terminalState.setFilter('all')">Todo</button>
+        @if (terminalState.hiddenDetailCount() > 0) {
+          <span class="hidden-note" data-testid="log-hidden-note">{{ terminalState.hiddenDetailCount() }} mensaje{{ terminalState.hiddenDetailCount() === 1 ? '' : 's' }} de detalle oculto{{ terminalState.hiddenDetailCount() === 1 ? '' : 's' }}</span>
+        }
       </div>
       <div class="terminal-output" #outputEl>
         @for (entry of terminalState.filteredEntries(); track entry.id) {
@@ -128,6 +154,8 @@ import { TerminalState } from "../../core/state/terminal.state";
           </div>
         }
       </div>
+      </div>
+      }
     </div>
   `,
   styles: [
@@ -160,13 +188,37 @@ import { TerminalState } from "../../core/state/terminal.state";
         gap: 0;
       }
 
-      .terminal-title {
+      .tabpanel {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .log-toolbar {
         display: flex;
         align-items: center;
-        padding: 0 10px 0 4px;
-        font-size: 11px;
-        font-weight: 600;
+        gap: 6px;
+        padding: 4px 12px;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .log-chip {
+        min-height: 24px;
+        padding: 0 10px;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        background: transparent;
         color: var(--text-primary);
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .log-chip[aria-pressed='true'] {
+        background: var(--bg-active);
+        border-color: var(--accent-color);
+        color: var(--accent-color);
       }
 
       .hidden-note {
@@ -331,9 +383,32 @@ import { TerminalState } from "../../core/state/terminal.state";
 })
 export class TerminalPanelComponent {
   @ViewChild("outputEl") outputEl!: ElementRef<HTMLDivElement>;
+  @ViewChild("tabProblems") private tabProblems?: ElementRef<HTMLButtonElement>;
+  @ViewChild("tabLog") private tabLog?: ElementRef<HTMLButtonElement>;
 
   protected terminalState = inject(TerminalState);
+  protected diagnostics = inject(DiagnosticsState);
   private editorState = inject(EditorState);
+
+  /** Flechas, Inicio y Fin cambian de pestaña y llevan el foco a la nueva (patrón de pestañas de WAI-ARIA). */
+  protected onTabKey(e: KeyboardEvent): void {
+    const order: ('problems' | 'log')[] = ['problems', 'log'];
+    const at = order.indexOf(this.terminalState.activeTab());
+    let next = at;
+    if (e.key === 'ArrowRight') next = (at + 1) % order.length;
+    else if (e.key === 'ArrowLeft') next = (at - 1 + order.length) % order.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = order.length - 1;
+    else return;
+    e.preventDefault();
+    this.terminalState.activeTab.set(order[next]);
+    this.focusActiveTab();
+  }
+
+  private focusActiveTab(): void {
+    const el = this.terminalState.activeTab() === 'problems' ? this.tabProblems : this.tabLog;
+    queueMicrotask(() => el?.nativeElement.focus());
+  }
 
   protected goTo(path: string, line: number): void {
     this.editorState.revealLine(path, line);
@@ -346,7 +421,12 @@ export class TerminalPanelComponent {
   constructor() {
     effect(() => {
       this.terminalState.entries();
+      this.terminalState.activeTab();
       queueMicrotask(() => this.scrollToBottom());
+    });
+    // «Ver» en la franja del preview y los contadores de la barra de estado piden llevar el foco a la pestaña activa.
+    effect(() => {
+      if (this.terminalState.focusRequest() > 0) setTimeout(() => this.focusActiveTab());
     });
   }
 

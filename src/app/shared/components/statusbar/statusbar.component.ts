@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { EditorState } from '../../../core/state/editor.state';
 import { TerminalState } from '../../../core/state/terminal.state';
+import { DiagnosticsState } from '../../../core/state/diagnostics.state';
 import { PreviewState } from '../../../core/state/preview.state';
 import { ParserState } from '../../../core/state/parser.state';
 import { PersistenceService } from '../../../core/services/persistence.service';
@@ -15,14 +16,14 @@ import { PreferencesState } from '../../../core/services/preferences.state';
   template: `
     <footer class="statusbar">
       <div class="status-left">
-        <button type="button" class="status-group" (click)="toggleTerminal()" title="Mostrar u ocultar el Registro" [attr.aria-label]="terminalState.errorCount() + (terminalState.errorCount() === 1 ? ' error' : ' errores') + ': mostrar u ocultar el Registro'">
+        <button type="button" class="status-group" data-testid="status-errors" (click)="openProblems()" title="Abrir el panel Problemas" [attr.aria-label]="diagnostics.counts().errors + (diagnostics.counts().errors === 1 ? ' error' : ' errores') + ': abrir el panel Problemas'">
           <span aria-hidden="true" class="material-symbols-outlined error-icon">cancel</span>
-          <span>{{ terminalState.errorCount() }} {{ terminalState.errorCount() === 1 ? 'error' : 'errores' }}</span>
+          <span>{{ diagnostics.counts().errors }} {{ diagnostics.counts().errors === 1 ? 'error' : 'errores' }}</span>
         </button>
-        <div class="status-group">
+        <button type="button" class="status-group" data-testid="status-warnings" (click)="openProblems()" title="Abrir el panel Problemas" [attr.aria-label]="diagnostics.counts().warnings + (diagnostics.counts().warnings === 1 ? ' aviso' : ' avisos') + ': abrir el panel Problemas'">
           <span aria-hidden="true" class="material-symbols-outlined warning-icon">warning</span>
-          <span>{{ terminalState.warningCount() }} {{ terminalState.warningCount() === 1 ? 'aviso' : 'avisos' }}</span>
-        </div>
+          <span>{{ diagnostics.counts().warnings }} {{ diagnostics.counts().warnings === 1 ? 'aviso' : 'avisos' }}</span>
+        </button>
         @if (parserState.isParsing()) {
           <div class="status-group">
             <span aria-hidden="true" class="material-symbols-outlined info-icon">sync</span>
@@ -171,6 +172,7 @@ import { PreferencesState } from '../../../core/services/preferences.state';
 export class StatusbarComponent {
   protected editorState = inject(EditorState);
   protected terminalState = inject(TerminalState);
+  protected diagnostics = inject(DiagnosticsState);
   protected previewState = inject(PreviewState);
   protected parserState = inject(ParserState);
   protected persistence = inject(PersistenceService);
@@ -190,7 +192,8 @@ export class StatusbarComponent {
     }
   }
 
-  toggleTerminal(): void {
-    this.terminalState.toggle();
+  /** Los contadores de errores y avisos abren el panel «Problemas» (y llevan el foco a él). */
+  openProblems(): void {
+    this.terminalState.openProblems();
   }
 }

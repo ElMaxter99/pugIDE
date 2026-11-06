@@ -1,5 +1,5 @@
 import { strToU8 } from 'fflate';
-import { check, openApp, previewText, waitUntil } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, openLogTab } from '../lib.mjs';
 
 const session = {
   projectName: 'Plantillas',
@@ -21,7 +21,7 @@ async function drop(page, files) {
 const file = (name, content) => ({ name, b64: Buffer.from(strToU8(content)).toString('base64') });
 const row = (page, name) => page.locator('app-file-tree .file-item', { hasText: name });
 const marks = (page) => page.evaluate(() => [...document.querySelectorAll('app-file-tree [data-testid="preview-mark"]')].map((m) => ({ path: m.closest('[data-path]').getAttribute('data-path'), text: m.textContent.replace(/\s+/g, ' ').trim(), pinned: m.classList.contains('pinned') })));
-const log = (page) => page.evaluate(() => document.querySelector('app-terminal-panel')?.textContent.replace(/\s+/g, ' ') ?? '');
+const log = async (page) => { await openLogTab(page); return page.evaluate(() => document.querySelector('app-terminal-panel')?.textContent.replace(/\s+/g, ' ') ?? ''); };
 const palette = (page) => page.locator('[aria-label="Paleta de comandos"]');
 const menuLabels = async (page) => { await page.locator('app-context-menu .context-label').first().waitFor(); return page.locator('app-context-menu .context-label').allInnerTexts(); };
 const titles = (page) => page.locator('.item .title').allInnerTexts();

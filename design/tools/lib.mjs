@@ -57,7 +57,7 @@ export async function openApp(env, { path = '/ide', session = SESSION, prefs = P
 export async function settle(page, { ms = 1200 } = {}) {
   await page.waitForSelector('app-main-layout, app-landing', { timeout: 15000 }).catch(() => {});
   if (await page.locator('app-landing').count()) { await sleep(ms); return; }
-  await waitUntil(async () => (await previewText(page)).length > 10 || (await page.locator('.compile-error').count()) > 0, 12000);
+  await waitUntil(async () => (await previewText(page)).length > 10 || (await page.locator('[data-testid="problem-strip"]').count()) > 0, 12000);
   await sleep(ms);
 }
 

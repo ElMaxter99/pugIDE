@@ -19,13 +19,28 @@ export class TerminalState {
     this.activeFilter() === 'all' ? 0 : this.entries().filter((e) => e.detail).length
   );
 
-  readonly errorCount = computed(() =>
-    this.entries().filter((e) => e.type === 'error').length
+  /** Errores y avisos esenciales del Registro (los de compilación viven en «Problemas» y son detalle aquí). */
+  readonly essentialIssueCount = computed(() =>
+    this.entries().filter((e) => !e.detail && (e.type === 'error' || e.type === 'warning')).length
   );
 
-  readonly warningCount = computed(() =>
-    this.entries().filter((e) => e.type === 'warning').length
-  );
+  /** Pestaña visible del panel inferior: «Problemas» (por defecto) o «Registro». */
+  readonly activeTab = signal<'problems' | 'log'>('problems');
+  /** Cada cambio pide al panel inferior que lleve el foco a su pestaña activa (p. ej. «Ver» en la franja del preview). */
+  readonly focusRequest = signal(0);
+
+  /** Abre el panel inferior en «Problemas»; con `focus` lleva el foco allí. */
+  openProblems(focus = true): void {
+    this.activeTab.set('problems');
+    this.isVisible.set(true);
+    if (focus) this.focusRequest.update((n) => n + 1);
+  }
+
+  /** Abre el panel inferior en «Registro». */
+  openLog(): void {
+    this.activeTab.set('log');
+    this.isVisible.set(true);
+  }
 
   addEntry(type: TerminalEntry['type'], source: string, message: string, loc?: { path: string; line: number }, detail = false): void {
     const entry: TerminalEntry = {

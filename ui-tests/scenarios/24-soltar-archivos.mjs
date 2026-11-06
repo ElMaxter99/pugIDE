@@ -1,5 +1,5 @@
 import { zipSync, strToU8 } from 'fflate';
-import { check, openApp, previewText, waitUntil } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, openLogTab } from '../lib.mjs';
 
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
@@ -19,7 +19,7 @@ async function drop(page, files) {
 const b64 = (u8) => Buffer.from(u8).toString('base64');
 const text = (name, content) => ({ name, type: 'text/plain', b64: b64(strToU8(content)) });
 const paths = (page) => page.evaluate(() => [...document.querySelectorAll('.file-tree [data-path]')].map((e) => e.getAttribute('data-path')));
-const terminal = (page) => page.evaluate(() => document.querySelector('app-terminal-panel')?.textContent ?? '');
+const terminal = async (page) => { await openLogTab(page); return page.evaluate(() => document.querySelector('app-terminal-panel')?.textContent ?? ''); };
 
 // Soltar archivos sobre el árbol: un .zip abre un proyecto, los archivos sueltos se añaden sin sobrescribir
 export default async function (env) {
