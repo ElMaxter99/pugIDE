@@ -180,7 +180,9 @@ async function tecladoArboles(env) {
   check('16 pestañas: Enter activa la pestaña', !!(await waitUntil(async () => (await page.locator('.tab-main[aria-current="true"]').innerText()).includes('main.pug'))));
 
   // Árbol de datos: plegar con Enter y cambiar un booleano con Espacio
-  await page.locator('[data-testid="tab-datos"]').click();
+  // Con el teclado (el menú contextual del árbol sigue abierto bajo su capa, que intercepta el puntero)
+  await page.locator('[data-testid="tab-datos"]').focus();
+  await page.keyboard.press('Enter');
   await page.locator('app-smart-data-editor').getByText('Árbol').first().waitFor();
   const toggle = page.locator('app-data-tree [role="switch"]').first();
   check('16 datos: el booleano es un interruptor con nombre y estado', (await toggle.count()) === 1 && (await toggle.getAttribute('aria-checked')) === 'true' && (await toggle.getAttribute('aria-label')) === 'Valor de activo');

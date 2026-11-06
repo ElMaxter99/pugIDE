@@ -105,7 +105,7 @@ const NARROW_BELOW = 600;
         </div>
       }
       <div class="preview-viewport">
-        <div class="preview-canvas" #canvas>
+        <div class="preview-canvas" #canvas tabindex="0" role="region" aria-label="Documento de la vista previa">
           <div class="checkerboard"></div>
           @if (previewState.isLoading()) {
             <div class="loading-overlay">

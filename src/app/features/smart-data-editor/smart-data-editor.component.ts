@@ -267,6 +267,8 @@ export class SmartDataEditorComponent {
   onKeydown(event: KeyboardEvent): void {
     if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'J') {
       event.preventDefault();
+      // Dentro del panel lateral, Ctrl+Mayús+J enseña antes la pestaña «Datos» si estaba recogida u oculta.
+      if (this.embedded() && (this.preferences.sidebarCollapsed() || this.preferences.sidebarTab() !== 'datos')) this.layout.openSidebar('datos');
       this.toggleMode();
     }
   }
