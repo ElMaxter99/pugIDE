@@ -4,49 +4,32 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
-Tercera oleada de la propuesta 0.7 de mejoras de interfaz (mesas P-03 y P-08 del lienzo, aprobadas): la estructura.
+## [0.7.0] - 2026-11-06
+
+Rediseño de la interfaz en tres oleadas (propuesta 0.7, mesas P-01 a P-13 del lienzo; detalle y mediciones en `design/propuestas/0.7-mejoras-funcionales.md`), más la bienvenida de primer uso y la vista previa de cualquier archivo. No cambia el formato de los proyectos ni el motor de compilación.
 
 ### Añadido
-- **Panel «Problemas» único:** el panel inferior tiene dos pestañas, **«Problemas | Registro»**. «Problemas» reúne todos los diagnósticos con filtros Todos / Errores / Avisos y contadores, «Solo el archivo abierto», Anterior (`Mayús+F8`) / Siguiente (`F8`) con «n de m», la explicación de cada uno, el fragmento de código con la línea marcada y los arreglos con un clic. Los errores que no se pueden situar en un archivo y línea también se listan. El aviso grande del preview pasa a una franja **«N problemas · Ver»** y el preview **conserva la última vista correcta** («Última vista correcta · hace N s») cuando la compilación falla. Los contadores de la barra de estado abren «Problemas».
-- **Disposiciones y tiradores:** cuatro disposiciones con nombre y atajo — «Editor + vista previa» (predeterminada, `Ctrl+Alt+1`), «Editor + datos + vista previa» (`Ctrl+Alt+2`), «Foco en el editor» (`Ctrl+Alt+3`) y «Foco en la vista previa · PDF» (`Ctrl+Alt+4`) —, menú **«Disposición»** en la barra de estado y comandos en la paleta, `Ctrl+B` (panel lateral) y `Ctrl+J` (panel inferior), «Restablecer los tamaños». Tiradores entre paneles (`role="separator"`, arrastre, ← → de 16 px, `Mayús` 64 px, doble clic restablece) con mínimos por panel. Los tamaños y la disposición se recuerdan en las preferencias del usuario y no viajan con el proyecto compartido ni con las instantáneas.
-- En teclados con AltGr, `Ctrl+Alt+cifra` escribe `| @ # ~` (y Pug usa `|`), así que ahí no se secuestra la tecla: las disposiciones se cambian desde el menú o la paleta.
+- **Bienvenida y recorrido de primer uso:** la primera vez (sin sesión ni proyectos guardados) se ofrece un diálogo con plantillas de un clic (Informe, Factura, Correo electrónico, Proyecto vacío), «Abrir un proyecto guardado…», «Importar carpeta o .zip…» y un **recorrido de 4 pasos** que ilumina Archivos y datos, el editor, la vista previa y los atajos (se maneja con teclado, `Esc` lo salta y no vuelve a salir). Espera a que se decida el aviso de privacidad. No sale con sesión, `?demo=true` ni enlaces compartidos. «Ver el recorrido» y «Ver la bienvenida» están en la paleta.
+- **Vista previa de cualquier archivo:** al importar varios `.pug` o `.jade` sueltos puedes elegir cuál se previsualiza («Previsualizar este archivo» en el menú del árbol o «Previsualizar archivo…» en la paleta). El elegido lleva una marca en el árbol y se guarda con el proyecto; «Vista previa automática» vuelve al comportamiento de siempre (`index`/`main`/`app`). Renombrar sigue al archivo elegido y borrarlo vuelve a automático. Los `.jade` valen ahora como archivo de entrada y como parciales sin extensión.
+- **Panel «Problemas»:** el panel inferior tiene dos pestañas, **«Problemas | Registro»**. «Problemas» reúne todos los diagnósticos con filtros (Todos / Errores / Avisos), «Solo el archivo abierto», Anterior (`Mayús+F8`) / Siguiente (`F8`), la explicación de cada uno, el fragmento de código y los arreglos con un clic. El aviso grande del preview pasa a una franja **«N problemas · Ver»** y el preview **conserva la última vista correcta** cuando la compilación falla.
+- **Disposiciones y tiradores:** cuatro disposiciones con atajo (`Ctrl+Alt+1…4`), menú **«Disposición»** en la barra de estado y en la paleta, `Ctrl+B` (panel lateral) y `Ctrl+J` (panel inferior), «Restablecer los tamaños». Tiradores entre paneles (`role="separator"`, arrastre, ← → de 16 px, doble clic restablece) con mínimos por panel. Se recuerdan en las preferencias del usuario y no viajan con el proyecto compartido ni con las instantáneas. En teclados con AltGr, `Ctrl+Alt+cifra` escribe `| @ # ~`, así que ahí no se secuestra la tecla: se cambia desde el menú o la paleta.
+- **Paleta de comandos:** los 5 **comandos recientes** arriba, el **atajo** de cada comando, la coincidencia resaltada y los dispositivos del preview en una sublista («Cambiar dispositivo…»). Comandos nuevos: buscar y reemplazar en el proyecto, ir a símbolo, formatear Pug, abrir Problemas o el Registro, mostrar u ocultar y limpiar el panel inferior.
+- Componente de menú desplegable accesible (`role="menu"`, Intro/Espacio/↓ abren, ↑/↓/Inicio/Fin se mueven, Esc cierra y devuelve el foco).
+- Escenarios de interfaz 30 a 37, pruebas e2e de Problemas, disposición y vista previa de un archivo, y pruebas unitarias nuevas.
 
 ### Cambiado
-- **Los datos pasan a una pestaña «Datos» del panel lateral** (junto a «Archivos») y dejan de ocupar una cuarta columna. Con la disposición predeterminada la vista previa mide ~660 px (antes ~390), y su barra enseña por fin los textos.
-- El Registro deja de repetir los errores de compilación: «Esenciales» ya no los incluye (viven en «Problemas»); «Todo» sí.
-- **Accesibilidad:** el Inspector se llama «Inspector» cuando enseña el texto, el lienzo del preview y la lista de atajos son enfocables por teclado.
-
-### Añadido
-- **Previsualizar cada archivo `.pug`:** al importar varias plantillas sueltas ahora puedes elegir cuál se previsualiza. «Previsualizar este archivo» en el menú del árbol y «Previsualizar archivo…» en la paleta; el elegido lleva una marca «Vista previa» en el árbol y la elección se guarda con el proyecto («Vista previa automática» vuelve a `index`/`main`/`app` como hasta ahora). Renombrar sigue al archivo elegido; borrarlo vuelve a automático y lo anota en el Registro. Importar varias plantillas ya no cambia lo que se ve y el Registro explica cómo elegir otra. Los `.jade` valen ahora como archivo de entrada y como parciales sin extensión. Mesa P-13 del lienzo (propuesta, pendiente de revisar).
+- **Barra superior (de 9 controles a 6):** logo, menú **«Proyecto»**, menú **«Exportar»**, el campo «Buscar comandos y archivos…» con `Ctrl K` visible, el tema y **Guardar** como único botón relleno. El nombre del proyecto sale de la barra y se ve en el panel lateral. **Autocompilar** baja a la barra de estado. No se pierde ninguna acción.
+- **Barra del preview en una fila:** segmentado Escritorio/Tableta/Móvil/PDF, zoom e Inspector, y un menú **«Vista»** (dispositivo, idioma, modo de color, auditoría de accesibilidad, captura PNG, recargar, abrir en pestaña nueva). Con el panel estrecho (menos de 600 px) pasa a solo icono con nombre accesible. En modo PDF, la segunda fila solo aparece cuando hace falta.
+- **Barra de datos:** de 14 controles en 5 filas a 7 en 2, con un menú **«⋯»** para lo ocasional (nuevo juego, renombrar, duplicar, borrar, idioma de los datos, importar, copiar JSON, dejar el objeto vacío).
+- **Los datos pasan a una pestaña «Datos» del panel lateral** (junto a «Archivos») y dejan de ocupar una cuarta columna: con la disposición predeterminada la vista previa mide ~660 px (antes ~390).
+- **La terminal pasa a llamarse «Registro»** y se abre con el filtro **«Esenciales»**; «Todo» añade el detalle atenuado. Sus mensajes y orígenes están en español, con la hora del equipo, y ya no repite los errores de compilación (viven en «Problemas»).
+- **Textos en español:** «Archivos», «Datos», «Vista previa», nombres de dispositivo («Móvil», «Tableta», «Escritorio», «Portátil») y las tildes de «Móvil» y «Auditoría». El panel inferior mide 240 px.
 
 ### Corregido
+- **Selector de dispositivo:** con «Escritorio» activo mostraba «Mobile (390x844)».
+- **Accesibilidad:** los selectores recuperan el anillo de foco con el teclado; el Inspector, el lienzo del preview y la lista de atajos son enfocables por teclado; los botones del preview y del Registro tienen nombre accesible y miden al menos 24 px.
 - Renombrar o borrar un archivo que no estaba abierto no guardaba la sesión, y si era la plantilla que se estaba viendo no recompilaba.
-
-Segunda oleada de la propuesta 0.7 de mejoras de interfaz (mesas P-04, P-05 y P-11 del lienzo, aprobadas): las tres barras. No cambia la estructura de paneles.
-
-### Cambiado
-- **Barra superior (de 9 controles a 6):** el logo, un menú **«Proyecto»** (Mis proyectos, plantillas, instantáneas, historial, importar carpeta o .zip, subir imágenes/fuentes/estilos, añadir idioma, buscar en el proyecto y atajos), un menú **«Exportar»** (copiar enlace, HTML autocontenido, captura PNG, imprimir/PDF, proyecto en carpeta o .zip), el campo **«Buscar comandos y archivos…»** con `Ctrl K` visible, el tema y **Guardar** como único botón relleno. El nombre del proyecto sale de la barra y se ve en el panel lateral. No se pierde ninguna acción.
-- **Autocompilar** baja a la barra de estado («Autocompilar: sí/no»); sigue el comando de la paleta.
-- **Barra del preview en una fila:** segmentado Escritorio/Tableta/Móvil/PDF, zoom e Inspector, y un menú **«Vista»** con dispositivo (los 11 siguen disponibles), idioma del preview, modo de color, auditoría de accesibilidad, captura PNG, recargar y abrir en una pestaña nueva. Con el panel estrecho (menos de 600 px) el segmentado y el Inspector pasan a solo icono con nombre accesible. En modo PDF, la segunda fila (orientación, páginas, avisos, imprimir) solo aparece cuando hace falta.
-- **Barra de datos:** de 14 controles en 5 filas a 7 en 2. A la vista: «Árbol | JSON», deshacer, rehacer, el juego de datos y «Regenerar»; en el menú **«⋯»**, lo ocasional (nuevo juego, renombrar, duplicar, borrar, idioma de los datos, importar JSON/Schema/OpenAPI, copiar JSON y dejar el objeto vacío).
-
-### Añadido
-- Componente de menú desplegable accesible (`role="menu"`, Intro/Espacio/↓ abren y llevan el foco a la primera fila, ↑/↓/Inicio/Fin se mueven, Esc cierra y devuelve el foco).
-- Escenarios de interfaz `31-barra-preview`, `32-barra-datos` y `33-menus-barra`.
-
-Primera oleada de la propuesta 0.7 de mejoras de interfaz (mesas P-07 y P-09 del lienzo, aprobadas): textos y accesibilidad, Registro y paleta. No mueve ningún panel.
-
-### Añadido
-- **Paleta de comandos (Ctrl+K):** arriba los **comandos recientes** (los 5 últimos, guardados en este navegador), los **atajos de teclado** a la derecha de cada comando, la coincidencia **resaltada** y un pie con las teclas. Los 11 dispositivos del preview pasan a una **sublista** («Cambiar dispositivo…»; Esc o Retroceso vuelven) y siguen encontrándose al escribir («móvil»). Nuevos comandos: «Buscar y reemplazar en el proyecto», «Ir a símbolo», «Formatear Pug» y «Mostrar u ocultar / Limpiar el Registro».
-- Escenario `30-registro-paleta` de las pruebas de interfaz y pruebas unitarias de recientes y resaltado.
-
-### Cambiado
-- **La terminal pasa a llamarse «Registro»** y se abre con el filtro **«Esenciales»** (errores, avisos y acciones); «Todo» añade el detalle (arranque, compilaciones) atenuado y «Esenciales» avisa de cuántos mensajes de detalle oculta. Todos sus mensajes y orígenes están en español, con la hora del equipo.
-- **Textos en español:** «Archivos» y «Datos» (antes «Workspace» y «Data»), «Vista previa» (antes «Live Preview»), nombres de dispositivo («Móvil», «Tableta», «Escritorio», «Portátil») y tildes de «Móvil» y «Auditoría».
-
-### Corregido
-- **Selector de dispositivo:** con «Escritorio» activo mostraba «Mobile (390x844)»; ahora refleja el dispositivo activo.
-- **Accesibilidad:** los selectores recuperan el anillo de foco con el teclado, los botones de dispositivo del preview tienen nombre accesible y los botones del Registro miden 24 px.
+- `Esc` cierra el menú contextual del árbol de archivos (antes solo lo cerraba un clic fuera).
 
 ## [0.6.0] - 2026-11-05
 

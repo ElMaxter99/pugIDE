@@ -417,6 +417,21 @@ export class OrchestratorService {
     this.loadProject(files, uniqueProjectName(name?.trim() || template?.name || DEFAULT_PROJECT_NAME, existing), [], null, data);
   }
 
+  /**
+   * Primer uso: sustituye el proyecto vacío provisional por una plantilla de inicio. A diferencia de `createProject`,
+   * la plantilla toma el sitio del provisional (no es una obra de nadie) en vez de añadirse a su lado.
+   */
+  async startFromTemplate(templateId: string): Promise<void> {
+    const template = PROJECT_TEMPLATES.find((t) => t.id === templateId);
+    if (!template) return;
+    const existing = (await this.library.list()).map((p) => p.name);
+    // Mismo id que el proyecto provisional: la plantilla ocupa su sitio en la biblioteca en vez de dejar un «MiProyecto» suelto.
+    this.loadProject(
+      new Map(Object.entries(template.files)), uniqueProjectName(template.name, existing), [], null, structuredClone(template.data),
+      { id: this.projectState.projectId() ?? undefined },
+    );
+  }
+
   /** Borra un proyecto de la biblioteca; si era el activo, abre el más reciente o crea uno nuevo. */
   async deleteProject(id: string): Promise<void> {
     const wasCurrent = id === this.projectState.projectId();

@@ -30,7 +30,7 @@ import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.
         <div class="topbar-actions">
           <app-dropdown-menu label="Proyecto" icon="folder_open" ariaLabel="Proyecto" testId="menu-proyecto" [items]="projectItems()" (chosen)="onProjectAction($event)" />
           <app-dropdown-menu label="Exportar" icon="download" ariaLabel="Exportar" testId="menu-exportar" align="right" [items]="exportItems()" (chosen)="onExportAction($event)" />
-          <button type="button" class="search-field" data-testid="open-palette" title="Abrir la paleta de comandos (Ctrl+K)" (click)="ui.paletteOpen.set(true)">
+          <button type="button" class="search-field" data-testid="open-palette" data-tour="search" title="Abrir la paleta de comandos (Ctrl+K)" (click)="ui.paletteOpen.set(true)">
             <span aria-hidden="true" class="material-symbols-outlined">search</span>
             <span class="search-text">Buscar comandos y archivos…</span>
             <kbd>Ctrl K</kbd>

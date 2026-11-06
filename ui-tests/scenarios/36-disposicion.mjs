@@ -8,7 +8,9 @@ const session = {
   datasets: { version: 1, activeId: 'ds-1', locale: 'es', datasets: [{ id: 'ds-1', name: 'Por defecto', data: { resumen: 'Todo en orden' } }] },
 };
 const W = 1400; // ancho de la ventana de las pruebas
-const box = async (page, sel) => (await page.locator(sel).first().boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
+// Un panel puede desaparecer entre mirar si existe y medirlo (al cambiar de disposición): sin límite propio, `boundingBox`
+// espera 30 s a que vuelva. Con 1,5 s un panel ausente cuenta como 0.
+const box = async (page, sel) => (await page.locator(sel).first().boundingBox({ timeout: 1500 }).catch(() => null)) ?? { x: 0, y: 0, width: 0, height: 0 };
 const widths = async (page) => ({
   side: Math.round((await box(page, 'app-sidebar')).width),
   editor: Math.round((await box(page, 'app-editor-panel')).width),

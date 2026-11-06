@@ -47,7 +47,7 @@ export async function openApp(env, { path = '/ide', session = SESSION, prefs = P
     if (p) localStorage.setItem('pug-ide-preferences', JSON.stringify(p));
     if (c) localStorage.setItem('pug-ide-analytics-consent', c);
     for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v);
-  }, [session ?? null, prefs ?? null, consent, storage]);
+  }, [session ?? null, prefs ?? null, consent, { 'pug-ide-welcome': '1', ...storage }]); // la bienvenida de primer uso no sale en las capturas
   const page = await context.newPage();
   await page.goto(env.baseURL + path);
   return { context, page };

@@ -10,7 +10,7 @@ Escribe una plantilla, mira el resultado al instante y deja que PugIDE invente l
 **Español** · [English](README.en.md)
 
 [![CI](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml/badge.svg)](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml)
-![Versión](https://img.shields.io/badge/version-0.6.0-blueviolet)
+![Versión](https://img.shields.io/badge/version-0.7.0-blueviolet)
 ![Licencia](https://img.shields.io/badge/license-MIT-green)
 ![Angular](https://img.shields.io/badge/Angular-22-dd0031)
 ![100 % local](https://img.shields.io/badge/100%25-local-success)
@@ -39,7 +39,7 @@ Un entorno de desarrollo visual para **Pug/Jade** pensado para plantillas reales
 
 ### 🩺 Errores explicados, con arreglo y enlace a la línea
 
-Un error de Pug como `pug_mixins.resumenPie is not a function` pasa a ser: *«Se llama a `+resumenPie`, pero ningún archivo define ese mixin»*, con el botón **Ir al error**, la lista de **todos los problemas** del proyecto y el arreglo con un clic (**Crear el mixin**, **añadir el `include`**, corregir una errata). También como arreglo rápido de Monaco (`Ctrl+.`).
+Un error de Pug como `pug_mixins.resumenPie is not a function` pasa a ser: *«Se llama a `+resumenPie`, pero ningún archivo define ese mixin»*, con el botón **Ir al error**, el panel **Problemas** con todos los del proyecto y el arreglo con un clic (**Crear el mixin**, **añadir el `include`**, corregir una errata). También como arreglo rápido de Monaco (`Ctrl+.`).
 
 <img src="docs/screenshots/errores.png" alt="Aviso de error con explicación, arreglo y lista de problemas" width="100%">
 
@@ -57,7 +57,7 @@ Guarda el proyecto entero con nombre (archivos, datos, idiomas y assets), **comp
 
 ### ⌨️ Todo a un `Ctrl+K`
 
-La paleta de comandos reúne las acciones, las plantillas de inicio, los dispositivos del preview y la apertura rápida de archivos.
+La paleta de comandos reúne las acciones, las plantillas de inicio, los dispositivos del preview y la apertura rápida de archivos. Enseña tus **comandos recientes** y el **atajo** de cada uno, y resalta lo que coincide con lo que escribes.
 
 <img src="docs/screenshots/paleta.png" alt="Paleta de comandos" width="100%">
 
@@ -94,6 +94,8 @@ La paleta de comandos reúne las acciones, las plantillas de inicio, los disposi
 <summary><strong>Preview</strong></summary>
 
 - Escritorio, tablet y móvil, con escala automática y tema claro/oscuro del documento.
+- **Elige qué plantilla ver:** si importas varios `.pug` o `.jade` sueltos, «Previsualizar este archivo» (menú del árbol o paleta) renderiza el que quieras.
+- **Tu espacio, a tu medida:** cuatro disposiciones (`Ctrl+Alt+1…4`), paneles redimensionables con tiradores y los datos como pestaña del panel lateral; se recuerdan en tus preferencias.
 - **Modo PDF** con `@page`, cabeceras y pies, avisos de corte, impresión y guardado como PDF.
 - **Captura PNG** del preview, inspector de elementos y auditoría de accesibilidad.
 - Avisos de calidad: datos sin usar, peso del HTML (p. ej. el límite de 102 KB de Gmail).
@@ -102,6 +104,7 @@ La paleta de comandos reúne las acciones, las plantillas de inicio, los disposi
 <details>
 <summary><strong>Proyectos</strong></summary>
 
+- **Primer uso guiado:** una bienvenida con plantillas de un clic (Informe, Factura, Correo, vacío) y un recorrido de 4 pasos, solo la primera vez.
 - Biblioteca de proyectos en tu navegador: abrir, crear desde plantilla, renombrar, duplicar y borrar.
 - **Importar** una carpeta o un `.zip` (también **arrastrándolos** al árbol de archivos) y **exportar** a carpeta, `.zip` o HTML autocontenido.
 - Compartir por enlace y recordatorio de copia de seguridad.
@@ -111,7 +114,7 @@ La paleta de comandos reúne las acciones, las plantillas de inicio, los disposi
 ## Privacidad y seguridad
 
 - **Nada sale de tu navegador.** No hay backend, ni cuenta, ni subida de código. El editor, las tipografías y los iconos se sirven desde el propio sitio, sin CDNs.
-- **Tus datos viven en tu navegador** (`localStorage` e IndexedDB). Si borras los datos del sitio, los pierdes: exporta tus proyectos. La terminal te lo recuerda a los 14 días.
+- **Tus datos viven en tu navegador** (`localStorage` e IndexedDB). Si borras los datos del sitio, los pierdes: exporta tus proyectos. El Registro te lo recuerda a los 14 días.
 - **El JavaScript de tus plantillas está aislado.** Lo que escribes en una plantilla, en `helpers.js` o en un `<script>` del HTML que genera corre en documentos de origen opaco, sin acceso a tus proyectos ni al resto de la página, y con la red bloqueada por la política de seguridad (CSP). La propia app no admite `unsafe-inline` ni `unsafe-eval` en `script-src`.
 - **Analítica opcional.** Al entrar se te pregunta si permites una analítica anónima de visitas ([Vercel Web Analytics](https://vercel.com/docs/analytics), sin cookies de seguimiento y sin ningún dato de tus proyectos). Si rechazas, el script no se carga nunca; puedes cambiarlo en Ctrl+K → «Privacidad».
 
@@ -158,6 +161,9 @@ Abre <http://localhost:4200/ide?demo=true> para cargar un proyecto de ejemplo co
 | `Ctrl/Cmd + Enter` | Compilar ahora |
 | `Ctrl/Cmd + S` | Guardar |
 | `Ctrl/Cmd + Mayús + F` | Buscar y reemplazar en el proyecto |
+| `Ctrl + Alt + 1…4` | Cambiar de disposición (en teclados con AltGr, desde el menú «Disposición») |
+| `Ctrl/Cmd + B` · `Ctrl/Cmd + J` | Mostrar u ocultar el panel lateral · el panel inferior |
+| `F8` · `Mayús + F8` | Siguiente · anterior problema |
 | `Ctrl/Cmd + .` | Arreglo rápido del problema bajo el cursor |
 | `F12` · `Ctrl/Cmd + clic` | Ir a la definición |
 | `Mayús + Alt + F` | Formatear el archivo |

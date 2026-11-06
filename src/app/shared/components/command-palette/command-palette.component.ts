@@ -165,6 +165,8 @@ export class CommandPaletteComponent {
         group: 'Idiomas', title: `Preview en ${code}${code === this.orchestrator.activeLocale() ? ' (activo)' : ''}`, keywords: 'idioma locale traducciones',
         run: () => this.orchestrator.setTranslationLocale(code),
       })),
+      { group: 'Ajustes', title: 'Ver el recorrido', keywords: 'tour guía ayuda primeros pasos bienvenida', run: () => this.ui.tourOpen.set(true) },
+      { group: 'Ajustes', title: 'Ver la bienvenida', keywords: 'plantillas primeros pasos empezar', run: () => this.ui.welcomeOpen.set(true) },
       { group: 'Ajustes', title: 'Atajos de teclado', keywords: 'ayuda keyboard shortcuts teclas', run: () => this.ui.shortcutsOpen.set(true) },
       { group: 'Ajustes', title: 'Alternar tema claro/oscuro', keywords: 'dark light', run: () => this.preferences.toggleTheme() },
       {

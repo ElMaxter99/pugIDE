@@ -15,6 +15,10 @@ export class UiState {
   readonly historyOpen = signal(false);
   /** Diálogo de instantáneas del proyecto (guardar, comparar, restaurar). */
   readonly snapshotsOpen = signal(false);
+  /** Bienvenida de primer uso (P-06). */
+  readonly welcomeOpen = signal(false);
+  /** Recorrido guiado de 4 pasos (P-12). */
+  readonly tourOpen = signal(false);
   /** Orden al editor desde fuera de él (paleta): `id` de la acción de Monaco o `pug.searchInProject`; `n` fuerza cada petición. */
   readonly editorCommand = signal<{ id: string; n: number } | null>(null);
 
