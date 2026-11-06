@@ -10,7 +10,7 @@ Escribe una plantilla, mira el resultado al instante y deja que PugIDE invente l
 **Español** · [English](README.en.md)
 
 [![CI](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml/badge.svg)](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml)
-![Versión](https://img.shields.io/badge/version-0.6.0-blueviolet)
+![Versión](https://img.shields.io/badge/version-0.7.0-blueviolet)
 ![Licencia](https://img.shields.io/badge/license-MIT-green)
 ![Angular](https://img.shields.io/badge/Angular-22-dd0031)
 ![100 % local](https://img.shields.io/badge/100%25-local-success)
@@ -104,6 +104,7 @@ La paleta de comandos reúne las acciones, las plantillas de inicio, los disposi
 <details>
 <summary><strong>Proyectos</strong></summary>
 
+- **Primer uso guiado:** una bienvenida con plantillas de un clic (Informe, Factura, Correo, vacío) y un recorrido de 4 pasos, solo la primera vez.
 - Biblioteca de proyectos en tu navegador: abrir, crear desde plantilla, renombrar, duplicar y borrar.
 - **Importar** una carpeta o un `.zip` (también **arrastrándolos** al árbol de archivos) y **exportar** a carpeta, `.zip` o HTML autocontenido.
 - Compartir por enlace y recordatorio de copia de seguridad.

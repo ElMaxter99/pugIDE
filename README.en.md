@@ -10,7 +10,7 @@ Write a template, see the result instantly, and let PugIDE make up the test data
 [Español](README.md) · **English**
 
 [![CI](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml/badge.svg)](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-0.6.0-blueviolet)
+![Version](https://img.shields.io/badge/version-0.7.0-blueviolet)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Angular](https://img.shields.io/badge/Angular-22-dd0031)
 ![100% local](https://img.shields.io/badge/100%25-local-success)
@@ -106,6 +106,7 @@ The command palette gathers actions, starter templates, preview devices and quic
 <details>
 <summary><strong>Projects</strong></summary>
 
+- **Guided first run:** a welcome with one-click starter templates (report, invoice, email, empty) and a 4-step tour, only the first time.
 - A project library in your browser: open, create from a template, rename, duplicate and delete.
 - **Import** a folder or a `.zip` (also by **dragging** them onto the file tree) and **export** to a folder, a `.zip` or a self-contained HTML file.
 - Share by link, and a backup reminder.

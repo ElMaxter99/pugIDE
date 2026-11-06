@@ -32,6 +32,8 @@ try {
     const { context, page } = await openApp(env, { path: sc.path ?? '/ide', session: sc.session, prefs: sc.prefs, consent: sc.consent, storage: sc.storage });
     await settle(page);
     if (sc.run) await sc.run({ page, env });
+    // En «errores» el panel inferior se maximiza para que se vea el problema completo con su arreglo con un clic.
+    if (name === 'errores') await page.locator('app-terminal-panel button[title^="Maximizar"]').click();
     await page.mouse.move(1439, 899);
     await settle(page, { ms: 700 });
     await page.screenshot({ path: join(out, `${name}.png`) });
