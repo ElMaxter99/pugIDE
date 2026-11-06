@@ -78,6 +78,7 @@ Estado «fiel a la 0.5»: generada de la app de este repositorio (0.4.1 más los
 | P-10 Diagnóstico de errores | Captura real con dos errores, llamadas numeradas y mediciones de la paleta y del primer uso | [`P-10-Diagnostico-errores.dc.html`](canvas/P-10-Diagnostico-errores.dc.html) | `design/propuestas/` | Propuesta 0.7, pendiente de aprobar; dibujada a mano |
 | P-11 Menús | Menús «Proyecto» y «Exportar» y la tabla de dónde queda cada botón actual | [`P-11-Menus.dc.html`](canvas/P-11-Menus.dc.html) | `topbar` | Propuesta 0.7 aprobada; implementada en la oleada 2 (sin publicar) |
 | P-12 Recorrido | Recorrido de 4 pasos con halo, consejos y atajos | [`P-12-Recorrido.dc.html`](canvas/P-12-Recorrido.dc.html) | `main-layout` | Propuesta 0.7, pendiente de aprobar; dibujada a mano |
+| P-13 Previsualizar cada archivo | Marca «Vista previa» en el árbol, «Previsualizar este archivo» en el menú del árbol y en la paleta, y avisos en el Registro | [`P-13-Previsualizar-archivo.dc.html`](canvas/P-13-Previsualizar-archivo.dc.html) | `file-tree`, `sidebar`, `command-palette`, `orchestrator.service` | Propuesta; implementada, pendiente de revisar; dibujada a mano |
 
 Las mesas `P-NN` son la propuesta 0.7 de mejoras funcionales (ver [`propuestas/0.7-mejoras-funcionales.md`](propuestas/0.7-mejoras-funcionales.md)): no están programadas y se generan con `node design/propuestas/build-mesas-0.7.mjs` (ver la cabecera del script). Los `V-NN` no se han tocado; V-01 y V-05 siguen sin el botón de cámara de la 0.6 y se regenerarán al implementar.
 

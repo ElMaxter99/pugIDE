@@ -63,7 +63,17 @@ export function importDialog(supportsFolders: boolean): DialogConfig {
 }
 
 /** Entradas del menú contextual de un nodo del árbol. */
-export function contextMenuFor(node: { type: 'file' | 'directory'; isAsset?: boolean }): ContextMenuAction[] {
+/** Lo que el menú de un archivo necesita saber de la vista previa para ofrecer «Previsualizar este archivo». */
+export interface PreviewMenuContext {
+  /** Archivo que se renderiza ahora. */
+  current: string | null;
+  /** Archivo elegido a mano (`null`: vista automática). */
+  pinned: string | null;
+  /** Nombre del archivo que elegiría la vista automática. */
+  autoName: string | null;
+}
+
+export function contextMenuFor(node: { type: 'file' | 'directory'; isAsset?: boolean; path?: string }, preview?: PreviewMenuContext): ContextMenuAction[] {
   if (node.type === 'directory') return [{ label: 'Nuevo archivo', icon: 'note_add', action: 'newFile' }];
   if (node.isAsset) {
     return [
@@ -71,7 +81,14 @@ export function contextMenuFor(node: { type: 'file' | 'directory'; isAsset?: boo
       { label: 'Borrar', icon: 'delete', action: 'delete' },
     ];
   }
+  const previewItems: ContextMenuAction[] = [];
+  if (preview && node.path && /\.(pug|jade)$/i.test(node.path)) {
+    if (node.path !== preview.pinned) previewItems.push({ label: 'Previsualizar este archivo', icon: 'visibility', action: 'preview' });
+    if (preview.pinned) previewItems.push({ label: `Vista previa automática${preview.autoName ? ` (${preview.autoName})` : ''}`, icon: 'visibility_off', action: 'previewAuto' });
+    if (previewItems.length) previewItems.push({ label: '', action: '', separator: true });
+  }
   return [
+    ...previewItems,
     { label: 'Renombrar', icon: 'edit', action: 'rename' },
     { label: 'Duplicar', icon: 'content_copy', action: 'duplicate' },
     { label: '', action: '', separator: true },

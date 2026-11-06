@@ -4,6 +4,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Añadido
+- **Previsualizar cada archivo `.pug`:** al importar varias plantillas sueltas ahora puedes elegir cuál se previsualiza. «Previsualizar este archivo» en el menú del árbol y «Previsualizar archivo…» en la paleta; el elegido lleva una marca «Vista previa» en el árbol y la elección se guarda con el proyecto («Vista previa automática» vuelve a `index`/`main`/`app` como hasta ahora). Renombrar sigue al archivo elegido; borrarlo vuelve a automático y lo anota en el Registro. Importar varias plantillas ya no cambia lo que se ve y el Registro explica cómo elegir otra. Los `.jade` valen ahora como archivo de entrada y como parciales sin extensión. Mesa P-13 del lienzo (propuesta, pendiente de revisar).
+
+### Corregido
+- Renombrar o borrar un archivo que no estaba abierto no guardaba la sesión, y si era la plantilla que se estaba viendo no recompilaba.
+
 Segunda oleada de la propuesta 0.7 de mejoras de interfaz (mesas P-04, P-05 y P-11 del lienzo, aprobadas): las tres barras. No cambia la estructura de paneles.
 
 ### Cambiado

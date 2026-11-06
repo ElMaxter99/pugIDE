@@ -72,7 +72,7 @@ export function flattenPugSource(
       if (m) {
         const target = resolveVirtualPath(m[3].trim(), path, files);
         const content = target ? files.get(target) : undefined;
-        if (target && content !== undefined && m[2] === 'include' && target.endsWith('.pug') && depth > 0 && !visited.has(target)) {
+        if (target && content !== undefined && m[2] === 'include' && /\.(pug|jade)$/i.test(target) && depth > 0 && !visited.has(target)) {
           walk(content, target, indent + m[1], depth - 1, new Set(visited).add(target));
           return;
         }

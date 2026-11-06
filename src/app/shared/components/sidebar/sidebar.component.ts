@@ -384,7 +384,8 @@ export class SidebarComponent {
   onNodeContextMenu(event: MouseEvent, node: FileNode): void {
     this.contextMenuTarget = node;
 
-    this.contextMenuItems.set(contextMenuFor(node));
+    const choices = this.orchestrator.previewChoices();
+    this.contextMenuItems.set(contextMenuFor(node, { current: choices.current, pinned: choices.pinned, autoName: choices.auto?.split('/').pop() ?? null }));
     this.contextMenuX.set(event.clientX);
     this.contextMenuY.set(event.clientY);
     this.contextMenuOpen.set(true);
@@ -405,6 +406,12 @@ export class SidebarComponent {
         break;
       case 'duplicate':
         this.orchestrator.duplicateFile(node.path);
+        break;
+      case 'preview':
+        this.orchestrator.setPreviewEntry(node.path);
+        break;
+      case 'previewAuto':
+        this.orchestrator.setPreviewEntry(null);
         break;
       case 'delete':
         this.showDeleteDialog(node.path);

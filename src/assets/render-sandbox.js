@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: 1b8b798a9b0d87e8
+// pugide-runtime source-hash: c883c5bf5222c1c3
 "use strict";
 (() => {
   // src/app/core/utils/diagnostics.util.ts
@@ -364,6 +364,10 @@ ${body}
   }
 
   // src/app/core/utils/pug-vfs.util.ts
+  var PUG_FILE_RE = /\.(pug|jade)$/i;
+  function isPugFile(path) {
+    return PUG_FILE_RE.test(path);
+  }
   function dirname(path) {
     const i = path.lastIndexOf("/");
     return i <= 0 ? "/" : path.slice(0, i);
@@ -379,7 +383,7 @@ ${body}
   }
   function resolveVirtualPath(target, from, files) {
     const base = target.startsWith("/") ? target : normalize(dirname(from ?? "/") + "/" + target);
-    const candidates = [base, base + ".pug", base + "/index.pug"];
+    const candidates = [base, base + ".pug", base + ".jade", base + "/index.pug", base + "/index.jade"];
     for (const c of candidates) {
       if (files.has(c)) return c;
     }
@@ -392,8 +396,8 @@ ${body}
       const m = line.match(DIRECTIVE_RE);
       if (!m || /\.[A-Za-z0-9]+$/.test(m[5])) return line;
       const found = resolveVirtualPath(m[5], from, files);
-      if (!found || !found.endsWith(".pug")) return line;
-      return `${m[1]}${m[2]}${m[3]}${m[5]}.pug${m[6]}`;
+      if (!found || !isPugFile(found)) return line;
+      return `${m[1]}${m[2]}${m[3]}${m[5]}.${found.slice(found.lastIndexOf(".") + 1)}${m[6]}`;
     }).join("\n");
   }
   function createPugFilePlugin(files) {

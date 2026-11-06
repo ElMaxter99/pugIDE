@@ -14,6 +14,8 @@ export class PreviewState {
   readonly colorScheme = signal<ColorSchemeSim>('auto');
   /** Entry pug file of the last compile; origin for the inspector's Pug line mapping. */
   readonly entryPath = signal<string | null>(null);
+  /** Plantilla que la persona eligió previsualizar (`null`: automática, como index/main/app o la primera). */
+  readonly pinnedEntry = signal<string | null>(null);
   readonly deviceName = signal('Desktop');
   readonly errors = signal<CompileError[]>([]);
   readonly compilationTime = signal(0);

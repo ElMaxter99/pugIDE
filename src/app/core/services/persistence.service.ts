@@ -20,6 +20,8 @@ export interface ProjectSessionState {
   activeTabPath: string | null;
   /** Juegos de datos del proyecto (opcional: sesiones antiguas no lo tienen). */
   datasets?: DatasetsFile;
+  /** Plantilla elegida para la vista previa (sesiones antiguas no la tienen: vista automática). */
+  previewEntry?: string;
 }
 
 @Injectable({ providedIn: 'root' })
