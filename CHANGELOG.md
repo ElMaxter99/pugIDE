@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.7.1] - 2026-11-06
+
+Versión de parche: un solo arreglo (los iconos) y su protección. No toca el motor ni el formato de los proyectos.
+
 ### Corregido
 - **El icono de «Girar» (vista previa móvil o tableta) se veía como el texto «screen_rotation»**, con o sin conexión. Usaba un alias antiguo (`screen_rotation`) que la fuente de iconos recortada no incluía; `smartphone` (el icono de «Móvil») funcionaba solo de rebote. Ahora usan los nombres canónicos (`mobile_rotate` y `mobile`). Las fuentes de iconos siempre han ido en el paquete, sin descargarse de ningún sitio.
 
