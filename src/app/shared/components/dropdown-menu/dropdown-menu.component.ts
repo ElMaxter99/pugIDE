@@ -14,6 +14,8 @@ export interface MenuItem {
   /** Estado de un ajuste: pinta una marca y expone `menuitemcheckbox` o, con `radio`, `menuitemradio`. */
   checked?: boolean;
   radio?: boolean;
+  /** Elegir esta fila no cierra el menú (por ejemplo, «Otros dispositivos…» que despliega más filas). */
+  keepOpen?: boolean;
   /** Título de grupo (no se puede elegir). */
   heading?: string;
   separator?: boolean;
@@ -137,7 +139,7 @@ export class DropdownMenuComponent {
 
   protected choose(item: MenuItem): void {
     if (!item.id || item.disabled) return;
-    this.close(true);
+    if (!item.keepOpen) this.close(true);
     this.chosen.emit(item.id);
   }
 

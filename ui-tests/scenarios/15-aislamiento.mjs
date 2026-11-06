@@ -1,4 +1,4 @@
-import { check, openApp, previewFrame, previewText, waitUntil } from '../lib.mjs';
+import { check, openApp, previewFrame, previewText, waitUntil, chooseView } from '../lib.mjs';
 
 // El JavaScript del usuario (plantilla, helpers y scripts del HTML renderizado) corre en iframes de origen
 // opaco: no puede leer el almacenamiento de la app ni su DOM. Y el preview sigue funcionando por mensajes.
@@ -63,13 +63,12 @@ export default async function (env) {
   check('15 el inspector recibe el elemento clicado en el preview aislado y su línea de Pug', !!picked, await page.locator('app-inspector-panel').innerText());
   await page.locator('button[title="Inspeccionar elemento"]').click();
 
-  await page.locator('button[title="Auditoría de accesibilidad (resultados en el Registro)"]').click();
+  await chooseView(page, 'a11y');
   const audited = await waitUntil(async () => (await page.locator('app-terminal-panel').innerText()).includes('Auditoría básica'));
   check('15 la auditoría de accesibilidad devuelve su informe a la terminal', !!audited);
 
-  const scheme = page.locator('button[title^="Modo de color simulado"]');
-  await scheme.click(); // light
-  await scheme.click(); // dark
+  await chooseView(page, 'scheme:light');
+  await chooseView(page, 'scheme:dark');
   const dark = await waitUntil(async () => (await frame.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)) === true);
   check('15 el modo de color simulado llega al preview aislado', !!dark);
   // WebKit registra como error de página el intento deliberado de la plantilla de leer el DOM del padre (ya capturado con try/catch).
@@ -110,7 +109,7 @@ async function pestanaNueva(env) {
   const { page } = app;
   await waitUntil(async () => (await previewText(page)).includes('Hola pestaña'));
   const popupPromise = page.context().waitForEvent('page', { timeout: 8000 });
-  await page.locator('button[title="Abrir en una pestaña nueva"]').click();
+  await chooseView(page, 'newtab');
   const popup = await popupPromise;
   await popup.waitForLoadState('domcontentloaded');
   const shown = await waitUntil(async () => {

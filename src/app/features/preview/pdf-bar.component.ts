@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, inject, input } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, input, output } from '@angular/core';
 import { PreviewState } from '../../core/state/preview.state';
 import { PageBreakIssue } from '../../core/utils/paginate.util';
 import { describePageIssue } from '../../core/utils/preview-layout.util';
@@ -15,11 +15,13 @@ import { describePageIssue } from '../../core/utils/preview-layout.util';
         @if (previewState.pageSize().source === 'default') { <em>(por defecto)</em> } @else if (previewState.pageSize().source === 'manual') { <em>(girado)</em> }
       </span>
       <div class="device-switcher">
-        <button class="device-btn" [class.active]="isLandscape()" title="Horizontal" aria-label="Horizontal" (click)="setOrientation('landscape')">
-          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">crop_landscape</span>
-        </button>
-        <button class="device-btn" [class.active]="!isLandscape()" title="Vertical" aria-label="Vertical" (click)="setOrientation('portrait')">
+        <button type="button" class="device-btn" [class.active]="!isLandscape()" [attr.aria-pressed]="!isLandscape()" title="Vertical" aria-label="Vertical" (click)="setOrientation('portrait')">
           <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">crop_portrait</span>
+          <span>Vertical</span>
+        </button>
+        <button type="button" class="device-btn" [class.active]="isLandscape()" [attr.aria-pressed]="isLandscape()" title="Horizontal" aria-label="Horizontal" (click)="setOrientation('landscape')">
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">crop_landscape</span>
+          <span>Horizontal</span>
         </button>
       </div>
       <span class="pdf-size">{{ pageCount() }} {{ pageCount() === 1 ? 'página' : 'páginas' }}</span>
@@ -29,6 +31,10 @@ import { describePageIssue } from '../../core/utils/preview-layout.util';
           {{ issues().length }} {{ issues().length === 1 ? 'aviso' : 'avisos' }} a revisar
         </span>
       }
+      <button type="button" class="print-btn" title="Imprimir / Guardar como PDF" aria-label="Imprimir / Guardar como PDF" (click)="printRequested.emit()">
+        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">print</span>
+        <span>Imprimir</span>
+      </button>
     </div>
   `,
   styles: [`
@@ -63,12 +69,29 @@ import { describePageIssue } from '../../core/utils/preview-layout.util';
       border-radius: var(--radius);
     }
 
+    .print-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      min-height: 28px;
+      padding: 0 10px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+
+    .print-btn:hover { background: var(--bg-surface-variant); }
+
     .device-btn {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 24px;
+      gap: 4px;
+      min-height: 28px;
+      padding: 0 8px;
+      font-size: 13px;
       border-radius: 3px;
       color: var(--text-secondary);
       transition: all 0.15s;
@@ -88,6 +111,8 @@ export class PdfBarComponent {
   protected previewState = inject(PreviewState);
 
   readonly pageCount = input.required<number>();
+  /** La persona pide imprimir; la orden la ejecuta el preview, que es quien habla con el documento aislado. */
+  readonly printRequested = output<void>();
   /** Elementos que se partirían mal al imprimir. */
   readonly issues = input<PageBreakIssue[]>([]);
 
