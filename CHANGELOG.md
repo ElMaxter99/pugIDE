@@ -4,6 +4,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+Segunda oleada de la propuesta 0.7 de mejoras de interfaz (mesas P-04, P-05 y P-11 del lienzo, aprobadas): las tres barras. No cambia la estructura de paneles.
+
+### Cambiado
+- **Barra superior (de 9 controles a 6):** el logo, un menú **«Proyecto»** (Mis proyectos, plantillas, instantáneas, historial, importar carpeta o .zip, subir imágenes/fuentes/estilos, añadir idioma, buscar en el proyecto y atajos), un menú **«Exportar»** (copiar enlace, HTML autocontenido, captura PNG, imprimir/PDF, proyecto en carpeta o .zip), el campo **«Buscar comandos y archivos…»** con `Ctrl K` visible, el tema y **Guardar** como único botón relleno. El nombre del proyecto sale de la barra y se ve en el panel lateral. No se pierde ninguna acción.
+- **Autocompilar** baja a la barra de estado («Autocompilar: sí/no»); sigue el comando de la paleta.
+- **Barra del preview en una fila:** segmentado Escritorio/Tableta/Móvil/PDF, zoom e Inspector, y un menú **«Vista»** con dispositivo (los 11 siguen disponibles), idioma del preview, modo de color, auditoría de accesibilidad, captura PNG, recargar y abrir en una pestaña nueva. Con el panel estrecho (menos de 600 px) el segmentado y el Inspector pasan a solo icono con nombre accesible. En modo PDF, la segunda fila (orientación, páginas, avisos, imprimir) solo aparece cuando hace falta.
+- **Barra de datos:** de 14 controles en 5 filas a 7 en 2. A la vista: «Árbol | JSON», deshacer, rehacer, el juego de datos y «Regenerar»; en el menú **«⋯»**, lo ocasional (nuevo juego, renombrar, duplicar, borrar, idioma de los datos, importar JSON/Schema/OpenAPI, copiar JSON y dejar el objeto vacío).
+
+### Añadido
+- Componente de menú desplegable accesible (`role="menu"`, Intro/Espacio/↓ abren y llevan el foco a la primera fila, ↑/↓/Inicio/Fin se mueven, Esc cierra y devuelve el foco).
+- Escenarios de interfaz `31-barra-preview`, `32-barra-datos` y `33-menus-barra`.
+
 Primera oleada de la propuesta 0.7 de mejoras de interfaz (mesas P-07 y P-09 del lienzo, aprobadas): textos y accesibilidad, Registro y paleta. No mueve ningún panel.
 
 ### Añadido

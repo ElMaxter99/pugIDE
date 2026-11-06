@@ -45,9 +45,13 @@ export default async function (env) {
   await t.focus();
   await page.keyboard.press('Enter');
   await menu.waitFor();
+  const activeRole = () => page.evaluate(() => document.activeElement?.getAttribute('role'));
+  await waitUntil(async () => (await activeRole()) === 'menuitemradio');
+  check('31 con teclado: Intro abre el menú y enfoca su primera fila', (await activeRole()) === 'menuitemradio', String(await activeRole()));
+  const firstId = await page.evaluate(() => document.activeElement?.getAttribute('data-menu-id'));
   await page.keyboard.press('ArrowDown');
-  const first = await page.evaluate(() => document.activeElement?.getAttribute('role'));
-  check('31 con teclado: Intro abre y ↓ enfoca una fila del menú', first === 'menuitemradio', String(first));
+  const second = await page.evaluate(() => document.activeElement?.getAttribute('data-menu-id'));
+  check('31 ↓ pasa a la fila siguiente', !!second && second !== firstId, `${firstId} -> ${second}`);
   await page.keyboard.press('End');
   const last = await page.evaluate(() => document.activeElement?.getAttribute('data-menu-id'));
   check('31 Fin salta a la última acción', last === 'newtab', String(last));
