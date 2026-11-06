@@ -18,7 +18,7 @@ import { ProjectSnapshotService, RestoreOutcome, SaveOutcome } from './project-s
 import { SnapshotState } from '../state/snapshot.state';
 import type { SnapshotContent, SnapshotMeta } from '../models/project-snapshot.model';
 import { autoSnapshotName, cleanSnapshotName, defaultSnapshotName, diffAssetMaps, diffFileMaps, formatBytes } from '../utils/snapshot.util';
-import { buildDiagnostics, Diagnostic } from '../utils/diagnostics.util';
+import { buildDiagnostics, Diagnostic, unlocatedProblems } from '../utils/diagnostics.util';
 import { includeSpecifier, includesFile } from '../utils/error-explain.util';
 import { appendMixin, insertInclude, replaceOnLine } from '../utils/fix-apply.util';
 import { PreferencesState } from './preferences.state';
@@ -183,7 +183,9 @@ export class OrchestratorService {
         this.terminalState.addEntry(
           error.severity,
           'Pug',
-          `Línea ${error.line}:${error.column} - ${error.message}`
+          `Línea ${error.line}:${error.column} - ${error.message}`,
+          error.line ? { path: entryPath, line: error.line } : undefined,
+          true,
         );
       }
 
@@ -226,8 +228,9 @@ export class OrchestratorService {
         compileErrors: compileResult.errors,
         styleErrors: scssResult.errors,
         extra: localeInfo.diagnostics,
-      }));
+      }), unlocatedProblems({ entryPath, compileErrors: compileResult.errors }));
 
+      // Los problemas de compilación ya viven en el panel «Problemas»; en el Registro quedan como detalle («Todo»).
       for (const error of compileResult.errors) {
         const at = error.path ?? entryPath;
         this.terminalState.addEntry(
@@ -235,11 +238,12 @@ export class OrchestratorService {
           error.source,
           `Línea ${error.line ?? '?'} - ${error.message}${error.hint ? `\n${error.hint}` : ''}`,
           error.line ? { path: at, line: error.line } : undefined,
+          true,
         );
       }
 
       for (const scssError of scssResult.errors) {
-        this.terminalState.addEntry('error', 'Estilos', `${scssError.path} - ${scssError.line ? `línea ${scssError.line}: ` : ''}${scssError.message}`, scssError.line ? { path: scssError.path, line: scssError.line } : undefined);
+        this.terminalState.addEntry('error', 'Estilos', `${scssError.path} - ${scssError.line ? `línea ${scssError.line}: ` : ''}${scssError.message}`, scssError.line ? { path: scssError.path, line: scssError.line } : undefined, true);
       }
 
       if (parseResult.errors.length === 0 && compileResult.errors.length === 0) {
@@ -1085,7 +1089,8 @@ export class OrchestratorService {
       const r = parseTranslations(files.get(path) ?? '');
       if (r.error) {
         diagnostics.push({ path, line: r.error.line ?? 1, message: r.error.message, severity: 'error', source: 'json' });
-        this.terminalState.addEntry('error', 'Idiomas', `${path}: ${r.error.message}`);
+        // Ya sale en «Problemas» con su línea; en el Registro queda como detalle.
+        this.terminalState.addEntry('error', 'Idiomas', `${path}: ${r.error.message}`, r.error.line ? { path, line: r.error.line } : undefined, true);
         parsed.set(code, {});
         continue;
       }

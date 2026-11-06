@@ -1,6 +1,7 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { AppPreferences } from '../models/index';
 import { PersistenceService } from './persistence.service';
+import { DEFAULT_LAYOUT, LayoutId, PanelSizes } from '../utils/layout.util';
 
 @Injectable({ providedIn: 'root' })
 export class PreferencesState {
@@ -16,6 +17,9 @@ export class PreferencesState {
   readonly zoom = signal(100);
   readonly sidebarCollapsed = signal(false);
   readonly dataCollapsed = signal(false);
+  readonly layout = signal<LayoutId>(DEFAULT_LAYOUT);
+  readonly panelSizes = signal<Partial<Record<LayoutId, Partial<PanelSizes>>>>({});
+  readonly sidebarTab = signal<'archivos' | 'datos'>('archivos');
   readonly monacoTheme = computed(() =>
     this.theme() === 'dark' ? 'vs-dark' : 'vs-light'
   );
@@ -40,6 +44,9 @@ export class PreferencesState {
     this.zoom.set(prefs.zoom);
     this.sidebarCollapsed.set(!!prefs.sidebarCollapsed);
     this.dataCollapsed.set(!!prefs.dataCollapsed);
+    this.layout.set(prefs.layout);
+    this.panelSizes.set(prefs.panelSizes);
+    this.sidebarTab.set(prefs.sidebarTab);
   }
 
   update(partial: Partial<AppPreferences>): void {
@@ -55,6 +62,9 @@ export class PreferencesState {
     if (partial.zoom !== undefined) this.zoom.set(partial.zoom);
     if (partial.sidebarCollapsed !== undefined) this.sidebarCollapsed.set(partial.sidebarCollapsed);
     if (partial.dataCollapsed !== undefined) this.dataCollapsed.set(partial.dataCollapsed);
+    if (partial.layout !== undefined) this.layout.set(partial.layout);
+    if (partial.panelSizes !== undefined) this.panelSizes.set(partial.panelSizes);
+    if (partial.sidebarTab !== undefined) this.sidebarTab.set(partial.sidebarTab);
     this.persistence.savePreferences(partial);
   }
 

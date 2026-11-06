@@ -91,7 +91,7 @@ async function bucleInfinito(env) {
     wait: 1500,
   });
   const { page } = app;
-  const banner = await waitUntil(async () => (await page.locator('.compile-error-text').allInnerTexts()).find((t) => t.includes('tardó más de 15 s')), 35000, 500);
+  const banner = await waitUntil(async () => (await page.locator('app-problems-panel .title').allInnerTexts()).find((t) => t.includes('tardó más de 15 s')), 35000, 500);
   check('15 una plantilla con un bucle infinito se cancela con un error claro', !!banner, String(banner));
   check('15 mientras tanto la app responde', (await page.evaluate(() => 1 + 1)) === 2);
   await page.evaluate(() => window.monaco.editor.getModels().find((m) => m.uri.path === '/main.pug').setValue('p recuperado\n'));

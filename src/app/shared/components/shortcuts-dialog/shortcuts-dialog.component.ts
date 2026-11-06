@@ -17,7 +17,7 @@ import { SHORTCUT_GROUPS } from '../../../core/utils/shortcuts.util';
             <button class="icon" title="Cerrar" aria-label="Cerrar" (click)="closed.emit()">&times;</button>
           </div>
           <p class="hint">En macOS, Ctrl equivale a Cmd.</p>
-          <div class="body">
+          <div class="body" tabindex="0" role="region" aria-label="Lista de atajos">
             @for (g of groups; track g.title) {
               <h3>{{ g.title }}</h3>
               <dl>

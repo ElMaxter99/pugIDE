@@ -28,3 +28,4 @@ export { FileHistoryService, MemoryHistoryBackend } from '../src/app/core/servic
 export { ProjectSnapshotService, MemorySnapshotBackend } from '../src/app/core/services/project-snapshot.service';
 export { SnapshotState } from '../src/app/core/state/snapshot.state';
 export { DiagnosticsState } from '../src/app/core/state/diagnostics.state';
+export { LayoutService } from '../src/app/core/services/layout.service';

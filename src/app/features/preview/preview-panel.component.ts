@@ -20,7 +20,7 @@ import { A11yIssue, a11yReport, buildPageChrome, describePageIssue, fitScale, pa
 import { PreviewState } from '../../core/state/preview.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { DiagnosticsState } from '../../core/state/diagnostics.state';
-import { ProblemsListComponent } from './problems-list.component';
+import { formatElapsed } from '../../core/utils/diagnostics.util';
 import { ProjectIoService } from '../../core/services/project-io.service';
 import { InspectorState } from '../../core/state/inspector.state';
 import { DEVICE_PRESETS, findDevicePreset, ColorSchemeSim } from '../../core/utils/device-presets.util';
@@ -29,6 +29,8 @@ import { TerminalState } from '../../core/state/terminal.state';
 import { UiState } from '../../core/state/ui.state';
 import { findPugSource } from '../../core/utils/pug-source-map.util';
 import { PdfBarComponent } from './pdf-bar.component';
+import { PanelResizerComponent } from '../../shared/components/panel-resizer/panel-resizer.component';
+import { LayoutService } from '../../core/services/layout.service';
 import { DropdownMenuComponent, MenuItem } from '../../shared/components/dropdown-menu/dropdown-menu.component';
 import { InspectorPanelComponent } from '../inspector/inspector-panel.component';
 
@@ -37,10 +39,21 @@ const NARROW_BELOW = 600;
 @Component({
   selector: 'app-preview-panel',
   standalone: true,
-  imports: [InspectorPanelComponent, PdfBarComponent, ProblemsListComponent, DropdownMenuComponent],
+  imports: [InspectorPanelComponent, PdfBarComponent, DropdownMenuComponent, PanelResizerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="preview-section" aria-label="Vista previa">
+      <app-panel-resizer
+        testId="resizer-preview"
+        label="Ancho de la vista previa"
+        edge="left"
+        [value]="layout.resolved().preview"
+        [min]="layout.resolved().limits.preview.min"
+        [max]="layout.resolved().limits.preview.max"
+        [grow]="-1"
+        (sizeChange)="layout.setLive('preview', $event)"
+        (committed)="layout.commitLive()"
+        (restore)="layout.resetSize('preview')" />
       <div class="preview-header" #header>
         <div class="device-switcher" role="group" aria-label="Dispositivo">
           @for (opt of segments; track opt.id) {
@@ -71,7 +84,7 @@ const NARROW_BELOW = 600;
             <option value="100" [selected]="zoomValue() === '100'">100 %</option>
           </select>
           <button type="button" class="inspector-btn" [class.icon-only]="narrow()" [class.active]="inspectorState.isActive()" [attr.aria-pressed]="inspectorState.isActive()"
-                  title="Inspeccionar elemento" aria-label="Inspeccionar elemento" (click)="inspectorState.toggleInspector()">
+                  title="Inspeccionar elemento" [attr.aria-label]="narrow() ? 'Inspeccionar elemento' : 'Inspector'" (click)="inspectorState.toggleInspector()">
             <span aria-hidden="true" class="material-symbols-outlined seg-icon">ads_click</span>
             @if (!narrow()) { <span class="seg-text">Inspector</span> }
           </button>
@@ -81,37 +94,18 @@ const NARROW_BELOW = 600;
       @if (previewState.isPdf()) {
         <app-pdf-bar [pageCount]="pageCount()" [issues]="pageIssues()" (printRequested)="onPrint()" />
       }
-      @if (previewState.hasErrors()) {
-        <div class="compile-error" role="alert">
-          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">error</span>
-          <span class="compile-error-text">
-            <strong>{{ previewState.errors().length === 1 ? 'Error de compilación' : previewState.errors().length + ' errores de compilación' }}:</strong>
-            {{ previewState.errors()[0].message }}
-            @if (previewState.errors()[0].hint; as hint) {
-              <span class="compile-error-hint">{{ hint }}</span>
-            }
-          </span>
-          @if (errorLocation(); as loc) {
-            <button class="compile-error-btn" (click)="goToError()" [title]="'Abrir ' + loc.path + ' en la línea ' + loc.line">
-              Ir al error ({{ loc.name }}:{{ loc.line }})
-            </button>
+      @if (diagnosticsState.counts().total > 0) {
+        <div class="problem-strip" [class.only-warnings]="diagnosticsState.counts().errors === 0" data-testid="problem-strip">
+          <span aria-hidden="true" class="material-symbols-outlined strip-icon">{{ diagnosticsState.counts().errors > 0 ? 'error' : 'warning' }}</span>
+          <span class="strip-count" role="status" data-testid="problem-strip-count">{{ diagnosticsState.counts().total }} {{ diagnosticsState.counts().total === 1 ? 'problema' : 'problemas' }}</span>
+          @if (showingLastGood()) {
+            <span class="strip-last" data-testid="problem-strip-last">· Última vista correcta · {{ lastGoodAgo() }}</span>
           }
-          @if (previewState.errors()[0].fix; as fix) {
-            <button class="compile-error-btn compile-error-fix" (click)="orchestrator.applyFix(fix)">{{ fix.label }}</button>
-          }
-          @if (diagnosticsState.diagnostics().length > 1) {
-            <button class="compile-error-btn" (click)="problemsOpen.update(v => !v)" [attr.aria-expanded]="problemsOpen()">
-              {{ problemsOpen() ? 'Ocultar problemas' : 'Todos los problemas (' + diagnosticsState.diagnostics().length + ')' }}
-            </button>
-          }
-          <button class="compile-error-btn" (click)="terminal.isVisible.set(true)">Ver Registro</button>
+          <button type="button" class="strip-btn" data-testid="problem-strip-view" (click)="terminal.openProblems()">Ver</button>
         </div>
-        @if (problemsOpen() && diagnosticsState.diagnostics().length > 1) {
-          <app-problems-list />
-        }
       }
       <div class="preview-viewport">
-        <div class="preview-canvas" #canvas>
+        <div class="preview-canvas" #canvas tabindex="0" role="region" aria-label="Documento de la vista previa">
           <div class="checkerboard"></div>
           @if (previewState.isLoading()) {
             <div class="loading-overlay">
@@ -161,6 +155,7 @@ const NARROW_BELOW = 600;
     }
 
     .preview-section {
+      position: relative;
       display: flex;
       flex-direction: column;
       height: 100%;
@@ -333,37 +328,36 @@ const NARROW_BELOW = 600;
       transform-origin: 0 0;
     }
 
-    .compile-error {
+    .problem-strip {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
-      gap: 8px;
-      padding: 6px 12px;
+      gap: 4px 8px;
+      padding: 4px 12px;
       background: rgba(255, 82, 82, 0.12);
       border-bottom: 1px solid rgba(255, 82, 82, 0.4);
-      color: #ff8a80;
+      color: var(--text-primary);
       font-size: 12px;
+      flex-shrink: 0;
     }
-    .compile-error-text {
-      flex: 1 1 220px;
-      min-width: 0;
-      max-height: 96px;
-      overflow: auto;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
+    .problem-strip.only-warnings {
+      background: rgba(249, 226, 175, 0.12);
+      border-bottom-color: rgba(249, 226, 175, 0.4);
     }
-    .compile-error-hint {
-      display: block;
-      margin-top: 2px;
-      color: var(--text-secondary, #ffcdd2);
-    }
-    .compile-error-btn {
-      background: transparent;
+    .strip-icon { font-size: 16px; color: var(--error-color); }
+    .only-warnings .strip-icon { color: var(--warning-color); }
+    .strip-count { font-weight: 600; }
+    .strip-last { flex: 1 1 auto; min-width: 0; color: var(--text-secondary); }
+    .strip-btn {
+      margin-left: auto;
+      min-height: 24px;
+      padding: 0 12px;
       border: 1px solid currentColor;
       border-radius: 4px;
-      color: inherit;
-      font-size: 11px;
-      padding: 2px 8px;
+      background: transparent;
+      color: var(--accent-color);
+      font: inherit;
+      font-size: 12px;
       cursor: pointer;
     }
 
@@ -407,6 +401,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   private preferences = inject(PreferencesState);
   private editorState = inject(EditorState);
   protected terminal = inject(TerminalState);
+  protected layout = inject(LayoutService);
   private ui = inject(UiState);
   protected readonly presets = DEVICE_PRESETS;
   /** Segmentado de la barra: lo que se cambia a cada rato; el resto de dispositivos vive en el menú «Vista». */
@@ -663,7 +658,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
       this.terminal.addEntry('warning', 'Accesibilidad', 'No hay vista previa compilada que auditar.');
       return;
     }
-    this.terminal.isVisible.set(true);
+    this.terminal.openLog();
     this.postToFrame({ source: 'pugide-a11y-run' });
   }
 
@@ -681,6 +676,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearInterval(this.clock);
     this.canvasObserver?.disconnect();
     this.headerObserver?.disconnect();
     window.removeEventListener('message', this.messageListener);
@@ -735,23 +731,19 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     this.orchestrator.manualCompile();
   }
 
-  /** Pestaña nueva con la vista previa: se abre una página de la app que la ejecuta en un iframe aislado. */
-  /** Archivo y línea del primer error si se conocen (sin archivo, el de entrada). */
-  readonly errorLocation = computed(() => {
-    const e = this.previewState.errors()[0];
-    const path = e?.path ?? this.previewState.entryPath();
-    if (!e || !e.line || !path) return null;
-    return { path, line: e.line, name: path.split('/').pop() ?? path };
-  });
-
-  protected problemsOpen = signal(false);
   protected diagnosticsState = inject(DiagnosticsState);
 
-  goToError(): void {
-    const loc = this.errorLocation();
-    if (loc) this.editorState.revealLine(loc.path, loc.line);
-  }
+  /** Reloj que actualiza el «hace N s» de la franja (cada 5 s mientras haya una vista anterior que mostrar). */
+  private readonly now = signal(Date.now());
+  private readonly clock = setInterval(() => this.now.set(Date.now()), 5000);
 
+  /** La compilación falló y lo que se ve es la última vista correcta (los errores de estilos o de idiomas no la bloquean). */
+  protected readonly showingLastGood = computed(
+    () => this.previewState.lastGoodAt() > 0 && this.previewState.errors().some((e) => e.severity === 'error'),
+  );
+  protected readonly lastGoodAgo = computed(() => formatElapsed(this.now() - this.previewState.lastGoodAt()));
+
+  /** Pestaña nueva con la vista previa: se abre una página de la app que la ejecuta en un iframe aislado. */
   onOpenNewTab(): void {
     const html = this.previewState.compiledHtml();
     if (!html) return;

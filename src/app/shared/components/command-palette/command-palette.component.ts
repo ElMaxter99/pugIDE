@@ -3,6 +3,7 @@ import { AnalyticsService } from '../../../core/services/analytics.service';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { ProjectIoService } from '../../../core/services/project-io.service';
 import { PreferencesState } from '../../../core/services/preferences.state';
+import { LayoutService } from '../../../core/services/layout.service';
 import { DiagnosticsState } from '../../../core/state/diagnostics.state';
 import { EditorState } from '../../../core/state/editor.state';
 import { PreviewState } from '../../../core/state/preview.state';
@@ -109,6 +110,7 @@ export class CommandPaletteComponent {
   private projectIo = inject(ProjectIoService);
   private analytics = inject(AnalyticsService);
   private preferences = inject(PreferencesState);
+  private layout = inject(LayoutService);
   private editorState = inject(EditorState);
   private previewState = inject(PreviewState);
   private injector = inject(Injector);
@@ -174,10 +176,17 @@ export class CommandPaletteComponent {
         title: `Privacidad: analítica anónima de visitas (${this.analytics.consent() === 'granted' ? 'permitida' : 'no permitida'})`,
       },
       { group: 'Ajustes', title: 'Alternar auto-compilación', keywords: 'autocompile', run: () => this.preferences.update({ autoCompile: !this.preferences.autoCompile() }) },
-      { group: 'Ajustes', title: 'Mostrar u ocultar el Registro', keywords: 'terminal log consola', run: () => this.terminalState.toggle() },
+      { group: 'Problemas', title: 'Abrir el panel Problemas', keywords: 'errores avisos lista', run: () => this.terminalState.openProblems() },
+      { group: 'Ajustes', title: 'Abrir el Registro', keywords: 'terminal log consola', run: () => this.terminalState.openLog() },
+      { group: 'Ajustes', title: 'Mostrar u ocultar el panel inferior', keys: 'Ctrl+J', keywords: 'problemas registro terminal log consola', run: () => this.layout.toggleBottom() },
       { group: 'Ajustes', title: 'Limpiar el Registro', keys: 'Ctrl+Shift+K', keywords: 'terminal log borrar', run: () => this.terminalState.clear() },
-      { group: 'Ajustes', title: 'Mostrar u ocultar Archivos', run: () => this.preferences.toggleSidebar() },
-      { group: 'Ajustes', title: 'Mostrar u ocultar Datos', run: () => this.preferences.toggleData() },
+      { group: 'Ajustes', title: 'Mostrar u ocultar Archivos', keys: 'Ctrl+B', keywords: 'panel lateral', run: () => this.layout.toggleSidebar() },
+      { group: 'Ajustes', title: 'Mostrar u ocultar Datos', keywords: 'panel lateral pestaña json árbol', run: () => this.layout.toggleData() },
+      ...this.layout.layouts.map((l): Draft => ({
+        id: `layout:${l.id}`, group: 'Disposición', title: `Disposición: ${l.label}`, keys: l.keys, keywords: 'layout paneles columnas tamaño vista previa editor datos pdf foco',
+        run: () => this.layout.apply(l.id),
+      })),
+      { group: 'Disposición', title: 'Restablecer los tamaños de los paneles', keywords: 'layout paneles anchos tiradores', run: () => this.layout.resetSizes() },
       { group: 'Vista previa', title: 'Vista previa: modo PDF / página impresa', keywords: 'imprimir a4 pdf', run: () => this.setDevice('PDF', 0, 0) },
       { id: 'dispositivos', group: 'Vista previa', title: 'Cambiar dispositivo…', keywords: 'móvil tableta escritorio responsive tamaño', keepOpen: true, run: () => { this.scope.set('dispositivos'); this.query.set(''); this.active.set(0); } },
       ...DEVICE_PRESETS.map((d): Draft => ({

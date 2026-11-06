@@ -149,6 +149,8 @@ export interface InspectorNode {
   children: InspectorNode[];
 }
 
+import type { LayoutId, PanelSizes } from '../utils/layout.util';
+
 export interface AppPreferences {
   theme: 'dark' | 'light';
   fontSize: number;
@@ -161,8 +163,16 @@ export interface AppPreferences {
   autoCompile: boolean;
   previewDevice: string;
   zoom: number;
+  /** Panel lateral recogido en el raíl (Ctrl+B). */
   sidebarCollapsed: boolean;
+  /** Columna de datos oculta (solo en la disposición «Editor + datos + vista previa»). */
   dataCollapsed: boolean;
+  /** Disposición activa (P-08). */
+  layout: LayoutId;
+  /** Anchos que la persona ha elegido arrastrando los tiradores, por disposición. Solo del usuario: no viaja con el proyecto. */
+  panelSizes: Partial<Record<LayoutId, Partial<PanelSizes>>>;
+  /** Pestaña abierta del panel lateral. */
+  sidebarTab: 'archivos' | 'datos';
 }
 
 export interface ContextMenuAction {

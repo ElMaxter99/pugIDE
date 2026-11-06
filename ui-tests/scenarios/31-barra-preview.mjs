@@ -81,7 +81,7 @@ export default async function (env) {
   await wide.close();
 
   // --- Estrecho: segmentado e Inspector solo con icono, pero con nombre accesible ---
-  const narrow = await openApp(env, { path: '/ide', session });
+  const narrow = await openApp(env, { path: '/ide', session, prefs: { layout: 'focus-editor', sidebarCollapsed: true } }); // preview de 472 px: estrecho
   const np = narrow.page;
   await waitUntil(async () => (await previewText(np)).includes('Informe trimestral'));
   await trigger(np).waitFor();

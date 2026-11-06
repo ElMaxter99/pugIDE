@@ -29,6 +29,18 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
+    title: 'Disposición',
+    items: [
+      { label: 'Editor + vista previa (con teclado con AltGr, Ctrl+Alt+cifra escribe «|», «@», «#» o «~»: usa el menú «Disposición» de la barra de estado)', keys: 'Ctrl+Alt+1' },
+      { label: 'Editor + datos + vista previa', keys: 'Ctrl+Alt+2' },
+      { label: 'Foco en el editor', keys: 'Ctrl+Alt+3' },
+      { label: 'Foco en la vista previa · PDF', keys: 'Ctrl+Alt+4' },
+      { label: 'Mostrar u ocultar el panel lateral', keys: 'Ctrl+B' },
+      { label: 'Mostrar u ocultar el panel inferior (Registro)', keys: 'Ctrl+J' },
+      { label: 'Mover un tirador entre paneles (← → 16 px, con Mayús 64; doble clic restablece)', keys: 'Tab hasta el tirador' },
+    ],
+  },
+  {
     title: 'Datos y Registro',
     items: [
       { label: 'Alternar árbol / editor JSON', keys: 'Ctrl+Shift+J' },

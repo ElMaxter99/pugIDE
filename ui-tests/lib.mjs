@@ -105,6 +105,20 @@ export async function previewText(page) {
   try { return await f.evaluate(() => document.body?.innerText ?? ''); } catch { return ''; }
 }
 
+/** Abre la pestaña «Registro» del panel inferior (por defecto se ve «Problemas») y espera a que se pinte. */
+export async function openLogTab(page) {
+  const tab = page.locator('[data-testid="tab-log"]');
+  if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
+  await page.locator('#panel-log').waitFor({ timeout: 4000 });
+}
+
+/** Abre la pestaña «Problemas» del panel inferior y espera a que se pinte. */
+export async function openProblemsTab(page) {
+  const tab = page.locator('[data-testid="tab-problems"]');
+  if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
+  await page.locator('#panel-problems').waitFor({ timeout: 4000 });
+}
+
 /** Nombre del proyecto que muestra el panel lateral (la barra superior ya no lo enseña). */
 export const projectName = async (page) =>
   ((await page.locator('.workspace-name').first().textContent({ timeout: 1500 }).catch(() => '')) ?? '').trim();

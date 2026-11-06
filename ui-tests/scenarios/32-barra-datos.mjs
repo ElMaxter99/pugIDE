@@ -1,4 +1,4 @@
-import { check, openApp, previewText, waitUntil, sleep } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, sleep, openLogTab } from '../lib.mjs';
 
 const session = {
   projectName: 'Datos',
@@ -13,6 +13,8 @@ export default async function (env) {
   const app = await openApp(env, { path: '/ide', session });
   const { page } = app;
   try { await app.context.grantPermissions(['clipboard-read', 'clipboard-write']); } catch { /* Firefox y WebKit no admiten estos permisos */ }
+  // Los datos viven en la pestaña «Datos» del panel lateral (P-08)
+  await page.locator('[data-testid="tab-datos"]').click();
   const panel = page.locator('app-smart-data-editor');
   await panel.locator('.tree-view').waitFor({ timeout: 6000 });
   await waitUntil(async () => (await previewText(page)).includes('Hola'));
@@ -98,6 +100,7 @@ export default async function (env) {
 
   // --- Copiar JSON ---
   await pick('Copiar JSON');
+  await openLogTab(page);
   const log = page.locator('app-terminal-panel');
   const copied = await waitUntil(async () => /JSON copiado al portapapeles|No se pudo copiar al portapapeles/.test(await log.innerText()));
   check('32 «Copiar JSON» se ejecuta y lo anota en el Registro', !!copied, await log.innerText());

@@ -24,6 +24,6 @@ export default async function (env) {
   const text = await previewText(page);
   check('17 un método desconocido (utils.upper) devuelve su argumento', text.includes('ana'), text);
   check('17 los helpers de helpers.js se usan en la plantilla', text.includes('12.50 EUR'), text);
-  check('17 sin errores en la terminal ni en la página', app.errors.length === 0 && (await page.locator('.compile-error').count()) === 0, app.errors.join(' | '));
+  check('17 sin errores en la terminal ni en la página', app.errors.length === 0 && (await page.locator('[data-testid="problem-strip"]').count()) === 0, app.errors.join(' | '));
   await app.close();
 }

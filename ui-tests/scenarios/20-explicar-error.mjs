@@ -15,13 +15,13 @@ export default async function (env) {
     },
   });
   const { page } = app;
-  const banner = page.locator('.compile-error');
+  const banner = page.locator('app-problems-panel .diag-row').first();
   await banner.waitFor({ timeout: 10000 });
   const text = await banner.textContent();
   check('20 el aviso no arrastra la ruta ni el fragmento de código', !text.includes('|') && !text.includes('/main.pug:'), text);
   check('20 el aviso explica que el mixin tarjeta no está definido', /tarjeta/.test(text) && /ningún archivo define/.test(text), text);
   check('20 el aviso lista los mixins que sí existen', text.includes('+saludo'), text);
-  const btn = banner.getByRole('button', { name: /Ir al error \(main\.pug:65\)/ });
+  const btn = banner.getByRole('button', { name: /Ir al error · main\.pug:65/ });
   check('20 hay un botón que apunta a main.pug:65', (await btn.count()) === 1, text);
   await btn.click();
   const active = await waitUntil(async () => {

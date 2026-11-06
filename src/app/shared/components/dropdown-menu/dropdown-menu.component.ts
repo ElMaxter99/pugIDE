@@ -36,7 +36,7 @@ export interface MenuItem {
       type="button"
       class="menu-trigger"
       [class.icon-only]="iconOnly()"
-      [class.primary]="tone() === 'primary'"
+      [class.primary]="tone() === 'primary'" [class.bar]="tone() === 'barra'"
       [attr.data-testid]="testId()"
       aria-haspopup="menu"
       [attr.aria-expanded]="open()"
@@ -50,7 +50,7 @@ export interface MenuItem {
     </button>
     @if (open()) {
       <div class="menu-backdrop" (click)="close(false)"></div>
-      <div #list class="menu" role="menu" [attr.aria-label]="ariaLabel() || label()" [class.align-right]="align() === 'right'" (keydown)="onMenuKey($event)">
+      <div #list class="menu" role="menu" [attr.aria-label]="ariaLabel() || label()" [class.align-right]="align() === 'right'" [class.above]="placement() === 'arriba'" (keydown)="onMenuKey($event)">
         @for (item of items(); track $index) {
           @if (item.separator) {
             <div class="menu-separator" role="separator"></div>
@@ -86,11 +86,15 @@ export interface MenuItem {
     .menu-trigger[aria-expanded='true'] { background: var(--bg-active); }
     .menu-trigger.icon-only { width: 32px; justify-content: center; padding: 0; }
     .menu-trigger.primary { background: var(--accent-color); border-color: var(--accent-color); color: var(--on-accent, var(--bg-primary)); font-weight: 600; }
+    /* Botón plano de la barra de estado: sin borde, a la altura de la barra y con su tipografía. */
+    .menu-trigger.bar { border: 0; border-radius: 0; height: 32px; min-height: 32px; padding: 0 8px; font-size: inherit; letter-spacing: inherit; font-family: inherit; }
+    .menu-trigger.bar .menu-icon, .menu-trigger.bar .menu-caret { font-size: 14px; width: auto; margin: 0; }
     .menu-icon, .item-icon { font-size: 18px; width: 18px; }
     .menu-caret { font-size: 18px; margin-left: -2px; }
     .menu-backdrop { position: fixed; inset: 0; z-index: 1190; }
     .menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 1200; min-width: 240px; max-width: min(360px, calc(100vw - 16px)); padding: 4px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35); }
     .menu.align-right { left: auto; right: 0; }
+    .menu.above { top: auto; bottom: calc(100% + 4px); }
     .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 32px; padding: 6px 10px; border: 0; border-radius: 6px; background: none; color: var(--text-primary); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
     .menu-item:hover:not(:disabled), .menu-item:focus-visible { background: var(--bg-hover); outline: 2px solid var(--accent-color); outline-offset: -2px; }
     .menu-item:disabled { opacity: 0.5; cursor: default; }
@@ -110,7 +114,9 @@ export class DropdownMenuComponent {
   readonly iconOnly = input(false);
   readonly caret = input(true);
   readonly align = input<'left' | 'right'>('left');
-  readonly tone = input<'neutral' | 'primary'>('neutral');
+  /** Hacia dónde se abre: «arriba» para los botones del borde inferior (barra de estado). */
+  readonly placement = input<'abajo' | 'arriba'>('abajo');
+  readonly tone = input<'neutral' | 'primary' | 'barra'>('neutral');
   readonly testId = input<string | null>(null);
   readonly chosen = output<string>();
 

@@ -1,6 +1,6 @@
 import { check, openApp, waitUntil } from '../lib.mjs';
 
-// Maquetación de tres piezas que se veían mal: el aviso de error (el texto se quedaba a ancho cero con tantos botones),
+// Maquetación de tres piezas que se veían mal: el panel y la franja de problemas (antes el texto del aviso se quedaba a ancho cero),
 // la lista de resultados de la búsqueda (4 px de alto) y la tipografía de la portada (no usaba Geist)
 export default async function (env) {
   // 1. Aviso de error con explicación y arreglo en el ancho normal del preview
@@ -9,12 +9,16 @@ export default async function (env) {
     session: { projectName: 'Maquetación', files: { '/main.pug': 'html\n  body\n    +tarjeta("hola")\n', '/mixins.pug': 'mixin saludo(n)\n  p= n\n' }, openTabPaths: ['/main.pug'], activeTabPath: '/main.pug' },
   });
   let { page } = app;
-  await page.locator('.compile-error').waitFor({ timeout: 10000 });
-  const text = await page.locator('.compile-error-text').boundingBox();
-  check('26 el texto del aviso de error se ve (no queda a ancho cero)', !!text && text.width >= 150 && text.height >= 14, JSON.stringify(text));
-  const bar = await page.locator('.compile-error').boundingBox();
-  const buttons = await page.locator('.compile-error .compile-error-btn').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.right)]; }));
-  check('26 los botones del aviso caben dentro de él', !!bar && buttons.every(([l, r]) => l >= bar.x - 1 && r <= bar.x + bar.width + 1), JSON.stringify({ bar, buttons }));
+  await page.locator('app-problems-panel .diag-row').first().waitFor({ timeout: 10000 });
+  const text = await page.locator('app-problems-panel .diag-row .title').first().boundingBox();
+  check('26 el título del problema se ve (no queda a ancho cero)', !!text && text.width >= 150 && text.height >= 14, JSON.stringify(text));
+  const bar = await page.locator('app-problems-panel .diag-row').first().boundingBox();
+  const buttons = await page.locator('app-problems-panel .diag-row .act').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.right)]; }));
+  check('26 los botones del problema caben dentro de su fila', !!bar && buttons.length >= 2 && buttons.every(([l, r]) => l >= bar.x - 1 && r <= bar.x + bar.width + 1), JSON.stringify({ bar, buttons }));
+  const strip = await page.locator('[data-testid="problem-strip"]').boundingBox();
+  const view = await page.locator('[data-testid="problem-strip-view"]').boundingBox();
+  const count = await page.locator('[data-testid="problem-strip-count"]').boundingBox();
+  check('26 la franja del preview enseña el recuento y el botón «Ver» dentro de ella', !!strip && !!view && !!count && count.width >= 40 && view.x >= strip.x - 1 && view.x + view.width <= strip.x + strip.width + 1, JSON.stringify({ strip, view, count }));
   await app.close();
 
   // 2. Resultados de la búsqueda en el proyecto
@@ -55,10 +59,10 @@ export default async function (env) {
     },
   });
   page = app.page;
-  await page.locator('.compile-error').waitFor({ timeout: 10000 });
-  await page.getByRole('button', { name: /Todos los problemas/ }).click();
-  await page.locator('app-problems-list .diag-row').first().waitFor({ timeout: 4000 });
-  const widths = await page.locator('app-problems-list .diag-text').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
-  check('26 en la lista de problemas el texto de cada uno ocupa un ancho legible (≥ 150 px)', widths.length === 2 && widths.every((w) => w >= 150), JSON.stringify(widths));
+  await page.locator('app-problems-panel .diag-row').nth(1).waitFor({ timeout: 10000 });
+  const widths = await page.locator('app-problems-panel .diag-row .title').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+  check('26 en el panel de problemas el título de cada uno ocupa un ancho legible (≥ 150 px)', widths.length === 2 && widths.every((w) => w >= 150), JSON.stringify(widths));
+  const listHeight = (await page.locator('app-problems-panel [data-testid="pb-list"]').boundingBox())?.height ?? 0;
+  check('26 la lista de problemas no se queda aplastada (≥ 96 px de alto)', listHeight >= 96, String(listHeight));
   await app.close();
 }

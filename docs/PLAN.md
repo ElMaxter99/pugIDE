@@ -102,7 +102,8 @@ Detalle y mediciones en `design/propuestas/0.7-mejoras-funcionales.md`; mesas P-
 
 - ✅ **14.1 Oleada 1 (sin mover paneles):** textos en español y accesibilidad (anillo de foco en selectores, nombres accesibles, corrección del selector de dispositivo), terminal renombrada «Registro» con filtro «Esenciales» (P-09) y paleta con recientes, atajos y sublista de dispositivos (P-07).
 - ✅ **14.2 Oleada 2 (barras):** barra del preview en una fila con menú «Vista» (P-04), barra de datos simplificada con menú «⋯» (P-05) y menús «Proyecto» y «Exportar» (P-11). Los datos como pestaña del panel lateral son estructura y pasan a la oleada 3 con P-08.
-- ⏳ **14.3 Oleada 3 (estructura):** panel «Problemas» único (P-03), disposiciones y tiradores con los datos como pestaña del panel lateral (P-08; con ello el preview llegará a unos 660 px y la barra del preview enseñará los textos), bienvenida y recorrido (P-06, P-12).
+- ✅ **14.3 Oleada 3 (estructura), parte 1:** panel «Problemas» único (P-03) y disposiciones y tiradores con los datos como pestaña del panel lateral (P-08).
+- ⏳ **14.4 Oleada 3, parte 2:** bienvenida con plantillas y recorrido de 4 pasos (P-06, P-12).
 
 ### Fase 13. Mantenimiento (parcial)
 

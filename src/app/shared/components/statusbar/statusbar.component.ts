@@ -1,28 +1,32 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { EditorState } from '../../../core/state/editor.state';
 import { TerminalState } from '../../../core/state/terminal.state';
+import { DiagnosticsState } from '../../../core/state/diagnostics.state';
 import { PreviewState } from '../../../core/state/preview.state';
 import { ParserState } from '../../../core/state/parser.state';
 import { PersistenceService } from '../../../core/services/persistence.service';
 import { PreferencesState } from '../../../core/services/preferences.state';
+import { LayoutService } from '../../../core/services/layout.service';
+import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.component';
+import { LAYOUTS } from '../../../core/utils/layout.util';
 
 @Component({
   selector: 'app-statusbar',
   standalone: true,
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, DropdownMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <footer class="statusbar">
       <div class="status-left">
-        <button type="button" class="status-group" (click)="toggleTerminal()" title="Mostrar u ocultar el Registro" [attr.aria-label]="terminalState.errorCount() + (terminalState.errorCount() === 1 ? ' error' : ' errores') + ': mostrar u ocultar el Registro'">
+        <button type="button" class="status-group" data-testid="status-errors" (click)="openProblems()" title="Abrir el panel Problemas" [attr.aria-label]="diagnostics.counts().errors + (diagnostics.counts().errors === 1 ? ' error' : ' errores') + ': abrir el panel Problemas'">
           <span aria-hidden="true" class="material-symbols-outlined error-icon">cancel</span>
-          <span>{{ terminalState.errorCount() }} {{ terminalState.errorCount() === 1 ? 'error' : 'errores' }}</span>
+          <span>{{ diagnostics.counts().errors }} {{ diagnostics.counts().errors === 1 ? 'error' : 'errores' }}</span>
         </button>
-        <div class="status-group">
+        <button type="button" class="status-group" data-testid="status-warnings" (click)="openProblems()" title="Abrir el panel Problemas" [attr.aria-label]="diagnostics.counts().warnings + (diagnostics.counts().warnings === 1 ? ' aviso' : ' avisos') + ': abrir el panel Problemas'">
           <span aria-hidden="true" class="material-symbols-outlined warning-icon">warning</span>
-          <span>{{ terminalState.warningCount() }} {{ terminalState.warningCount() === 1 ? 'aviso' : 'avisos' }}</span>
-        </div>
+          <span>{{ diagnostics.counts().warnings }} {{ diagnostics.counts().warnings === 1 ? 'aviso' : 'avisos' }}</span>
+        </button>
         @if (parserState.isParsing()) {
           <div class="status-group">
             <span aria-hidden="true" class="material-symbols-outlined info-icon">sync</span>
@@ -46,6 +50,17 @@ import { PreferencesState } from '../../../core/services/preferences.state';
           <span aria-hidden="true" class="auto-dot" [class.on]="preferences.autoCompile()"></span>
           <span>Autocompilar: {{ preferences.autoCompile() ? 'sí' : 'no' }}</span>
         </button>
+        <div class="layout-menu">
+          <app-dropdown-menu
+            testId="layout-menu"
+            tone="barra"
+            icon="web"
+            [label]="'Disposición: ' + layout.def().label"
+            placement="arriba"
+            align="right"
+            [items]="layoutItems()"
+            (chosen)="onLayoutChoice($event)" />
+        </div>
         <span class="status-item dim">UTF-8</span>
         <span class="status-item dim">{{ getLanguage() }}</span>
         <div
@@ -116,6 +131,16 @@ import { PreferencesState } from '../../../core/services/preferences.state';
       background: rgba(255, 255, 255, 0.05);
     }
 
+    /* La barra es oscura en los dos temas: el menú que se abre desde ella también. */
+    .layout-menu {
+      --bg-secondary: #231e27;
+      --bg-primary: #16111b;
+      --border-color: #4d4354;
+      --bg-hover: rgba(255, 255, 255, 0.08);
+      --bg-active: rgba(255, 255, 255, 0.12);
+      display: flex;
+    }
+
     .auto-dot {
       width: 6px;
       height: 6px;
@@ -171,10 +196,30 @@ import { PreferencesState } from '../../../core/services/preferences.state';
 export class StatusbarComponent {
   protected editorState = inject(EditorState);
   protected terminalState = inject(TerminalState);
+  protected diagnostics = inject(DiagnosticsState);
   protected previewState = inject(PreviewState);
   protected parserState = inject(ParserState);
   protected persistence = inject(PersistenceService);
   protected preferences = inject(PreferencesState);
+  protected layout = inject(LayoutService);
+
+  /** Filas del menú «Disposición»: las cuatro disposiciones (con su atajo), los paneles y «Restablecer los tamaños». */
+  protected layoutItems = computed<MenuItem[]>(() => [
+    { heading: 'Disposición' },
+    ...LAYOUTS.map((l) => ({ id: `layout:${l.id}`, label: l.label, keys: l.keys, checked: l.id === this.preferences.layout(), radio: true })),
+    { separator: true },
+    { id: 'sidebar', label: 'Panel lateral', keys: 'Ctrl+B', icon: 'left_panel_close' },
+    { id: 'bottom', label: 'Panel inferior', keys: 'Ctrl+J', icon: 'close_fullscreen' },
+    { separator: true },
+    { id: 'reset', label: 'Restablecer los tamaños', icon: 'refresh' },
+  ]);
+
+  protected onLayoutChoice(id: string): void {
+    if (id.startsWith('layout:')) this.layout.apply(id.slice('layout:'.length) as (typeof LAYOUTS)[number]['id']);
+    else if (id === 'sidebar') this.layout.toggleSidebar();
+    else if (id === 'bottom') this.layout.toggleBottom();
+    else if (id === 'reset') this.layout.resetSizes();
+  }
 
   getLanguage(): string {
     const tab = this.editorState.activeTab();
@@ -190,7 +235,8 @@ export class StatusbarComponent {
     }
   }
 
-  toggleTerminal(): void {
-    this.terminalState.toggle();
+  /** Los contadores de errores y avisos abren el panel «Problemas» (y llevan el foco a él). */
+  openProblems(): void {
+    this.terminalState.openProblems();
   }
 }

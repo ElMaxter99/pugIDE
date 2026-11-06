@@ -38,9 +38,13 @@ export class PreviewState {
 
   readonly hasErrors = computed(() => this.errors().length > 0);
 
+  /** Cuándo se compiló por última vez sin errores (ms desde 1970; 0: aún no hay una vista correcta). */
+  readonly lastGoodAt = signal(0);
+
   updateCompiledResult(result: CompileResult): void {
     // On a failed compile keep showing the last good render instead of blanking the preview.
     if (result.html || result.errors.length === 0) this.compiledHtml.set(result.html);
+    if (result.html && !result.errors.some((e) => e.severity === 'error')) this.lastGoodAt.set(Date.now());
     this.compilationTime.set(result.compilationTime);
     this.errors.set(result.errors);
     this.isLoading.set(false);
