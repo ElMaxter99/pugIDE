@@ -185,7 +185,7 @@ export class DatasetBarComponent {
     this.beforeChange.emit();
     await this.orchestrator.regenerateMocks();
     this.changed.emit();
-    this.terminalState.addEntry('success', 'DataEditor', 'Datos de ejemplo regenerados (puedes deshacer).');
+    this.terminalState.addEntry('success', 'Datos', 'Datos de ejemplo regenerados (puedes deshacer).');
   }
 
   async importFile(event: Event): Promise<void> {
@@ -198,11 +198,11 @@ export class DatasetBarComponent {
       this.beforeChange.emit();
       const { source, warnings } = this.orchestrator.importDataDocument(doc, file.name.replace(/\.json$/i, ''));
       const label = source === 'openapi' ? 'OpenAPI' : source === 'json-schema' ? 'JSON Schema' : 'JSON';
-      this.terminalState.addEntry('success', 'DataEditor', `Importado ${file.name} (${label}) como juego de datos nuevo.`);
-      for (const w of warnings) this.terminalState.addEntry('warning', 'DataEditor', w);
+      this.terminalState.addEntry('success', 'Datos', `Importado ${file.name} (${label}) como juego de datos nuevo.`);
+      for (const w of warnings) this.terminalState.addEntry('warning', 'Datos', w);
       this.changed.emit();
     } catch (e: unknown) {
-      this.terminalState.addEntry('error', 'DataEditor', `No se pudo importar ${file.name}: ${(e as Error).message}`);
+      this.terminalState.addEntry('error', 'Datos', `No se pudo importar ${file.name}: ${(e as Error).message}`);
     }
   }
 }

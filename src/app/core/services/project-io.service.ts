@@ -43,7 +43,7 @@ export class ProjectIoService {
   async exportProject(): Promise<void> {
     const files = this.editorState.files();
     if (files.size === 0 && this.assetState.assets().size === 0) {
-      this.terminalState.addEntry('warning', 'Export', 'Nothing to export — the project has no files.');
+      this.terminalState.addEntry('warning', 'Exportar', 'No hay nada que exportar: el proyecto no tiene archivos.');
       return;
     }
     try {
@@ -54,7 +54,7 @@ export class ProjectIoService {
       }
     } catch (err) {
       if ((err as DOMException)?.name === 'AbortError') return;
-      this.terminalState.addEntry('error', 'Export', `Export failed: ${(err as Error).message ?? err}`);
+      this.terminalState.addEntry('error', 'Exportar', `No se pudo exportar: ${(err as Error).message ?? err}`);
     }
   }
 
@@ -68,7 +68,7 @@ export class ProjectIoService {
     }
     await this.writeFileToDirectory(dirHandle, DATASETS_PATH, this.datasetsText());
     this.persistence.saveLastBackup();
-    this.terminalState.addEntry('success', 'Export', `Exported ${files.size + this.assetState.assets().size} file(s) to disk.`);
+    this.terminalState.addEntry('success', 'Exportar', `Exportado${files.size + this.assetState.assets().size === 1 ? '' : 's'} ${files.size + this.assetState.assets().size} archivo${files.size + this.assetState.assets().size === 1 ? '' : 's'} a la carpeta.`);
   }
 
   /** Juegos de datos del proyecto, como `/.pugide/datasets.json` (no es un archivo del proyecto). */
@@ -116,7 +116,7 @@ export class ProjectIoService {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     this.persistence.saveLastBackup();
-    this.terminalState.addEntry('success', 'Export', `Exported ${files.size + this.assetState.assets().size} file(s) as ${fileName}.`);
+    this.terminalState.addEntry('success', 'Exportar', `Exportados ${files.size + this.assetState.assets().size} archivo${files.size + this.assetState.assets().size === 1 ? '' : 's'} como ${fileName}.`);
   }
 
   async importFromDirectory(): Promise<void> {
@@ -129,7 +129,7 @@ export class ProjectIoService {
       this.finishImport(files, dirHandle.name, assets);
     } catch (err) {
       if ((err as DOMException)?.name === 'AbortError') return;
-      this.terminalState.addEntry('error', 'Import', `Import failed: ${(err as Error).message ?? err}`);
+      this.terminalState.addEntry('error', 'Importar', `No se pudo importar: ${(err as Error).message ?? err}`);
     }
   }
 
@@ -158,9 +158,9 @@ export class ProjectIoService {
       const dirs = entries.filter((e) => e.isDirectory);
       if (dirs.length === 1 && entries.length === 1) {
         const { files, assets, ignored } = await this.readDropped(await collectDropped(entries, { intoRoot: true }), true);
-        if (ignored.length) this.terminalState.addEntry('info', 'Import', `Sin importar (tipo no soportado): ${ignored.slice(0, 8).join(', ')}${ignored.length > 8 ? '…' : ''}`);
+        if (ignored.length) this.terminalState.addEntry('info', 'Importar', `Sin importar (tipo no soportado): ${ignored.slice(0, 8).join(', ')}${ignored.length > 8 ? '…' : ''}`);
         this.finishImport(files, dirs[0].name, assets);
-        if (files.size) this.terminalState.addEntry('info', 'Import', 'El proyecto anterior está en «Mis proyectos».');
+        if (files.size) this.terminalState.addEntry('info', 'Importar', 'El proyecto anterior está en «Mis proyectos».');
         return;
       }
       if (dirs.length === 0 && loose.length === 1 && isZip(loose[0].name)) {
@@ -181,7 +181,7 @@ export class ProjectIoService {
       }
       if (rest.length) await this.orchestrator.addAssets(rest);
     } catch (err) {
-      this.terminalState.addEntry('error', 'Import', `No se pudo importar lo soltado: ${(err as Error).message ?? err}`);
+      this.terminalState.addEntry('error', 'Importar', `No se pudo importar lo soltado: ${(err as Error).message ?? err}`);
     }
   }
 
@@ -210,7 +210,7 @@ export class ProjectIoService {
       }
       this.finishImport(files, file.name.replace(/\.zip$/i, ''), assets);
     } catch (err) {
-      this.terminalState.addEntry('error', 'Import', `Could not read zip file: ${(err as Error).message ?? err}`);
+      this.terminalState.addEntry('error', 'Importar', `No se pudo leer el .zip: ${(err as Error).message ?? err}`);
     }
   }
 
@@ -219,10 +219,10 @@ export class ProjectIoService {
     files.delete(DATASETS_PATH);
     const datasets = datasetsText === undefined ? null : parseDatasetsFile(datasetsText);
     if (datasetsText !== undefined && !datasets) {
-      this.terminalState.addEntry('warning', 'Import', `${DATASETS_PATH} no es válido: se ignoran los juegos de datos.`);
+      this.terminalState.addEntry('warning', 'Importar', `${DATASETS_PATH} no es válido: se ignoran los juegos de datos.`);
     }
     if (files.size === 0) {
-      this.terminalState.addEntry('warning', 'Import', 'No supported files found to import.');
+      this.terminalState.addEntry('warning', 'Importar', 'No hay archivos compatibles que importar.');
       return;
     }
     this.orchestrator.loadProject(files, projectName || 'Imported Project', assets, datasets);

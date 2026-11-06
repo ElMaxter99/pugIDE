@@ -9,6 +9,7 @@ import {
   ElementRef,
   ViewChild,
   viewChild,
+  untracked,
 } from '@angular/core';
 import { registerPugLanguage } from './pug-language';
 import { ProjectSearchComponent } from './project-search.component';
@@ -23,6 +24,7 @@ import {
   ReplaceResult,
 } from '../../core/utils/pug-editor.util';
 import { TerminalState } from '../../core/state/terminal.state';
+import { UiState } from '../../core/state/ui.state';
 import { DiagnosticsState } from '../../core/state/diagnostics.state';
 import { PreferencesState } from '../../core/services/preferences.state';
 
@@ -53,7 +55,7 @@ const MODEL_LANGUAGES: Record<string, string> = {
           <div class="empty-editor">
             <span aria-hidden="true" class="material-symbols-outlined empty-icon">description</span>
             <h2>Ningún archivo abierto</h2>
-            <p>Abre un archivo desde el Workspace</p>
+            <p>Abre un archivo desde el panel Archivos</p>
           </div>
         }
         <div #editorContainer class="monaco-host" [class.hidden]="!editorState.activeTab()"></div>
@@ -138,6 +140,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   private orchestrator = inject(OrchestratorService);
   private preferences = inject(PreferencesState);
   private terminalState = inject(TerminalState);
+  private ui = inject(UiState);
   private parserState = inject(ParserState);
   private diagnosticsState = inject(DiagnosticsState);
   private extraDisposables: { dispose(): void }[] = [];
@@ -168,6 +171,17 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       if (!req) return;
       // The model switch for a newly activated tab happens in the effect above; reveal right after it.
       setTimeout(() => this.revealLine(req.path, req.line), 0);
+    });
+
+    // Órdenes que llegan desde la paleta (buscar en el proyecto, ir a símbolo, formatear…).
+    effect(() => {
+      const cmd = this.ui.editorCommand();
+      if (!cmd || !this.editorReady()) return;
+      untracked(() => {
+        this.editor?.focus();
+        if (cmd.id === 'pug.searchInProject') this.openSearch();
+        else void this.editor?.getAction(cmd.id)?.run();
+      });
     });
 
     effect(() => {
@@ -313,13 +327,13 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
 
     this.updateDisposable = this.editor.onDidChangeModelContent(() => {
       // Monaco swallows exceptions thrown here and can stop accepting edits (e.g. paste) without
-      // any trace, so catch them and surface them in the terminal instead.
+      // any trace, so catch them and surface them in the Registro instead.
       try {
         const content = this.editor.getModel()?.getValue() ?? '';
         this.orchestrator.onCodeChange(content);
       } catch (err) {
         console.error('[PugIDE] Error handling editor change', err);
-        this.terminalState.addEntry('error', 'Editor', `Error handling editor change: ${(err as Error)?.message ?? err}`);
+        this.terminalState.addEntry('error', 'Editor', `Error al procesar el cambio del editor: ${(err as Error)?.message ?? err}`);
       }
     });
 

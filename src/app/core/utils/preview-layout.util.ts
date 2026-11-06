@@ -86,7 +86,7 @@ export function describePageIssue(i: PageBreakIssue): string {
     : `Página ${i.page}: ${what} queda al final de la página, separado de su contenido. Prueba con \`${sel} { break-after: avoid; }\` o con un salto de página antes (\`break-before: page\`).`;
 }
 
-/** Identidad de un conjunto de avisos, para no repetirlos en la terminal al reflujo. */
+/** Identidad de un conjunto de avisos, para no repetirlos en el Registro al reflujo. */
 export function pageIssuesKey(issues: PageBreakIssue[]): string {
   return issues.map((i) => `${i.kind}:${i.page}:${i.element}:${i.text}`).join('|');
 }
@@ -111,9 +111,9 @@ export function a11yReport(
   locate: (sig: unknown) => { path: string; line: number; approximate?: boolean } | null,
 ): TerminalLine[] {
   if (issues.length === 0) {
-    return [{ type: 'success', message: 'Auditoria basica: sin problemas detectados (contraste, alt, labels, encabezados).' }];
+    return [{ type: 'success', message: 'Auditoría básica: sin problemas detectados (contraste, alt, labels, encabezados).' }];
   }
-  const lines: TerminalLine[] = [{ type: 'info', message: `Auditoria basica: ${issues.length} problema(s).` }];
+  const lines: TerminalLine[] = [{ type: 'info', message: `Auditoría básica: ${issues.length} problema(s).` }];
   for (const i of issues) {
     const loc = locate(i.sig);
     const where = loc ? ` (${loc.path}:${loc.line}${loc.approximate ? ' ~' : ''})` : i.htmlLine ? ` (HTML linea ${i.htmlLine})` : '';

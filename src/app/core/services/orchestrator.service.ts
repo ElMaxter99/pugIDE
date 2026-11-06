@@ -95,7 +95,7 @@ export class OrchestratorService {
 
   async initialize(): Promise<void> {
     await Promise.all([this.parser.initialize(), this.compiler.initialize()]);
-    this.terminalState.addEntry('info', 'PugIDE', 'PugIDE initialized successfully');
+    this.terminalState.addEntry('info', 'Sistema', 'PugIDE listo.', undefined, true);
   }
 
   onCodeChange(code: string): void {
@@ -172,7 +172,7 @@ export class OrchestratorService {
         this.dataState.patchMissingData(patchedData);
         this.terminalState.addEntry(
           'info',
-          'Data',
+          'Datos',
           'Se han creado datos de ejemplo para nuevas referencias del template. Revisa el editor de datos para ajustarlos.'
         );
       }
@@ -180,8 +180,8 @@ export class OrchestratorService {
       for (const error of parseResult.errors) {
         this.terminalState.addEntry(
           error.severity,
-          'Parser',
-          `Line ${error.line}:${error.column} - ${error.message}`
+          'Pug',
+          `Línea ${error.line}:${error.column} - ${error.message}`
         );
       }
 
@@ -231,25 +231,27 @@ export class OrchestratorService {
         this.terminalState.addEntry(
           error.severity,
           error.source,
-          `Line ${error.line ?? '?'} - ${error.message}${error.hint ? `\n${error.hint}` : ''}`,
+          `Línea ${error.line ?? '?'} - ${error.message}${error.hint ? `\n${error.hint}` : ''}`,
           error.line ? { path: at, line: error.line } : undefined,
         );
       }
 
       for (const scssError of scssResult.errors) {
-        this.terminalState.addEntry('error', 'scss', `${scssError.path} - ${scssError.line ? `línea ${scssError.line}: ` : ''}${scssError.message}`, scssError.line ? { path: scssError.path, line: scssError.line } : undefined);
+        this.terminalState.addEntry('error', 'Estilos', `${scssError.path} - ${scssError.line ? `línea ${scssError.line}: ` : ''}${scssError.message}`, scssError.line ? { path: scssError.path, line: scssError.line } : undefined);
       }
 
       if (parseResult.errors.length === 0 && compileResult.errors.length === 0) {
         this.terminalState.addEntry(
           'success',
-          'Compiler',
-          `Compiled in ${compileResult.compilationTime.toFixed(1)}ms`
+          'Compilador',
+          `Compilado en ${Math.round(compileResult.compilationTime)} ms`,
+          undefined,
+          true
         );
       }
     } catch (err: unknown) {
       const error = err as Error;
-      this.terminalState.addEntry('error', 'System', error.message);
+      this.terminalState.addEntry('error', 'Sistema', error.message);
     } finally {
       this.isProcessing = false;
       this.previewState.setLoading(false);
@@ -290,7 +292,9 @@ export class OrchestratorService {
     if (list.join('|') !== this.assetState.missing().join('|')) {
       this.assetState.missing.set(list);
       if (list.length > 0) {
-        this.terminalState.addEntry('warning', 'Assets', `Faltan ${list.length} archivo(s) referenciados: ${list.join(', ')} — súbelos desde la barra lateral.`);
+        this.terminalState.addEntry('warning', 'Archivos', list.length === 1
+          ? `Falta 1 archivo referenciado: ${list[0]}. Súbelo desde el panel de archivos.`
+          : `Faltan ${list.length} archivos referenciados: ${list.join(', ')}. Súbelos desde el panel de archivos.`);
       }
     }
     return out;
@@ -310,7 +314,7 @@ export class OrchestratorService {
         continue;
       }
       if (!targetPath && !ASSET_EXT_RE.test(file.name)) {
-        this.terminalState.addEntry('warning', 'Assets', `${file.name}: tipo no soportado (imágenes, fuentes y hojas de estilo).`);
+        this.terminalState.addEntry('warning', 'Archivos', `${file.name}: tipo no soportado (imágenes, fuentes y hojas de estilo).`);
         continue;
       }
       const data = new Uint8Array(await file.arrayBuffer());
@@ -324,7 +328,7 @@ export class OrchestratorService {
     }
     if (added.length === 0) return;
     this.refreshTree();
-    this.terminalState.addEntry('success', 'Assets', `Añadido: ${added.join(', ')}`);
+    this.terminalState.addEntry('success', 'Archivos', `Añadido: ${added.join(', ')}`);
     await this.manualCompile();
   }
 
@@ -355,7 +359,7 @@ export class OrchestratorService {
   async saveAssets(): Promise<void> {
     if (!this.assetsReady) return;
     const ok = await this.assetStorage.save([...this.assetState.assets().values()]);
-    if (!ok) this.terminalState.addEntry('warning', 'Assets', 'No se pudieron guardar las imágenes en el navegador (almacenamiento lleno o bloqueado).');
+    if (!ok) this.terminalState.addEntry('warning', 'Archivos', 'No se pudieron guardar las imágenes en el navegador (almacenamiento lleno o bloqueado).');
     await this.saveToLibrary();
   }
 
@@ -710,8 +714,8 @@ export class OrchestratorService {
 
     this.terminalState.addEntry(
       'success',
-      'Project',
-      `Loaded "${projectName}" (${files.size} file${files.size === 1 ? '' : 's'}).`
+      'Proyecto',
+      `Proyecto «${projectName}» cargado (${files.size} archivo${files.size === 1 ? '' : 's'}).`
     );
     this.manualCompile();
     this.saveSession();
@@ -831,14 +835,14 @@ export class OrchestratorService {
       const src = files.get(fix.path);
       const next = src === undefined ? null : replaceOnLine(src, fix.line, fix.from, fix.to);
       if (next === null) {
-        this.terminalState.addEntry('warning', 'Fix', `No se pudo aplicar «${fix.label}»: el código ya no coincide. Vuelve a compilar.`);
+        this.terminalState.addEntry('warning', 'Arreglo', `No se pudo aplicar «${fix.label}»: el código ya no coincide. Vuelve a compilar.`);
         return;
       }
       write(fix.path, next);
     }
     if (touched.size) this.editorState.notifyFileSync([...touched]);
     this.projectState.setProject(this.projectState.projectName(), files);
-    this.terminalState.addEntry('success', 'Fix', fix.label);
+    this.terminalState.addEntry('success', 'Arreglo', fix.label);
     // Monaco aplica el cambio en el siguiente ciclo; cambiar de pestaña antes lo dejaría sobre el modelo equivocado.
     if (reveal) {
       const target = reveal;
@@ -864,14 +868,14 @@ export class OrchestratorService {
       else { this.assetState.add(a.path, a.data, a.mime); added.push(a.path); }
     }
     if (skipped.length) {
-      this.terminalState.addEntry('warning', 'Import', `Ya existían y no se sobrescriben: ${skipped.slice(0, 8).join(', ')}${skipped.length > 8 ? '…' : ''}`);
+      this.terminalState.addEntry('warning', 'Importar', `Ya existían y no se sobrescriben: ${skipped.slice(0, 8).join(', ')}${skipped.length > 8 ? '…' : ''}`);
     }
     if (added.length === 0) return;
     this.projectState.setProject(this.projectState.projectName(), current);
     this.refreshTree();
     const firstPug = [...files.keys()].find((p) => /\.(pug|jade)$/i.test(p));
     if (firstPug && !this.editorState.activeTab()) this.editorState.openFile(firstPug, firstPug.split('/').pop() ?? firstPug, getFileType(firstPug), files.get(firstPug) ?? '');
-    this.terminalState.addEntry('success', 'Import', `Añadido${added.length === 1 ? '' : 's'} ${added.length} archivo${added.length === 1 ? '' : 's'}: ${added.slice(0, 8).join(', ')}${added.length > 8 ? '…' : ''}`);
+    this.terminalState.addEntry('success', 'Importar', `Añadido${added.length === 1 ? '' : 's'} ${added.length} archivo${added.length === 1 ? '' : 's'}: ${added.slice(0, 8).join(', ')}${added.length > 8 ? '…' : ''}`);
     void this.manualCompile();
   }
 
@@ -909,7 +913,7 @@ export class OrchestratorService {
       this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
       this.editorState.openFile(op.path, op.path.split('/').pop() ?? op.path, getFileType(op.path), content);
     }
-    this.terminalState.addEntry('info', 'Files', `Restaurado ${op.path}`);
+    this.terminalState.addEntry('info', 'Archivos', `Restaurado ${op.path}`);
   }
 
   renameFile(oldPath: string, newPath: string, record = true): void {
@@ -918,7 +922,7 @@ export class OrchestratorService {
       this.assetState.rename(oldPath, newPath);
       if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });
       this.refreshTree();
-      this.terminalState.addEntry('info', 'Files', `Renamed ${oldPath} to ${newPath}`);
+      this.terminalState.addEntry('info', 'Archivos', `Renombrado ${oldPath} → ${newPath}`);
       void this.manualCompile();
       return;
     }
@@ -942,7 +946,7 @@ export class OrchestratorService {
     this.editorState.renameOpenTab(oldPath, newPath, name);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });
-    this.terminalState.addEntry('info', 'Files', `Renamed ${oldPath} to ${newPath}`);
+    this.terminalState.addEntry('info', 'Archivos', `Renombrado ${oldPath} → ${newPath}`);
   }
 
   deleteFile(path: string): void {
@@ -951,7 +955,7 @@ export class OrchestratorService {
       this.pushFileOp({ kind: 'delete', path, asset });
       this.assetState.remove(path);
       this.refreshTree();
-      this.terminalState.addEntry('info', 'Files', `Deleted ${path}`);
+      this.terminalState.addEntry('info', 'Archivos', `Eliminado ${path}`);
       void this.manualCompile();
       return;
     }
@@ -962,7 +966,7 @@ export class OrchestratorService {
     this.editorState.files.update((f) => { f.delete(path); return f; });
     this.editorState.closeTabByPath(path);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
-    this.terminalState.addEntry('info', 'Files', `Deleted ${path}`);
+    this.terminalState.addEntry('info', 'Archivos', `Eliminado ${path}`);
   }
 
   duplicateFile(path: string): void {
@@ -975,7 +979,7 @@ export class OrchestratorService {
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
     const name = newPath.split('/').pop() ?? newPath;
     this.editorState.openFile(newPath, name, getFileType(name), content);
-    this.terminalState.addEntry('info', 'Files', `Duplicated ${path} as ${newPath}`);
+    this.terminalState.addEntry('info', 'Archivos', `Duplicado ${path} como ${newPath}`);
   }
 
   private generateDuplicatePath(path: string, files: Map<string, string>): string {
@@ -1004,7 +1008,7 @@ export class OrchestratorService {
       // Skip incomplete paths such as "./", "." or "dir/" (still being typed).
       if (!/[^./]/.test(name.replace(/\.pug$/i, ''))) continue;
       this.editorState.files.update((f) => { f.set(path, ''); return f; });
-      this.terminalState.addEntry('info', 'Files', `Created missing include: ${name}`);
+      this.terminalState.addEntry('info', 'Archivos', `Include que faltaba creado: ${name}`);
       changed = true;
     }
     if (changed) {

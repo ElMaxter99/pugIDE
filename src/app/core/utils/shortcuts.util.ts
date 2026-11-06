@@ -29,10 +29,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
-    title: 'Datos y terminal',
+    title: 'Datos y Registro',
     items: [
       { label: 'Alternar árbol / editor JSON', keys: 'Ctrl+Shift+J' },
-      { label: 'Limpiar la terminal', keys: 'Ctrl+Shift+K' },
+      { label: 'Limpiar el Registro', keys: 'Ctrl+Shift+K' },
     ],
   },
 ];

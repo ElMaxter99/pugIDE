@@ -96,6 +96,14 @@ Las pruebas van bien (unitarias, e2e, interfaz en tres navegadores, accesibilida
 - 👤 **12.1 Lector de pantalla** (NVDA, VoiceOver u Orca) sobre las pantallas principales.
 - 👤 **12.2 Atajos en un Mac real:** desde la 0.4.1 Monaco usa Cmd en Mac y soltar el foco del editor es Ctrl+Mayús+M; solo se ha probado con el WebKit de Playwright.
 
+### Fase 14. Mejoras de interfaz 0.7 (propuesta aprobada, por oleadas)
+
+Detalle y mediciones en `design/propuestas/0.7-mejoras-funcionales.md`; mesas P-01 a P-12 del lienzo.
+
+- ✅ **14.1 Oleada 1 (sin mover paneles):** textos en español y accesibilidad (anillo de foco en selectores, nombres accesibles, corrección del selector de dispositivo), terminal renombrada «Registro» con filtro «Esenciales» (P-09) y paleta con recientes, atajos y sublista de dispositivos (P-07).
+- ⏳ **14.2 Oleada 2 (barras):** barra del preview en una fila (P-04), datos como pestaña del panel lateral (P-05) y menús «Proyecto» y «Exportar» (P-11).
+- ⏳ **14.3 Oleada 3 (estructura):** panel «Problemas» único (P-03), disposiciones y tiradores (P-08), bienvenida y recorrido (P-06, P-12).
+
 ### Fase 13. Mantenimiento (parcial)
 
 - ⏳ **13.1** Los 18 avisos moderados de `npm audit` (`minimatch` dentro de `eslint`): subir `eslint` cuando salga una versión con `minimatch` 11.

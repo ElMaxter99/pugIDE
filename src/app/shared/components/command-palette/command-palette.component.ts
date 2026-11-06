@@ -6,20 +6,32 @@ import { PreferencesState } from '../../../core/services/preferences.state';
 import { DiagnosticsState } from '../../../core/state/diagnostics.state';
 import { EditorState } from '../../../core/state/editor.state';
 import { PreviewState } from '../../../core/state/preview.state';
+import { TerminalState } from '../../../core/state/terminal.state';
 import { UiState } from '../../../core/state/ui.state';
 import { getFileType } from '../../../core/models/tab.model';
 import { DEVICE_PRESETS } from '../../../core/utils/device-presets.util';
 import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
 import { rememberFocus } from '../../../core/utils/focus-trap.util';
 import { HELPERS_TEMPLATE } from '../../../core/utils/helpers.util';
-import { filterCommands } from '../../../core/utils/command-palette.util';
+import { filterCommands, highlightParts, pushRecent, withRecentsFirst } from '../../../core/utils/command-palette.util';
+import { PersistenceService } from '../../../core/services/persistence.service';
 
 interface PaletteCommand {
+  /** Estable entre aperturas: es lo que se guarda en «Recientes». */
+  id: string;
   title: string;
+  /** Atajo de teclado, si lo tiene. */
+  keys?: string;
   group: string;
   keywords?: string;
+  /** Solo aparece al buscar, en «Recientes» o dentro de su sublista (no en la lista inicial). */
+  sub?: 'dispositivos';
+  /** Mantiene la paleta abierta al ejecutarlo (entrar en una sublista). */
+  keepOpen?: boolean;
   run: () => void;
 }
+
+type Draft = Omit<PaletteCommand, 'id'> & { id?: string };
 
 /** Paleta de comandos (Ctrl/Cmd+K): acciones, dispositivos del preview, plantillas y archivos del proyecto. */
 @Component({
@@ -42,8 +54,14 @@ interface PaletteCommand {
             [value]="query()"
             (input)="onQuery($any($event.target).value)"
             (keydown)="onKey($event)" />
+          @if (scope() === 'dispositivos') {
+            <div class="crumb"><button type="button" class="back" (click)="leaveScope()">← Todos los comandos</button><span>Cambiar dispositivo</span></div>
+          }
           <ul class="list" id="palette-list" role="listbox">
-            @for (c of results(); track c.title; let i = $index) {
+            @for (c of results(); track c.id; let i = $index) {
+              @if (sectionAt(i); as label) {
+                <li class="section" role="presentation">{{ label }}</li>
+              }
               <li
                 role="option"
                 class="item"
@@ -51,13 +69,18 @@ interface PaletteCommand {
                 [attr.aria-selected]="i === activeIndex()"
                 (mousemove)="active.set(i)"
                 (click)="run(c)">
-                <span class="title">{{ c.title }}</span>
+                <span class="title">@for (p of parts(c.title); track $index) {@if (p.match) {<mark>{{ p.text }}</mark>} @else {{{ p.text }}}}</span>
+                @if (c.keys) { <kbd class="keys">{{ c.keys }}</kbd> }
                 <span class="group">{{ c.group }}</span>
               </li>
             } @empty {
               <li class="empty">Sin resultados</li>
             }
           </ul>
+          <div class="foot" aria-hidden="true">
+            <span>↑↓ moverse · Enter ejecutar · Esc {{ scope() === 'root' ? 'cerrar' : 'volver' }}</span>
+            <span>{{ allCount() }} comandos · escribe para filtrar</span>
+          </div>
         </div>
       </div>
     }
@@ -71,6 +94,12 @@ interface PaletteCommand {
     .item.active { background: var(--bg-hover); outline: 1px solid var(--accent-color); }
     .title { overflow-wrap: anywhere; }
     .group { flex-shrink: 0; font-size: 11px; color: var(--text-secondary); }
+    .section { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
+    .keys { flex-shrink: 0; margin-left: auto; font-family: var(--font-mono); font-size: 11px; padding: 1px 6px; border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); background: var(--bg-primary); }
+    mark { background: transparent; color: var(--accent-color); font-weight: 600; }
+    .crumb { display: flex; align-items: center; gap: 12px; padding: 6px 12px; font-size: 12px; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); }
+    .back { background: none; border: 0; padding: 4px 6px; color: var(--accent-color); font: inherit; cursor: pointer; }
+    .foot { display: flex; justify-content: space-between; gap: 12px; padding: 6px 12px; font-size: 11px; color: var(--text-secondary); border-top: 1px solid var(--border-color); }
     .empty { padding: 16px; text-align: center; font-size: 13px; color: var(--text-secondary); }
   `],
 })
@@ -83,7 +112,9 @@ export class CommandPaletteComponent {
   private editorState = inject(EditorState);
   private previewState = inject(PreviewState);
   private injector = inject(Injector);
+  private persistence = inject(PersistenceService);
   private diagnosticsState = inject(DiagnosticsState);
+  private terminalState = inject(TerminalState);
 
   /** Salta al siguiente/anterior problema de todo el proyecto (el F8 de Monaco solo recorre el archivo abierto). */
   private goToProblem(direction: 1 | -1): void {
@@ -95,14 +126,20 @@ export class CommandPaletteComponent {
   private restoreFocus: (() => void) | null = null;
   protected query = signal('');
   protected active = signal(0);
+  /** 'root': todos los comandos; 'dispositivos': sublista de dispositivos del preview. */
+  protected scope = signal<'root' | 'dispositivos'>('root');
+  private recent = signal<string[]>(this.persistence.loadRecentCommands());
 
   private commands = computed<PaletteCommand[]>(() => {
     if (!this.ui.paletteOpen()) return [];
-    const list: PaletteCommand[] = [
+    const list: Draft[] = [
       { group: 'Problemas', title: 'Ir al siguiente problema', keywords: 'error errores siguiente next', run: () => this.goToProblem(1) },
       { group: 'Problemas', title: 'Ir al problema anterior', keywords: 'error errores anterior previous', run: () => this.goToProblem(-1) },
-      { group: 'Proyecto', title: 'Compilar ahora', keywords: 'preview render ctrl+enter', run: () => void this.orchestrator.manualCompile() },
-      { group: 'Proyecto', title: 'Guardar', keywords: 'ctrl+s', run: () => this.orchestrator.saveFile() },
+      { group: 'Proyecto', title: 'Compilar ahora', keys: 'Ctrl+Enter', keywords: 'preview render ctrl+enter', run: () => void this.orchestrator.manualCompile() },
+      { group: 'Proyecto', title: 'Guardar', keys: 'Ctrl+S', keywords: 'ctrl+s', run: () => this.orchestrator.saveFile() },
+      { group: 'Editor', title: 'Buscar y reemplazar en el proyecto', keys: 'Ctrl+Shift+F', keywords: 'search find replace', run: () => this.ui.requestEditorCommand('pug.searchInProject') },
+      { group: 'Editor', title: 'Ir a símbolo (mixins y bloques)', keys: 'Ctrl+Shift+O', keywords: 'outline symbol mixin', run: () => this.ui.requestEditorCommand('editor.action.quickOutline') },
+      { group: 'Editor', title: 'Formatear Pug', keys: 'Shift+Alt+F', keywords: 'format formato indentar', run: () => this.ui.requestEditorCommand('editor.action.formatDocument') },
       { group: 'Archivos', title: 'Historial del archivo…', keywords: 'versiones restaurar volver atrás cambios diff', run: () => this.ui.historyOpen.set(true) },
       { group: 'Proyecto', title: 'Instantáneas del proyecto…', keywords: 'guardar comparar restaurar versiones copia snapshot volver atrás', run: () => this.ui.snapshotsOpen.set(true) },
       { group: 'Proyecto', title: 'Mis proyectos…', keywords: 'abrir cambiar biblioteca', run: () => this.ui.projectsOpen.set(true) },
@@ -137,15 +174,19 @@ export class CommandPaletteComponent {
         title: `Privacidad: analítica anónima de visitas (${this.analytics.consent() === 'granted' ? 'permitida' : 'no permitida'})`,
       },
       { group: 'Ajustes', title: 'Alternar auto-compilación', keywords: 'autocompile', run: () => this.preferences.update({ autoCompile: !this.preferences.autoCompile() }) },
-      { group: 'Ajustes', title: 'Mostrar u ocultar Workspace', run: () => this.preferences.toggleSidebar() },
-      { group: 'Ajustes', title: 'Mostrar u ocultar Data', run: () => this.preferences.toggleData() },
-      { group: 'Preview', title: 'Preview: modo PDF / página impresa', keywords: 'imprimir a4', run: () => this.setDevice('PDF', 0, 0) },
-      ...DEVICE_PRESETS.map((d) => ({
-        group: 'Preview', title: `Preview: ${d.name} (${d.width}×${d.height})`, keywords: d.kind, run: () => this.setDevice(d.name, d.width, d.height),
+      { group: 'Ajustes', title: 'Mostrar u ocultar el Registro', keywords: 'terminal log consola', run: () => this.terminalState.toggle() },
+      { group: 'Ajustes', title: 'Limpiar el Registro', keys: 'Ctrl+Shift+K', keywords: 'terminal log borrar', run: () => this.terminalState.clear() },
+      { group: 'Ajustes', title: 'Mostrar u ocultar Archivos', run: () => this.preferences.toggleSidebar() },
+      { group: 'Ajustes', title: 'Mostrar u ocultar Datos', run: () => this.preferences.toggleData() },
+      { group: 'Vista previa', title: 'Vista previa: modo PDF / página impresa', keywords: 'imprimir a4 pdf', run: () => this.setDevice('PDF', 0, 0) },
+      { id: 'dispositivos', group: 'Vista previa', title: 'Cambiar dispositivo…', keywords: 'móvil tableta escritorio responsive tamaño', keepOpen: true, run: () => { this.scope.set('dispositivos'); this.query.set(''); this.active.set(0); } },
+      ...DEVICE_PRESETS.map((d): Draft => ({
+        id: `device:${d.name}`, group: 'Vista previa', sub: 'dispositivos', title: `Cambiar dispositivo: ${d.label} (${d.width}×${d.height})`, keywords: `${d.kind} ${d.name}`,
+        run: () => this.setDevice(d.name, d.width, d.height),
       })),
     ];
     const undo = this.orchestrator.fileUndoLabel();
-    if (undo) list.unshift({ group: 'Archivos', title: undo, run: () => this.orchestrator.undoFileOp() });
+    if (undo) list.unshift({ id: 'file-undo', group: 'Archivos', title: undo, run: () => this.orchestrator.undoFileOp() });
     const files = this.editorState.files();
     for (const path of [...files.keys()].sort()) {
       list.push({
@@ -153,10 +194,45 @@ export class CommandPaletteComponent {
         run: () => this.editorState.openFile(path, path.split('/').pop() ?? path, getFileType(path), files.get(path) ?? ''),
       });
     }
-    return list;
+    return list.map((c) => ({ ...c, id: c.id ?? `${c.group}:${c.title}` }));
   });
 
-  protected results = computed(() => filterCommands(this.commands(), this.query()).slice(0, 60));
+  /** Cuántos comandos tiene la paleta sin contar las sublistas. */
+  protected allCount = computed(() => this.commands().filter((c) => !c.sub).length);
+
+  private recentCount = computed(() => (this.scope() === 'root' && !this.query().trim() ? withRecentsFirst(this.visibleRoot(), this.recent()).recentCount : 0));
+
+  /** Sin consulta, la lista inicial no incluye las entradas de sublista (salvo si son recientes). */
+  private visibleRoot = computed(() => {
+    const all = this.commands();
+    const recent = new Set(this.recent());
+    return all.filter((c) => !c.sub || recent.has(c.id));
+  });
+
+  protected results = computed(() => {
+    const q = this.query().trim();
+    if (this.scope() === 'dispositivos') return filterCommands(this.commands().filter((c) => c.sub === 'dispositivos'), q);
+    if (q) return filterCommands(this.commands(), q).slice(0, 60);
+    return withRecentsFirst(this.visibleRoot(), this.recent()).list.slice(0, 60);
+  });
+
+  /** Título de sección que se pinta antes del resultado `i` (solo en la lista inicial con recientes). */
+  protected sectionAt(i: number): string | null {
+    const n = this.recentCount();
+    if (!n) return null;
+    return i === 0 ? 'Recientes' : i === n ? 'Todos los comandos' : null;
+  }
+
+  protected parts(title: string) {
+    return highlightParts(title, this.query());
+  }
+
+  protected leaveScope(): void {
+    this.scope.set('root');
+    this.query.set('');
+    this.active.set(0);
+    this.searchInput()?.nativeElement.focus();
+  }
 
   /** Elemento resaltado, siempre dentro de los resultados (al filtrar, el índice guardado puede quedar fuera). */
   protected activeIndex = computed(() => Math.max(0, Math.min(this.active(), this.results().length - 1)));
@@ -173,7 +249,7 @@ export class CommandPaletteComponent {
           this.onQuery(this.query() + e.key);
         } else if (e.key === 'Backspace') {
           e.preventDefault();
-          this.onQuery(this.query().slice(0, -1));
+          this.onBackspace(this.query());
         } else this.onKey(e);
         return;
       }
@@ -192,6 +268,7 @@ export class CommandPaletteComponent {
         // El foco va al buscador en cuanto se pinta, para no perder las primeras teclas (Ctrl+K y escribir de seguido).
         afterNextRender(() => this.searchInput()?.nativeElement.focus(), { injector: this.injector });
       } else {
+        this.scope.set('root');
         this.query.set(''); // la consulta se reinicia al cerrar, no al abrir (así no pisa lo ya escrito)
         this.active.set(0);
         if (this.restoreFocus) {
@@ -217,7 +294,8 @@ export class CommandPaletteComponent {
     if (e.key === 'ArrowDown') { e.preventDefault(); this.active.set(n ? (this.activeIndex() + 1) % n : 0); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); this.active.set(n ? (this.activeIndex() - 1 + n) % n : 0); }
     else if (e.key === 'Enter') { e.preventDefault(); const c = this.results()[this.activeIndex()]; if (c) this.run(c); }
-    else if (e.key === 'Escape') { e.preventDefault(); this.close(); }
+    else if (e.key === 'Escape') { e.preventDefault(); if (this.scope() === 'dispositivos') this.leaveScope(); else this.close(); }
+    else if (e.key === 'Backspace' && !this.query() && this.scope() !== 'root') { e.preventDefault(); this.leaveScope(); }
     else if (e.key === 'Tab') e.preventDefault(); // el único elemento enfocable es el buscador: el foco no sale
   }
 
@@ -225,7 +303,15 @@ export class CommandPaletteComponent {
     this.ui.paletteOpen.set(false);
   }
 
+  private onBackspace(query: string): void {
+    if (!query && this.scope() !== 'root') this.leaveScope();
+    else this.onQuery(query.slice(0, -1));
+  }
+
   protected run(c: PaletteCommand): void {
+    if (c.keepOpen) { c.run(); return; }
+    this.recent.set(pushRecent(this.recent(), c.id));
+    this.persistence.saveRecentCommands(this.recent());
     this.close();
     c.run();
   }

@@ -88,7 +88,7 @@ export const scenes = [
   {
     id: 'V-08', file: 'V-08-Terminal.dc.html', title: 'V-08 Terminal: maximizada con filtro de avisos', theme: 'dark', path: '/ide', session: session({ openTabPaths: TABS3 }),
     run: async ({ page }) => {
-      await page.locator('button[title="Maximizar terminal"]').click();
+      await page.locator('button[title="Maximizar el Registro"]').click();
       await page.getByRole('button', { name: /^Warnings/ }).click();
       await sleep(500);
     },

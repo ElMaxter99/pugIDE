@@ -130,7 +130,9 @@ export interface TerminalEntry {
   type: 'info' | 'error' | 'warning' | 'success' | 'debug';
   source: string;
   message: string;
-  /** Ubicación en el proyecto: la terminal la convierte en un enlace que abre el archivo en esa línea. */
+  /** Mensaje de detalle (arranque, compilaciones…): el filtro «Esenciales» del Registro lo oculta. */
+  detail?: boolean;
+  /** Ubicación en el proyecto: el Registro la convierte en un enlace que abre el archivo en esa línea. */
   path?: string;
   line?: number;
 }

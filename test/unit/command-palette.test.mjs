@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { filterCommands, normalizeSearch } from './.build/units.mjs';
+import { filterCommands, normalizeSearch, pushRecent, withRecentsFirst, highlightParts } from './.build/units.mjs';
 
 const cmds = [
   { title: 'Compilar ahora', group: 'Proyecto' },
@@ -32,4 +32,27 @@ test('ignora acentos y prioriza el inicio del título', () => {
 test('caracteres especiales de regex no rompen la búsqueda', () => {
   assert.deepEqual(filterCommands(cmds, '(').length, 0);
   assert.deepEqual(filterCommands(cmds, '/components').map((c) => c.title), ['Abrir /components/card.pug']);
+});
+
+test('pushRecent pone el último primero, sin repetir y con tope', () => {
+  assert.deepEqual(pushRecent(['a', 'b'], 'c'), ['c', 'a', 'b']);
+  assert.deepEqual(pushRecent(['a', 'b', 'c'], 'b'), ['b', 'a', 'c']);
+  assert.deepEqual(pushRecent(['a', 'b', 'c'], 'd', 3), ['d', 'a', 'b']);
+});
+
+test('withRecentsFirst sube los recientes en su orden y descarta los que ya no existen', () => {
+  const list = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+  const out = withRecentsFirst(list, ['c', 'zzz', 'a']);
+  assert.deepEqual(out.list.map((c) => c.id), ['c', 'a', 'b']);
+  assert.equal(out.recentCount, 2);
+  assert.equal(withRecentsFirst(list, []).recentCount, 0);
+});
+
+test('highlightParts resalta sin distinguir acentos ni mayúsculas', () => {
+  assert.deepEqual(highlightParts('Guardar proyecto', 'guar'), [{ text: 'Guar', match: true }, { text: 'dar proyecto', match: false }]);
+  assert.deepEqual(highlightParts('Instantáneas', 'tanea'), [{ text: 'Instan', match: false }, { text: 'tánea', match: true }, { text: 's', match: false }]);
+  assert.deepEqual(highlightParts('Compilar', ''), [{ text: 'Compilar', match: false }]);
+  assert.deepEqual(highlightParts('Abrir /a/b.pug', 'a pug'), [
+    { text: 'A', match: true }, { text: 'brir /', match: false }, { text: 'a', match: true }, { text: '/b.', match: false }, { text: 'pug', match: true },
+  ]);
 });

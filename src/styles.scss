@@ -213,8 +213,14 @@ input, textarea, button, select {
   color: inherit;
 }
 
-input:focus, textarea:focus, select:focus {
+input:focus, textarea:focus {
   outline: none;
+}
+
+/* Los selectores conservan el anillo de foco al navegar con teclado. */
+select:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 1px;
 }
 
 button {

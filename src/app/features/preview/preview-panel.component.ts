@@ -41,26 +41,26 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
         <div class="preview-header-left">
           <span class="preview-title">
             <span class="live-dot"></span>
-            Live Preview
+            Vista previa
           </span>
           <div class="device-switcher">
             <button
               class="device-btn"
-              title="Escritorio"
+              title="Escritorio" aria-label="Escritorio"
               [class.active]="!previewState.isPdf() && deviceKind() === 'desktop'"
               (click)="selectDevice('Desktop')">
               <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">desktop_windows</span>
             </button>
             <button
               class="device-btn"
-              title="Tablet"
+              title="Tableta" aria-label="Tableta"
               [class.active]="!previewState.isPdf() && deviceKind() === 'tablet'"
               (click)="selectDevice('Tablet')">
               <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">tablet_mac</span>
             </button>
             <button
               class="device-btn"
-              title="Movil"
+              title="Móvil" aria-label="Móvil"
               [class.active]="!previewState.isPdf() && deviceKind() === 'mobile'"
               (click)="selectDevice('Mobile')">
               <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
@@ -68,7 +68,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
             <button
               class="device-btn"
               [class.active]="previewState.isPdf()"
-              title="PDF / página impresa"
+              title="PDF / página impresa" aria-label="PDF / página impresa"
               (click)="setDevice('PDF', 0, 0)">
               <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
             </button>
@@ -84,13 +84,13 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
             </select>
           }
           @if (!previewState.isPdf()) {
-            <select class="zoom-select device-select" title="Dispositivo" aria-label="Dispositivo" [value]="previewState.deviceName()" (change)="selectDevice($any($event.target).value)">
+            <select class="zoom-select device-select" title="Dispositivo" aria-label="Dispositivo" (change)="selectDevice($any($event.target).value)">
               @for (d of presets; track d.name) {
-                <option [value]="d.name">{{ d.name }} ({{ d.width }}x{{ d.height }})</option>
+                <option [value]="d.name" [selected]="d.name === previewState.deviceName()">{{ d.label }} ({{ d.width }}×{{ d.height }})</option>
               }
             </select>
             @if (deviceKind() !== 'desktop') {
-              <button class="preview-action" title="Girar" (click)="rotateDevice()">
+              <button class="preview-action" title="Girar" aria-label="Girar" (click)="rotateDevice()">
                 <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">screen_rotation</span>
               </button>
             }
@@ -98,7 +98,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
           <button class="preview-action" [class.active]="previewState.colorScheme() !== 'auto'" [title]="'Modo de color simulado: ' + previewState.colorScheme()" [attr.aria-label]="'Modo de color simulado: ' + previewState.colorScheme()" (click)="cycleColorScheme()">
             <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">{{ schemeIcon() }}</span>
           </button>
-          <button class="preview-action" title="Auditoria de accesibilidad (resultados en la terminal)" (click)="runA11y()">
+          <button class="preview-action" title="Auditoría de accesibilidad (resultados en el Registro)" aria-label="Auditoría de accesibilidad (resultados en el Registro)" (click)="runA11y()">
             <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">accessibility_new</span>
           </button>
           <select class="zoom-select" title="Zoom" aria-label="Zoom" [value]="zoomValue()" (change)="onZoom($any($event.target).value)">
@@ -108,7 +108,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
             <option value="100">100%</option>
           </select>
           @if (previewState.isPdf()) {
-            <button class="preview-action" title="Imprimir / Guardar como PDF" (click)="onPrint()">
+            <button class="preview-action" title="Imprimir / Guardar como PDF" aria-label="Imprimir / Guardar como PDF" (click)="onPrint()">
               <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">print</span>
             </button>
           }
@@ -152,7 +152,7 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
               {{ problemsOpen() ? 'Ocultar problemas' : 'Todos los problemas (' + diagnosticsState.diagnostics().length + ')' }}
             </button>
           }
-          <button class="compile-error-btn" (click)="terminal.isVisible.set(true)">Ver terminal</button>
+          <button class="compile-error-btn" (click)="terminal.isVisible.set(true)">Ver Registro</button>
         </div>
         @if (problemsOpen() && diagnosticsState.diagnostics().length > 1) {
           <app-problems-list />
@@ -652,7 +652,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   runA11y(): void {
     if (!this.previewFrame?.nativeElement.contentWindow || !this.previewState.compiledHtml()) {
-      this.terminal.addEntry('warning', 'A11y', 'No hay vista previa compilada que auditar.');
+      this.terminal.addEntry('warning', 'Accesibilidad', 'No hay vista previa compilada que auditar.');
       return;
     }
     this.terminal.isVisible.set(true);
@@ -660,7 +660,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   private reportA11y(issues: A11yIssue[]): void {
-    for (const line of a11yReport(issues, (sig) => this.locatePug(sig))) this.terminal.addEntry(line.type, 'A11y', line.message);
+    for (const line of a11yReport(issues, (sig) => this.locatePug(sig))) this.terminal.addEntry(line.type, 'Accesibilidad', line.message);
   }
 
   ngAfterViewInit(): void {
@@ -744,7 +744,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     const html = this.previewState.compiledHtml();
     if (!html) return;
     if (!openInHost({ kind: 'html', html: this.withDataUris(html) })) {
-      this.terminal.addEntry('warning', 'Preview', 'El navegador bloqueó la pestaña nueva: permite las ventanas emergentes para este sitio.');
+      this.terminal.addEntry('warning', 'Vista previa', 'El navegador bloqueó la pestaña nueva: permite las ventanas emergentes para este sitio.');
     }
   }
 
