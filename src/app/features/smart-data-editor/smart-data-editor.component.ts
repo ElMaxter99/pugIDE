@@ -35,26 +35,24 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
           <button class="icon-btn" (click)="preferences.toggleData()" title="Colapsar Datos" aria-label="Colapsar Datos">
             <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">right_panel_close</span>
           </button>
-          <button class="mode-toggle" [class.active]="jsonRawMode()" (click)="toggleMode()" [title]="jsonRawMode() ? 'Cambiar al árbol visual (Ctrl+Shift+J)' : 'Cambiar al editor JSON (Ctrl+Shift+J)'" [attr.aria-label]="jsonRawMode() ? 'Modo JSON: cambiar al árbol visual' : 'Modo Árbol: cambiar al editor JSON'">
-            <span class="mode-label">{{ jsonRawMode() ? 'JSON' : 'Árbol' }}</span>
-          </button>
-          <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Deshacer" aria-label="Deshacer">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">undo</span>
-          </button>
-          <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Rehacer" aria-label="Rehacer">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">redo</span>
-          </button>
-          <button class="icon-btn" (click)="copyJsonToClipboard()" title="Copiar JSON al portapapeles" aria-label="Copiar JSON al portapapeles">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
-          </button>
-          <button class="mock-btn" (click)="clearData()">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">delete</span>
-            <span class="mock-label">Dejar objeto vacío</span>
-          </button>
         </div>
       </div>
 
-      <app-dataset-bar (beforeChange)="applyJsonIfDirty()" (changed)="refreshAfterDatasetChange()" />
+      <div class="data-tools">
+        <div class="mode-group" role="group" aria-label="Modo del editor de datos" title="Cambiar entre árbol y JSON (Ctrl+Shift+J)">
+          <button type="button" class="mode-seg" data-testid="data-mode-tree" [class.active]="!jsonRawMode()" [attr.aria-pressed]="!jsonRawMode()" (click)="setMode(false)">Árbol</button>
+          <button type="button" class="mode-seg" data-testid="data-mode-json" [class.active]="jsonRawMode()" [attr.aria-pressed]="jsonRawMode()" (click)="setMode(true)">JSON</button>
+        </div>
+        <span class="tools-spacer"></span>
+        <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Deshacer" aria-label="Deshacer">
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">undo</span>
+        </button>
+        <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Rehacer" aria-label="Rehacer">
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">redo</span>
+        </button>
+      </div>
+
+      <app-dataset-bar (beforeChange)="applyJsonIfDirty()" (changed)="refreshAfterDatasetChange()" (copyJson)="copyJsonToClipboard()" (clearData)="clearData()" />
 
       <app-data-tree #tree [class.hidden]="jsonRawMode()" />
 
@@ -151,36 +149,12 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
       gap: 8px;
     }
 
-    .mock-btn {
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 8px;
-      background: rgba(221, 183, 255, 0.1);
-      border-radius: var(--radius);
-      color: var(--accent-color);
-      transition: all 0.15s;
-    }
-
-    .mock-btn:hover {
-      background: rgba(221, 183, 255, 0.2);
-    }
-
-    .mock-label {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
     .icon-btn {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       border-radius: var(--radius);
       color: var(--text-tertiary);
       transition: all 0.15s;
@@ -200,38 +174,40 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
       background: none;
     }
 
-    .mode-toggle {
+    .data-tools {
       display: flex;
       align-items: center;
       gap: 4px;
-      padding: 3px 10px;
-      border-radius: 4px;
+      padding: 6px 12px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-surface-container-low);
+      flex-shrink: 0;
+    }
+
+    .tools-spacer { flex: 1; }
+
+    .mode-group {
+      display: inline-flex;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .mode-seg {
+      min-height: 30px;
+      padding: 0 14px;
+      font-family: inherit;
+      font-size: 13px;
       color: var(--text-secondary);
-      background: var(--bg-surface-variant);
-      transition: all 0.15s;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      cursor: pointer;
-      border: 1px solid transparent;
+      background: transparent;
     }
 
-    .mode-toggle:hover {
-      color: var(--text-primary);
-      background: var(--bg-surface-container-highest);
-      border-color: var(--border-color);
-    }
+    .mode-seg:hover { color: var(--text-primary); background: var(--bg-surface-variant); }
 
-    .mode-toggle.active {
+    .mode-seg.active {
       color: var(--accent-color);
-      background: rgba(221, 183, 255, 0.12);
-      border-color: var(--accent-color);
-    }
-
-    .mode-label {
-      pointer-events: none;
+      background: rgba(221, 183, 255, 0.14);
+      font-weight: 600;
     }
 
     .json-editor-area {
@@ -305,6 +281,11 @@ export class SmartDataEditorComponent {
       event.preventDefault();
       this.toggleMode();
     }
+  }
+
+  /** Segmentado «Árbol | JSON»: cambia solo si el modo pedido no es el actual. */
+  setMode(raw: boolean): void {
+    if (raw !== this.jsonRawMode()) this.toggleMode();
   }
 
   toggleMode(): void {

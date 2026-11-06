@@ -41,8 +41,8 @@ export default async function (env) {
   check('11 al volver al árbol se aplican los cambios', !!(await waitUntil(async () => (await previewText(page)).includes('Desde JSON') && (await previewText(page)).includes('Beto'))), await previewText(page));
 
   // Barra de juegos de datos: crear uno vacío, volver al anterior
-  const create = page.locator('app-dataset-bar select.ds-new');
-  await create.selectOption('empty');
+  await page.locator('[data-testid="data-more-menu"]').click();
+  await page.getByRole('menuitem', { name: 'Nuevo juego vacío' }).click();
   const two = await waitUntil(async () => (await dsOptions(page)).length === 2);
   check('11 crear un juego de datos lo añade y lo activa', !!two, JSON.stringify(await dsOptions(page)));
   const emptied = await waitUntil(async () => !(await previewText(page)).includes('Desde JSON'));
