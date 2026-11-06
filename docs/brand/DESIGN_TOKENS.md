@@ -36,7 +36,7 @@ Reglas: contraste AA (4,5:1 para texto, 3:1 desde 24 px) en los dos temas; los c
 
 - `--radius` 0,25 rem (4 px) para botones y campos; `--radius-lg` 0,5 rem (8 px) para tarjetas y avisos; `--radius-xl` 0,75 rem (12 px) para diálogos.
 - Espaciado en múltiplos de 4 px (valores frecuentes: 4, 6, 8, 12, 16).
-- Medidas del layout: barra superior 64 px, barra lateral 240 px, pestañas 36 px, estado 32 px, terminal 180 px.
+- Medidas del layout: barra superior 64 px, barra lateral 240 px, pestañas 36 px, estado 32 px, panel inferior 240 px.
 
 ## Iconos
 

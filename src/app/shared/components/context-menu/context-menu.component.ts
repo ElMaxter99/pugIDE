@@ -4,6 +4,7 @@ import {
   input,
   output,
   computed,
+  HostListener,
 } from '@angular/core';
 import { ContextMenuAction } from '../../../core/models/index';
 
@@ -129,6 +130,12 @@ export class ContextMenuComponent {
 
   close(): void {
     this.actionSelected.emit('');
+  }
+
+  /** Esc cierra el menú contextual (antes solo lo cerraba un clic fuera). */
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    if (this.isOpen()) this.close();
   }
 
   onAction(item: ContextMenuAction): void {

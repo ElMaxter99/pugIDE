@@ -121,7 +121,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     }
 
     .app-terminal {
-      height: 180px;
+      height: 240px;
       min-height: 100px;
       border-top: 1px solid var(--border-color);
       flex-shrink: 0;

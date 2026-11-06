@@ -37,6 +37,11 @@ export default async function (env) {
   check('12 crear un archivo lo abre', !!(await waitUntil(async () => (await tabs(page)).includes('footer.pug'))), JSON.stringify(await tabs(page)));
 
   // Renombrar desde el menú contextual
+  // Esc cierra el menú contextual del árbol
+  await tree.locator('.file-item', { hasText: 'footer.pug' }).click({ button: 'right' });
+  await page.locator('app-context-menu .context-menu').waitFor();
+  await page.keyboard.press('Escape');
+  check('12 Esc cierra el menú contextual del árbol', !!(await waitUntil(async () => (await page.locator('app-context-menu .context-menu').count()) === 0)));
   await tree.locator('.file-item', { hasText: 'footer.pug' }).click({ button: 'right' });
   await page.locator('app-context-menu').getByText('Renombrar').click();
   await input.waitFor();
