@@ -152,3 +152,14 @@ export async function closeViewMenu(page) {
   await page.keyboard.press('Escape');
   await page.locator('app-preview-panel [role="menu"]').waitFor({ state: 'detached', timeout: 4000 });
 }
+
+/**
+ * Iconos de Material Symbols visibles que NO se han dibujado como icono: si el nombre no existe en la fuente, el navegador
+ * pinta el texto («screen_rotation») y la caja mide mucho más que el tamaño de letra. Devuelve sus nombres.
+ */
+export const brokenIcons = (page) => page.evaluate(() =>
+  [...document.querySelectorAll('.material-symbols-outlined')]
+    .filter((e) => e.getClientRects().length > 0 && e.textContent.trim() !== '')
+    .map((e) => ({ name: e.textContent.trim(), width: e.getBoundingClientRect().width, size: parseFloat(getComputedStyle(e).fontSize) || 18 }))
+    .filter((i) => i.width > i.size * 1.6 + 2)
+    .map((i) => `${i.name} (${Math.round(i.width)} px)`));

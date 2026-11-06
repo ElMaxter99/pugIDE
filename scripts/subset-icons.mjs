@@ -42,6 +42,28 @@ export function usedIcons(valid = validIconNames()) {
   return [...found].sort();
 }
 
+/**
+ * Nombres de icono que el código usa con el nombre de un alias antiguo (p. ej. `screen_rotation`, `smartphone`) o que no
+ * existen: la fuente completa los trae como ligaduras, pero el recorte solo conserva las del nombre canónico, así que el
+ * navegador pintaría el texto en vez del icono. Se buscan solo en los sitios donde hay un icono seguro (el texto de un
+ * `material-symbols-outlined` y las propiedades `icon`), para no dar falsos positivos con cadenas cualquiera.
+ */
+export function invalidIcons(valid = validIconNames()) {
+  const files = [...walk(resolve(root, 'src/app')), resolve(root, 'src/index.html')];
+  const bad = [];
+  const contexts = [/material-symbols-outlined[^>]*>\s*([a-z][a-z0-9_]*)\s*</g, /\bicon\w*\s*[:=]\s*(['"])([a-z][a-z0-9_]*)\1/g];
+  for (const f of files) {
+    const text = readFileSync(f, 'utf8');
+    for (const re of contexts) {
+      for (const m of text.matchAll(re)) {
+        const name = m[2] ?? m[1];
+        if (!valid.has(name)) bad.push(`${name} (${f.slice(root.length + 1)}:${text.slice(0, m.index).split('\n').length})`);
+      }
+    }
+  }
+  return bad;
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const check = process.argv.includes('--check');
   if (!existsSync(NAMES)) {
@@ -49,6 +71,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(1);
   }
   const used = usedIcons();
+  const invalid = invalidIcons();
+  if (invalid.length) {
+    console.error(`Iconos con un nombre que la fuente no recorta (alias antiguo o inexistente): ${invalid.join(', ')}.\nUsa el nombre canónico de https://fonts.google.com/icons (p. ej. mobile en vez de smartphone, mobile_rotate en vez de screen_rotation).`);
+    process.exit(1);
+  }
   if (check) {
     const stored = new Set(existsSync(LIST) ? JSON.parse(readFileSync(LIST, 'utf8')) : []);
     const missing = used.filter((n) => !stored.has(n));
