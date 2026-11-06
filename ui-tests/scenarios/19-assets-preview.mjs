@@ -1,4 +1,4 @@
-import { check, openApp, previewFrame, previewText, waitUntil } from '../lib.mjs';
+import { check, chooseMenu, openApp, previewFrame, previewText, waitUntil } from '../lib.mjs';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -66,7 +66,7 @@ export default async function (env) {
   check('19 y el iframe sigue siendo el mismo', withNew?.marker === 'viva');
   // El export HTML sigue siendo autocontenido: los assets van como data URI, sin blob:
   const download = page.waitForEvent('download', { timeout: 20000 });
-  await page.getByText('Exportar HTML').first().click();
+  await chooseMenu(page, 'exportar', 'html');
   const exported = readFileSync(await (await download).path(), 'utf8');
   check('19 el HTML exportado lleva los assets como data URI y ningún blob:', exported.includes('data:image/svg+xml;base64,') && !exported.includes('blob:'), exported.slice(0, 200));
   check('19 el preview no hizo peticiones externas', app.external.length === 0, app.external.join(' '));

@@ -105,6 +105,34 @@ export async function previewText(page) {
   try { return await f.evaluate(() => document.body?.innerText ?? ''); } catch { return ''; }
 }
 
-/** Nombre del proyecto que muestra el botón de la barra superior. */
+/** Nombre del proyecto que muestra el panel lateral (la barra superior ya no lo enseña). */
 export const projectName = async (page) =>
-  (await page.locator('button[title^="Abrir, crear"]').innerText({ timeout: 1500 }).catch(() => '')).replace('folder_open', '').trim();
+  ((await page.locator('.workspace-name').first().textContent({ timeout: 1500 }).catch(() => '')) ?? '').trim();
+
+/** Elige una fila de los menús «Proyecto» (`proyecto`) o «Exportar» (`exportar`) de la barra superior por su `data-menu-id`. */
+export async function chooseMenu(page, menu, id) {
+  await page.locator(`[data-testid="menu-${menu}"]`).click();
+  await page.locator(`[role="menu"] [data-menu-id="${id}"]`).click();
+}
+
+/** Abre el menú «Vista» de la barra del preview (si no está abierto) y devuelve su lista. */
+export async function openViewMenu(page) {
+  const menu = page.locator('app-preview-panel [role="menu"]');
+  const trigger = page.locator('[data-testid="preview-view-menu"]');
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  await menu.waitFor({ timeout: 4000 });
+  return menu;
+}
+
+/** Elige una acción del menú «Vista» por su identificador (`png`, `a11y`, `reload`, `newtab`, `scheme:dark`, `locale:es-ES`, `device:Mobile`…). */
+export async function chooseView(page, id) {
+  const menu = await openViewMenu(page);
+  await menu.locator(`[data-menu-id="${id}"]`).click();
+  await menu.waitFor({ state: 'detached', timeout: 4000 }); // elegir una acción cierra el menú
+}
+
+/** Cierra el menú «Vista» con Esc y espera a que desaparezca (así la siguiente orden no ve el menú viejo). */
+export async function closeViewMenu(page) {
+  await page.keyboard.press('Escape');
+  await page.locator('app-preview-panel [role="menu"]').waitFor({ state: 'detached', timeout: 4000 });
+}

@@ -1,4 +1,4 @@
-import { check, openApp, previewText, waitUntil, CMD } from '../lib.mjs';
+import { check, chooseMenu, openApp, previewText, waitUntil, CMD } from '../lib.mjs';
 
 const MAIN = "doctype html\nhtml\n  body\n    h1 Informe de septiembre\n    img(src='images/logo.svg' alt='')\n    p versión base\n";
 const session = {
@@ -25,7 +25,7 @@ export default async function (env) {
   const dlg = page.locator('[role="dialog"][aria-label="Instantáneas del proyecto"]');
   const rows = dlg.locator('[data-testid="snapshot-row"]');
   const open = async () => {
-    await page.locator('[data-testid="open-snapshots"]').click();
+    await chooseMenu(page, 'proyecto', 'snapshots');
     await dlg.waitFor({ timeout: 4000 });
   };
   const rowTexts = async () => (await rows.allInnerTexts()).map((t) => t.replace(/\s+/g, ' '));
@@ -45,7 +45,7 @@ export default async function (env) {
   check('29 avisa de que se guardó y actualiza el contador', !!(await waitUntil(async () => (await dlg.locator('[data-testid="snapshot-notice"]').count()) === 1)) && (await dlg.locator('[data-testid="snapshot-count"]').innerText()).startsWith('1 de 20'));
   await page.keyboard.press('Escape');
   await dlg.waitFor({ state: 'detached' });
-  check('29 Escape cierra y el foco vuelve al botón', await waitUntil(async () => page.evaluate(() => document.activeElement?.getAttribute('data-testid') === 'open-snapshots')));
+  check('29 Escape cierra y el foco vuelve al botón', await waitUntil(async () => page.evaluate(() => document.activeElement?.getAttribute('data-testid') === 'menu-proyecto')));
 
   // --- Editar el proyecto: archivo modificado (sin guardar) y archivo nuevo ---
   const edited = MAIN.replace('versión base', 'versión editada').replace('septiembre', 'octubre');

@@ -1,4 +1,4 @@
-import { check, openApp, previewText, waitUntil } from '../lib.mjs';
+import { check, chooseMenu, openApp, previewText, waitUntil } from '../lib.mjs';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
@@ -58,7 +58,7 @@ export default async function (env) {
   await audit(page, 'diálogo de atajos');
   await page.keyboard.press('Escape');
 
-  await page.locator('button[title^="Abrir, crear"]').click();
+  await chooseMenu(page, 'proyecto', 'projects');
   await page.locator('[aria-label="Mis proyectos"]').waitFor();
   await audit(page, 'diálogo Mis proyectos');
   await page.keyboard.press('Escape');
@@ -92,7 +92,7 @@ export default async function (env) {
   await audit(page, 'editor de datos en modo JSON');
   await page.keyboard.press('Control+Shift+J');
 
-  await page.locator('button[title="Cambiar tema claro/oscuro"]').click();
+  await page.locator('button[title="Cambiar tema claro u oscuro"]').click();
   await page.waitForTimeout(400);
   await audit(page, 'IDE (claro)');
   await page.locator('button[title="PDF / página impresa"]').click();

@@ -8,7 +8,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { start } from '../design/tools/server.mjs';
-import { openApp, settle, sleep, uploadAsset } from '../design/tools/lib.mjs';
+import { chooseMenu, openApp, settle, sleep, uploadAsset } from '../design/tools/lib.mjs';
 import { scenes } from '../design/tools/scenes.mjs';
 
 const out = resolve(dirname(fileURLToPath(import.meta.url)), '../docs/screenshots');
@@ -46,7 +46,7 @@ try {
   await uploadAsset(page);
   const dlg = page.locator('[role="dialog"][aria-label="Instantáneas del proyecto"]');
   const save = async (name) => {
-    await page.locator('[data-testid="open-snapshots"]').click();
+    await chooseMenu(page, 'proyecto', 'snapshots');
     await dlg.waitFor();
     await dlg.locator('[data-testid="snapshot-name"]').fill(name);
     await dlg.locator('[data-testid="snapshot-save"]').click();

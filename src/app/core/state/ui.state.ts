@@ -18,6 +18,13 @@ export class UiState {
   /** Orden al editor desde fuera de él (paleta): `id` de la acción de Monaco o `pug.searchInProject`; `n` fuerza cada petición. */
   readonly editorCommand = signal<{ id: string; n: number } | null>(null);
 
+  /** Acción que un menú pide a otro panel: `import-project` y `upload-assets` (Archivos) o `print` (vista previa). */
+  readonly panelRequest = signal<{ id: 'import-project' | 'upload-assets' | 'print'; n: number } | null>(null);
+
+  requestPanel(id: 'import-project' | 'upload-assets' | 'print'): void {
+    this.panelRequest.set({ id, n: (this.panelRequest()?.n ?? 0) + 1 });
+  }
+
   requestEditorCommand(id: string): void {
     this.editorCommand.set({ id, n: (this.editorCommand()?.n ?? 0) + 1 });
   }

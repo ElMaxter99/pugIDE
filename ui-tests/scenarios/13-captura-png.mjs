@@ -1,4 +1,4 @@
-import { check, openApp, previewText, waitUntil } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, chooseView } from '../lib.mjs';
 import { readFileSync } from 'node:fs';
 
 const readPng = (buf) => ({ signature: buf.subarray(0, 8).toString('hex'), width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) });
@@ -42,7 +42,7 @@ export default async function (env) {
   await waitUntil(async () => (await previewText(page)).includes('Hola captura'));
 
   const download = page.waitForEvent('download', { timeout: 20000 });
-  await page.locator('button[title="Descargar captura PNG de la vista previa"]').click();
+  await chooseView(page, 'png');
   const file = await download;
   check('13 se descarga un .png con el nombre del proyecto y el dispositivo', file.suggestedFilename() === 'Captura-desktop.png', file.suggestedFilename());
   const buf = readFileSync(await file.path());
@@ -56,7 +56,7 @@ export default async function (env) {
 
   // En móvil se aplican las media queries del dispositivo (caja verde) y el ancho es 390 × 2
   await runCommand(page, 'Móvil', 'Cambiar dispositivo: Móvil (390×844)');
-  await waitUntil(async () => (await page.locator('select.device-select').inputValue()) === 'Mobile');
+  await waitUntil(async () => (await page.locator('.device-switcher button[title="Móvil"]').getAttribute('aria-pressed')) === 'true');
   const second = page.waitForEvent('download', { timeout: 20000 });
   await runCommand(page, 'captura PNG', 'Exportar captura PNG del preview');
   const f2 = await second;
@@ -71,7 +71,7 @@ export default async function (env) {
   const demo = await openApp(env, { path: '/ide?demo=true' });
   await waitUntil(async () => (await previewText(demo.page)).includes('Demo Completo'));
   const d = demo.page.waitForEvent('download', { timeout: 30000 });
-  await demo.page.locator('button[title="Descargar captura PNG de la vista previa"]').click();
+  await chooseView(demo.page, 'png');
   const big = readPng(readFileSync(await (await d).path()));
   check('13 una página larga no pasa el límite del canvas (16384 px)', big.height <= 16384 && big.width <= 16384 && big.height > 1800, JSON.stringify(big));
   await demo.close();

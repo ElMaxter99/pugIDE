@@ -1,4 +1,4 @@
-import { check, openApp, waitUntil, previewText } from '../lib.mjs';
+import { check, openApp, waitUntil, previewText, openViewMenu, closeViewMenu } from '../lib.mjs';
 
 const session = {
   projectName: 'Informe',
@@ -35,8 +35,10 @@ export default async function (env) {
   await log.locator('[data-testid="log-filter-essential"]').click();
 
   // --- Selector de dispositivo coherente con el activo ---
-  const sel = page.locator('select.device-select');
-  check('30 con «Escritorio» activo el selector no dice «Móvil»', /^Escritorio/.test(await sel.evaluate((s) => s.selectedOptions[0].textContent.trim())), await sel.evaluate((s) => s.selectedOptions[0].textContent));
+  const menu = await openViewMenu(page);
+  const checkedDevice = (await menu.locator('[role="menuitemradio"][aria-checked="true"] .item-label').first().innerText()).trim();
+  check('30 con «Escritorio» activo el menú de dispositivo no dice «Móvil»', /^Escritorio/.test(checkedDevice), checkedDevice);
+  await closeViewMenu(page);
 
   // --- Paleta ---
   await open(page);
@@ -73,10 +75,11 @@ export default async function (env) {
   await page.keyboard.press('Escape');
 
   // Accesibilidad: los selectores muestran el anillo de foco con el teclado
-  await sel.focus();
+  const zoom = page.locator('select[aria-label="Zoom"]');
+  await zoom.focus();
   await page.keyboard.press('Shift+Tab');
   await page.keyboard.press('Tab');
-  check('30 el selector enfocado con teclado tiene anillo de foco', (await sel.evaluate((s) => getComputedStyle(s).outlineStyle)) !== 'none');
+  check('30 el selector enfocado con teclado tiene anillo de foco', (await zoom.evaluate((s) => getComputedStyle(s).outlineStyle)) !== 'none');
 
   check('30 sin errores ni peticiones externas', app.errors.length === 0 && app.external.length === 0, app.errors.concat(app.external).join(' | '));
   await app.close();

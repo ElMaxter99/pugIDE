@@ -26,108 +26,60 @@ import { InspectorState } from '../../core/state/inspector.state';
 import { DEVICE_PRESETS, findDevicePreset, ColorSchemeSim } from '../../core/utils/device-presets.util';
 import { EditorState } from '../../core/state/editor.state';
 import { TerminalState } from '../../core/state/terminal.state';
+import { UiState } from '../../core/state/ui.state';
 import { findPugSource } from '../../core/utils/pug-source-map.util';
 import { PdfBarComponent } from './pdf-bar.component';
+import { DropdownMenuComponent, MenuItem } from '../../shared/components/dropdown-menu/dropdown-menu.component';
 import { InspectorPanelComponent } from '../inspector/inspector-panel.component';
+
+const NARROW_BELOW = 600;
 
 @Component({
   selector: 'app-preview-panel',
   standalone: true,
-  imports: [InspectorPanelComponent, PdfBarComponent, ProblemsListComponent],
+  imports: [InspectorPanelComponent, PdfBarComponent, ProblemsListComponent, DropdownMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="preview-section" aria-label="Vista previa">
-      <div class="preview-header">
-        <div class="preview-header-left">
-          <span class="preview-title">
-            <span class="live-dot"></span>
-            Vista previa
-          </span>
-          <div class="device-switcher">
+      <div class="preview-header" #header>
+        <div class="device-switcher" role="group" aria-label="Dispositivo">
+          @for (opt of segments; track opt.id) {
             <button
+              type="button"
               class="device-btn"
-              title="Escritorio" aria-label="Escritorio"
-              [class.active]="!previewState.isPdf() && deviceKind() === 'desktop'"
-              (click)="selectDevice('Desktop')">
-              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">desktop_windows</span>
+              [class.icon-only]="narrow()"
+              [attr.title]="opt.title"
+              [attr.aria-label]="opt.title"
+              [attr.aria-pressed]="isSegmentActive(opt.id)"
+              [class.active]="isSegmentActive(opt.id)"
+              (click)="onSegment(opt.id)">
+              <span aria-hidden="true" class="material-symbols-outlined seg-icon">{{ opt.icon }}</span>
+              @if (!narrow()) { <span class="seg-text">{{ opt.label }}</span> }
             </button>
-            <button
-              class="device-btn"
-              title="Tableta" aria-label="Tableta"
-              [class.active]="!previewState.isPdf() && deviceKind() === 'tablet'"
-              (click)="selectDevice('Tablet')">
-              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">tablet_mac</span>
-            </button>
-            <button
-              class="device-btn"
-              title="Móvil" aria-label="Móvil"
-              [class.active]="!previewState.isPdf() && deviceKind() === 'mobile'"
-              (click)="selectDevice('Mobile')">
-              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">smartphone</span>
-            </button>
-            <button
-              class="device-btn"
-              [class.active]="previewState.isPdf()"
-              title="PDF / página impresa" aria-label="PDF / página impresa"
-              (click)="setDevice('PDF', 0, 0)">
-              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
-            </button>
-          </div>
+          }
         </div>
+        @if (!previewState.isPdf() && deviceKind() !== 'desktop') {
+          <button type="button" class="preview-action" title="Girar" aria-label="Girar" (click)="rotateDevice()">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">screen_rotation</span>
+          </button>
+        }
         <div class="preview-header-right">
-          @if (orchestrator.locales().length) {
-            <select class="zoom-select locale-select" data-testid="preview-locale" title="Idioma de las traducciones (locales/)" aria-label="Idioma de las traducciones"
-                    (change)="orchestrator.setTranslationLocale($any($event.target).value)">
-              @for (code of orchestrator.locales(); track code) {
-                <option [value]="code" [selected]="code === orchestrator.activeLocale()">{{ code }}</option>
-              }
-            </select>
-          }
-          @if (!previewState.isPdf()) {
-            <select class="zoom-select device-select" title="Dispositivo" aria-label="Dispositivo" (change)="selectDevice($any($event.target).value)">
-              @for (d of presets; track d.name) {
-                <option [value]="d.name" [selected]="d.name === previewState.deviceName()">{{ d.label }} ({{ d.width }}×{{ d.height }})</option>
-              }
-            </select>
-            @if (deviceKind() !== 'desktop') {
-              <button class="preview-action" title="Girar" aria-label="Girar" (click)="rotateDevice()">
-                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">screen_rotation</span>
-              </button>
-            }
-          }
-          <button class="preview-action" [class.active]="previewState.colorScheme() !== 'auto'" [title]="'Modo de color simulado: ' + previewState.colorScheme()" [attr.aria-label]="'Modo de color simulado: ' + previewState.colorScheme()" (click)="cycleColorScheme()">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">{{ schemeIcon() }}</span>
-          </button>
-          <button class="preview-action" title="Auditoría de accesibilidad (resultados en el Registro)" aria-label="Auditoría de accesibilidad (resultados en el Registro)" (click)="runA11y()">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">accessibility_new</span>
-          </button>
           <select class="zoom-select" title="Zoom" aria-label="Zoom" [value]="zoomValue()" (change)="onZoom($any($event.target).value)">
-            <option value="fit">Ajustar ({{ scalePercent() }}%)</option>
-            <option value="50">50%</option>
-            <option value="75">75%</option>
-            <option value="100">100%</option>
+            <option value="fit" [selected]="zoomValue() === 'fit'">Ajustar {{ scalePercent() }} %</option>
+            <option value="50" [selected]="zoomValue() === '50'">50 %</option>
+            <option value="75" [selected]="zoomValue() === '75'">75 %</option>
+            <option value="100" [selected]="zoomValue() === '100'">100 %</option>
           </select>
-          @if (previewState.isPdf()) {
-            <button class="preview-action" title="Imprimir / Guardar como PDF" aria-label="Imprimir / Guardar como PDF" (click)="onPrint()">
-              <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">print</span>
-            </button>
-          }
-          <button class="preview-action" [class.active]="inspectorState.isActive()" title="Inspeccionar elemento" aria-label="Inspeccionar elemento" (click)="inspectorState.toggleInspector()">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
+          <button type="button" class="inspector-btn" [class.icon-only]="narrow()" [class.active]="inspectorState.isActive()" [attr.aria-pressed]="inspectorState.isActive()"
+                  title="Inspeccionar elemento" aria-label="Inspeccionar elemento" (click)="inspectorState.toggleInspector()">
+            <span aria-hidden="true" class="material-symbols-outlined seg-icon">ads_click</span>
+            @if (!narrow()) { <span class="seg-text">Inspector</span> }
           </button>
-          <button class="preview-action" title="Descargar captura PNG de la vista previa" aria-label="Descargar captura PNG de la vista previa" (click)="projectIo.exportPng()">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">photo_camera</span>
-          </button>
-          <button class="preview-action" title="Recargar vista previa" aria-label="Recargar vista previa" (click)="onReload()">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
-          </button>
-          <button class="preview-action" title="Abrir en una pestaña nueva" aria-label="Abrir en una pestaña nueva" (click)="onOpenNewTab()">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">open_in_new</span>
-          </button>
+          <app-dropdown-menu label="Vista" ariaLabel="Vista" align="right" testId="preview-view-menu" [items]="viewItems()" (chosen)="onViewChoice($event)" />
         </div>
       </div>
       @if (previewState.isPdf()) {
-        <app-pdf-bar [pageCount]="pageCount()" [issues]="pageIssues()" />
+        <app-pdf-bar [pageCount]="pageCount()" [issues]="pageIssues()" (printRequested)="onPrint()" />
       }
       @if (previewState.hasErrors()) {
         <div class="compile-error" role="alert">
@@ -216,42 +168,14 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
 
     .preview-header {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
-      justify-content: space-between;
-      gap: 4px 12px;
-      min-height: 36px;
-      padding: 4px 16px;
+      gap: 6px;
+      min-height: 44px;
+      padding: 6px 10px;
       border-bottom: 1px solid var(--border-color);
       background: var(--bg-surface-container);
       flex-shrink: 0;
-    }
-
-    .preview-header-left {
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .preview-title {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--secondary-color);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .live-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--secondary-color);
-      animation: pulse-primary 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 
     .device-switcher {
@@ -264,18 +188,27 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       border-radius: var(--radius);
     }
 
-    .device-btn {
-      display: flex;
+    .device-btn, .inspector-btn {
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 24px;
-      border-radius: 3px;
+      gap: 3px;
+      min-height: 28px;
+      padding: 0 6px;
+      border-radius: 4px;
       color: var(--text-secondary);
+      font-size: 13px;
+      white-space: nowrap;
       transition: all 0.15s;
     }
 
-    .device-btn:hover {
+    .device-btn.icon-only, .inspector-btn.icon-only { width: 32px; padding: 0; }
+
+    .inspector-btn { min-height: 32px; border: 1px solid var(--border-color); border-radius: var(--radius); }
+
+    .seg-icon { font-size: 16px; width: 16px; }
+
+    .device-btn:hover, .inspector-btn:hover {
       color: var(--text-primary);
     }
 
@@ -284,20 +217,24 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       color: var(--text-on-primary-container);
     }
 
+    .inspector-btn.active {
+      color: var(--accent-color);
+      background: var(--accent-container);
+    }
+
     .preview-header-right {
-      flex-wrap: wrap;
       margin-left: auto;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .preview-action {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       border-radius: var(--radius);
       color: var(--text-secondary);
       transition: all 0.15s;
@@ -306,11 +243,6 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
     .preview-action:hover {
       background: var(--bg-surface-variant);
       color: var(--text-primary);
-    }
-
-    .preview-action.active {
-      color: var(--accent-color);
-      background: var(--accent-container);
     }
 
     .preview-viewport {
@@ -367,13 +299,14 @@ import { InspectorPanelComponent } from '../inspector/inspector-panel.component'
       font: 16px 'Times New Roman', Times, serif;
     }
 
-    .device-select { max-width: 150px; }
     .locale-select { max-width: 110px; }
 
     .zoom-select {
-      height: 24px;
-      font-family: var(--font-mono);
-      font-size: 11px;
+      height: 32px;
+      width: 104px;
+      padding: 0 4px;
+      font-family: inherit;
+      font-size: 13px;
       color: var(--text-secondary);
       background: var(--bg-surface-container-low);
       border: 1px solid var(--border-color);
@@ -474,13 +407,27 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   private preferences = inject(PreferencesState);
   private editorState = inject(EditorState);
   protected terminal = inject(TerminalState);
+  private ui = inject(UiState);
   protected readonly presets = DEVICE_PRESETS;
+  /** Segmentado de la barra: lo que se cambia a cada rato; el resto de dispositivos vive en el menú «Vista». */
+  protected readonly segments = [
+    { id: 'Desktop', label: 'Escritorio', title: 'Escritorio', icon: 'desktop_windows' },
+    { id: 'Tablet', label: 'Tableta', title: 'Tableta', icon: 'tablet_mac' },
+    { id: 'Mobile', label: 'Móvil', title: 'Móvil', icon: 'smartphone' },
+    { id: 'PDF', label: 'PDF', title: 'PDF / página impresa', icon: 'picture_as_pdf' },
+  ];
+  @ViewChild('header', { static: true }) private headerEl!: ElementRef<HTMLElement>;
+  private readonly headerWidth = signal(0);
+  /** Por debajo de este ancho de panel, segmentado e inspector se quedan en icono (con su nombre accesible). */
+  protected readonly narrow = computed(() => this.headerWidth() > 0 && this.headerWidth() < NARROW_BELOW);
+  private readonly moreDevices = signal(false);
   protected readonly deviceKind = computed(() => findDevicePreset(this.previewState.deviceName())?.kind ?? 'desktop');
   protected readonly schemeIcon = computed(() => {
     const m = this.previewState.colorScheme();
     return m === 'dark' ? 'dark_mode' : m === 'light' ? 'light_mode' : 'contrast';
   });
   private canvasObserver: ResizeObserver | null = null;
+  private headerObserver: ResizeObserver | null = null;
   private assetState = inject(AssetState);
   /**
    * Estado del iframe del preview: 'none' (sin cargar), 'loading' (cargando el programa), 'ready' (el programa recibe
@@ -576,6 +523,11 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   constructor() {
     this.restoreDevice();
+    // «Imprimir o guardar como PDF» del menú Exportar de la barra superior.
+    effect(() => {
+      const req = this.ui.panelRequest();
+      if (req?.id === 'print') untracked(() => this.onPrint());
+    });
     effect(() => {
       const html = this.previewState.compiledHtml();
       // Un html vacío (plantilla borrada) también se muestra: si no, el preview se quedaría con el render anterior.
@@ -635,6 +587,62 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     this.sendLayout();
   }
 
+  protected isSegmentActive(id: string): boolean {
+    if (id === 'PDF') return this.previewState.isPdf();
+    return !this.previewState.isPdf() && this.deviceKind() === (id === 'Desktop' ? 'desktop' : id === 'Tablet' ? 'tablet' : 'mobile');
+  }
+
+  protected onSegment(id: string): void {
+    if (id === 'PDF') this.setDevice('PDF', 0, 0);
+    else this.selectDevice(id);
+  }
+
+  /** Menú «Vista»: lo ocasional (dispositivo concreto, idioma, color y herramientas), todo con texto. */
+  protected readonly viewItems = computed<MenuItem[]>(() => {
+    const items: MenuItem[] = [];
+    if (!this.previewState.isPdf()) {
+      const current = this.previewState.deviceName();
+      items.push({ heading: 'Dispositivo' });
+      const shown = this.moreDevices() ? this.presets : this.presets.filter((d) => d.name === current);
+      for (const d of shown) {
+        const active = d.name === current;
+        const size = active ? `${this.previewState.deviceWidth()}×${this.previewState.deviceHeight()}` : `${d.width}×${d.height}`;
+        items.push({ id: `device:${d.name}`, label: `${d.label} · ${size}`, checked: active, radio: true });
+      }
+      items.push({ id: 'devices:more', label: this.moreDevices() ? 'Menos dispositivos' : 'Otros dispositivos…', keepOpen: true });
+      items.push({ separator: true });
+    }
+    const locales = this.orchestrator.locales();
+    if (locales.length) {
+      items.push({ heading: 'Idioma del preview' });
+      for (const code of locales) items.push({ id: `locale:${code}`, label: code, checked: code === this.orchestrator.activeLocale(), radio: true });
+      items.push({ separator: true });
+    }
+    items.push({ heading: 'Modo de color' });
+    for (const [id, label] of [['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']] as const) {
+      items.push({ id: `scheme:${id}`, label, checked: this.previewState.colorScheme() === id, radio: true });
+    }
+    items.push({ separator: true }, { heading: 'Herramientas' });
+    items.push(
+      { id: 'a11y', label: 'Auditoría de accesibilidad', icon: 'accessibility_new', hint: 'Los resultados salen en el Registro' },
+      { id: 'png', label: 'Captura PNG', icon: 'photo_camera' },
+      { id: 'reload', label: 'Recargar', icon: 'refresh' },
+      { id: 'newtab', label: 'Abrir en una pestaña nueva', icon: 'open_in_new' },
+    );
+    return items;
+  });
+
+  protected onViewChoice(id: string): void {
+    if (id === 'devices:more') this.moreDevices.update((v) => !v);
+    else if (id.startsWith('device:')) this.selectDevice(id.slice('device:'.length));
+    else if (id.startsWith('locale:')) this.orchestrator.setTranslationLocale(id.slice('locale:'.length));
+    else if (id.startsWith('scheme:')) this.previewState.colorScheme.set(id.slice('scheme:'.length) as ColorSchemeSim);
+    else if (id === 'a11y') this.runA11y();
+    else if (id === 'png') void this.projectIo.exportPng();
+    else if (id === 'reload') this.onReload();
+    else if (id === 'newtab') this.onOpenNewTab();
+  }
+
   cycleColorScheme(): void {
     const order: ColorSchemeSim[] = ['auto', 'light', 'dark'];
     const next = order[(order.indexOf(this.previewState.colorScheme()) + 1) % order.length];
@@ -667,10 +675,14 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     const el = this.canvas.nativeElement;
     this.canvasObserver = new ResizeObserver(() => this.canvasSize.set({ width: el.clientWidth, height: el.clientHeight }));
     this.canvasObserver.observe(el);
+    const header = this.headerEl.nativeElement;
+    this.headerObserver = new ResizeObserver(() => this.headerWidth.set(header.clientWidth));
+    this.headerObserver.observe(header);
   }
 
   ngOnDestroy(): void {
     this.canvasObserver?.disconnect();
+    this.headerObserver?.disconnect();
     window.removeEventListener('message', this.messageListener);
     this.clearWatchdog();
   }
