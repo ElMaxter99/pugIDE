@@ -73,4 +73,10 @@ export async function uploadAsset(page, file = logoPng()) {
   await sleep(900);
 }
 
+/** Elige una fila de los menús «Proyecto» (`proyecto`) o «Exportar» (`exportar`) de la barra superior. */
+export async function chooseMenu(page, menu, id) {
+  await page.locator(`[data-testid="menu-${menu}"]`).click();
+  await page.locator(`[role="menu"] [data-menu-id="${id}"]`).click();
+}
+
 export { FILES, FILES_ERROR, MAIN_PUG_PDF, SESSION, PREFS };

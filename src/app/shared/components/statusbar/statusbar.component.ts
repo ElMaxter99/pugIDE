@@ -5,6 +5,7 @@ import { TerminalState } from '../../../core/state/terminal.state';
 import { PreviewState } from '../../../core/state/preview.state';
 import { ParserState } from '../../../core/state/parser.state';
 import { PersistenceService } from '../../../core/services/persistence.service';
+import { PreferencesState } from '../../../core/services/preferences.state';
 
 @Component({
   selector: 'app-statusbar',
@@ -35,6 +36,16 @@ import { PersistenceService } from '../../../core/services/persistence.service';
         }
       </div>
       <div class="status-right">
+        <button
+          type="button"
+          class="status-group"
+          data-testid="autocompile-toggle"
+          [attr.aria-pressed]="preferences.autoCompile()"
+          [title]="preferences.autoCompile() ? 'Autocompilación activada: recompila al escribir. Púlsalo para desactivarla.' : 'Autocompilación desactivada: pulsa Guardar o Ctrl+S para compilar. Púlsalo para activarla.'"
+          (click)="preferences.update({ autoCompile: !preferences.autoCompile() })">
+          <span aria-hidden="true" class="auto-dot" [class.on]="preferences.autoCompile()"></span>
+          <span>Autocompilar: {{ preferences.autoCompile() ? 'sí' : 'no' }}</span>
+        </button>
         <span class="status-item dim">UTF-8</span>
         <span class="status-item dim">{{ getLanguage() }}</span>
         <div
@@ -105,6 +116,19 @@ import { PersistenceService } from '../../../core/services/persistence.service';
       background: rgba(255, 255, 255, 0.05);
     }
 
+    .auto-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-tertiary);
+      flex-shrink: 0;
+    }
+
+    .auto-dot.on {
+      background: var(--accent-color);
+      box-shadow: 0 0 6px var(--accent-color);
+    }
+
     .status-item {
       display: flex;
       align-items: center;
@@ -150,6 +174,7 @@ export class StatusbarComponent {
   protected previewState = inject(PreviewState);
   protected parserState = inject(ParserState);
   protected persistence = inject(PersistenceService);
+  protected preferences = inject(PreferencesState);
 
   getLanguage(): string {
     const tab = this.editorState.activeTab();

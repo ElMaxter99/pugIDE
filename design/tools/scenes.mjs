@@ -10,7 +10,7 @@
 //   run        acciones sobre la página antes de fotografiar
 //   hrefs      enlaces de prototipo entre mesas [{ sel, href }]
 //   height     alto de la mesa (por defecto 900)
-import { FILES, FILES_ERROR, SESSION, PREFS, MAIN_PUG_PDF, uploadAsset, sleep, waitUntil, previewFrame } from './lib.mjs';
+import { FILES, FILES_ERROR, SESSION, PREFS, MAIN_PUG_PDF, uploadAsset, sleep, waitUntil, previewFrame, chooseMenu } from './lib.mjs';
 
 const TABS3 = ['/main.pug', '/mixins.pug', '/styles/informe.scss'];
 const session = (over = {}) => ({ ...SESSION, ...over });
@@ -49,7 +49,7 @@ const pdf = async ({ page }) => {
   await sleep(2500);
 };
 const projects = async ({ page }) => {
-  await page.locator('button[title^="Abrir, crear"]').click();
+  await chooseMenu(page, 'proyecto', 'projects');
   await page.locator('[aria-label="Mis proyectos"]').waitFor();
   await sleep(500);
 };
@@ -59,9 +59,9 @@ export const scenes = [
     id: 'V-01', file: IDE, title: 'V-01 IDE: editor, datos y preview', theme: 'dark', ...ide,
     hrefs: [
       { sel: 'h1.logo a', href: 'V-04-Inicio.dc.html' },
-      { sel: 'button[title^="Paleta de comandos"]', href: 'V-12-Paleta.dc.html' },
-      { sel: 'button[title^="Abrir, crear"]', href: 'V-11-Proyectos.dc.html' },
-      { sel: 'button[title^="Copiar un enlace"]', href: 'V-23-Compartir.dc.html' },
+      { sel: '[data-testid="open-palette"]', href: 'V-12-Paleta.dc.html' },
+      { sel: '[data-testid="menu-proyecto"]', href: 'V-11-Proyectos.dc.html' },
+      { sel: '[data-testid="menu-exportar"]', href: 'V-23-Compartir.dc.html' },
     ],
   },
   {
@@ -159,7 +159,7 @@ export const scenes = [
   { id: 'V-22', file: 'V-22-Privacidad.dc.html', title: 'V-22 Aviso de privacidad (analítica opcional)', theme: 'dark', ...ide, consent: null, run: async (c) => { await withLogo(c); await sleep(800); } },
   {
     id: 'V-23', file: 'V-23-Compartir.dc.html', title: 'V-23 Compartir: aviso de enlace copiado', theme: 'dark', ...ide,
-    run: async (c) => { await withLogo(c); await c.page.locator('button[title^="Copiar un enlace"]').click(); await sleep(900); },
+    run: async (c) => { await withLogo(c); await chooseMenu(c.page, 'exportar', 'share'); await sleep(900); },
   },
   { id: 'V-24', file: 'V-24-Inicio-claro.dc.html', title: 'V-24 Inicio: tema claro', theme: 'light', path: '/', session: null, prefs: light, kind: 'landing' },
   { id: 'V-25', file: 'V-25-Errores-claro.dc.html', title: 'V-25 Errores: tema claro', theme: 'light', path: '/ide', session: errSession, prefs: light, run: errors },
@@ -174,7 +174,7 @@ scenes.splice(scenes.findIndex((s) => s.id === 'V-16'), 0, {
     await withLogo(c);
     const { page } = c;
     await page.context().grantPermissions([], { origin: new URL(page.url()).origin });
-    await page.locator('button[title^="Copiar un enlace"]').click();
+    await chooseMenu(page, 'exportar', 'share');
     await sleep(800);
     await page.evaluate(() => { try { localStorage.setItem('__noop', '1'); } catch { /* */ } });
     await page.reload();

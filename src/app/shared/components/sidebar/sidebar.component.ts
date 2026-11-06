@@ -3,6 +3,8 @@ import {
   ChangeDetectionStrategy,
   inject,
   signal,
+  effect,
+  untracked,
   ViewChild,
   ElementRef,
 } from '@angular/core';
@@ -20,6 +22,7 @@ import { ContextMenuAction } from '../../../core/models/index';
 import { AssetState } from '../../../core/state/asset.state';
 import { PreferencesState } from '../../../core/services/preferences.state';
 import { APP_VERSION } from '../../../core/models/version.token';
+import { UiState } from '../../../core/state/ui.state';
 
 type PendingAction =
   | { type: 'newFile'; dir: string }
@@ -267,6 +270,7 @@ export class SidebarComponent {
   protected version = inject(APP_VERSION);
   protected assetState = inject(AssetState);
   protected preferences = inject(PreferencesState);
+  private ui = inject(UiState);
   private assetTarget: string | undefined;
 
   @ViewChild('zipInput') private zipInput!: ElementRef<HTMLInputElement>;
@@ -281,6 +285,18 @@ export class SidebarComponent {
   protected contextMenuY = signal(0);
   protected contextMenuItems = signal<ContextMenuAction[]>([]);
   private contextMenuTarget: FileNode | null = null;
+
+  constructor() {
+    // Órdenes de los menús de la barra superior (Importar…, Subir imágenes…).
+    effect(() => {
+      const req = this.ui.panelRequest();
+      if (!req) return;
+      untracked(() => {
+        if (req.id === 'import-project') this.onImportClick();
+        else if (req.id === 'upload-assets') this.pickAssets();
+      });
+    });
+  }
 
   /** `target`: exact path a missing reference asks for; without it the file is matched by name or goes to /assets/. */
   pickAssets(target?: string): void {

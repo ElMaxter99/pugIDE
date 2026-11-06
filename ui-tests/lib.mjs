@@ -105,6 +105,12 @@ export async function previewText(page) {
   try { return await f.evaluate(() => document.body?.innerText ?? ''); } catch { return ''; }
 }
 
-/** Nombre del proyecto que muestra el botón de la barra superior. */
+/** Nombre del proyecto que muestra el panel lateral (la barra superior ya no lo enseña). */
 export const projectName = async (page) =>
-  (await page.locator('button[title^="Abrir, crear"]').innerText({ timeout: 1500 }).catch(() => '')).replace('folder_open', '').trim();
+  ((await page.locator('.workspace-name').first().textContent({ timeout: 1500 }).catch(() => '')) ?? '').trim();
+
+/** Elige una fila de los menús «Proyecto» (`proyecto`) o «Exportar» (`exportar`) de la barra superior por su `data-menu-id`. */
+export async function chooseMenu(page, menu, id) {
+  await page.locator(`[data-testid="menu-${menu}"]`).click();
+  await page.locator(`[role="menu"] [data-menu-id="${id}"]`).click();
+}

@@ -7,7 +7,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { start } from './server.mjs';
-import { openApp, settle, uploadAsset, sleep, FILES, FILES_ERROR, SESSION, PREFS, MAIN_PUG_PDF } from './lib.mjs';
+import { openApp, settle, uploadAsset, sleep, FILES, FILES_ERROR, SESSION, PREFS, MAIN_PUG_PDF, chooseMenu } from './lib.mjs';
 import { extractInPage } from './extract-page.mjs';
 import { freeze, boardHtml } from './capture.mjs';
 
@@ -28,12 +28,12 @@ const contexts = {
   errors: { session: { ...base, files: errFiles, openTabPaths: ['/main.pug', '/mixins.pug'] }, run: async ({ page }) => { await page.locator('.compile-error').waitFor(); await page.getByRole('button', { name: /Todos los problemas/ }).click(); await sleep(400); } },
   pdf: { session: { ...base, files: { ...FILES, '/main.pug': MAIN_PUG_PDF } }, run: async ({ page }) => { await uploadAsset(page); await page.locator('button[title="PDF / página impresa"]').click(); await sleep(2200); } },
   dirty: { session: base, run: async ({ page }) => { await uploadAsset(page); await page.locator('.monaco-editor').first().click({ position: { x: 200, y: 80 } }); await page.keyboard.press('Control+End'); await page.keyboard.type('\n// cambio sin guardar'); await sleep(500); } },
-  share: { session: base, run: async ({ page }) => { await uploadAsset(page); await page.locator('button[title^="Copiar un enlace"]').click(); await sleep(900); } },
+  share: { session: base, run: async ({ page }) => { await uploadAsset(page); await chooseMenu(page, 'exportar', 'share'); await sleep(900); } },
   newfile: { session: base, run: async ({ page }) => { await uploadAsset(page); await page.locator('button[title="Nuevo archivo"]').click(); await sleep(400); } },
   delete: { session: base, run: async ({ page }) => { await uploadAsset(page); await page.getByText('cabecera.pug', { exact: true }).first().click({ button: 'right' }); await page.locator('.context-menu .context-item', { hasText: 'Borrar' }).click(); await sleep(400); } },
   menu: { session: base, run: async ({ page }) => { await uploadAsset(page); await page.getByText('cabecera.pug', { exact: true }).first().click({ button: 'right' }); await sleep(300); } },
   palette: { session: base, run: async ({ page }) => { await uploadAsset(page); await paletteOpen(page); } },
-  projects: { session: base, run: async ({ page }) => { await uploadAsset(page); await page.locator('button[title^="Abrir, crear"]').click(); await page.locator('[aria-label="Mis proyectos"]').waitFor(); await sleep(400); } },
+  projects: { session: base, run: async ({ page }) => { await uploadAsset(page); await chooseMenu(page, 'proyecto', 'projects'); await page.locator('[aria-label="Mis proyectos"]').waitFor(); await sleep(400); } },
   shortcuts: { session: base, run: async ({ page }) => { await uploadAsset(page); await paletteOpen(page); await page.keyboard.type('atajos'); await sleep(300); await page.keyboard.press('Enter'); await sleep(500); } },
   consent: { session: base, consent: null, run: async ({ page }) => { await uploadAsset(page); await sleep(600); } },
   landing: { path: '/', session: null, run: async () => {} },
@@ -41,9 +41,10 @@ const contexts = {
 
 // Piezas: [grupo, nombre, contexto, selector, opciones { nth, hover }]
 const SPECIMENS = [
-  ['Botones', 'Botón de barra', 'ide', '.topbar-actions .text-btn', { nth: 1 }],
-  ['Botones', 'Botón de barra · puntero encima', 'ide', '.topbar-actions .text-btn', { nth: 1, hover: true }],
-  ['Botones', 'Botón de barra · activo (Autocompilar)', 'ide', '.topbar-actions .text-btn.active'],
+  ['Botones', 'Menú de la barra (Proyecto)', 'ide', '.topbar-actions .menu-trigger', { nth: 0 }],
+  ['Botones', 'Menú de la barra · puntero encima', 'ide', '.topbar-actions .menu-trigger', { nth: 0, hover: true }],
+  ['Botones', 'Campo de la paleta (Ctrl K)', 'ide', '.topbar-actions .search-field'],
+  ['Botones', 'Autocompilar (barra de estado)', 'ide', '[data-testid="autocompile-toggle"]'],
   ['Botones', 'Botón principal (Guardar)', 'ide', '.save-btn'],
   ['Botones', 'Botón de icono', 'ide', '.topbar-actions .icon-btn'],
   ['Botones', 'Botón de icono · puntero encima', 'ide', '.topbar-actions .icon-btn', { hover: true }],

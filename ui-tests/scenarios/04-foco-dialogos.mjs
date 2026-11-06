@@ -6,13 +6,17 @@ export default async function (env) {
   const { page } = app;
   const active = () => page.evaluate(() => {
     const a = document.activeElement;
-    return a ? `${a.tagName}|${a.getAttribute('title') ?? ''}|${a.getAttribute('role') ?? ''}` : '';
+    return a ? `${a.tagName}|${a.getAttribute('title') ?? ''}|${a.getAttribute('role') ?? ''}|${a.getAttribute('aria-label') ?? ''}` : '';
   });
   const inside = (sel) => page.evaluate((s) => !!document.querySelector(s)?.contains(document.activeElement), sel);
 
-  const trigger = page.locator('button[title^="Abrir, crear"]');
+  // Menú «Proyecto» con teclado: Intro abre y enfoca la primera fila («Mis proyectos…»); Intro la elige
+  const trigger = page.locator('[data-testid="menu-proyecto"]');
   await trigger.focus();
   await trigger.press('Enter');
+  await sleep(300);
+  check('04 Menú Proyecto: Intro lo abre y el foco va a la primera fila', (await active()).includes('menuitem'), await active());
+  await page.keyboard.press('Enter');
   await sleep(600);
   const projects = '[aria-label="Mis proyectos"]';
   check('04 Mis proyectos: el foco entra en el diálogo', await inside(projects));
@@ -22,16 +26,16 @@ export default async function (env) {
   check('04 Mis proyectos: Tab y Shift+Tab no sacan el foco', leaks === 0 && (await inside(projects)), `fugas=${leaks}`);
   await page.keyboard.press('Escape');
   await sleep(400);
-  check('04 Mis proyectos: Escape cierra y devuelve el foco al botón', (await page.locator(projects).count()) === 0 && (await active()).includes('Abrir, crear'), await active());
+  check('04 Mis proyectos: Escape cierra y devuelve el foco al botón del menú', (await page.locator(projects).count()) === 0 && (await active()).endsWith('|Proyecto'), await active());
 
-  const share = page.locator('button[title^="Copiar un enlace"]');
+  const share = page.locator('[data-testid="open-palette"]');
   await share.focus();
   await page.keyboard.press('Control+k');
   await sleep(500);
   check('04 Paleta: el foco va al buscador y Tab no lo saca', (await active()).startsWith('INPUT') && (await page.keyboard.press('Tab'), (await active()).startsWith('INPUT')));
   await page.keyboard.press('Escape');
   await sleep(400);
-  check('04 Paleta: Escape devuelve el foco al elemento anterior', (await active()).includes('Copiar un enlace'), await active());
+  check('04 Paleta: Escape devuelve el foco al elemento anterior', (await active()).includes('Abrir la paleta de comandos'), await active());
 
   const add = page.locator('button[title="Nuevo archivo"]');
   await add.focus();

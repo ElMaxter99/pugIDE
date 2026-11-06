@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   inject,
   signal,
+  computed,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { EditorState } from '../../../core/state/editor.state';
@@ -13,11 +14,12 @@ import { PreferencesState } from '../../../core/services/preferences.state';
 import { UiState } from '../../../core/state/ui.state';
 import { ProjectState } from '../../../core/state/project.state';
 import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.component';
+import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.component';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [ProjectsDialogComponent],
+  imports: [ProjectsDialogComponent, DropdownMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="topbar">
@@ -26,39 +28,17 @@ import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.comp
       </div>
       <div class="topbar-right">
         <div class="topbar-actions">
-          <button class="text-btn" title="Abrir, crear, renombrar, duplicar o borrar proyectos guardados en este navegador" (click)="ui.projectsOpen.set(true)">
-            <span aria-hidden="true" class="material-symbols-outlined">folder_open</span>
-            {{ projectState.projectName() }}
+          <app-dropdown-menu label="Proyecto" icon="folder_open" ariaLabel="Proyecto" testId="menu-proyecto" [items]="projectItems()" (chosen)="onProjectAction($event)" />
+          <app-dropdown-menu label="Exportar" icon="download" ariaLabel="Exportar" testId="menu-exportar" align="right" [items]="exportItems()" (chosen)="onExportAction($event)" />
+          <button type="button" class="search-field" data-testid="open-palette" title="Abrir la paleta de comandos (Ctrl+K)" (click)="ui.paletteOpen.set(true)">
+            <span aria-hidden="true" class="material-symbols-outlined">search</span>
+            <span class="search-text">Buscar comandos y archivos…</span>
+            <kbd>Ctrl K</kbd>
           </button>
-          <button class="icon-btn" title="Instantáneas del proyecto: guardar, comparar y restaurar" aria-label="Instantáneas del proyecto" data-testid="open-snapshots" (click)="ui.snapshotsOpen.set(true)">
-            <span aria-hidden="true" class="material-symbols-outlined">photo_camera</span>
-          </button>
-          <button class="text-btn" title="Paleta de comandos (Ctrl+K)" (click)="ui.paletteOpen.set(true)">
-            <span aria-hidden="true" class="material-symbols-outlined">keyboard_command_key</span>
-            Comandos
-          </button>
-          <button class="text-btn" title="Copiar un enlace con el proyecto (archivos, datos y assets pequeños)" (click)="onShare()">
-            <span aria-hidden="true" class="material-symbols-outlined">link</span>
-            Compartir
-          </button>
-          <button class="text-btn" title="Descargar el HTML renderizado autocontenido" (click)="onExportHtml()">
-            <span aria-hidden="true" class="material-symbols-outlined">code</span>
-            Exportar HTML
-          </button>
-          <div class="divider"></div>
-          <button class="icon-btn" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema claro/oscuro" (click)="onToggleTheme()">
+          <button type="button" class="icon-btn" title="Cambiar tema claro u oscuro" aria-label="Cambiar tema claro u oscuro" (click)="onToggleTheme()">
             <span aria-hidden="true" class="material-symbols-outlined">contrast</span>
           </button>
-          <div class="divider"></div>
-          <button
-            class="text-btn"
-            [class.active]="preferences.autoCompile()"
-            [title]="preferences.autoCompile() ? 'Autocompilación activada: recompila al escribir' : 'Autocompilación desactivada: pulsa Guardar o Ctrl+S para compilar'"
-            (click)="onToggleAutoCompile()">
-            <span class="status-dot" [class.on]="preferences.autoCompile()"></span>
-            Autocompilar
-          </button>
-          <button class="save-btn" (click)="onSave()">Guardar</button>
+          <button type="button" class="save-btn" (click)="onSave()">Guardar</button>
         </div>
       </div>
       @if (shareNotice(); as n) {
@@ -148,40 +128,29 @@ import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.comp
       margin: 0 4px;
     }
 
-    .text-btn {
+    .search-field {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 0 12px;
+      min-width: 280px;
       height: 36px;
-      font-size: 14px;
+      padding: 0 8px 0 12px;
+      font-size: 13px;
       color: var(--text-secondary);
+      background: var(--bg-surface-container-low, transparent);
+      border: 1px solid var(--border-color);
       border-radius: var(--radius);
-      transition: all 0.15s;
+      cursor: pointer;
     }
 
-    .text-btn:hover {
-      background: var(--bg-surface-container-highest);
-      color: var(--text-primary);
-    }
+    .search-field:hover { color: var(--text-primary); background: var(--bg-surface-container-highest); }
+    .search-text { flex: 1; text-align: left; }
+    .search-field kbd { font-family: var(--font-mono); font-size: 11px; padding: 1px 6px; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 4px; }
 
-    .text-btn.active {
-      color: var(--text-on-primary-container, var(--accent-color));
-      background: var(--accent-container, transparent);
-    }
 
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--text-tertiary);
-      flex-shrink: 0;
-    }
 
-    .status-dot.on {
-      background: var(--accent-color);
-      box-shadow: 0 0 6px var(--accent-color);
-    }
+
+
 
     .share-notice {
       position: absolute;
@@ -260,10 +229,6 @@ export class TopbarComponent {
     this.orchestrator.saveFile();
   }
 
-  onToggleAutoCompile(): void {
-    this.preferences.update({ autoCompile: !this.preferences.autoCompile() });
-  }
-
   onToggleTheme(): void {
     this.preferences.toggleTheme();
   }
@@ -289,5 +254,52 @@ export class TopbarComponent {
 
   onExportHtml(): void {
     this.projectIo.exportHtml();
+  }
+
+  protected projectItems = computed<MenuItem[]>(() => [
+    { id: 'projects', icon: 'folder_open', label: 'Mis proyectos…', hint: this.projectState.projectName() },
+    { id: 'new-template', icon: 'add', label: 'Nuevo proyecto desde plantilla…' },
+    { id: 'snapshots', icon: 'photo_camera', label: 'Instantáneas del proyecto…' },
+    { id: 'history', icon: 'history', label: 'Historial del archivo…' },
+    { separator: true },
+    { id: 'import', icon: 'upload', label: 'Importar carpeta o .zip…' },
+    { id: 'assets', icon: 'add_photo_alternate', label: 'Subir imágenes, fuentes o estilos…' },
+    { id: 'locale', icon: 'translate', label: 'Añadir idioma…' },
+    { separator: true },
+    { id: 'search', icon: 'search', label: 'Buscar en el proyecto', keys: 'Ctrl+Shift+F' },
+    { id: 'shortcuts', icon: 'keyboard', label: 'Atajos de teclado' },
+  ]);
+
+  protected exportItems = computed<MenuItem[]>(() => [
+    { id: 'share', icon: 'link', label: 'Copiar enlace para compartir' },
+    { id: 'html', icon: 'code', label: 'HTML autocontenido' },
+    { id: 'png', icon: 'photo_camera', label: 'Captura PNG del preview' },
+    { id: 'print', icon: 'picture_as_pdf', label: 'Imprimir o guardar como PDF' },
+    { separator: true },
+    { id: 'project', icon: 'download', label: 'Proyecto en carpeta o .zip' },
+  ]);
+
+  protected onProjectAction(id: string): void {
+    switch (id) {
+      case 'projects':
+      case 'new-template': this.ui.projectsOpen.set(true); break;
+      case 'snapshots': this.ui.snapshotsOpen.set(true); break;
+      case 'history': this.ui.historyOpen.set(true); break;
+      case 'import': this.ui.requestPanel('import-project'); break;
+      case 'assets': this.ui.requestPanel('upload-assets'); break;
+      case 'locale': this.ui.addLocaleOpen.set(true); break;
+      case 'search': this.ui.requestEditorCommand('pug.searchInProject'); break;
+      case 'shortcuts': this.ui.shortcutsOpen.set(true); break;
+    }
+  }
+
+  protected onExportAction(id: string): void {
+    switch (id) {
+      case 'share': void this.onShare(); break;
+      case 'html': this.onExportHtml(); break;
+      case 'png': void this.projectIo.exportPng(); break;
+      case 'print': this.ui.requestPanel('print'); break;
+      case 'project': void this.projectIo.exportProject(); break;
+    }
   }
 }

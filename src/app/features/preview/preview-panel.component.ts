@@ -26,6 +26,7 @@ import { InspectorState } from '../../core/state/inspector.state';
 import { DEVICE_PRESETS, findDevicePreset, ColorSchemeSim } from '../../core/utils/device-presets.util';
 import { EditorState } from '../../core/state/editor.state';
 import { TerminalState } from '../../core/state/terminal.state';
+import { UiState } from '../../core/state/ui.state';
 import { findPugSource } from '../../core/utils/pug-source-map.util';
 import { PdfBarComponent } from './pdf-bar.component';
 import { InspectorPanelComponent } from '../inspector/inspector-panel.component';
@@ -474,6 +475,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   private preferences = inject(PreferencesState);
   private editorState = inject(EditorState);
   protected terminal = inject(TerminalState);
+  private ui = inject(UiState);
   protected readonly presets = DEVICE_PRESETS;
   protected readonly deviceKind = computed(() => findDevicePreset(this.previewState.deviceName())?.kind ?? 'desktop');
   protected readonly schemeIcon = computed(() => {
@@ -576,6 +578,11 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
 
   constructor() {
     this.restoreDevice();
+    // «Imprimir o guardar como PDF» del menú Exportar de la barra superior.
+    effect(() => {
+      const req = this.ui.panelRequest();
+      if (req?.id === 'print') untracked(() => this.onPrint());
+    });
     effect(() => {
       const html = this.previewState.compiledHtml();
       // Un html vacío (plantilla borrada) también se muestra: si no, el preview se quedaría con el render anterior.

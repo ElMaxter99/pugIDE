@@ -1,14 +1,14 @@
-import { check, openApp, previewText, projectName, waitUntil } from '../lib.mjs';
+import { check, chooseMenu, openApp, previewText, projectName, waitUntil } from '../lib.mjs';
 
 // Biblioteca de proyectos, plantillas y paleta de comandos
 export default async function (env) {
   const app = await openApp(env, { path: '/ide' });
   const { page } = app;
-  const trigger = page.locator('button[title^="Abrir, crear"]');
+  const openProjects = () => chooseMenu(page, 'proyecto', 'projects');
   const dialog = page.locator('[aria-label="Mis proyectos"]');
 
   check('02 arranca con el proyecto vacío', (await projectName(page)) === 'MiProyecto');
-  await trigger.click();
+  await openProjects();
   await dialog.waitFor();
   await page.selectOption('.template-select', 'invoice');
   await page.click('text=Nuevo proyecto');
@@ -18,7 +18,7 @@ export default async function (env) {
   const invoice = await previewText(page);
   check('02 el preview muestra la factura con sus datos', /factura/i.test(invoice) && invoice.includes('F-2026-0042'), invoice.slice(0, 120));
 
-  await trigger.click();
+  await openProjects();
   await dialog.waitFor();
   const rows = await waitUntil(async () => (await page.locator('.row').count()) === 2);
   check('02 la biblioteca lista los dos proyectos', !!rows, String(await page.locator('.row').count()));

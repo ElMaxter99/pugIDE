@@ -40,7 +40,7 @@ export interface MenuItem {
       [attr.aria-expanded]="open()"
       [attr.aria-label]="ariaLabel() || label()"
       [attr.title]="iconOnly() ? (ariaLabel() || label()) : null"
-      (click)="toggle()"
+      (click)="onTriggerClick($event)"
       (keydown)="onTriggerKey($event)">
       @if (icon()) { <span aria-hidden="true" class="material-symbols-outlined menu-icon">{{ icon() }}</span> }
       @if (!iconOnly()) { <span class="menu-label">{{ label() }}</span> }
@@ -118,9 +118,10 @@ export class DropdownMenuComponent {
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
   protected readonly enabledCount = computed(() => this.items().filter((i) => i.id && !i.disabled).length);
 
-  protected toggle(): void {
+  /** `detail === 0` es una activación por teclado (Intro o Espacio): el foco pasa a la primera fila. */
+  protected onTriggerClick(e: MouseEvent): void {
     if (this.open()) this.close(true);
-    else this.openMenu(false);
+    else this.openMenu(e.detail === 0);
   }
 
   private openMenu(focusFirst: boolean): void {
