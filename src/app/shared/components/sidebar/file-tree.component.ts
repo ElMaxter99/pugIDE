@@ -5,6 +5,7 @@ import { getFileType } from '../../../core/models/tab.model';
 import { ProjectState } from '../../../core/state/project.state';
 import { EditorState } from '../../../core/state/editor.state';
 import { AssetState } from '../../../core/state/asset.state';
+import { PreviewState } from '../../../core/state/preview.state';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { ProjectIoService } from '../../../core/services/project-io.service';
 import type { EntryLike } from '../../../core/utils/drop-import.util';
@@ -88,6 +89,14 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
           (contextmenu)="onNodeContextMenu($event, node)">
           <span aria-hidden="true" class="material-symbols-outlined file-icon">{{ fileIcon(node) }}</span>
           <span class="file-name">{{ node.name }}</span>
+          @if (node.path === previewState.entryPath()) {
+            <span class="preview-mark" [class.pinned]="previewState.pinnedEntry() === node.path" data-testid="preview-mark"
+                  [attr.title]="previewState.pinnedEntry() === node.path ? 'Vista previa (elegida)' : 'Vista previa (automática)'">
+              <span aria-hidden="true" class="material-symbols-outlined">visibility</span>
+              @if (previewState.pinnedEntry() === node.path) { <span aria-hidden="true" class="preview-mark-text">Vista previa</span> }
+              <span class="sr-only">{{ previewState.pinnedEntry() === node.path ? ', vista previa elegida' : ', vista previa automática' }}</span>
+            </span>
+          }
         </div>
       }
     </ng-template>
@@ -182,6 +191,11 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
       flex-shrink: 0;
     }
 
+    .preview-mark { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; color: var(--text-tertiary); font-size: 11px; }
+    .preview-mark .material-symbols-outlined { font-size: 14px; }
+    .preview-mark.pinned { color: var(--accent-color); }
+    .preview-mark-text { font-weight: 600; }
+    .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
     .file-name {
       flex: 1;
       overflow: hidden;
@@ -194,6 +208,7 @@ export class FileTreeComponent {
   protected projectState = inject(ProjectState);
   private editorState = inject(EditorState);
   protected assetState = inject(AssetState);
+  protected previewState = inject(PreviewState);
   private orchestrator = inject(OrchestratorService);
   private projectIo = inject(ProjectIoService);
   protected dragOver = signal(false);

@@ -289,6 +289,7 @@ export class MainLayoutComponent implements OnInit {
     this.editorState.activeTabId.set(null);
     this.editorState.editorContent.set('');
     this.editorState.files.set(new Map(Object.entries(saved.files)));
+    this.orchestrator.restorePreviewEntry(saved.previewEntry);
 
     const pathsToOpen = saved.openTabPaths.length > 0 ? saved.openTabPaths : Object.keys(saved.files);
     for (const path of pathsToOpen) {

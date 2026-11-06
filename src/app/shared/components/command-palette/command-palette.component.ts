@@ -25,7 +25,7 @@ interface PaletteCommand {
   group: string;
   keywords?: string;
   /** Solo aparece al buscar, en «Recientes» o dentro de su sublista (no en la lista inicial). */
-  sub?: 'dispositivos';
+  sub?: 'dispositivos' | 'plantillas';
   /** Mantiene la paleta abierta al ejecutarlo (entrar en una sublista). */
   keepOpen?: boolean;
   run: () => void;
@@ -54,8 +54,8 @@ type Draft = Omit<PaletteCommand, 'id'> & { id?: string };
             [value]="query()"
             (input)="onQuery($any($event.target).value)"
             (keydown)="onKey($event)" />
-          @if (scope() === 'dispositivos') {
-            <div class="crumb"><button type="button" class="back" (click)="leaveScope()">← Todos los comandos</button><span>Cambiar dispositivo</span></div>
+          @if (scope() !== 'root') {
+            <div class="crumb"><button type="button" class="back" (click)="leaveScope()">← Todos los comandos</button><span>{{ scope() === 'plantillas' ? 'Previsualizar archivo' : 'Cambiar dispositivo' }}</span></div>
           }
           <ul class="list" id="palette-list" role="listbox">
             @for (c of results(); track c.id; let i = $index) {
@@ -126,8 +126,8 @@ export class CommandPaletteComponent {
   private restoreFocus: (() => void) | null = null;
   protected query = signal('');
   protected active = signal(0);
-  /** 'root': todos los comandos; 'dispositivos': sublista de dispositivos del preview. */
-  protected scope = signal<'root' | 'dispositivos'>('root');
+  /** 'root': todos los comandos; sublistas: dispositivos del preview o plantillas que previsualizar. */
+  protected scope = signal<'root' | 'dispositivos' | 'plantillas'>('root');
   private recent = signal<string[]>(this.persistence.loadRecentCommands());
 
   private commands = computed<PaletteCommand[]>(() => {
@@ -185,6 +185,24 @@ export class CommandPaletteComponent {
         run: () => this.setDevice(d.name, d.width, d.height),
       })),
     ];
+    // Varias plantillas importadas: elegir cuál se renderiza (también al escribir «previsualizar»).
+    const choices = this.orchestrator.previewChoices();
+    if (choices.templates.length > 1 || choices.pinned) {
+      list.push({ id: 'plantillas', group: 'Vista previa', title: 'Previsualizar archivo…', keywords: 'vista previa plantilla pug jade ver archivo', keepOpen: true, run: () => { this.scope.set('plantillas'); this.query.set(''); this.active.set(0); } });
+      for (const t of choices.templates) {
+        list.push({
+          id: `preview:${t}`, group: 'Vista previa', sub: 'plantillas', keywords: 'vista previa plantilla pug jade',
+          title: `Previsualizar: ${t.slice(1)}${t === choices.current ? ' (en la vista previa)' : ''}`,
+          run: () => this.orchestrator.setPreviewEntry(t),
+        });
+      }
+      if (choices.pinned) {
+        list.push({
+          id: 'preview-auto', group: 'Vista previa', sub: 'plantillas', keywords: 'vista previa automatica plantilla',
+          title: `Vista previa automática${choices.auto ? ` (${choices.auto.slice(1)})` : ''}`, run: () => this.orchestrator.setPreviewEntry(null),
+        });
+      }
+    }
     const undo = this.orchestrator.fileUndoLabel();
     if (undo) list.unshift({ id: 'file-undo', group: 'Archivos', title: undo, run: () => this.orchestrator.undoFileOp() });
     const files = this.editorState.files();
@@ -211,7 +229,7 @@ export class CommandPaletteComponent {
 
   protected results = computed(() => {
     const q = this.query().trim();
-    if (this.scope() === 'dispositivos') return filterCommands(this.commands().filter((c) => c.sub === 'dispositivos'), q);
+    if (this.scope() !== 'root') return filterCommands(this.commands().filter((c) => c.sub === this.scope()), q);
     if (q) return filterCommands(this.commands(), q).slice(0, 60);
     return withRecentsFirst(this.visibleRoot(), this.recent()).list.slice(0, 60);
   });
@@ -294,7 +312,7 @@ export class CommandPaletteComponent {
     if (e.key === 'ArrowDown') { e.preventDefault(); this.active.set(n ? (this.activeIndex() + 1) % n : 0); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); this.active.set(n ? (this.activeIndex() - 1 + n) % n : 0); }
     else if (e.key === 'Enter') { e.preventDefault(); const c = this.results()[this.activeIndex()]; if (c) this.run(c); }
-    else if (e.key === 'Escape') { e.preventDefault(); if (this.scope() === 'dispositivos') this.leaveScope(); else this.close(); }
+    else if (e.key === 'Escape') { e.preventDefault(); if (this.scope() !== 'root') this.leaveScope(); else this.close(); }
     else if (e.key === 'Backspace' && !this.query() && this.scope() !== 'root') { e.preventDefault(); this.leaveScope(); }
     else if (e.key === 'Tab') e.preventDefault(); // el único elemento enfocable es el buscador: el foco no sale
   }

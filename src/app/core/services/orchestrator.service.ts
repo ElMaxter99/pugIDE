@@ -42,7 +42,7 @@ import { buildTranslationSkeleton, TRANSLATIONS_KEY } from '../utils/i18n.util';
 import {
   addMissingKeys, blankTranslations, isValidLocaleCode, listLocales, localePath, parseTranslations, resolveLocale, serializeTranslations,
 } from '../utils/locales.util';
-import { findEntryPath, normalize, resolveVirtualPath } from '../utils/pug-vfs.util';
+import { findEntryPath, isPugFile, listTemplates, normalize, pinnedAfterDelete, pinnedAfterRename, resolveVirtualPath, validPinned } from '../utils/pug-vfs.util';
 
 @Injectable({ providedIn: 'root' })
 export class OrchestratorService {
@@ -124,7 +124,9 @@ export class OrchestratorService {
     try {
       const files = this.editorState.allFileContents();
       const activePath = this.editorState.activeTab()?.path;
-      const entryPath = findEntryPath(files, activePath);
+      // Una elección que ya no es válida (el archivo desapareció) se descarta: vuelve la vista automática.
+      if (this.previewState.pinnedEntry() && !validPinned(this.previewState.pinnedEntry(), files)) this.previewState.pinnedEntry.set(null);
+      const entryPath = findEntryPath(files, activePath, this.previewState.pinnedEntry());
       if (!entryPath) {
         this.previewState.updateCompiledResult({ html: '', css: '', errors: [], compilationTime: 0 });
         this.diagnosticsState.clear();
@@ -396,7 +398,7 @@ export class OrchestratorService {
     this.loadProject(
       new Map(Object.entries(session.files)), session.projectName, snap.assets,
       session.datasets ? parseDatasetsFile(session.datasets) : null, null,
-      { id, openTabPaths: session.openTabPaths, activeTabPath: session.activeTabPath },
+      { id, openTabPaths: session.openTabPaths, activeTabPath: session.activeTabPath, previewEntry: session.previewEntry },
     );
     return true;
   }
@@ -458,6 +460,7 @@ export class OrchestratorService {
       openTabPaths: this.editorState.openTabs().map((t) => t.path),
       activeTabPath: this.editorState.activeTab()?.path ?? null,
       datasets: this.dataState.snapshotDatasets(),
+      ...(this.previewState.pinnedEntry() ? { previewEntry: this.previewState.pinnedEntry()! } : {}),
     };
   }
 
@@ -652,7 +655,7 @@ export class OrchestratorService {
     // Monaco recibe los cambios como ediciones (Ctrl+Z los deshace).
     if (touched.length) this.editorState.notifyFileSync(touched);
     if (!this.editorState.activeTab()) {
-      const first = [...files.keys()].find((p) => p.endsWith('.pug')) ?? [...files.keys()][0];
+      const first = [...files.keys()].find(isPugFile) ?? [...files.keys()][0];
       if (first) this.editorState.openFile(first, first.split('/').pop() ?? first, getFileType(first), files.get(first) ?? '');
     }
 
@@ -678,7 +681,7 @@ export class OrchestratorService {
   /** Replaces the whole in-memory project (used by import) and recompiles from scratch. */
   loadProject(
     files: Map<string, string>, projectName: string, assets: AssetFile[] = [], datasets?: DatasetsFile | null,
-    data?: Record<string, unknown> | null, opts: { id?: string; openTabPaths?: string[]; activeTabPath?: string | null } = {},
+    data?: Record<string, unknown> | null, opts: { id?: string; openTabPaths?: string[]; activeTabPath?: string | null; previewEntry?: string | null } = {},
   ): void {
     this.fileOps = [];
     this.hintKeys = new Set();
@@ -693,13 +696,14 @@ export class OrchestratorService {
     this.editorState.files.set(files);
     this.editorState.bumpResetToken();
 
+    this.previewState.pinnedEntry.set(validPinned(opts.previewEntry, files));
     this.projectState.setProject(projectName, files);
     if (datasets) this.dataState.restoreDatasets(datasets);
     else this.dataState.resetDatasets();
     this.dataState.setInitialData(datasets ? this.dataState.data() : (data ?? {}));
     this.initialDataLoaded = false;
 
-    const firstPugPath = Array.from(files.keys()).find((p) => p.endsWith('.pug')) ?? Array.from(files.keys())[0];
+    const firstPugPath = Array.from(files.keys()).find(isPugFile) ?? Array.from(files.keys())[0];
     if (firstPugPath) {
       const name = firstPugPath.split('/').pop() ?? firstPugPath;
       this.editorState.openFile(firstPugPath, name, getFileType(name), files.get(firstPugPath) ?? '');
@@ -728,7 +732,7 @@ export class OrchestratorService {
 
   async clearDataWithKeys(): Promise<Record<string, unknown>> {
     const files = this.editorState.allFileContents();
-    const entryPath = findEntryPath(files, this.editorState.activeTab()?.path);
+    const entryPath = findEntryPath(files, this.editorState.activeTab()?.path, this.previewState.pinnedEntry());
     const { variables, translationKeys } = await this.parser.parseProject(files, entryPath);
     if (variables.length === 0 && translationKeys.length === 0) return {};
     return this.buildDataFromVariables(variables, translationKeys);
@@ -876,6 +880,11 @@ export class OrchestratorService {
     const firstPug = [...files.keys()].find((p) => /\.(pug|jade)$/i.test(p));
     if (firstPug && !this.editorState.activeTab()) this.editorState.openFile(firstPug, firstPug.split('/').pop() ?? firstPug, getFileType(firstPug), files.get(firstPug) ?? '');
     this.terminalState.addEntry('success', 'Importar', `Añadido${added.length === 1 ? '' : 's'} ${added.length} archivo${added.length === 1 ? '' : 's'}: ${added.slice(0, 8).join(', ')}${added.length > 8 ? '…' : ''}`);
+    // Varias plantillas importadas: la vista previa no salta a ninguna sola; se avisa de cómo elegir.
+    const entry = findEntryPath(current, this.editorState.activeTab()?.path, this.previewState.pinnedEntry());
+    if (entry && !this.previewState.pinnedEntry() && added.some((p) => isPugFile(p) && p !== entry)) {
+      this.terminalState.addEntry('info', 'Vista previa', `Se previsualiza ${entry}. Para ver otra plantilla, usa «Previsualizar este archivo» en el árbol de archivos o en la paleta.`);
+    }
     void this.manualCompile();
   }
 
@@ -945,8 +954,15 @@ export class OrchestratorService {
     }
     this.editorState.renameOpenTab(oldPath, newPath, name);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+    this.previewState.pinnedEntry.set(pinnedAfterRename(this.previewState.pinnedEntry(), oldPath, newPath));
+    // Lo que se está viendo cambió de ruta: la vista previa y su marca en el árbol lo siguen.
+    if (this.previewState.entryPath() === oldPath) {
+      this.previewState.entryPath.set(newPath);
+      void this.manualCompile();
+    }
     if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });
     this.terminalState.addEntry('info', 'Archivos', `Renombrado ${oldPath} → ${newPath}`);
+    this.saveSession(); // el autoguardado no ve este cambio si el archivo no está abierto (el mapa se muta en sitio)
   }
 
   deleteFile(path: string): void {
@@ -966,7 +982,46 @@ export class OrchestratorService {
     this.editorState.files.update((f) => { f.delete(path); return f; });
     this.editorState.closeTabByPath(path);
     this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+    if (this.previewState.pinnedEntry() === path) {
+      this.previewState.pinnedEntry.set(pinnedAfterDelete(this.previewState.pinnedEntry(), path));
+      this.terminalState.addEntry('info', 'Vista previa', `Se eliminó ${path}, que era el archivo elegido: la vista previa vuelve a ser automática.`);
+    }
     this.terminalState.addEntry('info', 'Archivos', `Eliminado ${path}`);
+    // Se borró la plantilla que se estaba viendo: se vuelve a renderizar con la que corresponda.
+    if (this.previewState.entryPath() === path) void this.manualCompile();
+    this.saveSession();
+  }
+
+  /**
+   * Elige qué plantilla se previsualiza (`null`: automática, la de siempre). Se guarda con el proyecto y recompila.
+   * No cambia el archivo abierto en el editor: la persona sigue editando lo que estaba editando.
+   */
+  setPreviewEntry(path: string | null): Promise<void> {
+    const files = this.editorState.files();
+    const next = validPinned(path, files);
+    if (path && !next) return Promise.resolve();
+    if (next === this.previewState.pinnedEntry()) return Promise.resolve();
+    this.previewState.pinnedEntry.set(next);
+    const auto = findEntryPath(files, this.editorState.activeTab()?.path);
+    this.terminalState.addEntry('info', 'Vista previa', next ? `Vista previa: ${next}` : `Vista previa automática${auto ? `: ${auto}` : ''}`);
+    this.saveSession();
+    return this.manualCompile();
+  }
+
+  /** Plantillas que se pueden previsualizar y cuál se renderiza ahora (para la paleta y el árbol). */
+  previewChoices(): { templates: string[]; current: string | null; pinned: string | null; auto: string | null } {
+    const files = this.editorState.allFileContents();
+    return {
+      templates: listTemplates(files),
+      current: this.previewState.entryPath(),
+      pinned: this.previewState.pinnedEntry(),
+      auto: findEntryPath(files, this.editorState.activeTab()?.path),
+    };
+  }
+
+  /** Recupera la elección guardada en la sesión (si el archivo sigue ahí). */
+  restorePreviewEntry(path: string | null | undefined): void {
+    this.previewState.pinnedEntry.set(validPinned(path, this.editorState.files()));
   }
 
   duplicateFile(path: string): void {

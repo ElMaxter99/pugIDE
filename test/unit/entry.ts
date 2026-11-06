@@ -25,3 +25,4 @@ export * from '../../src/app/core/utils/error-explain.util';
 export * from '../../src/app/core/utils/fix-apply.util';
 export * from '../../src/app/core/utils/drop-import.util';
 export * from '../../src/app/core/utils/snapshot.util';
+export * from '../../src/app/core/utils/pug-vfs.util';
