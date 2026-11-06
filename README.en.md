@@ -41,7 +41,7 @@ A visual development environment for **Pug/Jade**, built for real templates: ema
 
 ### 🩺 Errors explained, with a fix and a link to the line
 
-A Pug error such as `pug_mixins.resumenPie is not a function` becomes: *"`+resumenPie` is called, but no file defines that mixin"*, with a **Go to error** button, the list of **all problems** in the project, and a one-click fix (**create the mixin**, **add the missing `include`**, correct a typo). It also shows up as a Monaco quick fix (`Ctrl+.`).
+A Pug error such as `pug_mixins.resumenPie is not a function` becomes: *"`+resumenPie` is called, but no file defines that mixin"*, with a **Go to error** button, the **Problems** panel with all of them, and a one-click fix (**create the mixin**, **add the missing `include`**, correct a typo). It also shows up as a Monaco quick fix (`Ctrl+.`).
 
 <img src="docs/screenshots/errores.png" alt="Error banner with explanation, fix and problems list" width="100%">
 
@@ -59,7 +59,7 @@ Save the whole project under a name (files, data, languages and assets), **compa
 
 ### ⌨️ Everything one `Ctrl+K` away
 
-The command palette gathers actions, starter templates, preview devices and quick file opening.
+The command palette gathers actions, starter templates, preview devices and quick file opening. It shows your **recent commands** and each one's **shortcut**, and highlights what matches what you type.
 
 <img src="docs/screenshots/paleta.png" alt="Command palette" width="100%">
 
@@ -96,6 +96,8 @@ The command palette gathers actions, starter templates, preview devices and quic
 <summary><strong>Preview</strong></summary>
 
 - Desktop, tablet and mobile, with automatic scaling and a light/dark theme for the document.
+- **Choose which template to see:** if you import several loose `.pug` or `.jade` files, "Previsualizar este archivo" (file tree menu or palette) renders the one you pick.
+- **Your workspace, your way:** four layouts (`Ctrl+Alt+1…4`), resizable panels with drag handles, and data as a tab of the side panel; they are remembered in your preferences.
 - **PDF mode** with `@page`, headers and footers, break warnings, printing and saving as PDF.
 - **PNG capture** of the preview, element inspector and accessibility audit.
 - Quality hints: unused data, HTML weight (e.g. Gmail's 102 KB limit).
@@ -113,7 +115,7 @@ The command palette gathers actions, starter templates, preview devices and quic
 ## Privacy and security
 
 - **Nothing leaves your browser.** There is no backend, no account and no code upload. The editor, fonts and icons are served from the site itself, with no CDNs.
-- **Your data lives in your browser** (`localStorage` and IndexedDB). If you clear the site's data you lose it: export your projects. The terminal reminds you after 14 days.
+- **Your data lives in your browser** (`localStorage` and IndexedDB). If you clear the site's data you lose it: export your projects. The Log reminds you after 14 days.
 - **Your templates' JavaScript is isolated.** What you write in a template, in `helpers.js` or in a `<script>` of the HTML it generates runs in opaque-origin documents, with no access to your projects or to the rest of the page, and with the network blocked by the Content Security Policy (CSP). The app itself allows neither `unsafe-inline` nor `unsafe-eval` in `script-src`.
 - **Optional analytics.** On entry you are asked whether to allow anonymous visit analytics ([Vercel Web Analytics](https://vercel.com/docs/analytics), no tracking cookies and no data from your projects). If you decline, the script is never loaded; you can change your mind under Ctrl+K → "Privacidad".
 
@@ -160,6 +162,9 @@ Open <http://localhost:4200/ide?demo=true> to load a complete sample project.
 | `Ctrl/Cmd + Enter` | Compile now |
 | `Ctrl/Cmd + S` | Save |
 | `Ctrl/Cmd + Shift + F` | Find and replace in the project |
+| `Ctrl + Alt + 1…4` | Switch layout (on AltGr keyboards, use the "Disposición" menu) |
+| `Ctrl/Cmd + B` · `Ctrl/Cmd + J` | Show or hide the side panel · the bottom panel |
+| `F8` · `Shift + F8` | Next · previous problem |
 | `Ctrl/Cmd + .` | Quick fix for the problem under the cursor |
 | `F12` · `Ctrl/Cmd + click` | Go to definition |
 | `Shift + Alt + F` | Format the file |
