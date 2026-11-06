@@ -73,7 +73,7 @@ const NARROW_BELOW = 600;
         </div>
         @if (!previewState.isPdf() && deviceKind() !== 'desktop') {
           <button type="button" class="preview-action" title="Girar" aria-label="Girar" (click)="rotateDevice()">
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">screen_rotation</span>
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">mobile_rotate</span>
           </button>
         }
         <div class="preview-header-right">
@@ -408,7 +408,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   protected readonly segments = [
     { id: 'Desktop', label: 'Escritorio', title: 'Escritorio', icon: 'desktop_windows' },
     { id: 'Tablet', label: 'Tableta', title: 'Tableta', icon: 'tablet_mac' },
-    { id: 'Mobile', label: 'Móvil', title: 'Móvil', icon: 'smartphone' },
+    { id: 'Mobile', label: 'Móvil', title: 'Móvil', icon: 'mobile' },
     { id: 'PDF', label: 'PDF', title: 'PDF / página impresa', icon: 'picture_as_pdf' },
   ];
   @ViewChild('header', { static: true }) private headerEl!: ElementRef<HTMLElement>;

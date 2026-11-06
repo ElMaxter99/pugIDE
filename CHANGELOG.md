@@ -4,6 +4,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Corregido
+- **El icono de «Girar» (vista previa móvil o tableta) se veía como el texto «screen_rotation»**, con o sin conexión. Usaba un alias antiguo (`screen_rotation`) que la fuente de iconos recortada no incluía; `smartphone` (el icono de «Móvil») funcionaba solo de rebote. Ahora usan los nombres canónicos (`mobile_rotate` y `mobile`). Las fuentes de iconos siempre han ido en el paquete, sin descargarse de ningún sitio.
+
+### Añadido
+- **El lint y el build rechazan un icono con alias antiguo o nombre inexistente** (`scripts/subset-icons.mjs`), con el nombre canónico que hay que usar. Hasta ahora lo descartaba sin avisar.
+- Escenario `38-iconos`: mide que ningún icono visible se quede como texto en las pantallas principales (menús, panel Problemas, datos, paleta y bienvenida); el escenario sin conexión (05) hace lo mismo con la app arrancada sin red.
+
 ## [0.7.0] - 2026-11-06
 
 Rediseño de la interfaz en tres oleadas (propuesta 0.7, mesas P-01 a P-13 del lienzo; detalle y mediciones en `design/propuestas/0.7-mejoras-funcionales.md`), más la bienvenida de primer uso y la vista previa de cualquier archivo. No cambia el formato de los proyectos ni el motor de compilación.

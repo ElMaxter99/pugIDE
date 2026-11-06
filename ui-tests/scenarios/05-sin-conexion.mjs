@@ -1,4 +1,4 @@
-import { check, openApp, previewText, sleep } from '../lib.mjs';
+import { brokenIcons, check, openApp, previewText, sleep } from '../lib.mjs';
 
 export const browsers = ['chromium'];
 export const why = 'la emulación offline de Playwright en Firefox/WebKit impide navegar aunque el service worker tenga la página en caché';
@@ -37,6 +37,8 @@ export default async function (env) {
     return el ? Math.round(el.getBoundingClientRect().width) : null;
   });
   check('05 sin conexión: los iconos se dibujan', iconWidth !== null && iconWidth <= 30, String(iconWidth));
+  const broken = await brokenIcons(off);
+  check('05 sin conexión: ningún icono se queda como texto (la fuente viene en el paquete)', broken.length === 0, JSON.stringify(broken));
   check('05 sin conexión: ninguna petición falla ni hay errores', failed.length === 0 && errors.length === 0, failed.concat(errors).join(' | '));
   await online.close();
 }
