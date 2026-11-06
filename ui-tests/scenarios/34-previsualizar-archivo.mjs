@@ -73,7 +73,9 @@ export default async function (env) {
   await page.keyboard.type('Previsualizar archivo');
   await waitUntil(async () => (await titles(page))[0] === 'Previsualizar archivo…');
   await page.keyboard.press('Enter');
-  await waitUntil(async () => (await titles(page)).some((t) => t.startsWith('Previsualizar: resumen.jade')));
+  // La lista raíz filtrada ya contiene «Previsualizar: resumen.jade»: hay que esperar a la sublista de verdad (su cabecera).
+  await palette(page).locator('.crumb').waitFor({ timeout: 8000 });
+  await waitUntil(async () => (await titles(page)).includes('Vista previa automática (main.pug)'));
   const sub = await titles(page);
   check('34 «Previsualizar archivo…» lista cada plantilla y sigue abierta', sub.length >= 5 && sub.includes('Previsualizar: factura.jade') && sub.includes('Previsualizar: informe.pug (en la vista previa)') && sub.includes('Vista previa automática (main.pug)') && (await palette(page).count()) === 1, JSON.stringify(sub));
   await page.keyboard.type('resumen');
