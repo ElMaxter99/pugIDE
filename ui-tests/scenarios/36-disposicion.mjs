@@ -144,7 +144,7 @@ export default async function (env) {
   g = await prev.boundingBox();
   await page.mouse.move(g.x + g.width / 2, g.y + 200);
   await page.mouse.down();
-  await page.mouse.move(g.x + 900, g.y + 200, { steps: 6 });
+  await page.mouse.move(W - 6, g.y + 200, { steps: 6 }); // hasta el borde de la ventana (Firefox no entrega eventos fuera de ella)
   await page.mouse.up();
   await waitUntil(async () => near((await widths(page)).preview, 320, 2));
   check('36 ni la vista previa de 320 px (mínimo)', near((await widths(page)).preview, 320, 2), JSON.stringify(await widths(page)));
