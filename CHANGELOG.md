@@ -4,6 +4,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Corregido
+- **Salir de «Foco en la vista previa · PDF» recupera el dispositivo anterior** (Escritorio, Tableta, Móvil…): al entrar en esa disposición se recuerda el dispositivo y al pasar a otra disposición (`Ctrl+Alt+1/2/3`, menú «Disposición» o paleta) se restaura. Si mientras tanto eliges a mano otro dispositivo o el modo PDF, se respeta tu elección y no se restaura nada. Lo recordado vive en las preferencias del usuario (no viaja con el proyecto ni el enlace compartido) y sobrevive a recargar la página.
+
+### Cambiado
+- **Dependencias (solo parche o menor):** Angular 22.2.4 → 22.2.5, `@angular/build` y `@angular/cli` 22.2.5 → 22.2.6, `material-symbols` 0.48.1 → 0.48.3 (mismos glifos), y dentro de rango `sass`, `prettier`, `tslib` y `@types/node`. No se sube `playwright-core` (cambiaría el Chromium contra el que se mide la paginación del PDF) ni las versiones mayores (`typescript` 7, `eslint` 10, `monaco-editor`). Quedan 12 avisos moderados de `npm audit`, todos de las herramientas de lint (`minimatch` dentro de `typescript-eslint`); arreglarlos exige bajar `typescript-eslint` a una versión incompatible con TypeScript 6.
+- **CI:** la instalación de navegadores de Playwright tiene un límite de 8 minutos (tarda ~30 s; `ui-webkit` se había quedado hasta 29 minutos parado en el `apt` del runner) y `build-test` tiene un límite de 30 minutos, que antes no tenía.
+
+### Añadido
+- Escenario `39-salir-del-pdf` de las pruebas de interfaz, y `PUGIDE_CPU_THROTTLE=4` para ejecutar las pruebas de interfaz con la CPU de la página ralentizada (solo Chromium) y sacar las carreras de tiempos en local.
+- Los escenarios de interfaz 31 a 37 esperan ahora al estado asentado (medidas de ancho, cierre de diálogos con el foco dentro, autoguardado, carga de la fuente de iconos) en lugar de leer el DOM sin más, tras dos carreras que solo se veían en CI (escenarios 34 y 36).
+
 ## [0.7.1] - 2026-11-06
 
 Versión de parche: un solo arreglo (los iconos) y su protección. No toca el motor ni el formato de los proyectos.
