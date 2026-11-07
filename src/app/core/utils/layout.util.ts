@@ -145,3 +145,43 @@ export function panelShortcut(e: KeyLike): 'sidebar' | 'bottom' | null {
   const k = e.key.toLowerCase();
   return k === 'b' ? 'sidebar' : k === 'j' ? 'bottom' : null;
 }
+
+/** Dispositivo del preview que se recuerda al entrar en el modo PDF de «Foco en la vista previa» para volver a él al salir. */
+export interface DeviceMemory {
+  name: string;
+  width: number;
+  height: number;
+}
+
+/** Acepta solo un dispositivo razonable (nunca «PDF»: lo recordado es a lo que se vuelve). Preferencias antiguas o a mano → `null`. */
+export function sanitizeDeviceMemory(raw: unknown): DeviceMemory | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const { name, width, height } = raw as Record<string, unknown>;
+  if (typeof name !== 'string' || !name || name === 'PDF' || name.length > 60) return null;
+  const ok = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0 && n <= HARD_MAX * 2;
+  if (!ok(width) || !ok(height)) return null;
+  return { name, width: Math.round(width), height: Math.round(height) };
+}
+
+export interface PdfLayoutPlan {
+  /** Qué se recuerda después del cambio (`null`: nada). */
+  memory: DeviceMemory | null;
+  /** Dispositivo al que hay que volver ahora (`null`: no tocar el dispositivo). */
+  restore: DeviceMemory | null;
+}
+
+/**
+ * Qué hacer con el dispositivo del preview al cambiar de disposición (P-08).
+ * - Entrar en «Foco en la vista previa · PDF» estando en un dispositivo: se recuerda; si ya estaba en PDF no se pisa lo recordado
+ *   (ni se recuerda «PDF»).
+ * - Salir a otra disposición: si el preview sigue en PDF y hay algo recordado, se vuelve a ello. Si la persona eligió a mano otro
+ *   dispositivo o el modo PDF mientras tanto, lo recordado ya se había borrado y no se toca nada.
+ */
+export function planPdfLayoutChange(toPdf: boolean, current: DeviceMemory, memory: DeviceMemory | null): PdfLayoutPlan {
+  if (toPdf) {
+    if (current.name === 'PDF') return { memory, restore: null };
+    return { memory: sanitizeDeviceMemory(current), restore: null };
+  }
+  if (current.name === 'PDF' && memory) return { memory: null, restore: memory };
+  return { memory: null, restore: null };
+}

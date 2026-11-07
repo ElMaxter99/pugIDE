@@ -1,4 +1,4 @@
-import { check, openApp, previewText, waitUntil, openViewMenu, closeViewMenu } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, openViewMenu, closeViewMenu, stable } from '../lib.mjs';
 
 const session = {
   projectName: 'Informe',
@@ -20,13 +20,17 @@ export default async function (env) {
   await waitUntil(async () => (await previewText(page)).includes('Informe trimestral'));
   await trigger(page).waitFor();
   const controls = header(page).locator('button, select');
-  const rows = await controls.evaluateAll((els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().top + e.getBoundingClientRect().height / 2))).size);
-  const height = await header(page).evaluate((h) => h.getBoundingClientRect().height);
+  // La barra se mide asentada: el ancho del preview lo observa un ResizeObserver y con él pasa de «solo iconos» a texto.
+  const { rows, height, texts, count } = await stable(async () => ({
+    rows: await controls.evaluateAll((els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().top + e.getBoundingClientRect().height / 2))).size),
+    height: await header(page).evaluate((h) => h.getBoundingClientRect().height),
+    texts: await header(page).locator('button').evaluateAll(visibleText),
+    count: await controls.count(),
+  }));
   check('31 la barra es una sola fila', rows === 1 && height < 60, `${rows} filas, ${height}px`);
-  const texts = await header(page).locator('button').evaluateAll(visibleText);
   check('31 con ancho suficiente ningún botón es solo icono', texts.length >= 6 && texts.every((t) => t.length > 0), JSON.stringify(texts));
   check('31 el segmentado dice Escritorio, Tableta, Móvil y PDF', ['Escritorio', 'Tableta', 'Móvil', 'PDF'].every((t) => texts.includes(t)) && texts.includes('Inspector') && texts.includes('Vista'), JSON.stringify(texts));
-  check('31 hay 7 controles a la vista (4 + zoom + Inspector + Vista)', (await controls.count()) === 7, String(await controls.count()));
+  check('31 hay 7 controles a la vista (4 + zoom + Inspector + Vista)', count === 7, String(count));
 
   // --- Menú «Vista» ---
   const t = trigger(page);
@@ -85,7 +89,7 @@ export default async function (env) {
   const np = narrow.page;
   await waitUntil(async () => (await previewText(np)).includes('Informe trimestral'));
   await trigger(np).waitFor();
-  const iconOnly = await header(np).locator('.device-switcher button, .inspector-btn').evaluateAll((els) => els.map((e) => ({ text: e.cloneNode(true), name: e.getAttribute('aria-label') })).map((b) => { b.text.querySelectorAll('.material-symbols-outlined').forEach((i) => i.remove()); return { text: b.text.textContent.trim(), name: b.name }; }));
+  const iconOnly = await stable(() => header(np).locator('.device-switcher button, .inspector-btn').evaluateAll((els) => els.map((e) => ({ text: e.cloneNode(true), name: e.getAttribute('aria-label') })).map((b) => { b.text.querySelectorAll('.material-symbols-outlined').forEach((i) => i.remove()); return { text: b.text.textContent.trim(), name: b.name }; })));
   check('31 en estrecho el segmentado y el Inspector son solo icono con nombre accesible', iconOnly.length === 5 && iconOnly.every((b) => b.text === '' && b.name), JSON.stringify(iconOnly));
   check('31 en estrecho «Vista» sigue con texto', (await trigger(np).locator('.menu-label').innerText()) === 'Vista');
   check('31 en estrecho sigue en una sola fila', (await header(np).evaluate((h) => h.getBoundingClientRect().height)) < 60);

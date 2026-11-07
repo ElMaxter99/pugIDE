@@ -1,4 +1,4 @@
-import { check, openApp, previewText, projectName, waitUntil, sleep } from '../lib.mjs';
+import { check, openApp, previewText, projectName, waitUntil, closeDialog, waitStored, libraryNames } from '../lib.mjs';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { deflateSync, strToU8 } from 'fflate';
@@ -43,7 +43,7 @@ async function settled(page, selector) {
   await waitUntil(async () => {
     last = await boxes(page, selector);
     return !!last.target && !!last.halo && !!last.pop && Math.abs(last.halo.l - (last.target.l - 3)) < 2 && Math.abs(last.halo.t - (last.target.t - 3)) < 2;
-  }, 4000, 100);
+  }, 8000, 100);
   return last;
 }
 const overlaps = (a, b) => a && b && a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
@@ -95,10 +95,11 @@ export default async function (env) {
   check('37 elegir una plantilla cierra la bienvenida y crea el proyecto', (await countOf(welcome(page))) === 0 && !!(await waitUntil(async () => (await projectName(page)) === 'Factura')), await projectName(page));
   const shown = await waitUntil(async () => /FACTURA/.test(await previewText(page)));
   check('37 y carga los archivos de la plantilla (la vista previa enseña la factura)', !!shown, (await previewText(page)).slice(0, 80));
-  await sleep(1600); // autoguardado de la sesión
+  await waitStored(page, 'pug-ide-project', '"projectName":"Factura"'); // autoguardado de la sesión (con antirrebote)
   await page.reload();
   await page.locator('.monaco-editor').first().waitFor({ timeout: 8000 });
-  await sleep(1500);
+  // Arrancó cuando el proyecto está en el panel y su vista previa pintada: si la bienvenida fuera a salir, ya habría salido
+  await waitUntil(async () => (await projectName(page)) === 'Factura' && /FACTURA/.test(await previewText(page)), 10000);
   check('37 al recargar no vuelve a salir y el proyecto sigue ahí', (await countOf(welcome(page))) === 0 && (await projectName(page)) === 'Factura', await projectName(page));
   await runFromPalette(page, 'Mis proyectos', 'Mis proyectos…');
   const rows = page.locator('[role="dialog"][aria-label="Mis proyectos"] .row .name');
@@ -115,11 +116,11 @@ export default async function (env) {
   await page.getByRole('button', { name: 'Rechazar' }).click();
   await welcome(page).waitFor({ timeout: 6000 });
   check('37 al decidir el aviso, aparece la bienvenida', (await page.locator('[aria-label="Aviso de privacidad"]').count()) === 0 && (await countOf(welcome(page))) === 1);
-  await page.keyboard.press('Escape');
-  await waitUntil(async () => (await countOf(welcome(page))) === 0);
+  await closeDialog(page, '[data-testid="welcome"]'); // su Esc solo vale con el foco dentro, y entra un instante después de pintarse
   check('37 Esc la cierra', (await countOf(welcome(page))) === 0);
   await page.reload();
-  await sleep(2500);
+  await page.locator('.monaco-editor').first().waitFor({ timeout: 8000 });
+  await waitUntil(async () => (await previewText(page)).length > 0, 10000); // la app ya arrancó: si la bienvenida fuera a salir, ya habría salido
   check('37 cerrarla también la da por vista', (await countOf(welcome(page))) === 0);
   await app.close();
 
@@ -140,14 +141,14 @@ export default async function (env) {
   await welcome(page).waitFor({ timeout: 8000 });
   await welcome(page).locator('[data-testid="welcome-template-report"]').click();
   await waitUntil(async () => (await countOf(welcome(page))) === 0);
-  await sleep(1200);
+  await waitUntil(async () => (await libraryNames(page)).length >= 1, 10000); // el guardado en la biblioteca (IndexedDB) es asíncrono
   await page.evaluate(() => localStorage.removeItem('pug-ide-welcome'));
   await page.evaluate(() => localStorage.removeItem('pug-ide-project'));
   await page.evaluate(() => localStorage.removeItem('pug-ide-current-project'));
   await page.reload();
   await welcome(page).waitFor({ timeout: 8000 });
   await page.evaluate(() => 0);
-  const hasSaved = await waitUntil(async () => (await countOf(welcome(page).locator('[data-testid="welcome-open-saved"]'))) === 1, 4000);
+  const hasSaved = await waitUntil(async () => (await countOf(welcome(page).locator('[data-testid="welcome-open-saved"]'))) === 1, 8000);
   check('37 si la biblioteca tiene proyectos, se ofrece «Abrir un proyecto guardado…» (y abre «Mis proyectos»)', !!hasSaved);
   if (hasSaved) {
     await welcome(page).locator('[data-testid="welcome-open-saved"]').click();
@@ -160,7 +161,7 @@ export default async function (env) {
   page = app.page;
   await welcome(page).waitFor({ timeout: 8000 });
   await welcome(page).locator('[data-testid="welcome-tour"]').click();
-  await tour(page).waitFor({ timeout: 4000 });
+  await tour(page).waitFor({ timeout: 8000 });
   await waitUntil(async () => (await page.locator('[data-testid="tour-halo"]').count()) === 1);
   check('37 «Ver el recorrido» cierra la bienvenida y abre el paso 1 de 4', (await countOf(welcome(page))) === 0 && (await countText(page)) === '1 de 4' && (await page.locator('#tour-title').innerText()) === 'Archivos y datos');
   check('37 el aviso es un diálogo con nombre y su texto se anuncia (aria-live)', (await tour(page).getAttribute('role')) === 'dialog' && (await tour(page).getAttribute('aria-labelledby')) === 'tour-title' && (await tour(page).locator('[aria-live="polite"]').count()) === 1);
@@ -209,14 +210,14 @@ export default async function (env) {
   await page.locator('[data-testid="open-palette"]').focus();
   const before = await activeDesc(page);
   await runFromPalette(page, 'Ver el recorrido', 'Ver el recorrido');
-  await tour(page).waitFor({ timeout: 4000 });
+  await tour(page).waitFor({ timeout: 8000 });
   await waitUntil(async () => (await page.locator('[data-testid="tour-halo"]').count()) === 1);
   check('37 «Ver el recorrido» en la paleta lo abre en el paso 1', (await countText(page)) === '1 de 4');
   check('37 con movimiento reducido el halo no se anima', (await page.locator('[data-testid="tour-halo"]').evaluate((e) => getComputedStyle(e).transitionDuration)) === '0s');
   await page.keyboard.press('Escape');
   await waitUntil(async () => (await countOf(tour(page))) === 0);
   check('37 Esc salta el recorrido y lo da por hecho', (await countOf(tour(page))) === 0 && (await page.evaluate(() => localStorage.getItem('pug-ide-tour') !== null)));
-  const after = await waitUntil(async () => (await activeDesc(page)) === before ? before : '', 2000);
+  const after = await waitUntil(async () => (await activeDesc(page)) === before ? before : '', 6000);
   check('37 al saltar, el foco vuelve a donde estaba (el campo de búsqueda de la barra)', after === before, `${before} -> ${await activeDesc(page)}`);
   await app.close();
 
@@ -224,7 +225,7 @@ export default async function (env) {
   app = await openApp(env, { path: '/ide', session, welcome: true, viewport: { width: 1024, height: 640 }, wait: 3000 });
   page = app.page;
   await runFromPalette(page, 'Ver el recorrido', 'Ver el recorrido');
-  await tour(page).waitFor({ timeout: 4000 });
+  await tour(page).waitFor({ timeout: 8000 });
   const fits = [];
   const targets = ['[data-tour="files"]', '[data-tour="editor"]', '[data-tour="preview"]', '[data-tour="search"]'];
   for (let i = 0; i < 4; i++) {

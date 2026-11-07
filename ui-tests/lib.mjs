@@ -67,6 +67,13 @@ export async function openApp(env, { path = '/ide?demo=true', session, prefs, co
     for (const [k, v] of Object.entries(extra)) localStorage.setItem(k, v);
   }, [session ?? null, prefs ?? null, consent, { ...(welcome ? {} : { 'pug-ide-welcome': '1' }), ...(storage ?? {}) }]);
   const page = await context.newPage();
+  // `PUGIDE_CPU_THROTTLE=4` ralentiza la CPU de la página (solo Chromium): saca a la luz las pruebas que leen el DOM sin
+  // esperar a que Angular repinte (con `eventCoalescing` el repintado va al siguiente fotograma). Sin la variable no cambia nada.
+  const throttle = Number(process.env.PUGIDE_CPU_THROTTLE ?? 0);
+  if (throttle > 1 && env.browser.browserType().name() === 'chromium') {
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
+  }
   page.on('worker', (w) => w.on('console', onConsole));
   const errors = [];
   // Playwright inyecta (serviceWorkers: 'block') un script en cada marco que falla en los iframes de origen opaco: no es de la app.
@@ -123,7 +130,7 @@ export async function openProblemsTab(page) {
 
 /** Nombre del proyecto que muestra el panel lateral (la barra superior ya no lo enseña). */
 export const projectName = async (page) =>
-  ((await page.locator('.workspace-name').first().textContent({ timeout: 1500 }).catch(() => '')) ?? '').trim();
+  ((await page.locator('.workspace-name').first().textContent({ timeout: 4000 }).catch(() => '')) ?? '').trim();
 
 /** Elige una fila de los menús «Proyecto» (`proyecto`) o «Exportar» (`exportar`) de la barra superior por su `data-menu-id`. */
 export async function chooseMenu(page, menu, id) {
@@ -157,9 +164,61 @@ export async function closeViewMenu(page) {
  * Iconos de Material Symbols visibles que NO se han dibujado como icono: si el nombre no existe en la fuente, el navegador
  * pinta el texto («screen_rotation») y la caja mide mucho más que el tamaño de letra. Devuelve sus nombres.
  */
-export const brokenIcons = (page) => page.evaluate(() =>
-  [...document.querySelectorAll('.material-symbols-outlined')]
+export const brokenIcons = (page) => page.evaluate(async () => {
+  // Hasta que la fuente de iconos no ha cargado, el texto («keyboard_arrow_down») mide como letras normales y parecería roto:
+  // se espera a que esté lista antes de medir (con `font-display: block` el navegador la pide al pintar el primer icono).
+  try { await document.fonts.load('18px "Material Symbols Outlined"'); await document.fonts.ready; } catch { /* sin API de fuentes: se mide igual */ }
+  return [...document.querySelectorAll('.material-symbols-outlined')]
     .filter((e) => e.getClientRects().length > 0 && e.textContent.trim() !== '')
     .map((e) => ({ name: e.textContent.trim(), width: e.getBoundingClientRect().width, size: parseFloat(getComputedStyle(e).fontSize) || 18 }))
     .filter((i) => i.width > i.size * 1.6 + 2)
-    .map((i) => `${i.name} (${Math.round(i.width)} px)`));
+    .map((i) => `${i.name} (${Math.round(i.width)} px)`);
+});
+
+/**
+ * Lee `read()` hasta que da lo mismo `rounds` veces seguidas (separadas `interval` ms) y devuelve ese valor estable (o el
+ * último si no se asienta en `timeout`). Para medidas que cambian mientras Angular repinta, el `ResizeObserver` reacciona o
+ * una transición termina: se afirma sobre el estado asentado, no sobre el primero que se lee.
+ */
+export async function stable(read, { timeout = 6000, interval = 120, rounds = 3 } = {}) {
+  const end = Date.now() + timeout;
+  let last = await read();
+  let same = 1;
+  while (same < rounds && Date.now() < end) {
+    await sleep(interval);
+    const value = await read();
+    same = JSON.stringify(value) === JSON.stringify(last) ? same + 1 : 1;
+    last = value;
+  }
+  return last;
+}
+
+/**
+ * Cierra un diálogo con Esc de forma fiable: su `keydown.escape` está en el propio diálogo, así que solo vale con el foco
+ * dentro (el foco entra un instante después de pintarse). Espera a que el foco esté dentro, pulsa Esc y espera a que se vaya.
+ */
+export async function closeDialog(page, selector = '[role="dialog"]') {
+  await waitUntil(() => page.evaluate((sel) => !!document.activeElement?.closest(sel), selector), 4000, 50);
+  await page.keyboard.press('Escape');
+  await page.locator(selector).first().waitFor({ state: 'detached', timeout: 6000 }).catch(() => {});
+  return (await page.locator(selector).count()) === 0;
+}
+
+/** Espera a que lo guardado en `localStorage[key]` contenga `text` (p. ej. el autoguardado de la sesión, que va con antirrebote). */
+export const waitStored = (page, key, text, timeout = 10000) =>
+  waitUntil(() => page.evaluate(([k, t]) => (localStorage.getItem(k) ?? '').includes(t), [key, text]), timeout, 100);
+
+/** Proyectos guardados en la biblioteca (IndexedDB `pug-ide-projects`, almacén `meta`): el guardado es asíncrono. */
+export const libraryNames = (page) => page.evaluate(() => new Promise((resolve) => {
+  const open = indexedDB.open('pug-ide-projects');
+  open.onerror = () => resolve([]);
+  open.onsuccess = () => {
+    try {
+      const db = open.result;
+      if (!db.objectStoreNames.contains('meta')) { db.close(); resolve([]); return; }
+      const all = db.transaction('meta', 'readonly').objectStore('meta').getAll();
+      all.onsuccess = () => { db.close(); resolve(all.result.map((p) => p.name)); };
+      all.onerror = () => { db.close(); resolve([]); };
+    } catch { resolve([]); }
+  };
+}));

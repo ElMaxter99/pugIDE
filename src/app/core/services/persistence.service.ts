@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { AppPreferences } from '../models/index';
 import type { DatasetsFile } from '../utils/datasets.util';
-import { DEFAULT_LAYOUT, isLayoutId, sanitizePanelSizes } from '../utils/layout.util';
+import { DEFAULT_LAYOUT, isLayoutId, sanitizeDeviceMemory, sanitizePanelSizes } from '../utils/layout.util';
 
 const STORAGE_KEY = 'pug-ide-preferences';
 const PROJECT_KEY = 'pug-ide-project';
@@ -48,6 +48,7 @@ export class PersistenceService {
     layout: DEFAULT_LAYOUT,
     panelSizes: {},
     sidebarTab: 'archivos',
+    deviceBeforePdf: null,
   };
 
   loadPreferences(): AppPreferences {
@@ -59,6 +60,7 @@ export class PersistenceService {
         if (!isLayoutId(saved.layout)) saved.layout = DEFAULT_LAYOUT;
         saved.panelSizes = sanitizePanelSizes(saved.panelSizes);
         if (saved.sidebarTab !== 'datos') saved.sidebarTab = 'archivos';
+        saved.deviceBeforePdf = sanitizeDeviceMemory(saved.deviceBeforePdf);
         return saved;
       }
     } catch { /* ignore */ }

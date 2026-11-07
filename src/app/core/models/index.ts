@@ -149,7 +149,7 @@ export interface InspectorNode {
   children: InspectorNode[];
 }
 
-import type { LayoutId, PanelSizes } from '../utils/layout.util';
+import type { DeviceMemory, LayoutId, PanelSizes } from '../utils/layout.util';
 
 export interface AppPreferences {
   theme: 'dark' | 'light';
@@ -173,6 +173,8 @@ export interface AppPreferences {
   panelSizes: Partial<Record<LayoutId, Partial<PanelSizes>>>;
   /** Pestaña abierta del panel lateral. */
   sidebarTab: 'archivos' | 'datos';
+  /** Dispositivo del preview al que volver al salir de «Foco en la vista previa · PDF» (`null`: nada que restaurar). Se borra al elegir un dispositivo a mano. */
+  deviceBeforePdf: DeviceMemory | null;
 }
 
 export interface ContextMenuAction {

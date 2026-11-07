@@ -1,7 +1,7 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { AppPreferences } from '../models/index';
 import { PersistenceService } from './persistence.service';
-import { DEFAULT_LAYOUT, LayoutId, PanelSizes } from '../utils/layout.util';
+import { DEFAULT_LAYOUT, DeviceMemory, LayoutId, PanelSizes } from '../utils/layout.util';
 
 @Injectable({ providedIn: 'root' })
 export class PreferencesState {
@@ -20,6 +20,7 @@ export class PreferencesState {
   readonly layout = signal<LayoutId>(DEFAULT_LAYOUT);
   readonly panelSizes = signal<Partial<Record<LayoutId, Partial<PanelSizes>>>>({});
   readonly sidebarTab = signal<'archivos' | 'datos'>('archivos');
+  readonly deviceBeforePdf = signal<DeviceMemory | null>(null);
   readonly monacoTheme = computed(() =>
     this.theme() === 'dark' ? 'vs-dark' : 'vs-light'
   );
@@ -47,9 +48,12 @@ export class PreferencesState {
     this.layout.set(prefs.layout);
     this.panelSizes.set(prefs.panelSizes);
     this.sidebarTab.set(prefs.sidebarTab);
+    this.deviceBeforePdf.set(prefs.deviceBeforePdf ?? null);
   }
 
   update(partial: Partial<AppPreferences>): void {
+    // Elegir un dispositivo a mano (barra del preview, paleta) anula lo recordado para volver del modo PDF de la disposición.
+    if (partial.previewDevice !== undefined && partial.deviceBeforePdf === undefined && this.deviceBeforePdf()) partial = { ...partial, deviceBeforePdf: null };
     if (partial.theme !== undefined) this.theme.set(partial.theme);
     if (partial.fontSize !== undefined) this.fontSize.set(partial.fontSize);
     if (partial.tabSize !== undefined) this.tabSize.set(partial.tabSize);
@@ -65,6 +69,7 @@ export class PreferencesState {
     if (partial.layout !== undefined) this.layout.set(partial.layout);
     if (partial.panelSizes !== undefined) this.panelSizes.set(partial.panelSizes);
     if (partial.sidebarTab !== undefined) this.sidebarTab.set(partial.sidebarTab);
+    if (partial.deviceBeforePdf !== undefined) this.deviceBeforePdf.set(partial.deviceBeforePdf);
     this.persistence.savePreferences(partial);
   }
 
