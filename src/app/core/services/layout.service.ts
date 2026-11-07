@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { PreferencesState } from './preferences.state';
 import { PreviewState } from '../state/preview.state';
 import { TerminalState } from '../state/terminal.state';
-import { LAYOUTS, LayoutDef, LayoutId, PanelKey, PanelSizes, layoutById, resolveLayout } from '../utils/layout.util';
+import { LAYOUTS, LayoutDef, LayoutId, PanelKey, PanelSizes, layoutById, planPdfLayoutChange, resolveLayout } from '../utils/layout.util';
 
 /**
  * Disposición de la interfaz (P-08): la activa, los anchos que ha elegido la persona y los atajos que la cambian.
@@ -35,13 +35,24 @@ export class LayoutService {
     if (px > 0) this.containerWidth.set(Math.round(px));
   }
 
-  /** Cambia de disposición: ajusta el panel lateral y los datos a como la define, y en «Foco en la vista previa» pone el modo PDF. */
+  /**
+   * Cambia de disposición: ajusta el panel lateral y los datos a como la define. «Foco en la vista previa» pone el modo PDF y
+   * recuerda el dispositivo que había; al salir a otra disposición se vuelve a él (salvo que se haya elegido otro a mano).
+   */
   apply(id: LayoutId): void {
     const def = layoutById(id);
     this.preferences.update({ layout: id, sidebarCollapsed: def.sidebarCollapsed, dataCollapsed: false });
+    const current = { name: this.previewState.deviceName(), width: this.previewState.deviceWidth(), height: this.previewState.deviceHeight() };
+    const plan = planPdfLayoutChange(def.pdf, current, this.preferences.deviceBeforePdf());
     if (def.pdf) {
       this.previewState.setDevice('PDF', 0, 0);
-      this.preferences.update({ previewDevice: 'PDF' });
+      // Una sola llamada con la memoria incluida: así no la borra la regla de «dispositivo elegido a mano».
+      this.preferences.update({ previewDevice: 'PDF', deviceBeforePdf: plan.memory });
+    } else if (plan.restore) {
+      this.previewState.setDevice(plan.restore.name, plan.restore.width, plan.restore.height);
+      this.preferences.update({ previewDevice: plan.restore.name, deviceBeforePdf: null });
+    } else if (this.preferences.deviceBeforePdf()) {
+      this.preferences.update({ deviceBeforePdf: null });
     }
   }
 

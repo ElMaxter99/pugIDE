@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LAYOUTS, layoutById, resolveLayout, stepSize, sanitizePanelSizes, isLayoutId, RAIL_WIDTH, layoutShortcut, panelShortcut } from './.build/units.mjs';
+import { LAYOUTS, layoutById, resolveLayout, stepSize, sanitizePanelSizes, isLayoutId, RAIL_WIDTH, layoutShortcut, panelShortcut, planPdfLayoutChange, sanitizeDeviceMemory } from './.build/units.mjs';
 
 const at = (id, container, extra = {}) => {
   const def = layoutById(id);
@@ -80,4 +80,38 @@ test('Ctrl+B y Ctrl+J alternan los paneles, y solo ellos', () => {
   assert.equal(panelShortcut(key({ ctrlKey: true, shiftKey: true, key: 'J' })), null); // Ctrl+Mayús+J es del editor de datos
   assert.equal(panelShortcut(key({ ctrlKey: true, altKey: true, key: 'b' })), null);
   assert.equal(panelShortcut(key({ key: 'b' })), null);
+});
+
+const movil = { name: 'Mobile', width: 390, height: 844 };
+const escritorio = { name: 'Desktop', width: 1440, height: 900 };
+const pdf = { name: 'PDF', width: 0, height: 0 };
+
+test('entrar en el PDF de la disposición recuerda el dispositivo y salir vuelve a él', () => {
+  const entrar = planPdfLayoutChange(true, movil, null);
+  assert.deepEqual(entrar, { memory: movil, restore: null });
+  const salir = planPdfLayoutChange(false, pdf, entrar.memory);
+  assert.deepEqual(salir, { memory: null, restore: movil });
+});
+
+test('si ya estaba en PDF no se recuerda «PDF» ni se pisa lo recordado', () => {
+  assert.deepEqual(planPdfLayoutChange(true, pdf, null), { memory: null, restore: null });
+  assert.deepEqual(planPdfLayoutChange(true, pdf, escritorio), { memory: escritorio, restore: null });
+});
+
+test('salir sin nada recordado (PDF elegido a mano) o con otro dispositivo elegido a mano no restaura nada', () => {
+  assert.deepEqual(planPdfLayoutChange(false, pdf, null), { memory: null, restore: null });
+  assert.deepEqual(planPdfLayoutChange(false, { name: 'Tablet', width: 768, height: 1024 }, movil), { memory: null, restore: null });
+});
+
+test('el tamaño recordado conserva la rotación del dispositivo', () => {
+  const girado = { name: 'Mobile', width: 844, height: 390 };
+  assert.deepEqual(planPdfLayoutChange(true, girado, null).memory, girado);
+});
+
+test('sanitizeDeviceMemory descarta PDF, nombres vacíos y tamaños absurdos', () => {
+  assert.deepEqual(sanitizeDeviceMemory(movil), movil);
+  assert.deepEqual(sanitizeDeviceMemory({ name: 'Mobile', width: 390.4, height: 844.6 }), { name: 'Mobile', width: 390, height: 845 });
+  for (const malo of [null, undefined, 'x', 3, {}, pdf, { name: '', width: 1, height: 1 }, { name: 'Mobile', width: 0, height: 5 }, { name: 'Mobile', width: -1, height: 5 }, { name: 'Mobile', width: NaN, height: 5 }, { name: 'Mobile', width: 1e9, height: 5 }, { name: 7, width: 1, height: 1 }]) {
+    assert.equal(sanitizeDeviceMemory(malo), null, JSON.stringify(malo));
+  }
 });
