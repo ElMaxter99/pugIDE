@@ -105,6 +105,20 @@ Detalle y mediciones en `design/propuestas/0.7-mejoras-funcionales.md`; mesas P-
 - ✅ **14.3 Oleada 3 (estructura), parte 1:** panel «Problemas» único (P-03) y disposiciones y tiradores con los datos como pestaña del panel lateral (P-08).
 - ✅ **14.4 Oleada 3, parte 2:** bienvenida con plantillas y recorrido de 4 pasos (P-06, P-12).
 
+### Fase 15. Versión 0.7.2: correcciones (propuesta, sin diseño)
+
+Detalle, evidencia y qué está verificado en `design/propuestas/0.8-plan.md`.
+
+- ⏳ **15.1 SCSS en producción:** `@mixin/@include`, `@use` y funciones salen sin estilo bajo la CSP, sin ningún aviso; avisar cuando se cae al respaldo y entender la última declaración sin `;`. Escenario con `@mixin` bajo las cabeceras de producción.
+- ⏳ **15.2 Globales tapados por los datos de ejemplo** (`Intl`, `encodeURIComponent`, `btoa`, `URL`…): ampliar `BUILTINS`.
+- ⏳ **15.3 Aviso al no poder guardar la sesión** (datos de 5 MB o más se pierden al recargar).
+
+### Fase 16. Versión 0.8 (propuesta, por oleadas)
+
+- ⏳ **16.1 Oleada 1, accesibilidad y robustez (sin diseño):** menú contextual del árbol con teclado (F2, Supr), contrastes y bordes, `forced-colors` y `prefers-reduced-motion`, paleta accesible, textos en inglés, errores explicados, importar `.zip`, sesión corrupta, filtro `:escape`.
+- ⏳ **16.2 Oleada 2, pantallas (con diseño):** interfaz usable con ventana baja o zoom al 200 %, botones de arreglo de «Problemas» visibles, tema inicial según el sistema, navegación por teclado más corta, plurales e idioma de reserva.
+- ⏳ **16.3 Oleada 3, funciones (con diseño):** exportar «para correo» (CSS inline y avisos), navegar entre páginas y exportar todas, sesión en IndexedDB y datos grandes, PDF con tablas enormes, OpenAPI por endpoint.
+
 ### Fase 13. Mantenimiento (parcial)
 
 - ⏳ **13.1** Los 18 avisos moderados de `npm audit` (`minimatch` dentro de `eslint`): subir `eslint` cuando salga una versión con `minimatch` 11.
