@@ -1,4 +1,4 @@
-import { check, openApp, waitUntil, previewText, sleep } from '../lib.mjs';
+import { check, openApp, waitUntil, previewText, stable } from '../lib.mjs';
 
 const session = {
   projectName: 'Informe',
@@ -34,6 +34,9 @@ async function chooseLayout(page, label) {
 export default async function (env) {
   const app = await openApp(env, { path: '/ide', session });
   const { page } = app;
+  // Los anchos se leen asentados: al cambiar de disposición los paneles se recolocan en varios repintados (y con el ancho
+  // cambia la barra del preview, que observa un ResizeObserver).
+  const settledW = () => stable(() => widths(page), { interval: 90 });
   await page.locator('.monaco-editor').first().waitFor({ timeout: 8000 });
   await waitUntil(async () => (await previewText(page)).includes('Informe trimestral'));
 
@@ -50,14 +53,19 @@ export default async function (env) {
   await page.keyboard.press('ArrowLeft');
   await waitUntil(async () => (await tabs.nth(0).getAttribute('aria-selected')) === 'true');
   check('36 ← vuelve a «Archivos» con el foco', (await tabs.nth(0).getAttribute('aria-selected')) === 'true' && (await page.evaluate(() => document.activeElement?.id)) === 'tab-archivos');
-  check('36 la pestaña elegida se recuerda', (await prefsOf(page)).sidebarTab === 'archivos');
+  check('36 la pestaña elegida se recuerda', !!(await waitUntil(async () => (await prefsOf(page)).sidebarTab === 'archivos')), JSON.stringify(await prefsOf(page)));
 
   // --- Disposición por defecto: 280 / editor / 660 ---
-  let w = await widths(page);
+  let w = await settledW();
   check('36 por defecto el panel lateral mide 280 y la vista previa ≈660 (≥640)', near(w.side, 280) && w.preview >= 640 && near(w.preview, 660), JSON.stringify(w));
   check('36 el editor no baja de 360', w.editor >= 360 && near(w.side + w.editor + w.preview, W, 3), JSON.stringify(w));
   const device = page.locator('app-preview-panel .device-switcher button').first();
-  check('36 con el preview a ~660 px la barra enseña los textos (no solo iconos)', (await device.textContent()).includes('Escritorio') && (await page.locator('app-preview-panel .device-btn.icon-only').count()) === 0 && (await page.locator('app-preview-panel .inspector-btn').textContent()).includes('Inspector'));
+  const wideBar = await stable(async () => ({
+    device: (await device.textContent()) ?? '',
+    iconOnly: await page.locator('app-preview-panel .device-btn.icon-only').count(),
+    inspector: (await page.locator('app-preview-panel .inspector-btn').textContent().catch(() => '')) ?? '',
+  }));
+  check('36 con el preview a ~660 px la barra enseña los textos (no solo iconos)', wideBar.device.includes('Escritorio') && wideBar.iconOnly === 0 && wideBar.inspector.includes('Inspector'), JSON.stringify(wideBar));
   check('36 el menú de disposición de la barra de estado lo dice', (await page.locator('[data-testid="layout-menu"]').innerText()).includes('Editor + vista previa'));
 
   // --- Menú «Disposición» ---
@@ -74,42 +82,44 @@ export default async function (env) {
   // --- Las cuatro disposiciones (menú y atajos) ---
   await chooseLayout(page, 'Editor + datos + vista previa');
   await waitUntil(async () => (await widths(page)).data > 0);
-  w = await widths(page);
+  w = await settledW();
   check('36 «Editor + datos + vista previa»: raíl de 48, datos 300 y vista previa 672', near(w.side, 48) && near(w.data, 300) && near(w.preview, 672) && w.editor >= 360, JSON.stringify(w));
   check('36 aquí los datos son una columna propia y la barra de datos sigue ahí', (await page.locator('.app-body > app-smart-data-editor .tree-view').isVisible()) && (await page.locator('[data-testid="resizer-data"]').count()) === 1);
 
   await page.keyboard.press('Control+Alt+3');
   await waitUntil(async () => near((await widths(page)).preview, 472));
-  w = await widths(page);
+  w = await settledW();
   check('36 Ctrl+Alt+3 «Foco en el editor»: raíl de 48 y vista previa de 472', near(w.side, 48) && near(w.preview, 472) && w.editor > 800 && w.data === 0, JSON.stringify(w));
-  check('36 con la vista previa a 472 px la barra pasa a solo iconos', (await page.locator('app-preview-panel .device-btn.icon-only').count()) > 0);
+  // El paso a «solo iconos» lo decide un ResizeObserver, un repintado después de que el panel mida 472: se espera a verlo.
+  check('36 con la vista previa a 472 px la barra pasa a solo iconos', !!(await waitUntil(async () => (await page.locator('app-preview-panel .device-btn.icon-only').count()) > 0)));
 
   await page.keyboard.press('Control+Alt+4');
   await waitUntil(async () => near((await widths(page)).preview, W - 48 - 360));
-  w = await widths(page);
+  await waitUntil(async () => (await page.locator('app-preview-panel button[aria-label="PDF / página impresa"].active').count()) === 1); // el modo PDF se aplica en otro repintado
+  w = await settledW();
   check('36 Ctrl+Alt+4 «Foco en la vista previa · PDF»: el preview ocupa lo que deja el editor mínimo (360) y pasa a PDF', near(w.preview, W - 48 - 360) && w.editor >= 358 && (await page.locator('app-preview-panel button[aria-label="PDF / página impresa"].active').count()) === 1, JSON.stringify(w));
 
   await page.keyboard.press('Control+Alt+1');
   await waitUntil(async () => near((await widths(page)).side, 280));
-  w = await widths(page);
+  w = await settledW();
   check('36 Ctrl+Alt+1 vuelve a «Editor + vista previa» (280 / 660)', near(w.side, 280) && near(w.preview, 660), JSON.stringify(w));
   check('36 la disposición se guarda en las preferencias', (await prefsOf(page)).layout === 'editor-preview');
 
   // AltGr (teclado español): Ctrl+Alt+1 teclea «|», no cambia la disposición
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '|', code: 'Digit1', ctrlKey: true, altKey: true, bubbles: true, cancelable: true })));
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '@', code: 'Digit2', ctrlKey: true, altKey: true, bubbles: true, cancelable: true })));
-  await sleep(300);
-  check('36 con AltGr («|», «@») no se secuestra la tecla ni cambia la disposición', (await prefsOf(page)).layout === 'editor-preview' && near((await widths(page)).side, 280));
+  await settledW(); // nada que esperar: el handler es síncrono; se deja asentar el repintado antes de comprobar que no cambió
+  check('36 con AltGr («|», «@») no se secuestra la tecla ni cambia la disposición', (await prefsOf(page)).layout === 'editor-preview' && near((await settledW()).side, 280));
 
   // --- Paneles: Ctrl+B y Ctrl+J ---
   await page.keyboard.press('Control+b');
   await waitUntil(async () => near((await widths(page)).side, 48));
-  w = await widths(page);
+  w = await settledW();
   check('36 Ctrl+B recoge el panel lateral en un raíl de 48 y el editor gana el sitio', near(w.side, 48) && w.editor > 600, JSON.stringify(w));
   check('36 el raíl tiene un botón por panel, con nombre', (await page.locator('.rail-btn[aria-label="Mostrar Archivos"]').count()) === 1 && (await page.locator('.rail-btn[aria-label="Mostrar Datos"]').count()) === 1);
   await page.locator('[data-testid="rail-datos"]').click();
   await waitUntil(async () => near((await widths(page)).side, 280));
-  check('36 el botón «Datos» del raíl abre el panel lateral en esa pestaña', (await page.locator('app-smart-data-editor .tree-view').isVisible()) && (await prefsOf(page)).sidebarTab === 'datos');
+  check('36 el botón «Datos» del raíl abre el panel lateral en esa pestaña', !!(await waitUntil(async () => (await page.locator('app-smart-data-editor .tree-view').isVisible()) && (await prefsOf(page)).sidebarTab === 'datos')));
   await tabs.nth(0).click();
   const bottomOpen = async () => (await page.locator('section.app-terminal').count()) > 0;
   const before = await bottomOpen();
@@ -130,7 +140,7 @@ export default async function (env) {
   check('36 mientras se arrastra se ve el ancho en px', /\d{3} px/.test(await page.locator('app-preview-panel .readout').innerText()));
   await page.mouse.up();
   await waitUntil(async () => near((await widths(page)).preview, 720, 3));
-  w = await widths(page);
+  w = await settledW();
   check('36 arrastrar 60 px a la izquierda agranda la vista previa a ≈720', near(w.preview, 720, 3) && near(await num(prev, 'aria-valuenow'), 720, 3), JSON.stringify(w));
   check('36 el tamaño se guarda al soltar', near((await prefsOf(page)).panelSizes?.['editor-preview']?.preview, 720, 3), JSON.stringify((await prefsOf(page)).panelSizes));
 
@@ -141,7 +151,7 @@ export default async function (env) {
   await page.mouse.move(g.x - 400, g.y + 200, { steps: 6 });
   await page.mouse.up();
   await waitUntil(async () => near((await widths(page)).editor, 360, 2));
-  w = await widths(page);
+  w = await settledW();
   check('36 no deja bajar el editor de 360 px (mínimo)', near(w.editor, 360, 2) && near(w.preview, W - 280 - 360, 2), JSON.stringify(w));
   g = await prev.boundingBox();
   await page.mouse.move(g.x + g.width / 2, g.y + 200);
@@ -149,25 +159,25 @@ export default async function (env) {
   await page.mouse.move(W - 6, g.y + 200, { steps: 6 }); // hasta el borde de la ventana (Firefox no entrega eventos fuera de ella)
   await page.mouse.up();
   await waitUntil(async () => near((await widths(page)).preview, 320, 2));
-  check('36 ni la vista previa de 320 px (mínimo)', near((await widths(page)).preview, 320, 2), JSON.stringify(await widths(page)));
+  check('36 ni la vista previa de 320 px (mínimo)', near((await settledW()).preview, 320, 2), JSON.stringify(await settledW()));
 
   // --- Tiradores: teclado y doble clic ---
   await prev.focus();
   await page.keyboard.press('ArrowLeft'); // el preview está a la derecha: ← lo agranda
   await waitUntil(async () => near((await widths(page)).preview, 336, 2));
-  check('36 con el teclado ← agranda la vista previa 16 px', near((await widths(page)).preview, 336, 2), JSON.stringify(await widths(page)));
+  check('36 con el teclado ← agranda la vista previa 16 px', near((await settledW()).preview, 336, 2), JSON.stringify(await settledW()));
   await page.keyboard.press('Shift+ArrowLeft');
   await waitUntil(async () => near((await widths(page)).preview, 400, 2));
-  check('36 con Mayús, 64 px', near((await widths(page)).preview, 400, 2), JSON.stringify(await widths(page)));
+  check('36 con Mayús, 64 px', near((await settledW()).preview, 400, 2), JSON.stringify(await settledW()));
   await page.keyboard.press('End');
   await waitUntil(async () => near((await widths(page)).editor, 360, 2));
-  check('36 Fin lleva el tirador al máximo y Inicio al mínimo', near((await widths(page)).editor, 360, 2));
+  check('36 Fin lleva el tirador al máximo y Inicio al mínimo', near((await settledW()).editor, 360, 2));
   await page.keyboard.press('Home');
   await waitUntil(async () => near((await widths(page)).preview, 320, 2));
-  check('36 Inicio', near((await widths(page)).preview, 320, 2));
+  check('36 Inicio', near((await settledW()).preview, 320, 2));
   await prev.dblclick();
   await waitUntil(async () => near((await widths(page)).preview, 660, 2));
-  check('36 doble clic restablece el tamaño de la disposición', near((await widths(page)).preview, 660, 2) && (await prefsOf(page)).panelSizes?.['editor-preview']?.preview === undefined, JSON.stringify((await prefsOf(page)).panelSizes));
+  check('36 doble clic restablece el tamaño de la disposición', near((await settledW()).preview, 660, 2) && (await prefsOf(page)).panelSizes?.['editor-preview']?.preview === undefined, JSON.stringify((await prefsOf(page)).panelSizes));
 
   // tirador del panel lateral
   const side = sep(page, 'sidebar');
@@ -177,23 +187,25 @@ export default async function (env) {
   await page.mouse.move(g.x + g.width / 2 + 40, g.y + 200, { steps: 4 });
   await page.mouse.up();
   await waitUntil(async () => near((await widths(page)).side, 320, 3));
-  check('36 el tirador del panel lateral lo ensancha (≈320)', near((await widths(page)).side, 320, 3), JSON.stringify(await widths(page)));
+  check('36 el tirador del panel lateral lo ensancha (≈320)', near((await settledW()).side, 320, 3), JSON.stringify(await settledW()));
   await side.focus();
   await page.keyboard.press('Home');
   await waitUntil(async () => near((await widths(page)).side, 200, 2));
-  check('36 mínimo del panel lateral: 200', near((await widths(page)).side, 200, 2));
+  check('36 mínimo del panel lateral: 200', near((await settledW()).side, 200, 2));
 
   // --- Persistencia al recargar ---
   await page.keyboard.press('End');
-  await sleep(200);
+  const afterEnd = await settledW();
   await prev.focus();
   await page.keyboard.press('ArrowLeft');
-  await sleep(300);
-  const wBefore = await widths(page);
+  await waitUntil(async () => (await widths(page)).preview !== afterEnd.preview); // la tecla se ha aplicado
+  const wBefore = await settledW();
+  // Lo elegido se guarda en las preferencias al aplicarse: se espera a verlo guardado (no un tiempo fijo) antes de recargar
+  await waitUntil(async () => { const z = (await prefsOf(page)).panelSizes?.['editor-preview']; return z?.sidebar !== undefined && z?.preview !== undefined; });
   await page.reload();
   await page.locator('.monaco-editor').first().waitFor({ timeout: 8000 });
-  await sleep(600);
-  const wAfter = await widths(page);
+  await waitUntil(async () => { const x = await widths(page); return near(x.side, wBefore.side, 2) && near(x.preview, wBefore.preview, 2); }, 8000);
+  const wAfter = await settledW();
   check('36 tras recargar se conservan la disposición y los tamaños elegidos', near(wAfter.side, wBefore.side, 2) && near(wAfter.preview, wBefore.preview, 2) && (await prefsOf(page)).layout === 'editor-preview', JSON.stringify({ wBefore, wAfter }));
 
   // restablecer desde el menú
@@ -201,7 +213,7 @@ export default async function (env) {
   await menu(page).waitFor();
   await menu(page).getByText('Restablecer los tamaños').click();
   await waitUntil(async () => near((await widths(page)).side, 280) && near((await widths(page)).preview, 660));
-  check('36 «Restablecer los tamaños» vuelve a 280 / 660', near((await widths(page)).side, 280) && near((await widths(page)).preview, 660) && !(await prefsOf(page)).panelSizes?.['editor-preview'], JSON.stringify(await widths(page)));
+  check('36 «Restablecer los tamaños» vuelve a 280 / 660', near((await settledW()).side, 280) && near((await settledW()).preview, 660) && !(await prefsOf(page)).panelSizes?.['editor-preview'], JSON.stringify(await settledW()));
 
   // --- No viaja con el proyecto ---
   const project = await page.evaluate(() => localStorage.getItem('pug-ide-project') ?? '');
@@ -215,7 +227,7 @@ export default async function (env) {
   check('36 la paleta ofrece «Disposición: Foco en el editor» con su atajo', (await page.locator('.item.active .keys').innerText()) === 'Ctrl+Alt+3');
   await page.keyboard.press('Enter');
   await waitUntil(async () => near((await widths(page)).preview, 472));
-  check('36 y la aplica', near((await widths(page)).preview, 472) && (await prefsOf(page)).layout === 'focus-editor');
+  check('36 y la aplica', near((await settledW()).preview, 472) && (await prefsOf(page)).layout === 'focus-editor');
 
   check('36 sin errores ni peticiones externas', app.errors.length === 0 && app.external.length === 0, app.errors.concat(app.external).join(' | '));
   await app.close();

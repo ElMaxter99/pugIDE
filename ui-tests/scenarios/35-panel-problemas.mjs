@@ -79,7 +79,7 @@ export default async function (env) {
 
   // Ir al error
   await page.locator('app-problems-panel .diag-go', { hasText: 'main.pug' }).click();
-  check('35 «Ir al error» lleva a main.pug:4', !!(await waitUntil(async () => (await activePath(page)) === '/main.pug' && (await activeLine(page)) === 4, 4000)), `${await activePath(page)}:${await activeLine(page)}`);
+  check('35 «Ir al error» lleva a main.pug:4', !!(await waitUntil(async () => (await activePath(page)) === '/main.pug' && (await activeLine(page)) === 4, 8000)), `${await activePath(page)}:${await activeLine(page)}`);
 
   // Teclado de las pestañas
   await page.locator('[data-testid="tab-problems"]').focus();
@@ -98,6 +98,9 @@ export default async function (env) {
 
   // El Registro no repite los problemas de compilación: «Esenciales» no los trae, «Todo» sí (como detalle)
   await openLogTab(page);
+  // «Esenciales» no tiene el error de compilación: la comprobación solo vale si el Registro ya se pintó, y se sabe porque avisa
+  // de los mensajes de detalle que oculta (si no, un Registro todavía vacío la daría por buena sin mirar nada).
+  await page.locator('[data-testid="log-hidden-note"]').waitFor({ timeout: 8000 });
   const logText = async () => (await page.locator('app-terminal-panel').innerText()).replace(/\s+/g, ' ');
   check('35 «Esenciales» del Registro no repite el error de compilación', !/Línea 4/.test(await logText()), await logText());
   await page.locator('[data-testid="log-filter-all"]').click();
@@ -108,12 +111,14 @@ export default async function (env) {
   // Barra de estado: los contadores abren «Problemas»
   check('35 la barra de estado cuenta los errores (2)', /2 errores/.test(await page.locator('[data-testid="status-errors"]').innerText()), await page.locator('[data-testid="status-errors"]').innerText());
   await page.locator('[data-testid="tab-log"]').click();
+  await page.locator('#panel-log').waitFor({ timeout: 4000 }); // sin esto el clic siguiente puede coalescerse con este y no probar nada
   await page.locator('[data-testid="status-errors"]').click();
   await page.locator('#panel-problems').waitFor({ timeout: 4000 });
   check('35 pulsar los errores de la barra de estado abre «Problemas» y lleva allí el foco', (await page.locator('[data-testid="tab-problems"]').getAttribute('aria-selected')) === 'true' && (await waitUntil(async () => (await focusedTestId(page)) === 'tab-problems')) === true, String(await focusedTestId(page)));
 
   // Paleta
   await page.locator('[data-testid="tab-log"]').click();
+  await page.locator('#panel-log').waitFor({ timeout: 4000 });
   await page.keyboard.press('Control+k');
   await page.locator('[aria-label="Paleta de comandos"]').waitFor();
   await page.keyboard.type('panel Problemas');

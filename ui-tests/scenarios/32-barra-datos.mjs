@@ -1,4 +1,4 @@
-import { check, openApp, previewText, waitUntil, sleep, openLogTab } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, sleep, openLogTab, stable } from '../lib.mjs';
 
 const session = {
   projectName: 'Datos',
@@ -21,12 +21,11 @@ export default async function (env) {
 
   // --- Qué se ve de entrada ---
   const bars = panel.locator('.data-tools, app-dataset-bar .dataset-bar');
-  const visible = panel.locator('.data-tools button, app-dataset-bar select, app-dataset-bar button');
-  const names = [];
-  for (const el of await visible.all()) {
-    if (!(await el.isVisible())) continue;
-    names.push(((await el.getAttribute('aria-label')) || (await el.innerText()) || (await el.getAttribute('title')) || '').trim());
-  }
+  // Una sola lectura dentro del navegador (preguntar `isVisible()` y leer luego el atributo del mismo botón se puede cruzar con
+  // un repintado) y sobre el estado asentado de la barra.
+  const names = await stable(() => panel.evaluate((root) => [...root.querySelectorAll('.data-tools button, app-dataset-bar select, app-dataset-bar button')]
+    .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden'; })
+    .map((e) => (e.getAttribute('aria-label') || e.innerText || e.getAttribute('title') || '').trim())));
   check('32 la barra tiene 7 controles a la vista', names.length === 7, JSON.stringify(names));
   check('32 la barra ocupa 2 filas', (await bars.count()) === 2);
   const tops = await bars.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));

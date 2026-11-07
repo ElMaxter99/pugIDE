@@ -1,5 +1,5 @@
 import { strToU8 } from 'fflate';
-import { check, openApp, previewText, waitUntil, openLogTab } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, openLogTab, waitStored } from '../lib.mjs';
 
 const session = {
   projectName: 'Plantillas',
@@ -49,7 +49,7 @@ export default async function (env) {
   ]);
   await row(page, 'resumen.jade').waitFor({ timeout: 6000 });
   check('34 importar varias plantillas no cambia la vista previa', (await previewText(page)).includes('Portada principal'), await previewText(page));
-  check('34 el Registro avisa de cómo elegir otra', /Se previsualiza \/main\.pug\. Para ver otra plantilla/.test(await log(page)), await log(page));
+  check('34 el Registro avisa de cómo elegir otra', !!(await waitUntil(async () => /Se previsualiza \/main\.pug\. Para ver otra plantilla/.test(await log(page)))), await log(page));
   let m = await marks(page);
   check('34 la marca está en main.pug, en modo automático', m.length === 1 && m[0].path === '/main.pug' && !m[0].pinned && !/Vista previa/.test(m[0].text.replace(/, vista previa automática/, '')), JSON.stringify(m));
 
@@ -106,11 +106,12 @@ export default async function (env) {
 
   // --- Recargar conserva la elección ---
   await waitUntil(async () => /vista previa|Vista previa/.test(await log(page)));
-  await page.waitForTimeout(800); // deja que se guarde la sesión
+  // El autoguardado de la sesión va con antirrebote (~1 s): se espera a que la elección esté en lo guardado, no un tiempo fijo.
+  await waitStored(page, 'pug-ide-project', '"previewEntry":"/informes/resumen-q1.jade"');
   await page.reload();
   await page.locator('.monaco-editor').first().waitFor({ timeout: 8000 });
   await waitUntil(async () => (await previewText(page)).includes('Resumen ejecutivo'), 8000);
-  m = await marks(page);
+  m = (await waitUntil(async () => { const x = await marks(page); return x.length === 1 && x[0].pinned ? x : null; }, 8000)) ?? (await marks(page));
   check('34 recargar conserva la elección', (await previewText(page)).includes('Resumen ejecutivo') && m.length === 1 && m[0].path === '/informes/resumen-q1.jade' && m[0].pinned, JSON.stringify(m) + (await previewText(page)));
 
   // --- Borrar vuelve a automático ---
