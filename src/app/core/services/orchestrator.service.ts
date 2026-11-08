@@ -72,6 +72,8 @@ export class OrchestratorService {
   private initialDataLoaded = false;
   private assetsReady = false;
   private libraryWarned = false;
+  /** Ya se ha dicho en el Registro que la sesión no se puede guardar (se vuelve a decir si se recupera y falla otra vez). */
+  private sessionSaveWarned = false;
   private fileOps: FileOp[] = [];
   private hintKeys = new Set<string>();
   /** Descripción de la última operación de archivos que se puede deshacer (null si no hay). */
@@ -210,6 +212,9 @@ export class OrchestratorService {
       }
       const scssResult = await this.scssCompiler.compileAll(files, linked);
       scssResult.errors.push(...linkErrors);
+      if (this.scssCompiler.takeFallbackNotice()) {
+        this.terminalState.addEntry('warning', 'Estilos', 'No se pudo cargar Sass: se usa un subconjunto de SCSS (variables y anidado, sin @mixin, @use ni funciones), así que parte de los estilos puede no verse. Recarga la página; si sigue igual, es un fallo de la app.');
+      }
       compileResult.css = scssResult.css;
       if (scssResult.css) {
         compileResult.html = injectIntoHead(compileResult.html, `<style>\n${scssResult.css}\n</style>`);
@@ -483,10 +488,26 @@ export class OrchestratorService {
     };
   }
 
+  /** Si la sesión no cabe en el almacenamiento del navegador, se pierde al recargar: la barra de estado lo marca y aquí se explica. */
+  private reportSessionSave(): void {
+    if (!this.persistence.lastWriteFailed()) {
+      this.sessionSaveWarned = false;
+      return;
+    }
+    if (this.sessionSaveWarned) return;
+    this.sessionSaveWarned = true;
+    this.terminalState.addEntry(
+      'warning',
+      'Sesión',
+      'No se pudo guardar la sesión en este navegador (almacenamiento lleno o bloqueado; los datos importados de unos 5 MB en adelante no caben): si recargas la página perderás los cambios y los datos de esta sesión. Exporta el proyecto (menú «Exportar») para no perderlos.',
+    );
+  }
+
   saveSession(): void {
     const session = this.buildSession();
     if (!session) return;
     this.persistence.saveProjectState(session);
+    this.reportSessionSave();
     void this.saveToLibrary();
     this.trackHistory();
   }
