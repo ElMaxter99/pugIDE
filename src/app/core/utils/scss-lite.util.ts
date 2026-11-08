@@ -51,7 +51,13 @@ function parseNodes(text: string): RawNode[] {
       else if (parenDepth === 0 && (ch === '{' || ch === ';')) break;
       j++;
     }
-    if (j >= n) break;
+    if (j >= n) {
+      // Última declaración del bloque sin `;` (`.a { color: blue }`): también es una declaración, no se descarta.
+      const tail = text.slice(i).trim();
+      const colon = tail.indexOf(':');
+      if (tail && colon > -1) nodes.push({ kind: 'decl', prop: tail.slice(0, colon).trim(), value: tail.slice(colon + 1).trim() });
+      break;
+    }
 
     const head = text.slice(i, j).trim();
 

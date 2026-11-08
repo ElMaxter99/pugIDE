@@ -29,6 +29,15 @@ const BUILTINS = new Set([
   'clearInterval', 'fetch', 'Promise', 'Error', 'TypeError',
   'RangeError', 'SyntaxError', 'Map', 'Set', 'WeakMap', 'WeakSet',
   'Symbol', 'Proxy', 'Reflect',
+  // Más globales estándar de ES y de la Web (existen en el Worker y en el marco aislado donde se renderiza). Sin ellos los
+  // datos de ejemplo los tapaban (`encodeURIComponent('a b')` salía sin codificar y `typeof Intl` daba `string`). Se dejan
+  // fuera nombres plausibles como campo de datos (`location`, `navigator`, `performance`, `crypto`, `name`…).
+  'encodeURIComponent', 'decodeURIComponent', 'Intl', 'URL', 'URLSearchParams', 'BigInt', 'btoa', 'atob', 'globalThis',
+  'structuredClone', 'Function', 'queueMicrotask', 'TextEncoder', 'TextDecoder', 'AbortController', 'Atomics',
+  'ArrayBuffer', 'SharedArrayBuffer', 'DataView', 'WeakRef', 'FinalizationRegistry',
+  'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array',
+  'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array',
+  'AggregateError', 'EvalError', 'ReferenceError', 'URIError',
 ]);
 
 const PUG_KEYWORDS = new Set([

@@ -77,3 +77,20 @@ test('parseProject sin entrada devuelve vacio', async () => {
   const r = await parser.parseProject(new Map(), null);
   assert.deepEqual(r, { variables: [], translationKeys: [] });
 });
+
+test('los globales estándar de ES y de la Web no se tratan como datos', async () => {
+  const src = [
+    "p= encodeURIComponent('a b')", "p= decodeURIComponent('a%20b')", "p= btoa('x') + atob('eA==')",
+    "p= typeof Intl", "p= new Intl.NumberFormat('es').format(1)", "p= new URL('https://a.b').host",
+    "p= new URLSearchParams('a=1').get('a')", "p= typeof BigInt", "p= typeof globalThis", "p= typeof structuredClone",
+    "p= new Uint8Array(2).length", "p= typeof WeakRef", "p= typeof AggregateError",
+  ].join('\n') + '\n';
+  const r = await parser.parse(src);
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual(paths(r), [], `no deberían salir como datos: ${paths(r).join(', ')}`);
+});
+
+test('un dato con un nombre plausible (location, performance, name) sigue siendo un dato', async () => {
+  const r = await parser.parse('p= location\np= performance\np= name\n');
+  for (const n of ['location', 'performance', 'name']) assert.ok(paths(r).includes(n), `${n} debe seguir detectándose`);
+});

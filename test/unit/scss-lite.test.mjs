@@ -41,3 +41,13 @@ test('mantiene @media con reglas dentro', () => {
 test('entrada vacia produce cadena vacia', () => {
   assert.equal(compileScssLite('').trim(), '');
 });
+
+test('la última declaración de un bloque sin «;» también se compila', () => {
+  assert.match(compileScssLite('.z{color:blue}'), /\.z\s*\{\s*color:\s*blue;?\s*\}/);
+  assert.match(compileScssLite('.a { color: red; margin: 0 }'), /margin:\s*0/);
+  assert.match(compileScssLite('.a { .b { color: blue } }'), /\.a \.b\s*\{\s*color:\s*blue/);
+});
+
+test('con «;» final sigue igual', () => {
+  assert.match(compileScssLite('.z{color:blue;}'), /\.z\s*\{\s*color:\s*blue;?\s*\}/);
+});
