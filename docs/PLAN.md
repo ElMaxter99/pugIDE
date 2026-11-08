@@ -1,4 +1,4 @@
-# Estado y plan de PugIDE (v0.7.1)
+# Estado y plan de PugIDE (v0.7.2)
 
 Actualizado el 2026-11-04. El análisis inicial (v0.3.1) se hizo el 2026-11-03; las seis fases que salieron de él están hechas y resumidas en la sección 4.
 
@@ -105,13 +105,13 @@ Detalle y mediciones en `design/propuestas/0.7-mejoras-funcionales.md`; mesas P-
 - ✅ **14.3 Oleada 3 (estructura), parte 1:** panel «Problemas» único (P-03) y disposiciones y tiradores con los datos como pestaña del panel lateral (P-08).
 - ✅ **14.4 Oleada 3, parte 2:** bienvenida con plantillas y recorrido de 4 pasos (P-06, P-12).
 
-### Fase 15. Versión 0.7.2: correcciones (propuesta, sin diseño)
+### Fase 15. Versión 0.7.2: correcciones ✅
 
 Detalle, evidencia y qué está verificado en `design/propuestas/0.8-plan.md`.
 
-- ⏳ **15.1 SCSS en producción:** `@mixin/@include`, `@use` y funciones salen sin estilo bajo la CSP, sin ningún aviso; avisar cuando se cae al respaldo y entender la última declaración sin `;`. Escenario con `@mixin` bajo las cabeceras de producción.
-- ⏳ **15.2 Globales tapados por los datos de ejemplo** (`Intl`, `encodeURIComponent`, `btoa`, `URL`…): ampliar `BUILTINS`.
-- ⏳ **15.3 Aviso al no poder guardar la sesión** (datos de 5 MB o más se pierden al recargar).
+- ✅ **15.1 SCSS en producción:** `@mixin/@include`, `@use` y funciones salían sin estilo bajo la CSP, sin ningún aviso: `sass` se empaqueta ahora sin `new Function` (`scripts/bundle-sass.mjs`), el respaldo avisa y entiende la última declaración sin `;`, y hay un escenario con `@mixin` bajo las cabeceras de producción.
+- ✅ **15.2 Globales tapados por los datos de ejemplo** (`Intl`, `encodeURIComponent`, `btoa`, `URL`…): ampliar `BUILTINS`.
+- ✅ **15.3 Aviso al no poder guardar la sesión** (datos de 5 MB o más se pierden al recargar).
 
 ### Fase 16. Versión 0.8 (propuesta, por oleadas)
 

@@ -4,15 +4,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.7.2] - 2026-11-08
+
+Versión de correcciones: dos bugs que daban una salida incorrecta sin avisar (el SCSS con mixins y los globales estándar), el aviso cuando la sesión no se puede guardar y el mantenimiento posterior a la 0.7.1. No cambia el formato de los proyectos.
+
 ### Corregido
+- **El SCSS con `@mixin`, `@include`, `@use`, funciones y el Sass indentado salía sin estilo y sin ningún aviso en producción** (desde la 0.6.0). dart-sass crea con `new Function` unas funciones auxiliares y la CSP de la app (sin `'unsafe-eval'`, a propósito) las bloqueaba, así que `sass` no cargaba y la app caía en silencio al subconjunto `scss-lite`. Ahora `sass` se empaqueta con esas llamadas reescritas (`scripts/bundle-sass.mjs`), sin tocar la CSP, y funciona también sin conexión como antes. Los errores de Sass (`$noexiste`, `@use` que falla) vuelven a salir en «Problemas» con su archivo y línea.
+- **Si `sass` no llega a cargar, la app lo dice** (una vez, en el Registro) en vez de dejar los estilos a medias, y el subconjunto SCSS entiende ya la última declaración de un bloque sin `;` (`.z{color:blue}` daba un `<style>` vacío).
+- **Los globales estándar de ES y de la Web los tapaban los datos de ejemplo:** `encodeURIComponent` devolvía el texto sin codificar, `btoa('hola')` devolvía `hola` y `typeof Intl` daba `string` (`new Intl.NumberFormat` fallaba). Afectaba a `Intl`, `encodeURIComponent`, `decodeURIComponent`, `URL`, `URLSearchParams`, `BigInt`, `btoa`, `atob`, `globalThis`, `structuredClone`, los typed arrays y alguno más. Siguen siendo datos nombres plausibles como `location`, `performance` o `name`.
+- **Si la sesión no se puede guardar** (almacenamiento del navegador lleno o bloqueado; los datos importados de unos 5 MB en adelante no caben) **el Registro lo explica** y dice cómo no perder el trabajo (Exportar). Antes solo la barra de estado ponía «No se pudo guardar» y la sesión se perdía al recargar.
 - **Salir de «Foco en la vista previa · PDF» recupera el dispositivo anterior** (Escritorio, Tableta, Móvil…): al entrar en esa disposición se recuerda el dispositivo y al pasar a otra disposición (`Ctrl+Alt+1/2/3`, menú «Disposición» o paleta) se restaura. Si mientras tanto eliges a mano otro dispositivo o el modo PDF, se respeta tu elección y no se restaura nada. Lo recordado vive en las preferencias del usuario (no viaja con el proyecto ni el enlace compartido) y sobrevive a recargar la página.
 
 ### Cambiado
 - **Dependencias (solo parche o menor):** Angular 22.2.4 → 22.2.5, `@angular/build` y `@angular/cli` 22.2.5 → 22.2.6, `material-symbols` 0.48.1 → 0.48.3 (mismos glifos), y dentro de rango `sass`, `prettier`, `tslib` y `@types/node`. No se sube `playwright-core` (cambiaría el Chromium contra el que se mide la paginación del PDF) ni las versiones mayores (`typescript` 7, `eslint` 10, `monaco-editor`). Quedan 12 avisos moderados de `npm audit`, todos de las herramientas de lint (`minimatch` dentro de `typescript-eslint`); arreglarlos exige bajar `typescript-eslint` a una versión incompatible con TypeScript 6.
 - **CI:** la instalación de navegadores de Playwright tiene un límite de 8 minutos (tarda ~30 s; `ui-webkit` se había quedado hasta 29 minutos parado en el `apt` del runner) y `build-test` tiene un límite de 30 minutos, que antes no tenía.
+- `npm start`, `npm run build`, `npm run build:prod` y `npm run lint` generan antes `node_modules/.pugide/sass-csp.js` (`npm run bundle:sass`); no hay nada que hacer a mano.
 
 ### Añadido
-- Escenario `39-salir-del-pdf` de las pruebas de interfaz, y `PUGIDE_CPU_THROTTLE=4` para ejecutar las pruebas de interfaz con la CPU de la página ralentizada (solo Chromium) y sacar las carreras de tiempos en local.
+- Escenario `40-scss-real`: compila `@mixin`, `@use`, `@function`, `@each` y Sass indentado **bajo las cabeceras de producción**, comprueba que un error de Sass sale en «Problemas» y que, con el chunk de Sass bloqueado, el respaldo avisa una vez y funciona. Hasta ahora ningún escenario de interfaz cargaba SCSS, y por eso el fallo pasó inadvertido. Más: `45-globales-estandar` y `46-sesion-no-se-guarda` (e2e), y `39-salir-del-pdf`.
+- `PUGIDE_CPU_THROTTLE=4` para ejecutar las pruebas de interfaz con la CPU de la página ralentizada (solo Chromium) y sacar las carreras de tiempos en local.
 - Los escenarios de interfaz 31 a 37 esperan ahora al estado asentado (medidas de ancho, cierre de diálogos con el foco dentro, autoguardado, carga de la fuente de iconos) en lugar de leer el DOM sin más, tras dos carreras que solo se veían en CI (escenarios 34 y 36).
 
 ## [0.7.1] - 2026-11-06
