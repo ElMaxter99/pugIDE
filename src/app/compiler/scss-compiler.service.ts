@@ -25,6 +25,17 @@ const TOP_IMPORT_RE = /^@import\s+[^;]+;[ \t]*$/gm;
 /** Compiles project stylesheets: plain CSS, SCSS / Sass (real `sass`) and Less (real `less`); the heavy compilers load on demand. */
 @Injectable({ providedIn: 'root' })
 export class ScssCompilerService {
+  /** Se ha usado el subconjunto SCSS porque `sass` no cargó y aún no se ha avisado (el aviso sale una vez por carga de página). */
+  private fallbackPending = false;
+  private fallbackWarned = false;
+
+  /** `true` una sola vez después de que el respaldo (`scss-lite`) haya sustituido a `sass`: el orquestador lo cuenta en el Registro. */
+  takeFallbackNotice(): boolean {
+    const pending = this.fallbackPending;
+    this.fallbackPending = false;
+    return pending;
+  }
+
   async compileFile(path: string, files: Map<string, string>): Promise<StyleFileResult> {
     const lower = path.toLowerCase();
     const used = new Set<string>();
@@ -75,7 +86,11 @@ export class ScssCompilerService {
     try {
       sass = await import('sass');
     } catch {
-      // Compiler unavailable (offline chunk, blocked): fall back to the tiny built-in SCSS subset.
+      // Compiler unavailable (offline chunk, blocked): fall back to the tiny built-in SCSS subset, and say so (once).
+      if (!this.fallbackWarned) {
+        this.fallbackWarned = true;
+        this.fallbackPending = true;
+      }
       return this.compileFallback(path, files);
     }
     const toUrl = (p: string) => new URL('file://' + encodeURI(p));
