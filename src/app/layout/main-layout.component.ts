@@ -27,6 +27,7 @@ import { AnalyticsService } from '../core/services/analytics.service';
 import { ShortcutsDialogComponent } from '../shared/components/shortcuts-dialog/shortcuts-dialog.component';
 import { UiState } from '../core/state/ui.state';
 import { CommandPaletteComponent } from '../shared/components/command-palette/command-palette.component';
+import { AnnouncerComponent } from '../shared/components/announcer/announcer.component';
 import { ImportLocaleDialogComponent } from '../shared/components/import-locale-dialog/import-locale-dialog.component';
 import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dialog.component';
 import { ProjectIoService } from '../core/services/project-io.service';
@@ -41,6 +42,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
   selector: 'app-main-layout',
   standalone: true,
   imports: [
+    AnnouncerComponent,
     ImportLocaleDialogComponent,
     TopbarComponent,
     SidebarComponent,
@@ -92,6 +94,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
         (extra)="pickLocaleFiles()"
         (cancelled)="ui.addLocaleOpen.set(false)" />
       <app-import-locale-dialog />
+      <app-announcer />
       <app-dialog
         [config]="shareDialog"
         [isOpen]="shareDialogOpen()"

@@ -302,6 +302,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     this.editor = monaco.editor.create(this.editorContainer.nativeElement, {
       value: '',
       language: 'pug',
+      ariaLabel: 'Editor de código',
       theme: initialTheme,
       fontSize: 13,
       fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', monospace",
@@ -362,7 +363,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     }));
     this.editor.addAction({
       id: 'pug.searchInProject',
-      label: 'Search in Project',
+      label: 'Buscar en el proyecto',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF],
       run: () => this.openSearch(),
     });
@@ -447,7 +448,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
 
     this.editor.addAction({
       id: 'pug.goToDefinition',
-      label: 'Go to Definition',
+      label: 'Ir a la definición',
       keybindings: [monaco.KeyCode.F12],
       run: () => {
         const pos = this.editor.getPosition();

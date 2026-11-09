@@ -138,6 +138,7 @@ import { LAYOUTS } from '../../../core/utils/layout.util';
       --border-color: #4d4354;
       --bg-hover: rgba(255, 255, 255, 0.08);
       --bg-active: rgba(255, 255, 255, 0.12);
+      --bg-surface-container-highest: #39323d;
       display: flex;
     }
 
