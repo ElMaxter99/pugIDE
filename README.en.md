@@ -10,7 +10,7 @@ Write a template, see the result instantly, and let PugIDE make up the test data
 [Español](README.md) · **English**
 
 [![CI](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml/badge.svg)](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-0.8.0-blueviolet)
+![Version](https://img.shields.io/badge/version-0.9.0-blueviolet)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Angular](https://img.shields.io/badge/Angular-22-dd0031)
 ![100% local](https://img.shields.io/badge/100%25-local-success)

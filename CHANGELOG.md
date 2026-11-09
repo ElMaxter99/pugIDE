@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.9.0] - 2026-11-09
+
 ### Añadido
 - **Tema Automático / Oscuro / Claro** (diseño P-21). El botón de tema pasa a un menú con las tres opciones. «Automático» sigue el tema del sistema (`prefers-color-scheme`) y cambia solo si el sistema cambia; es lo que ve quien no ha elegido (antes siempre salía oscuro). Quien ya había guardado oscuro o claro lo conserva. La portada y el editor usan la misma regla; la paleta tiene «Tema: Automático».
 - **Idiomas del proyecto: por defecto y de reserva** (diseño P-22). Menú «Vista» → «Idiomas…» (o la paleta): el **idioma por defecto** es el que se abre si no elegiste otro en la vista previa (antes, el primero por orden alfabético) y el **idioma de reserva** rellena, al previsualizar, las claves que faltan o están vacías en el idioma activo; el Registro avisa de cuáles. Los archivos de idioma no se modifican. Los ajustes viajan con el proyecto (sesión, `.pugide/datasets.json`, zip). Sin plurales automáticos. Escenario `53-idiomas-del-proyecto`, e2e `27` y pruebas unitarias.
