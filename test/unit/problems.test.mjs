@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { unlocatedProblems, toProblemRows, countProblems, stepRow, snippetLines, formatElapsed } from './.build/units.mjs';
+import { TEXT_FILE_RE, unlocatedProblems, toProblemRows, countProblems, stepRow, snippetLines, formatElapsed } from './.build/units.mjs';
 
 test('unlocatedProblems recoge los errores de compilación sin archivo y línea, sin duplicados', () => {
   const out = unlocatedProblems({
@@ -48,4 +48,20 @@ test('formatElapsed', () => {
   assert.equal(formatElapsed(125000), 'hace 2 min');
   assert.equal(formatElapsed(7300000), 'hace 2 h');
   assert.equal(formatElapsed(-5), 'hace 0 s');
+});
+
+test('una hoja de estilos no encontrada (sin línea) sale como problema con pista', () => {
+  const out = unlocatedProblems({
+    entryPath: '/main.pug',
+    styleErrors: [{ path: '/styles/nada.less', message: 'Hoja de estilos referenciada no encontrada en el proyecto' }, { path: '/a.scss', message: 'x', line: 2 }],
+  });
+  assert.equal(out.length, 1);
+  assert.match(out[0].message, /nada\.less/);
+  assert.equal(out[0].severity, 'error');
+  assert.match(out[0].hint ?? '', /\.less/);
+});
+
+test('los archivos .less se importan como texto', () => {
+  for (const f of ['a.less', 'x/B.LESS', 'a.scss', 'a.sass', 'a.css']) assert.ok(TEXT_FILE_RE.test(f), f);
+  assert.ok(!TEXT_FILE_RE.test('a.png'));
 });

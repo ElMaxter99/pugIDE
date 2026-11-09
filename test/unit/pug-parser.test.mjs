@@ -94,3 +94,10 @@ test('un dato con un nombre plausible (location, performance, name) sigue siendo
   const r = await parser.parse('p= location\np= performance\np= name\n');
   for (const n of ['location', 'performance', 'name']) assert.ok(paths(r).includes(n), `${n} debe seguir detectándose`);
 });
+
+test('`locals.a.b` es el dato `a.b` y `locals` no es un dato', async () => {
+  const r = await parser.parse("each f in locals.pdfSettings.fonts\n  p= f.family\np= locals.title\n");
+  assert.ok(paths(r).includes('pdfSettings.fonts'), paths(r).join(','));
+  assert.ok(paths(r).includes('title'));
+  assert.ok(!paths(r).some((p) => p === 'locals' || p.startsWith('locals.')), paths(r).join(','));
+});

@@ -142,7 +142,7 @@ export interface ProblemRow {
 }
 
 /** Errores de compilación que `buildDiagnostics` no puede localizar: siguen siendo problemas y se listan sin enlace. */
-export function unlocatedProblems(input: { entryPath: string | null; compileErrors?: CompileError[] }): UnlocatedProblem[] {
+export function unlocatedProblems(input: { entryPath: string | null; compileErrors?: CompileError[]; styleErrors?: StyleDiagnosticInput[] }): UnlocatedProblem[] {
   const out: UnlocatedProblem[] = [];
   const seen = new Set<string>();
   for (const e of input.compileErrors ?? []) {
@@ -152,6 +152,21 @@ export function unlocatedProblems(input: { entryPath: string | null; compileErro
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({ message, severity: e.severity, source: e.source, ...(e.hint ? { hint: e.hint } : {}), ...(e.fix ? { fix: e.fix } : {}) });
+  }
+  // Un error de estilos sin línea (un `link` o un `@import` a una hoja que no está en el proyecto, un error del compilador sin
+  // posición) no cabe en el editor, pero tiene que verse: si no, la hoja simplemente «no hace nada» sin decir por qué.
+  for (const e of input.styleErrors ?? []) {
+    if (e.line) continue;
+    const message = `${e.path}: ${e.message}`;
+    const key = `error:${message}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      message,
+      severity: 'error',
+      source: 'scss',
+      ...(/no encontrad/i.test(e.message) ? { hint: 'Comprueba la ruta o sube el archivo con el botón de subir del panel «Archivos» (acepta .css, .scss, .sass y .less).' } : {}),
+    });
   }
   return out;
 }
