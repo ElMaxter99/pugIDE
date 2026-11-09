@@ -10,7 +10,7 @@ Escribe una plantilla, mira el resultado al instante y deja que PugIDE invente l
 **Español** · [English](README.en.md)
 
 [![CI](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml/badge.svg)](https://github.com/ElMaxter99/pugIDE/actions/workflows/ci.yml)
-![Versión](https://img.shields.io/badge/version-0.10.0-blueviolet)
+![Versión](https://img.shields.io/badge/version-0.10.1-blueviolet)
 ![Licencia](https://img.shields.io/badge/license-MIT-green)
 ![Angular](https://img.shields.io/badge/Angular-22-dd0031)
 ![100 % local](https://img.shields.io/badge/100%25-local-success)
