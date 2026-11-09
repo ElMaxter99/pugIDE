@@ -1,3 +1,4 @@
+import { DEFAULT_JSON_VIEW, sanitizeJsonView } from '../utils/json-view.util';
 import { readSession } from '../utils/session-validate.util';
 import { Injectable, signal } from '@angular/core';
 import { AppPreferences } from '../models/index';
@@ -51,6 +52,7 @@ export class PersistenceService {
     panelSizes: {},
     sidebarTab: 'archivos',
     deviceBeforePdf: null,
+    jsonView: DEFAULT_JSON_VIEW,
   };
 
   loadPreferences(): AppPreferences {
@@ -63,6 +65,7 @@ export class PersistenceService {
         saved.panelSizes = sanitizePanelSizes(saved.panelSizes);
         if (saved.sidebarTab !== 'datos') saved.sidebarTab = 'archivos';
         saved.deviceBeforePdf = sanitizeDeviceMemory(saved.deviceBeforePdf);
+        saved.jsonView = sanitizeJsonView(saved.jsonView);
         return saved;
       }
     } catch { /* ignore */ }

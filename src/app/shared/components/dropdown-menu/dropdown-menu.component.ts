@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed, inject, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, Injector, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
 
 /** Una fila de un menú desplegable. Sin `id` es un separador o, con `heading`, un título de grupo. */
 export interface MenuItem {
@@ -50,7 +50,8 @@ export interface MenuItem {
     </button>
     @if (open()) {
       <div class="menu-backdrop" (click)="close(false)"></div>
-      <div #list class="menu" role="menu" [attr.aria-label]="ariaLabel() || label()" [class.align-right]="align() === 'right'" [class.above]="placement() === 'arriba'" (keydown)="onMenuKey($event)">
+      <div #list class="menu" role="menu" [attr.aria-label]="ariaLabel() || label()" [class.align-right]="align() === 'right'" [class.above]="placement() === 'arriba'"
+        [style.left.px]="pos()?.left" [style.top.px]="pos()?.top" [style.max-height.px]="pos()?.maxHeight" [style.visibility]="pos() ? null : 'hidden'" (keydown)="onMenuKey($event)">
         @for (item of items(); track $index) {
           @if (item.separator) {
             <div class="menu-separator" role="separator"></div>
@@ -92,9 +93,7 @@ export interface MenuItem {
     .menu-icon, .item-icon { font-size: 18px; width: 18px; }
     .menu-caret { font-size: 18px; margin-left: -2px; }
     .menu-backdrop { position: fixed; inset: 0; z-index: 1190; }
-    .menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 1200; min-width: 240px; max-width: min(360px, calc(100vw - 16px)); padding: 4px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35); }
-    .menu.align-right { left: auto; right: 0; }
-    .menu.above { top: auto; bottom: calc(100% + 4px); }
+    .menu { position: fixed; top: 0; left: 0; overflow-y: auto; z-index: 1200; min-width: 240px; max-width: min(360px, calc(100vw - 16px)); padding: 4px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35); }
     .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 32px; padding: 6px 10px; border: 0; border-radius: 6px; background: none; color: var(--text-primary); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
     .menu-item:hover:not(:disabled), .menu-item:focus-visible { background: var(--bg-hover); outline: 2px solid var(--accent-color); outline-offset: -2px; }
     .menu-item:disabled { opacity: 0.5; cursor: default; }
@@ -121,7 +120,10 @@ export class DropdownMenuComponent {
   readonly chosen = output<string>();
 
   protected readonly open = signal(false);
+  /** Dónde se pinta el menú (coordenadas de la ventana): se calcula al abrirlo para que nunca se salga de ella. */
+  protected readonly pos = signal<{ left: number; top: number; maxHeight: number } | null>(null);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   private readonly trigger = viewChild<ElementRef<HTMLButtonElement>>('trigger');
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
   protected readonly enabledCount = computed(() => this.items().filter((i) => i.id && !i.disabled).length);
@@ -133,9 +135,43 @@ export class DropdownMenuComponent {
   }
 
   private openMenu(focusFirst: boolean): void {
+    this.pos.set(null);
     this.open.set(true);
-    // Tras pintar la lista: el foco va a la primera fila solo si se abrió con teclado.
-    setTimeout(() => { if (focusFirst) this.focusItem(0); });
+    // Tras pintar la lista (no antes: en WebKit un `setTimeout` puede adelantarse a Angular): se coloca dentro de la ventana y,
+    // ya con la posición pintada (mientras no, el menú está con `visibility: hidden` y no se deja enfocar), el foco va a la
+    // primera fila solo si se abrió con teclado.
+    afterNextRender(() => {
+      this.reposition();
+      if (focusFirst) afterNextRender(() => this.focusItem(0), { injector: this.injector });
+    }, { injector: this.injector });
+  }
+
+  /**
+   * Coloca el menú junto a su botón pero dentro de la ventana: el borde derecho o izquierdo se ajusta (un botón al borde
+   * del panel lateral no lo deja cortado), se abre hacia donde hay sitio y, si no cabe entero, se acota y hace scroll.
+   * Va con `position: fixed`, así que tampoco lo recorta el `overflow: hidden` de los paneles.
+   */
+  private reposition(): void {
+    const trigger = this.trigger()?.nativeElement;
+    const menu = this.list()?.nativeElement;
+    if (!trigger || !menu) return;
+    const MARGIN = 8;
+    const r = trigger.getBoundingClientRect();
+    const width = menu.offsetWidth;
+    const natural = menu.offsetHeight;
+    let left = this.align() === 'right' ? r.right - width : r.left;
+    left = Math.max(MARGIN, Math.min(left, window.innerWidth - width - MARGIN));
+    const below = window.innerHeight - r.bottom - 4 - MARGIN;
+    const above = r.top - 4 - MARGIN;
+    const up = this.placement() === 'arriba' ? !(above < Math.min(natural, 160) && below > above) : natural > below && above > below;
+    const room = Math.max(80, up ? above : below);
+    const height = Math.min(natural, room);
+    this.pos.set({ left, top: up ? r.top - 4 - height : r.bottom + 4, maxHeight: room });
+  }
+
+  @HostListener('window:resize')
+  protected onResize(): void {
+    if (this.open()) { this.pos.set(null); afterNextRender(() => this.reposition(), { injector: this.injector }); }
   }
 
   close(restoreFocus: boolean): void {

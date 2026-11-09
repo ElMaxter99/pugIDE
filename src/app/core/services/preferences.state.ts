@@ -1,6 +1,7 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { AppPreferences } from '../models/index';
 import { PersistenceService } from './persistence.service';
+import { DEFAULT_JSON_VIEW, JsonViewPrefs, sanitizeJsonView } from '../utils/json-view.util';
 import { DEFAULT_LAYOUT, DeviceMemory, LayoutId, PanelSizes } from '../utils/layout.util';
 
 @Injectable({ providedIn: 'root' })
@@ -21,6 +22,7 @@ export class PreferencesState {
   readonly panelSizes = signal<Partial<Record<LayoutId, Partial<PanelSizes>>>>({});
   readonly sidebarTab = signal<'archivos' | 'datos'>('archivos');
   readonly deviceBeforePdf = signal<DeviceMemory | null>(null);
+  readonly jsonView = signal<JsonViewPrefs>(DEFAULT_JSON_VIEW);
   readonly monacoTheme = computed(() =>
     this.theme() === 'dark' ? 'vs-dark' : 'vs-light'
   );
@@ -49,6 +51,7 @@ export class PreferencesState {
     this.panelSizes.set(prefs.panelSizes);
     this.sidebarTab.set(prefs.sidebarTab);
     this.deviceBeforePdf.set(prefs.deviceBeforePdf ?? null);
+    this.jsonView.set(sanitizeJsonView(prefs.jsonView));
   }
 
   update(partial: Partial<AppPreferences>): void {
@@ -70,6 +73,7 @@ export class PreferencesState {
     if (partial.panelSizes !== undefined) this.panelSizes.set(partial.panelSizes);
     if (partial.sidebarTab !== undefined) this.sidebarTab.set(partial.sidebarTab);
     if (partial.deviceBeforePdf !== undefined) this.deviceBeforePdf.set(partial.deviceBeforePdf);
+    if (partial.jsonView !== undefined) this.jsonView.set(partial.jsonView);
     this.persistence.savePreferences(partial);
   }
 

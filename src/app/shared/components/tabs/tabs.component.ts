@@ -9,6 +9,8 @@ import { EditorState } from '../../../core/state/editor.state';
 import { Tab } from '../../../core/models/tab.model';
 import { tabLabels } from '../../../core/utils/tab-label.util';
 import { getFileIcon } from '../../../core/utils/file-icon.util';
+import { PreferencesState } from '../../../core/services/preferences.state';
+import { JsonViewMode, isLocaleFile, jsonViewModeFor } from '../../../core/utils/json-view.util';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
 import { ContextMenuAction } from '../../../core/models/index';
 
@@ -44,6 +46,12 @@ import { ContextMenuAction } from '../../../core/models/index';
           </div>
         }
       </div>
+      @if (jsonMode(); as mode) {
+        <div class="json-seg" role="group" aria-label="Vista del archivo JSON">
+          <button type="button" [class.on]="mode === 'tree'" [attr.aria-pressed]="mode === 'tree'" data-testid="json-view-tree" (click)="setJsonMode('tree')">Árbol</button>
+          <button type="button" [class.on]="mode === 'code'" [attr.aria-pressed]="mode === 'code'" data-testid="json-view-code" (click)="setJsonMode('code')">Código</button>
+        </div>
+      }
       <app-context-menu
         [items]="contextMenuItems()"
         [isOpen]="contextMenuOpen()"
@@ -92,6 +100,42 @@ import { ContextMenuAction } from '../../../core/models/index';
 
     .tab:hover {
       background: var(--bg-hover);
+    }
+
+    .json-seg {
+      display: flex;
+      align-items: center;
+      align-self: center;
+      margin: 0 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .json-seg button {
+      padding: 3px 12px;
+      border: 0;
+      background: none;
+      color: var(--text-secondary);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .json-seg button:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .json-seg button.on {
+      background: var(--bg-surface-container-highest);
+      color: var(--text-primary);
+    }
+
+    .json-seg button:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: -2px;
     }
 
     .tab.active {
@@ -173,6 +217,21 @@ import { ContextMenuAction } from '../../../core/models/index';
 })
 export class TabsComponent {
   protected editorState = inject(EditorState);
+  private preferences = inject(PreferencesState);
+
+  /** Vista del archivo JSON activo (null si no es un `.json`). */
+  protected jsonMode = computed<JsonViewMode | null>(() => {
+    const path = this.editorState.activeTab()?.path;
+    return path ? jsonViewModeFor(path, this.preferences.jsonView()) : null;
+  });
+
+  /** Se recuerda por tipo de archivo: los de idioma por un lado y el resto de los `.json` por otro. */
+  protected setJsonMode(mode: JsonViewMode): void {
+    const path = this.editorState.activeTab()?.path;
+    if (!path) return;
+    const current = this.preferences.jsonView();
+    this.preferences.update({ jsonView: isLocaleFile(path) ? { ...current, translations: mode } : { ...current, other: mode } });
+  }
   protected labels = computed(() => tabLabels(this.editorState.openTabs()));
   private dragIndex = signal<number>(-1);
 
