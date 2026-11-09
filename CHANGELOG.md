@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.9.1] - 2026-11-09
+
 ### Añadido
 - **Doble clic en una plantilla Pug/Jade del árbol la previsualiza**, igual que «Previsualizar este archivo» del clic derecho (que sigue ahí, y es la vía con teclado). Un archivo que no es plantilla no cambia la vista previa. Fila nueva en «Atajos de teclado». Escenario `54-doble-clic-previsualiza`.
 
