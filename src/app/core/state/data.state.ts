@@ -14,6 +14,9 @@ export class DataState {
   readonly locale = signal<MockLocale>('es');
   /** Idioma de `/locales/` elegido en el preview (null: el primero). */
   readonly translationLocale = signal<string | null>(null);
+  /** Idioma por defecto del proyecto y de reserva (P-22); null: ninguno. */
+  readonly defaultLocale = signal<string | null>(null);
+  readonly fallbackLocale = signal<string | null>(null);
   readonly datasetOptions = computed(() => this.datasets().map((d) => ({ id: d.id, name: d.name })));
   readonly activeDataset = computed(() => this.datasets().find((d) => d.id === this.activeId()) ?? this.datasets()[0]);
 
@@ -143,12 +146,19 @@ export class DataState {
   /** Estado completo para persistir/exportar. */
   snapshotDatasets(): DatasetsFile {
     const translationLocale = this.translationLocale();
-    return { version: 1, activeId: this.activeId(), locale: this.locale(), datasets: this.synced(), ...(translationLocale ? { translationLocale } : {}) };
+    const defaultLocale = this.defaultLocale();
+    const fallbackLocale = this.fallbackLocale();
+    return {
+      version: 1, activeId: this.activeId(), locale: this.locale(), datasets: this.synced(),
+      ...(translationLocale ? { translationLocale } : {}), ...(defaultLocale ? { defaultLocale } : {}), ...(fallbackLocale ? { fallbackLocale } : {}),
+    };
   }
 
   restoreDatasets(file: DatasetsFile): void {
     this.locale.set(file.locale);
     this.translationLocale.set(file.translationLocale ?? null);
+    this.defaultLocale.set(file.defaultLocale ?? null);
+    this.fallbackLocale.set(file.fallbackLocale ?? null);
     this.loadActive(file.activeId, structuredClone(file.datasets));
   }
 
@@ -163,6 +173,8 @@ export class DataState {
   resetDatasets(): void {
     this.locale.set('es');
     this.translationLocale.set(null);
+    this.defaultLocale.set(null);
+    this.fallbackLocale.set(null);
     this.loadActive('ds-1', [{ id: 'ds-1', name: DEFAULT_DATASET_NAME, data: {} }]);
   }
 }

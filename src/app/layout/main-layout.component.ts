@@ -36,6 +36,7 @@ import { REGION_FOCUS, RegionId, nextRegionIndex } from '../core/utils/regions.u
 import { backupReminderDays } from '../core/utils/backup.util';
 import { DiagnosticsState } from '../core/state/diagnostics.state';
 import { ViewportState } from '../core/state/viewport.state';
+import { LocalesDialogComponent } from '../shared/components/locales-dialog/locales-dialog.component';
 import { ShareCreateDialogComponent } from '../shared/components/share-dialogs/share-create-dialog.component';
 import { ShareOpenDialogComponent } from '../shared/components/share-dialogs/share-open-dialog.component';
 import type { ShareOpenRequest } from '../core/state/ui.state';
@@ -48,6 +49,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
   standalone: true,
   imports: [
     ShareCreateDialogComponent,
+    LocalesDialogComponent,
     ShareOpenDialogComponent,
     AnnouncerComponent,
     ImportLocaleDialogComponent,
@@ -117,6 +119,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-import-locale-dialog />
       <app-announcer />
       <app-share-create-dialog />
+      <app-locales-dialog />
       <app-share-open-dialog />
     </div>
   `,

@@ -611,6 +611,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     if (locales.length) {
       items.push({ heading: 'Idioma del preview' });
       for (const code of locales) items.push({ id: `locale:${code}`, label: code, checked: code === this.orchestrator.activeLocale(), radio: true });
+      items.push({ id: 'locales:settings', label: 'Idiomas…', hint: 'Por defecto y de reserva' });
       items.push({ separator: true });
     }
     items.push({ heading: 'Modo de color' });
@@ -631,6 +632,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     if (id === 'devices:more') this.moreDevices.update((v) => !v);
     else if (id.startsWith('device:')) this.selectDevice(id.slice('device:'.length));
     else if (id.startsWith('locale:')) this.orchestrator.setTranslationLocale(id.slice('locale:'.length));
+    else if (id === 'locales:settings') this.ui.localesOpen.set(true);
     else if (id.startsWith('scheme:')) this.previewState.colorScheme.set(id.slice('scheme:'.length) as ColorSchemeSim);
     else if (id === 'a11y') this.runA11y();
     else if (id === 'png') void this.projectIo.exportPng();
