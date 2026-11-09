@@ -1,0 +1,26 @@
+# Estado del proyecto
+
+Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa a la persona responsable»). Última revisión: 2026-11-09.
+
+## Versiones
+- **0.8.0**: publicada (tag `v0.8.0` y release de GitHub hechos). La rama `release` ya contiene la 0.8.0 y, por un merge manual, trabajo de la 0.9 hasta la PR 57. Falta, si no se ha hecho, **desplegar `release` en Vercel a mano**.
+- **0.9.0**: en preparación. Plan aprobado: P-18 a P-22.
+
+## Plan 0.9
+| Pieza | Estado |
+|---|---|
+| P-15 / P-16 compartir con opciones y abrir como proyecto nuevo | ✅ en master |
+| P-17 visor de JSON en árbol | ✅ en master |
+| P-18 renombrar y borrar carpetas | ✅ en master |
+| P-19 ventana baja / zoom 200 % | ✅ en master |
+| P-20 botones de «Problemas» | ✅ en master |
+| Claves de traducción calculadas | ✅ en master |
+| `npm run release:deploy` (un solo comando) | ✅ en master (arreglo de «release ya adelantada»: PR 59, mergeada) |
+| P-21 tema Automático/Oscuro/Claro, enlaces de salto, F6 | 🔄 programado en la rama `claude/dazzling-ritchie-onhmhj`; falta CI en 3 navegadores y PR |
+| P-22 idioma por defecto y de reserva (sin plurales automáticos) | ⏳ sin empezar |
+| Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | ⏳ cuando P-21 y P-22 estén en master |
+
+## Pendiente de la persona responsable
+- Mergear la PR de P-21 cuando esté abierta y en verde.
+- Desplegar `release` en Vercel a mano (0.8.0).
+- Cuando exista la 0.9.0: `npm run release:deploy` y desplegar en Vercel.

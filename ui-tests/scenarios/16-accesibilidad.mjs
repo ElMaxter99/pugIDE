@@ -92,7 +92,7 @@ export default async function (env) {
   await audit(page, 'editor de datos en modo JSON');
   await page.keyboard.press('Control+Shift+J');
 
-  await page.locator('button[title="Cambiar tema claro u oscuro"]').click();
+  await page.locator('button[title="Cambiar tema claro u oscuro"]').click(); await page.locator('[role="menuitemradio"]', { hasText: 'Claro' }).click();
   await page.waitForTimeout(400);
   await audit(page, 'IDE (claro)');
   await page.locator('button[title="PDF / página impresa"]').click();
@@ -127,7 +127,7 @@ async function teclado(env) {
     stops.push(stop);
     if (stop.monaco) break; // Monaco captura Tab para sangrar (Ctrl+M lo libera)
   }
-  check('16 teclado: el primer elemento enfocable es el logo (enlace al inicio)', stops[0]?.tag === 'a' && stops[0]?.name === 'PugIDE', JSON.stringify(stops[0]));
+  check('16 teclado: los tres primeros enlaces son los de salto y después viene el logo (enlace al inicio)', stops.slice(0, 3).every((s) => s?.tag === 'a' && /^Saltar a/.test(s.name)) && stops[3]?.tag === 'a' && stops[3]?.name === 'PugIDE', JSON.stringify(stops.slice(0, 4)));
   check('16 teclado: la barra superior, el Workspace y el árbol de archivos se pueden recorrer con Tab', stops.length >= 8, JSON.stringify(stops.map((s) => s.name)));
   // El textarea interno de Monaco (su campo de entrada) mide 0×0 en Firefox: se exige que tenga nombre, no que se vea.
   check('16 teclado: todos los elementos enfocados son visibles y tienen nombre', stops.every((s) => (s.visible || s.monaco) && s.name), JSON.stringify(stops.filter((s) => !(s.visible || s.monaco) || !s.name)));
