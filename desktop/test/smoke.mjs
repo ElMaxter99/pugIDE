@@ -30,6 +30,7 @@ try {
   check('la ventana se llama PugIDE', (await page.title()).includes('PugIDE'), await page.title());
   const info = await page.evaluate(() => window.pugideDesktop ?? null);
   check('el preload expone la plataforma y la versión', !!info && typeof info.platform === 'string' && /^\d+\.\d+\.\d+/.test(info.version), JSON.stringify(info));
+  check('y la dirección web para los enlaces de compartir', info?.webUrl === 'https://pug-ide.vercel.app', String(info?.webUrl));
   check('y nada más (sin funciones ni acceso al sistema)', !!info && Object.values(info).every((v) => typeof v === 'string') && Object.keys(info).length === 3, JSON.stringify(info));
   // Monaco define un `require` propio (su cargador AMD), así que no basta con mirar si existe: se comprueba que la página no
   // pueda llegar a Node (ni `process` de Node ni cargar `fs`).

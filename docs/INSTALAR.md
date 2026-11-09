@@ -53,7 +53,7 @@ xattr -dr com.apple.quarantine /Applications/PugIDE.app
 ## Tus proyectos y tu privacidad
 - La app de escritorio **no hace ninguna llamada de red por su cuenta** y **no lleva analítica**. Funciona con el cable desenchufado. (Los enlaces `https` que abras desde ella se abren en tu navegador.)
 - Los proyectos se guardan en **el perfil de cada app**: la web, la PWA y la app de escritorio **no comparten** proyectos entre sí. Para llevarte uno: **Proyecto → Exportar** (`.zip`) y en la otra, **Proyecto → Importar**.
-- Los enlaces de **compartir** funcionan igual en las tres. Desde la app de escritorio apuntan a la dirección web que se configure en `desktop/src/config.json` (`webUrl`); sin ella, a `pugide://app/…`, que solo abre quien tenga la app de escritorio instalada.
+- Los enlaces de **compartir** funcionan igual en las tres. Desde la app de escritorio apuntan a la versión web (`https://pug-ide.vercel.app`, configurable en `desktop/src/config.json`, clave `webUrl`), así que se abren en cualquier navegador. Si se vaciara esa clave, saldrían como `pugide://app/…`, que solo abre quien tenga la app de escritorio instalada.
 
 ## Desinstalar
 - **Windows:** Configuración → Aplicaciones. **macOS:** arrastra PugIDE a la Papelera. **Linux:** `sudo apt remove pugide` (o `dnf remove pugide`), o borra el `AppImage`.
