@@ -29,3 +29,4 @@ export { ProjectSnapshotService, MemorySnapshotBackend } from '../src/app/core/s
 export { SnapshotState } from '../src/app/core/state/snapshot.state';
 export { DiagnosticsState } from '../src/app/core/state/diagnostics.state';
 export { LayoutService } from '../src/app/core/services/layout.service';
+export { UiState } from '../src/app/core/state/ui.state';

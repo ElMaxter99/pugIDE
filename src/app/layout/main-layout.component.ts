@@ -27,6 +27,7 @@ import { AnalyticsService } from '../core/services/analytics.service';
 import { ShortcutsDialogComponent } from '../shared/components/shortcuts-dialog/shortcuts-dialog.component';
 import { UiState } from '../core/state/ui.state';
 import { CommandPaletteComponent } from '../shared/components/command-palette/command-palette.component';
+import { ImportLocaleDialogComponent } from '../shared/components/import-locale-dialog/import-locale-dialog.component';
 import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dialog.component';
 import { ProjectIoService } from '../core/services/project-io.service';
 import { ProjectLibraryService } from '../core/services/project-library.service';
@@ -40,6 +41,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
   selector: 'app-main-layout',
   standalone: true,
   imports: [
+    ImportLocaleDialogComponent,
     TopbarComponent,
     SidebarComponent,
     StatusbarComponent,
@@ -87,7 +89,10 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
         [config]="addLocaleDialog"
         [isOpen]="ui.addLocaleOpen()"
         (confirmed)="onAddLocale($event)"
+        (extra)="localeFile.click()"
         (cancelled)="ui.addLocaleOpen.set(false)" />
+      <input #localeFile type="file" accept=".json,application/json" multiple hidden tabindex="-1" aria-hidden="true" (change)="onLocaleFiles($event)" />
+      <app-import-locale-dialog />
       <app-dialog
         [config]="shareDialog"
         [isOpen]="shareDialogOpen()"
@@ -176,6 +181,8 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     showInput: true,
     inputLabel: 'Código de idioma',
     inputValue: '',
+    extraText: 'Importar archivo .json…',
+    extraIcon: 'upload_file',
   };
   private pendingShare: SharePayload | null = null;
   private assetTimer: ReturnType<typeof setTimeout> | null = null;
@@ -273,6 +280,21 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   protected onAddLocale(code: string): void {
     this.ui.addLocaleOpen.set(false);
     if (code.trim()) this.orchestrator.addLocale(code);
+  }
+
+  /** «Importar archivo .json…» del diálogo «Añadir idioma»: lee los archivos y abre la confirmación (P-14). */
+  protected async onLocaleFiles(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const list = Array.from(input.files ?? []);
+    input.value = '';
+    if (!list.length) return;
+    try {
+      const files = await Promise.all(list.map(async (f) => ({ name: f.name, text: await f.text() })));
+      this.ui.addLocaleOpen.set(false);
+      this.ui.localeImport.set({ source: 'add', files });
+    } catch (err) {
+      this.terminalState.addEntry('error', 'Idiomas', `No se pudo leer el archivo: ${(err as Error).message ?? err}`);
+    }
   }
 
   private remindBackup(): void {

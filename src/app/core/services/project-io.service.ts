@@ -16,6 +16,8 @@ import { captureHtmlToPng } from '../utils/capture.util';
 import { collectDropped, DroppedFile, EntryLike, isZip } from '../utils/drop-import.util';
 import { isStylePath } from '../utils/style-refs.util';
 import { buildStandaloneHtml } from '../utils/export-html.util';
+import { UiState } from '../state/ui.state';
+import { looksLikeTranslations } from '../utils/locales.util';
 import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
 
 
@@ -34,6 +36,7 @@ export class ProjectIoService {
   private assetState = inject(AssetState);
   private dataState = inject(DataState);
   private previewState = inject(PreviewState);
+  private ui = inject(UiState);
 
   get supportsFileSystemAccess(): boolean {
     return typeof (window as any).showDirectoryPicker === 'function';
@@ -176,7 +179,13 @@ export class ProjectIoService {
       const rest = loose.filter((f) => !text.includes(f));
       if (text.length) {
         const { files } = await this.readDropped(text.map((file) => ({ path: '/' + file.name.replace(/\s+/g, '-'), file })), false);
-        this.orchestrator.addDroppedFiles(files, []);
+        // Un JSON que solo trae textos y se llama como un idioma (es-ES.json, translations.json…): se pregunta si es un idioma (P-14).
+        const asLocale = [...files].filter(([path, content]) => looksLikeTranslations(path, content));
+        if (asLocale.length) {
+          for (const [path] of asLocale) files.delete(path);
+          this.ui.localeImport.set({ source: 'drop', files: asLocale.map(([path, content]) => ({ name: path.slice(1), text: content })) });
+        }
+        if (files.size) this.orchestrator.addDroppedFiles(files, []);
       }
       if (rest.length) await this.orchestrator.addAssets(rest);
     } catch (err) {

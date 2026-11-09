@@ -40,7 +40,7 @@ import { DatasetKind, DatasetsFile, parseDatasetsFile } from '../utils/datasets.
 import { inferData } from '../utils/schema-infer.util';
 import { buildTranslationSkeleton, TRANSLATIONS_KEY } from '../utils/i18n.util';
 import {
-  addMissingKeys, blankTranslations, isValidLocaleCode, listLocales, localePath, parseTranslations, resolveLocale, serializeTranslations,
+  addMissingKeys, blankTranslations, countTranslations, isValidLocaleCode, listLocales, localePath, mergeTranslations, normalizeTranslations, parseTranslations, resolveLocale, serializeTranslations,
 } from '../utils/locales.util';
 import { findEntryPath, isPugFile, listTemplates, normalize, pinnedAfterDelete, pinnedAfterRename, resolveVirtualPath, validPinned } from '../utils/pug-vfs.util';
 
@@ -1195,6 +1195,54 @@ export class OrchestratorService {
     this.saveSession();
     void this.manualCompile();
     return true;
+  }
+
+  /** ¿Ya hay un archivo de idioma con ese código? */
+  localeExists(code: string): boolean {
+    return this.editorState.files().has(localePath(code));
+  }
+
+  /**
+   * Importa archivos de idioma (P-14) a `/locales/<código>/translations.json`. Las claves planas se anidan. Si el idioma
+   * ya existe, `merge` añade lo nuevo y rellena lo vacío sin pisar nada; `replace` lo sustituye. Devuelve los códigos importados.
+   */
+  importLocales(items: { code: string; text: string }[], mode: 'merge' | 'replace'): string[] {
+    const done: string[] = [];
+    for (const { code: raw, text } of items) {
+      const code = raw.trim();
+      if (!isValidLocaleCode(code)) {
+        this.terminalState.addEntry('error', 'Idiomas', `«${code}» no es un código de idioma válido (ejemplos: es-ES, es-CAT, en).`);
+        continue;
+      }
+      const parsed = parseTranslations(text);
+      if (parsed.error) {
+        this.terminalState.addEntry('error', 'Idiomas', `No se importó ${code}: ${parsed.error.message}`);
+        continue;
+      }
+      const incoming = normalizeTranslations(parsed.value);
+      const path = localePath(code);
+      const current = this.editorState.files().get(path);
+      if (current !== undefined) {
+        const next = mode === 'replace' ? { value: incoming, touched: countTranslations(incoming) } : mergeTranslations(parseTranslations(current).value, incoming);
+        this.editorState.files.update((f) => { f.set(path, serializeTranslations(next.value)); return f; });
+        this.editorState.notifyFileSync([path]);
+        this.terminalState.addEntry('success', 'Idiomas', mode === 'replace' ? `Idioma ${code} reemplazado (${next.touched} textos).` : `Idioma ${code} fusionado: ${next.touched} textos añadidos o rellenados.`);
+      } else {
+        if (!listLocales(this.editorState.files().keys()).length) this.dataState.stripTranslations(TRANSLATIONS_KEY);
+        this.addFile(path, 'translations.json', serializeTranslations(incoming));
+        this.terminalState.addEntry('success', 'Idiomas', `Idioma ${code} importado en ${path} (${countTranslations(incoming)} textos).`);
+      }
+      done.push(code);
+    }
+    if (done.length) {
+      this.locales.set(listLocales(this.editorState.files().keys()));
+      this.dataState.translationLocale.set(done[done.length - 1]);
+      this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+      this.refreshTree();
+      this.saveSession();
+      void this.manualCompile();
+    }
+    return done;
   }
 
   private buildDataFromVariables(variables: PugVariable[], translationKeys: string[] = []): Record<string, unknown> {

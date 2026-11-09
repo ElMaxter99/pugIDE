@@ -20,6 +20,9 @@ export interface DialogConfig {
   inputValue?: string;
   inputLabel?: string;
   showInput?: boolean;
+  /** Acción secundaria bajo el campo (p. ej. «Importar archivo .json…»); emite `extra`. */
+  extraText?: string;
+  extraIcon?: string;
 }
 
 @Component({
@@ -50,6 +53,13 @@ export interface DialogConfig {
                 [value]="inputValue()"
                 (input)="inputValue.set($any($event.target).value)"
                 (keydown.enter)="onConfirm()" />
+            }
+            @if (config().extraText) {
+              <div class="dialog-or" aria-hidden="true"><span></span>o<span></span></div>
+              <button type="button" class="dialog-extra" (click)="extra.emit()">
+                <span class="material-symbols-outlined" aria-hidden="true">{{ config().extraIcon ?? 'upload_file' }}</span>
+                {{ config().extraText }}
+              </button>
             }
           </div>
           <div class="dialog-footer">
@@ -153,6 +163,16 @@ export interface DialogConfig {
       border-color: var(--accent-color);
     }
 
+    .dialog-or { display: flex; align-items: center; gap: 10px; margin: 12px 0; color: var(--text-secondary); font-size: 12px; }
+    .dialog-or span { flex: 1; height: 1px; background: var(--border-color); }
+    .dialog-extra {
+      display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+      padding: 8px; border: 1px dashed var(--accent-color); border-radius: 4px; background: none;
+      color: var(--accent-color); font: inherit; font-size: 13px; cursor: pointer;
+    }
+    .dialog-extra:hover { background: var(--bg-hover); }
+    .dialog-extra .material-symbols-outlined { font-size: 16px; }
+
     .dialog-footer {
       display: flex;
       justify-content: flex-end;
@@ -200,6 +220,7 @@ export class DialogComponent {
   isOpen = input(false);
   confirmed = output<string>();
   cancelled = output<void>();
+  extra = output<void>();
 
   inputValue = signal('');
 
