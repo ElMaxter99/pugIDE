@@ -1,12 +1,20 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
-import { AppPreferences } from '../models/index';
+import { AppPreferences, ThemeChoice } from '../models/index';
 import { PersistenceService } from './persistence.service';
 import { DEFAULT_JSON_VIEW, JsonViewPrefs, sanitizeJsonView } from '../utils/json-view.util';
 import { DEFAULT_LAYOUT, DeviceMemory, LayoutId, PanelSizes } from '../utils/layout.util';
 
 @Injectable({ providedIn: 'root' })
 export class PreferencesState {
-  readonly theme = signal<'dark' | 'light'>('dark');
+  /** Lo que eligió la persona: Automático (sigue al sistema), Oscuro o Claro. */
+  readonly theme = signal<ThemeChoice>('auto');
+  /** El tema del sistema (`prefers-color-scheme`); se actualiza si cambia mientras la app está abierta. */
+  readonly systemDark = signal(true);
+  /** El tema que se pinta de verdad. */
+  readonly resolvedTheme = computed<'dark' | 'light'>(() => {
+    const t = this.theme();
+    return t === 'auto' ? (this.systemDark() ? 'dark' : 'light') : t;
+  });
   readonly fontSize = signal(14);
   readonly tabSize = signal(2);
   readonly minimap = signal(true);
@@ -24,13 +32,18 @@ export class PreferencesState {
   readonly deviceBeforePdf = signal<DeviceMemory | null>(null);
   readonly jsonView = signal<JsonViewPrefs>(DEFAULT_JSON_VIEW);
   readonly monacoTheme = computed(() =>
-    this.theme() === 'dark' ? 'vs-dark' : 'vs-light'
+    this.resolvedTheme() === 'dark' ? 'vs-dark' : 'vs-light'
   );
 
   private readonly persistence = inject(PersistenceService);
 
   constructor() {
     this.load();
+    try {
+      const mq = window.matchMedia('(prefers-color-scheme: light)');
+      this.systemDark.set(!mq.matches);
+      mq.addEventListener('change', (e) => this.systemDark.set(!e.matches));
+    } catch { /* sin matchMedia: oscuro, como antes */ }
   }
 
   load(): void {
@@ -86,6 +99,6 @@ export class PreferencesState {
   }
 
   toggleTheme(): void {
-    this.update({ theme: this.theme() === 'dark' ? 'light' : 'dark' });
+    this.update({ theme: this.resolvedTheme() === 'dark' ? 'light' : 'dark' });
   }
 }

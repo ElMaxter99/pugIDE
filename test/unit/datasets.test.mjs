@@ -30,3 +30,12 @@ test('newDatasetId no repite ids', () => {
   const id = newDatasetId([{ id: 'ds-2' }, { id: 'ds-3' }]);
   assert.ok(id !== 'ds-2' && id !== 'ds-3');
 });
+
+test('el idioma por defecto y el de reserva se conservan y se ignoran si no son texto', () => {
+  const base = { version: 1, activeId: 'a', locale: 'es', datasets: [{ id: 'a', name: 'X', data: {} }] };
+  const ok = parseDatasetsFile({ ...base, defaultLocale: 'es-ES', fallbackLocale: 'en' });
+  assert.equal(ok.defaultLocale, 'es-ES');
+  assert.equal(ok.fallbackLocale, 'en');
+  const bad = parseDatasetsFile({ ...base, defaultLocale: 3, fallbackLocale: '' });
+  assert.ok(!('defaultLocale' in bad) && !('fallbackLocale' in bad));
+});

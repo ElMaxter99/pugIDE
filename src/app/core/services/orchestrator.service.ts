@@ -41,7 +41,7 @@ import { inferData } from '../utils/schema-infer.util';
 import { checkFolderRename, countsText, isInsideFolder, movedPath, pathsInFolder } from '../utils/folder-ops.util';
 import { buildTranslationSkeleton, TRANSLATIONS_KEY } from '../utils/i18n.util';
 import {
-  addMissingKeys, blankTranslations, countTranslations, isValidLocaleCode, listLocales, localePath, mergeTranslations, normalizeTranslations, parseTranslations, resolveLocale, serializeTranslations,
+  addMissingKeys, blankTranslations, countTranslations, isValidLocaleCode, listLocales, localePath, mergeTranslations, normalizeTranslations, applyFallback, parseTranslations, resolveLocale, serializeTranslations,
 } from '../utils/locales.util';
 import { findEntryPath, isPugFile, listTemplates, normalize, pinnedAfterDelete, pinnedAfterRename, resolveVirtualPath, validPinned } from '../utils/pug-vfs.util';
 
@@ -1216,14 +1216,37 @@ export class OrchestratorService {
       this.editorState.notifyFileSync(changed);
       this.terminalState.addEntry('info', 'Idiomas', `Claves nuevas añadidas (vacías, por traducir) en: ${changed.join(', ')}`);
     }
-    const active = resolveLocale(this.dataState.translationLocale(), locales)!;
-    return { translations: parsed.get(active) ?? {}, diagnostics };
+    const active = resolveLocale(this.dataState.translationLocale(), locales, this.dataState.defaultLocale())!;
+    const activeTr = parsed.get(active) ?? {};
+    // Idioma de reserva (P-22): lo que falta o está vacío en el activo se toma de él; el Registro avisa una vez por cambio.
+    const fb = this.dataState.fallbackLocale();
+    if (fb && fb !== active && parsed.has(fb)) {
+      const res = applyFallback(activeTr, parsed.get(fb)!);
+      const note = res.filled.length ? `${active}: ${res.filled.length} ${res.filled.length === 1 ? 'clave sin traducir usa' : 'claves sin traducir usan'} el texto de ${fb} (${res.filled.slice(0, 5).join(', ')}${res.filled.length > 5 ? '…' : ''})` : '';
+      if (note !== this.lastFallbackNote) {
+        this.lastFallbackNote = note;
+        if (note) this.terminalState.addEntry('warning', 'Idiomas', note);
+      }
+      return { translations: res.value, diagnostics };
+    }
+    this.lastFallbackNote = '';
+    return { translations: activeTr, diagnostics };
+  }
+
+  private lastFallbackNote = '';
+
+  /** Idioma por defecto y de reserva del proyecto (P-22); `null` quita el ajuste. */
+  setLocaleSettings(settings: { defaultLocale: string | null; fallbackLocale: string | null }): void {
+    this.dataState.defaultLocale.set(settings.defaultLocale);
+    this.dataState.fallbackLocale.set(settings.fallbackLocale);
+    this.saveSession();
+    void this.processCode(this.editorState.editorContent(), false);
   }
 
   /** Idiomas del proyecto (`/locales/<código>/translations.json`); se actualiza en cada compilación (los archivos viven en un Map mutable). */
   readonly locales = signal<string[]>([]);
   /** Idioma que usa el preview: el elegido si existe, si no el primero. */
-  readonly activeLocale = computed(() => resolveLocale(this.dataState.translationLocale(), this.locales()));
+  readonly activeLocale = computed(() => resolveLocale(this.dataState.translationLocale(), this.locales(), this.dataState.defaultLocale()));
 
   /** Cambia el idioma de las traducciones del preview. */
   setTranslationLocale(code: string): void {

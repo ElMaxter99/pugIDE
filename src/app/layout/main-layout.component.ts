@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, AfterViewInit, OnDestroy, HostListener, effect, signal, untracked, viewChild, ElementRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, OnInit, AfterViewInit, OnDestroy, HostListener, effect, signal, untracked, viewChild, ElementRef, Injector, afterNextRender } from '@angular/core';
 import { LayoutService } from '../core/services/layout.service';
 import { layoutShortcut, panelShortcut } from '../core/utils/layout.util';
 import { ActivatedRoute } from '@angular/router';
@@ -32,9 +32,11 @@ import { ImportLocaleDialogComponent } from '../shared/components/import-locale-
 import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dialog.component';
 import { ProjectIoService } from '../core/services/project-io.service';
 import { ProjectLibraryService } from '../core/services/project-library.service';
+import { REGION_FOCUS, RegionId, nextRegionIndex } from '../core/utils/regions.util';
 import { backupReminderDays } from '../core/utils/backup.util';
 import { DiagnosticsState } from '../core/state/diagnostics.state';
 import { ViewportState } from '../core/state/viewport.state';
+import { LocalesDialogComponent } from '../shared/components/locales-dialog/locales-dialog.component';
 import { ShareCreateDialogComponent } from '../shared/components/share-dialogs/share-create-dialog.component';
 import { ShareOpenDialogComponent } from '../shared/components/share-dialogs/share-open-dialog.component';
 import type { ShareOpenRequest } from '../core/state/ui.state';
@@ -47,6 +49,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
   standalone: true,
   imports: [
     ShareCreateDialogComponent,
+    LocalesDialogComponent,
     ShareOpenDialogComponent,
     AnnouncerComponent,
     ImportLocaleDialogComponent,
@@ -69,16 +72,21 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="app-layout">
+      <nav class="skip-links" aria-label="Enlaces de salto">
+        <a href="#region-editor" data-testid="skip-editor" (click)="skipTo($event, 'editor')">Saltar al editor</a>
+        <a href="#region-preview" data-testid="skip-preview" (click)="skipTo($event, 'preview')">Saltar a la vista previa</a>
+        <a href="#region-problemas" data-testid="skip-problemas" (click)="skipTo($event, 'problemas')">Saltar a Problemas</a>
+      </nav>
       <app-topbar />
       <app-update-bar />
       <div class="app-content">
         <div class="app-body" #body>
-          <app-sidebar data-tour="files" [style.flex]="'0 0 ' + layout.resolved().sidebar + 'px'" [style.width.px]="layout.resolved().sidebar" />
-          <app-editor-panel data-tour="editor" [style.flex]="'1 1 0'" />
+          <app-sidebar data-tour="files" data-region="archivos" [style.flex]="'0 0 ' + layout.resolved().sidebar + 'px'" [style.width.px]="layout.resolved().sidebar" />
+          <app-editor-panel data-tour="editor" data-region="editor" id="region-editor" [style.flex]="'1 1 0'" />
           @if (layout.dataVisible()) {
-            <app-smart-data-editor [style.flex]="'0 0 ' + layout.resolved().data + 'px'" [style.width.px]="layout.resolved().data" />
+            <app-smart-data-editor data-region="datos" [style.flex]="'0 0 ' + layout.resolved().data + 'px'" [style.width.px]="layout.resolved().data" />
           }
-          <app-preview-panel data-tour="preview" [style.flex]="'0 0 ' + layout.resolved().preview + 'px'" [style.width.px]="layout.resolved().preview" />
+          <app-preview-panel data-tour="preview" data-region="preview" id="region-preview" [style.flex]="'0 0 ' + layout.resolved().preview + 'px'" [style.width.px]="layout.resolved().preview" />
         </div>
         @if (terminalState.isVisible()) {
           @if (terminalState.bottomCompact() && !terminalState.overlayOpen()) {
@@ -89,7 +97,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
               <span class="strip-show">Mostrar <span aria-hidden="true" class="material-symbols-outlined">keyboard_arrow_up</span></span>
             </button>
           } @else {
-            <section class="app-terminal" aria-label="Problemas y Registro" [class.maximized]="terminalState.isMaximized()" [class.overlay]="terminalState.bottomCompact()" (keydown.escape)="onBottomEscape()">
+            <section class="app-terminal" data-region="problemas" id="region-problemas" aria-label="Problemas y Registro" [class.maximized]="terminalState.isMaximized()" [class.overlay]="terminalState.bottomCompact()" (keydown.escape)="onBottomEscape()">
               <app-terminal-panel />
             </section>
           }
@@ -111,6 +119,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-import-locale-dialog />
       <app-announcer />
       <app-share-create-dialog />
+      <app-locales-dialog />
       <app-share-open-dialog />
     </div>
   `,
@@ -129,6 +138,14 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       color: var(--text-primary);
       font-family: var(--font-family);
     }
+
+    /* Enlaces de salto: fuera de la vista hasta que reciben el foco con el teclado. */
+    .skip-links { position: absolute; top: 0; left: 0; z-index: 3000; display: flex; gap: 8px; }
+    .skip-links a {
+      position: absolute; left: -9999px; top: 8px; padding: 8px 14px; border-radius: var(--radius);
+      background: var(--accent-color); color: var(--text-on-primary); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap;
+    }
+    .skip-links a:focus { position: static; margin: 8px 0 0 8px; outline: 2px solid var(--text-primary); outline-offset: 2px; }
 
     .app-content {
       position: relative;
@@ -231,6 +248,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   private library = inject(ProjectLibraryService);
   protected layout = inject(LayoutService);
   private analytics = inject(AnalyticsService);
+  private injector = inject(Injector);
   /** Primer uso: la bienvenida espera a que se decida el aviso de privacidad para no solaparse con él. */
   private welcomePending = signal(false);
   private readonly body = viewChild<ElementRef<HTMLElement>>('body');
@@ -261,10 +279,10 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!compact) this.terminalState.overlayOpen.set(false);
       });
     });
-    const theme = this.preferences.theme();
+    const theme = this.preferences.resolvedTheme();
     document.documentElement.classList.toggle('light-mode', theme === 'light');
     effect(() => {
-      const t = this.preferences.theme();
+      const t = this.preferences.resolvedTheme();
       document.documentElement.classList.toggle('light-mode', t === 'light');
     });
 
@@ -449,8 +467,50 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     this.openPendingShare();
   }
 
+  /** Regiones con marco que se ven ahora, en el orden de la pantalla. */
+  private visibleRegions(): HTMLElement[] {
+    return Array.from(document.querySelectorAll<HTMLElement>('app-main-layout [data-region]'))
+      .filter((el) => el.getClientRects().length > 0);
+  }
+
+  private focusRegion(el: HTMLElement): void {
+    const id = el.getAttribute('data-region') as RegionId;
+    for (const sel of REGION_FOCUS[id] ?? ['button']) {
+      const target = Array.from(el.querySelectorAll<HTMLElement>(sel)).find((t) => t.getClientRects().length > 0 || t.tagName === 'TEXTAREA');
+      if (target) { target.focus({ preventScroll: true }); break; }
+    }
+    if (!el.contains(document.activeElement)) { el.setAttribute('tabindex', '-1'); el.focus({ preventScroll: true }); }
+    el.classList.add('region-flash');
+    setTimeout(() => el.classList.remove('region-flash'), 1200);
+  }
+
+  /** Enlaces de salto: llevan el foco a una región (el problema panel se abre si estaba recogido). */
+  protected skipTo(event: Event, id: RegionId): void {
+    event.preventDefault();
+    if (id === 'problemas') {
+      if (!this.terminalState.isVisible()) this.terminalState.isVisible.set(true);
+      if (this.terminalState.bottomCompact()) this.terminalState.overlayOpen.set(true);
+      this.terminalState.activeTab.set('problems');
+    }
+    afterNextRender(() => {
+      const el = document.querySelector<HTMLElement>(`app-main-layout [data-region="${id}"]`);
+      if (el) this.focusRegion(el);
+    }, { injector: this.injector });
+  }
+
   @HostListener('window:keydown', ['$event'])
   onKeydown(event: KeyboardEvent): void {
+    // F6 / Mayús+F6: de una región con marco a la siguiente (lateral, editor, datos, vista previa, Problemas).
+    if (event.key === 'F6' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      const regions = this.visibleRegions();
+      const current = regions.findIndex((r) => r.contains(document.activeElement));
+      const next = nextRegionIndex(regions.length, current, event.shiftKey);
+      if (next >= 0) {
+        event.preventDefault();
+        this.focusRegion(regions[next]);
+      }
+      return;
+    }
     // Disposición y paneles (P-08): Ctrl+Alt+1…4, Ctrl+B y Ctrl+J. Con AltGr no se secuestra la tecla (ver `layoutShortcut`).
     const keys = {
       ctrlKey: event.ctrlKey, metaKey: event.metaKey, altKey: event.altKey, shiftKey: event.shiftKey,

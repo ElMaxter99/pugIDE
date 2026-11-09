@@ -154,8 +154,11 @@ export interface InspectorNode {
 import type { DeviceMemory, LayoutId, PanelSizes } from '../utils/layout.util';
 import type { JsonViewPrefs } from '../utils/json-view.util';
 
+export type ThemeChoice = 'auto' | 'dark' | 'light';
+
 export interface AppPreferences {
-  theme: 'dark' | 'light';
+  /** `auto` sigue el tema del sistema (prefers-color-scheme). */
+  theme: ThemeChoice;
   fontSize: number;
   tabSize: number;
   minimap: boolean;

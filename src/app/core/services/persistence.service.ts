@@ -36,7 +36,7 @@ export class PersistenceService {
   readonly lastWriteFailed = signal(false);
 
   private defaults: AppPreferences = {
-    theme: 'dark',
+    theme: 'auto',
     fontSize: 14,
     tabSize: 2,
     minimap: true,
@@ -63,6 +63,7 @@ export class PersistenceService {
         // Preferencias antiguas o escritas a mano: lo que no sea válido vuelve a su valor de partida.
         if (!isLayoutId(saved.layout)) saved.layout = DEFAULT_LAYOUT;
         saved.panelSizes = sanitizePanelSizes(saved.panelSizes);
+        if (saved.theme !== 'dark' && saved.theme !== 'light') saved.theme = 'auto';
         if (saved.sidebarTab !== 'datos') saved.sidebarTab = 'archivos';
         saved.deviceBeforePdf = sanitizeDeviceMemory(saved.deviceBeforePdf);
         saved.jsonView = sanitizeJsonView(saved.jsonView);

@@ -16,6 +16,9 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { label: 'Paleta de comandos', keys: 'Ctrl+K' },
       { label: 'Guardar (crea una versión en el historial) y compilar', keys: 'Ctrl+S' },
       { label: 'Compilar ahora', keys: 'Ctrl+Enter' },
+      { label: 'Ir a la región siguiente (lateral, editor, datos, vista previa, Problemas)', keys: 'F6' },
+      { label: 'Ir a la región anterior', keys: 'Mayús+F6' },
+      { label: 'Enlaces de salto «Saltar al editor / a la vista previa / a Problemas»', keys: 'Tab al cargar la página' },
     ],
   },
   {

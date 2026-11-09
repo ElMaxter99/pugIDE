@@ -24,6 +24,10 @@ export interface DatasetsFile {
   datasets: Dataset[];
   /** Idioma elegido en el preview (`/locales/<código>/translations.json`), si lo hay. */
   translationLocale?: string;
+  /** Idioma con el que se abre el proyecto si no se ha elegido otro (P-22). */
+  defaultLocale?: string;
+  /** Idioma que rellena las claves que faltan o están vacías en el activo (P-22). */
+  fallbackLocale?: string;
 }
 
 /** Ruta del archivo de datasets dentro de un zip / carpeta exportada. No forma parte de los archivos del proyecto. */
@@ -67,5 +71,11 @@ export function parseDatasetsFile(input: string | unknown): DatasetsFile | null 
   if (datasets.length === 0) return null;
   const activeId = datasets.some((d) => d.id === raw['activeId']) ? (raw['activeId'] as string) : datasets[0].id;
   const translationLocale = typeof raw['translationLocale'] === 'string' && raw['translationLocale'] ? (raw['translationLocale'] as string) : undefined;
-  return { version: 1, activeId, locale: raw['locale'] === 'en' ? 'en' : 'es', datasets, ...(translationLocale ? { translationLocale } : {}) };
+  const code = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+  const defaultLocale = code(raw['defaultLocale']);
+  const fallbackLocale = code(raw['fallbackLocale']);
+  return {
+    version: 1, activeId, locale: raw['locale'] === 'en' ? 'en' : 'es', datasets,
+    ...(translationLocale ? { translationLocale } : {}), ...(defaultLocale ? { defaultLocale } : {}), ...(fallbackLocale ? { fallbackLocale } : {}),
+  };
 }

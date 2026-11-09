@@ -32,6 +32,8 @@ export class UiState {
   readonly localeImport = signal<LocaleImportRequest | null>(null);
   /** Diálogo «Compartir proyecto» (P-15): caducidad, contraseña y datos del enlace. */
   readonly shareCreateOpen = signal(false);
+  /** «Idiomas del proyecto» (P-22): idioma por defecto y de reserva. */
+  readonly localesOpen = signal(false);
   /** Enlace compartido que se está abriendo (P-16). */
   readonly shareOpen = signal<ShareOpenRequest | null>(null);
   /** Diálogo con el historial de versiones del archivo activo. */

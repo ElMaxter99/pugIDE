@@ -133,7 +133,7 @@ export default async function (env) {
   await page.locator('app-file-tree .file-item', { hasText: 'translations.json' }).first().click();
   await page.locator('[data-testid="json-view-tree"]').click();
   await viewer.waitFor();
-  await page.locator('button[title="Cambiar tema claro u oscuro"]').click();
+  await page.locator('button[title="Cambiar tema claro u oscuro"]').click(); await page.locator('[role="menuitemradio"]', { hasText: 'Claro' }).click();
   await page.waitForTimeout(400);
   await audit(page, 'visor en árbol (claro)');
   check('47 sin errores ni peticiones externas', app.errors.length === 0 && app.external.length === 0, app.errors.concat(app.external).join(' | '));

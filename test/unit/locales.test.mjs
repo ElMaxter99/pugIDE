@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  listLocales, localePath, isValidLocaleCode, resolveLocale, parseTranslations, blankTranslations, addMissingKeys, serializeTranslations,
+  listLocales, localePath, isValidLocaleCode, resolveLocale, applyFallback, parseTranslations, blankTranslations, addMissingKeys, serializeTranslations,
 } from './.build/units.mjs';
 
 test('listLocales encuentra solo /locales/<código>/translations.json, ordenados', () => {
@@ -95,4 +95,27 @@ test('looksLikeTranslations solo acepta JSON de textos con nombre de idioma', ()
   assert.ok(!looksLikeTranslations('package.json', '{ "name": "x" }'));
   assert.ok(!looksLikeTranslations('locales/es/translations.json', txt));
   assert.ok(!looksLikeTranslations('en.json', ''));
+});
+
+test('resolveLocale: el elegido, si no el de por defecto del proyecto, si no el primero', () => {
+  assert.equal(resolveLocale(null, ['en', 'es'], 'es'), 'es');
+  assert.equal(resolveLocale('en', ['en', 'es'], 'es'), 'en');
+  assert.equal(resolveLocale(null, ['en', 'es'], 'fr'), 'en');
+  assert.equal(resolveLocale('fr', ['en', 'es'], 'es'), 'es');
+});
+
+test('applyFallback rellena lo que falta o está vacío con el idioma de reserva, sin tocar los originales', () => {
+  const active = { HOME: { TITLE: 'Inicio', SUB: '' }, A: '  ' };
+  const fallback = { HOME: { TITLE: 'Home', SUB: 'Subtitle' }, A: 'a', B: { C: 'c' }, NONE: '' };
+  const r = applyFallback(active, fallback);
+  assert.deepEqual(r.value, { HOME: { TITLE: 'Inicio', SUB: 'Subtitle' }, A: 'a', B: { C: 'c' } });
+  assert.deepEqual(r.filled, ['A', 'B.C', 'HOME.SUB']);
+  assert.deepEqual(r.missing, ['NONE']);
+  assert.deepEqual(active, { HOME: { TITLE: 'Inicio', SUB: '' }, A: '  ' });
+});
+
+test('applyFallback entiende claves planas con punto', () => {
+  const r = applyFallback({ 'HOME.TITLE': '' }, { HOME: { TITLE: 'Home' } });
+  assert.deepEqual(r.value, { 'HOME.TITLE': 'Home' });
+  assert.deepEqual(r.filled, ['HOME.TITLE']);
 });

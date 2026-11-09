@@ -16,6 +16,7 @@ export default async function (env) {
 
   // Menú de la carpeta
   await row(page, '/partials').click({ button: 'right' });
+  await page.locator('app-sidebar [role="menuitem"] .context-label').first().waitFor({ timeout: 4000 });
   const labels = await page.locator('app-sidebar [role="menuitem"] .context-label').allInnerTexts();
   check('51 el menú de una carpeta ofrece «Nuevo archivo», «Renombrar» y «Borrar carpeta»', ['Nuevo archivo', 'Renombrar', 'Borrar carpeta'].every((l) => labels.includes(l)), JSON.stringify(labels));
   await page.keyboard.press('Escape');

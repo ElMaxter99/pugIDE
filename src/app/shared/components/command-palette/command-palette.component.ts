@@ -165,6 +165,7 @@ export class CommandPaletteComponent {
       { group: 'Proyecto', title: 'Descargar proyecto como .zip', run: () => this.projectIo.downloadZip() },
       { group: 'Proyecto', title: 'Exportar captura PNG del preview', keywords: 'imagen screenshot foto', run: () => void this.projectIo.exportPng() },
       { group: 'Proyecto', title: 'Exportar HTML renderizado', run: () => this.projectIo.exportHtml() },
+      { group: 'Idiomas', title: 'Idiomas del proyecto: por defecto y de reserva…', keywords: 'traducciones locales fallback reserva defecto idioma', run: () => this.ui.localesOpen.set(true) },
       { group: 'Idiomas', title: 'Añadir idioma…', keywords: 'traducciones locales translations es-ES idioma', run: () => this.ui.addLocaleOpen.set(true) },
       ...this.orchestrator.locales().map((code) => ({
         group: 'Idiomas', title: `Preview en ${code}${code === this.orchestrator.activeLocale() ? ' (activo)' : ''}`, keywords: 'idioma locale traducciones',
@@ -174,6 +175,7 @@ export class CommandPaletteComponent {
       { group: 'Ajustes', title: 'Ver la bienvenida', keywords: 'plantillas primeros pasos empezar', run: () => this.ui.welcomeOpen.set(true) },
       { group: 'Ajustes', title: 'Atajos de teclado', keywords: 'ayuda keyboard shortcuts teclas', run: () => this.ui.shortcutsOpen.set(true) },
       { group: 'Ajustes', title: 'Alternar tema claro/oscuro', keywords: 'dark light', run: () => this.preferences.toggleTheme() },
+      { group: 'Ajustes', title: 'Tema: Automático (el del sistema)', keywords: 'dark light sistema auto', run: () => this.preferences.update({ theme: 'auto' }) },
       {
         group: 'Ajustes', keywords: 'formatear formato atributos orden', run: () => this.preferences.update({ sortAttributes: !this.preferences.sortAttributes() }),
         title: `Formato de Pug: ordenar atributos (${this.preferences.sortAttributes() ? 'activado' : 'desactivado'})`,

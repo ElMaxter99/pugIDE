@@ -26,6 +26,17 @@ Todo cambio en lo que ve el usuario (pantallas, flujos, textos de pantalla) se d
 - Al terminar el diseño, pasa el enlace y una lista corta de decisiones por tomar con tu recomendación. **No programes la interfaz hasta que esté aprobada.** Lo que no se ve (motor, pruebas, rendimiento, docs) avanza sin esperar.
 - Tras la aprobación, copia `canvas.json` y los `*.dc.html` a `design/canvas/` en la misma PR que registra el cambio, actualiza la tabla de mesas de `design/README.md` y el CHANGELOG. La PR de código enlaza la mesa que implementa. Si al programar hay que apartarse del diseño, primero se corrige el lienzo.
 
+## Cómo se informa a la persona responsable (regla fija)
+
+El objetivo es que el agente trabaje de forma autónoma y que la persona responsable nunca pierda el hilo. Cada mensaje de estado (y el final de cada tarea) lleva estas cuatro partes, en este orden:
+
+1. **Estado**: qué está hecho, qué está en marcha y qué falta (con enlaces a PR y versiones).
+2. **Lo he hecho yo**: lo que el agente ya ha resuelto, sin pedir nada.
+3. **Necesito tu aprobación**: lista numerada de decisiones o permisos (diseños, merge de PR, forzar ramas, cambios de alcance) con mi recomendación en cada una. Si no hay, se dice «nada pendiente de aprobar».
+4. **Te toca a ti**: lo que solo puede hacer la persona (mergear, ejecutar `npm run release:deploy`, desplegar en Vercel…), con el comando exacto o los pasos. Si no hay, se dice «nada».
+
+El estado vivo está en [docs/ESTADO.md](docs/ESTADO.md): se actualiza en cada PR y es lo primero que se lee al retomar el trabajo.
+
 ## Publicar una versión (regla fija)
 
 Siempre que se prepare una versión (`chore(release): X.Y.Z`), quien la prepara:

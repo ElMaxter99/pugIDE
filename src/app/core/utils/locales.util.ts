@@ -31,10 +31,55 @@ export function listLocales(files: Iterable<string>): string[] {
   return out.sort((a, b) => a.localeCompare(b));
 }
 
-/** El idioma elegido si existe; si no, el primero. null si no hay idiomas. */
-export function resolveLocale(stored: string | null | undefined, locales: string[]): string | null {
+/** El idioma elegido si existe; si no, el idioma por defecto del proyecto si existe; si no, el primero. null si no hay idiomas. */
+export function resolveLocale(stored: string | null | undefined, locales: string[], preferred?: string | null): string | null {
   if (!locales.length) return null;
-  return stored && locales.includes(stored) ? stored : locales[0];
+  if (stored && locales.includes(stored)) return stored;
+  if (preferred && locales.includes(preferred)) return preferred;
+  return locales[0];
+}
+
+/** Un texto vale si es una cadena con algo escrito (los vacíos cuentan como «sin traducir»). */
+const hasText = (v: unknown): boolean => typeof v === 'string' && v.trim() !== '';
+
+function getLeaf(root: Obj, path: string): unknown {
+  if (path in root) return root[path];
+  let cur: unknown = root;
+  for (const p of path.split('.')) {
+    if (isObj(cur) && p in cur) cur = cur[p];
+    else return undefined;
+  }
+  return cur;
+}
+
+/**
+ * Idioma de reserva (P-22): devuelve las traducciones del idioma activo con, en lugar de cada clave que falta o está vacía,
+ * el texto del idioma de reserva (si lo tiene). `filled` lista las claves rellenadas (con punto) y `missing` las que no
+ * tienen texto en ninguno de los dos. No toca los objetos que recibe.
+ */
+export function applyFallback(active: Obj, fallback: Obj): { value: Obj; filled: string[]; missing: string[] } {
+  const value = structuredClone(active);
+  const filled: string[] = [];
+  const missing: string[] = [];
+  const keys = new Set<string>([...leaves(active).keys(), ...leaves(fallback).keys()]);
+  for (const key of [...keys].sort()) {
+    if (hasText(getLeaf(active, key))) continue;
+    const alt = getLeaf(fallback, key);
+    if (!hasText(alt)) { missing.push(key); continue; }
+    const parts = key.split('.');
+    // Una clave plana existente se rellena donde está; si no, se anida.
+    if (key in value) value[key] = alt;
+    else {
+      let node = value;
+      for (const p of parts.slice(0, -1)) {
+        if (!isObj(node[p])) node[p] = {};
+        node = node[p] as Obj;
+      }
+      node[parts[parts.length - 1]] = alt;
+    }
+    filled.push(key);
+  }
+  return { value, filled, missing };
 }
 
 export interface ParsedTranslations {
