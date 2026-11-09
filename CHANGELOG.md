@@ -9,6 +9,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Escenario `47-visor-json` y pruebas unitarias de `json-view.util`.
 
 ### Corregido
+- **El menú «⋯» de «Datos» (juego de datos, datos de ejemplo, entrada y salida) salía cortado por la izquierda y por abajo** al abrirlo desde el panel lateral, que es estrecho y está pegado al borde de la ventana. Todos los menús desplegables se colocan ahora dentro de la ventana (se ajustan al borde, se abren hacia donde hay sitio y, si no caben enteros, hacen scroll) y ya no los recorta el panel que los contiene. Escenario `48-menus-en-ventana`.
 - **F2 y Supr sobre una carpeta del árbol** (añadidos en la 0.8.0) abrían un diálogo de renombrar o borrar que no hacía nada. Ahora se ignoran en las carpetas hasta que exista renombrar y borrar carpetas (anotado en `docs/PLAN.md`, 17.3).
 
 ### Añadido
