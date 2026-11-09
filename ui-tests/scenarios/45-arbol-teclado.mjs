@@ -3,7 +3,7 @@ import { check, openApp, waitUntil } from '../lib.mjs';
 // 0.8, oleada 1 (WCAG 2.1.1): renombrar, duplicar y borrar archivos solo con teclado.
 const session = {
   projectName: 'Teclado',
-  files: { '/main.pug': 'p hola\n', '/otra.pug': 'p otra\n' },
+  files: { '/main.pug': 'p hola\n', '/otra.pug': 'p otra\n', '/partials/card.pug': 'p card\n' },
   openTabPaths: ['/main.pug'],
   activeTabPath: '/main.pug',
 };
@@ -58,7 +58,15 @@ export default async function (env) {
   await dialog.waitFor({ timeout: 4000 });
   check('45 Supr pide confirmar el borrado del archivo con el foco', /otra/.test(await dialog.innerText()), await dialog.innerText());
   await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'detached', timeout: 4000 });
   check('45 y no lo borra hasta confirmar', (await page.locator('.file-row[data-path="/otra.pug"]').count()) === 1);
+  // En una carpeta, F2 y Supr no abren un diálogo que no haría nada
+  await page.locator('.file-row[data-path="/partials"]').focus();
+  await page.keyboard.press('Delete');
+  await page.keyboard.press('F2');
+  await page.waitForTimeout(300);
+  const dlgTxt = await page.locator('app-dialog [role="dialog"]').allInnerTexts();
+  check('45 F2 y Supr sobre una carpeta no abren diálogos', dlgTxt.length === 0, dlgTxt.join(' / '));
   check('45 sin errores ni peticiones externas', app.errors.length === 0 && app.external.length === 0, app.errors.concat(app.external).join(' | '));
   await app.close();
 }

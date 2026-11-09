@@ -9,6 +9,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Abrir un enlace compartido como proyecto nuevo** (diseño P-16, aprobado). El diálogo ofrece, marcada por defecto, «Abrir como proyecto nuevo»: el proyecto actual se guarda antes en «Mis proyectos» y el del enlace se abre con un nombre que no repite ninguno. «Reemplazar mi sesión» sigue disponible pero sin marcar. Un enlace con contraseña la pide (tras 5 fallos seguidos pide esperar 30 s), uno caducado dice cuándo caducó, y sin sesión guardada se abre directo como antes.
 - Escenario `46-compartir` (interfaz), e2e `30` y pruebas unitarias del cifrado, la caducidad y la manipulación del texto cifrado.
 
+### Corregido
+- **F2 y Supr sobre una carpeta del árbol** (añadidos en la 0.8.0) abrían un diálogo de renombrar o borrar que no hacía nada. Ahora se ignoran en las carpetas hasta que exista renombrar y borrar carpetas (anotado en `docs/PLAN.md`, 17.3).
+
 ### Cambiado
 - El aviso flotante de «Copiar enlace» pasa al diálogo «Enlace copiado» (con el resumen, el enlace, los avisos de lo que no cabe y el `.zip` si es muy largo).
 
