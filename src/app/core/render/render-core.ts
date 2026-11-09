@@ -1,5 +1,6 @@
 import type { CompileError } from '../models/index';
 import { explainUnknownFilter, splitPugMessage } from '../utils/diagnostics.util';
+import { findCodeErrorLine } from '../utils/code-error-line.util';
 import { explainError } from '../utils/error-explain.util';
 import { loadHelpers } from '../utils/helpers.util';
 import { createTranslator, TRANSLATE_FNS } from '../utils/i18n.util';
@@ -93,7 +94,9 @@ export function renderPug(bundle: PugBundle, req: RenderRequest): RenderResponse
     // (las del JavaScript compilado de la plantilla, no las del `.pug`).
     const fromPug = split.path !== undefined && split.line !== undefined;
     const path = fromPug ? known(split.path) : known(error.filename);
-    const line = fromPug ? split.line : error.line;
+    let line = fromPug ? split.line : error.line;
+    // «Error parsing body of the with expression» no trae línea: se busca la línea de JavaScript que no compila.
+    if (line === undefined && /Error parsing body of the with expression/.test(split.message)) line = findCodeErrorLine(req.code);
     const explained = explainError(split.message, { files, path: path ?? req.entryPath, line });
     errors.push({
       message: explainUnknownFilter(split.message),

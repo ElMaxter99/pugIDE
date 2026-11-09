@@ -176,6 +176,25 @@ export function explainError(message: string, ctx: ErrorContext = {}): Explanati
     const open = { ')': '(', ']': '[', '}': '{' }[bracket[1]];
     return { hint: `Falta cerrar un «${open}» con su «${bracket[1]}» (normalmente los atributos de una etiqueta). Revisa también las comillas de los valores.` };
   }
+  if (/you can use tabs or spaces but not both/i.test(message)) {
+    return { hint: 'Este archivo mezcla tabuladores y espacios para indentar. Usa solo uno de los dos (lo habitual son 2 espacios) y reindenta las líneas que fallen.' };
+  }
+  const stray = /unexpected token "(else(?: if)?)"/i.exec(message);
+  if (stray) {
+    return { hint: `Hay un «${stray[1]}» sin su \`if\` justo antes. En Pug, \`else\` va en la línea siguiente al bloque del \`if\`, con la misma indentación que él (sin líneas ni comentarios entre medias).` };
+  }
+  if (/should be the first thing in the file/i.test(message)) {
+    return { hint: '`extends` debe ser lo primero del archivo (solo puede haber uno): ni etiquetas, ni código, ni `doctype` antes. Mueve esa línea al principio y deja el contenido dentro de `block`.' };
+  }
+  if (/Maximum call stack size exceeded/i.test(message)) {
+    return { hint: 'Algo se llama a sí mismo sin parar: un mixin que se invoca desde su propio cuerpo sin condición de salida, o dos archivos que se `include` el uno al otro. Añade un `if` que corte la recursión o rompe el ciclo de includes.' };
+  }
+  if (/Error parsing body of the with expression/i.test(message)) {
+    return { hint: 'Hay JavaScript con errores de sintaxis en una línea de código de la plantilla (`- var x = ...`, `= expresión`, `if …`). Revisa que no falten valores, paréntesis, llaves ni comillas.' };
+  }
+  if (/Syntax Error: Unexpected token/i.test(message)) {
+    return { hint: 'Hay un carácter que Pug no esperaba en esa línea: casi siempre un atributo mal escrito (`a(href=)` sin valor, comillas sin cerrar) o una coma o llave de más en una expresión.' };
+  }
   if (/unexpected text/i.test(message)) {
     return { hint: 'Hay texto suelto donde Pug espera una etiqueta. Para escribir texto usa `| texto` en su propia línea, o `etiqueta texto`.' };
   }

@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: 67c048e211d90b4d
+// pugide-runtime source-hash: 283d99594b2f222b
 "use strict";
 (() => {
   // src/app/core/utils/diagnostics.util.ts
@@ -24,6 +24,39 @@
     return `${message}
 
 El filtro ${m[1]} no est\xE1 disponible en PugIDE (corre en el navegador, sin paquetes de Node). Disponibles: ${AVAILABLE_FILTERS.join(", ")}.`;
+  }
+
+  // src/app/core/utils/code-error-line.util.ts
+  var balanced = (code) => {
+    let depth = 0;
+    for (const ch of code) {
+      if ("([{".includes(ch)) depth++;
+      else if (")]}".includes(ch)) depth--;
+    }
+    return depth === 0;
+  };
+  function compiles(body) {
+    try {
+      new Function(body);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function findCodeErrorLine(source) {
+    const lines = source.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const code = /^[ \t]*-[ \t]+(\S.*)$/.exec(line)?.[1];
+      if (code !== void 0) {
+        if (balanced(code) && !compiles(code)) return i + 1;
+        continue;
+      }
+      const expr = /^[ \t]*[\w.#-]*(?:\([^)]*\))?[ \t]*!?=[ \t]*(\S.*)$/.exec(line)?.[1];
+      if (expr !== void 0 && balanced(expr) && !compiles(`return (${expr})`)) return i + 1;
+      if (/^[ \t]*[\w.#-]*!?=[ \t]*$/.test(line)) return i + 1;
+    }
+    return void 0;
   }
 
   // src/app/core/utils/error-explain.util.ts
@@ -158,6 +191,25 @@ El filtro ${m[1]} no est\xE1 disponible en PugIDE (corre en el navegador, sin pa
     if (bracket) {
       const open = { ")": "(", "]": "[", "}": "{" }[bracket[1]];
       return { hint: `Falta cerrar un \xAB${open}\xBB con su \xAB${bracket[1]}\xBB (normalmente los atributos de una etiqueta). Revisa tambi\xE9n las comillas de los valores.` };
+    }
+    if (/you can use tabs or spaces but not both/i.test(message)) {
+      return { hint: "Este archivo mezcla tabuladores y espacios para indentar. Usa solo uno de los dos (lo habitual son 2 espacios) y reindenta las l\xEDneas que fallen." };
+    }
+    const stray = /unexpected token "(else(?: if)?)"/i.exec(message);
+    if (stray) {
+      return { hint: `Hay un \xAB${stray[1]}\xBB sin su \`if\` justo antes. En Pug, \`else\` va en la l\xEDnea siguiente al bloque del \`if\`, con la misma indentaci\xF3n que \xE9l (sin l\xEDneas ni comentarios entre medias).` };
+    }
+    if (/should be the first thing in the file/i.test(message)) {
+      return { hint: "`extends` debe ser lo primero del archivo (solo puede haber uno): ni etiquetas, ni c\xF3digo, ni `doctype` antes. Mueve esa l\xEDnea al principio y deja el contenido dentro de `block`." };
+    }
+    if (/Maximum call stack size exceeded/i.test(message)) {
+      return { hint: "Algo se llama a s\xED mismo sin parar: un mixin que se invoca desde su propio cuerpo sin condici\xF3n de salida, o dos archivos que se `include` el uno al otro. A\xF1ade un `if` que corte la recursi\xF3n o rompe el ciclo de includes." };
+    }
+    if (/Error parsing body of the with expression/i.test(message)) {
+      return { hint: "Hay JavaScript con errores de sintaxis en una l\xEDnea de c\xF3digo de la plantilla (`- var x = ...`, `= expresi\xF3n`, `if \u2026`). Revisa que no falten valores, par\xE9ntesis, llaves ni comillas." };
+    }
+    if (/Syntax Error: Unexpected token/i.test(message)) {
+      return { hint: "Hay un car\xE1cter que Pug no esperaba en esa l\xEDnea: casi siempre un atributo mal escrito (`a(href=)` sin valor, comillas sin cerrar) o una coma o llave de m\xE1s en una expresi\xF3n." };
     }
     if (/unexpected text/i.test(message)) {
       return { hint: "Hay texto suelto donde Pug espera una etiqueta. Para escribir texto usa `| texto` en su propia l\xEDnea, o `etiqueta texto`." };
@@ -469,7 +521,8 @@ ${body}
       const known = (p) => p && files?.has(p) ? p : void 0;
       const fromPug = split.path !== void 0 && split.line !== void 0;
       const path = fromPug ? known(split.path) : known(error.filename);
-      const line = fromPug ? split.line : error.line;
+      let line = fromPug ? split.line : error.line;
+      if (line === void 0 && /Error parsing body of the with expression/.test(split.message)) line = findCodeErrorLine(req.code);
       const explained = explainError(split.message, { files, path: path ?? req.entryPath, line });
       errors.push({
         message: explainUnknownFilter(split.message),
