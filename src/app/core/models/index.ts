@@ -150,6 +150,7 @@ export interface InspectorNode {
 }
 
 import type { DeviceMemory, LayoutId, PanelSizes } from '../utils/layout.util';
+import type { JsonViewPrefs } from '../utils/json-view.util';
 
 export interface AppPreferences {
   theme: 'dark' | 'light';
@@ -175,6 +176,8 @@ export interface AppPreferences {
   sidebarTab: 'archivos' | 'datos';
   /** Dispositivo del preview al que volver al salir de «Foco en la vista previa · PDF» (`null`: nada que restaurar). Se borra al elegir un dispositivo a mano. */
   deviceBeforePdf: DeviceMemory | null;
+  /** Vista de los archivos `.json`: árbol o código, por tipo de archivo (P-17). */
+  jsonView: JsonViewPrefs;
 }
 
 export interface ContextMenuAction {

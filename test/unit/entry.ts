@@ -34,3 +34,4 @@ export * from '../../src/app/core/utils/session-validate.util';
 export * from '../../src/app/core/utils/code-error-line.util';
 export * from '../../src/app/core/utils/share.util';
 export * from '../../src/app/core/utils/share-options.util';
+export * from '../../src/app/core/utils/json-view.util';
