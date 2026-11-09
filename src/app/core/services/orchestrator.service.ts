@@ -412,6 +412,17 @@ export class OrchestratorService {
     return true;
   }
 
+  /**
+   * Abre un proyecto de un enlace compartido (P-16). `new` (lo normal) lo añade como proyecto nuevo, con nombre único, y
+   * guarda antes el actual en «Mis proyectos»; `replace` ocupa el sitio del proyecto actual.
+   */
+  async openShared(shared: { files: Map<string, string>; projectName: string; assets: AssetFile[]; data: Record<string, unknown> }, mode: 'new' | 'replace' = 'new'): Promise<string> {
+    const existing = (await this.library.list()).map((p) => p.name);
+    const name = mode === 'new' ? uniqueProjectName(shared.projectName, existing) : shared.projectName;
+    this.loadProject(shared.files, name, shared.assets, null, shared.data, mode === 'replace' ? { id: this.projectState.projectId() ?? undefined } : {});
+    return name;
+  }
+
   /** Crea un proyecto nuevo, vacío o desde una plantilla de inicio (guardando antes el actual). */
   async createProject(name?: string, templateId?: string): Promise<void> {
     await this.saveToLibrary();

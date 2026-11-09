@@ -4,6 +4,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Añadido
+- **Compartir con opciones** (diseño P-15, aprobado). «Copiar enlace para compartir» abre «Compartir proyecto»: **caducidad** (1 hora, 1 día, 7 días —por defecto—, 30 días o nunca), **contraseña** opcional (mínimo 8 caracteres) que cifra el contenido con AES-GCM de 256 bits y una clave derivada con PBKDF2-SHA-256 (600 000 vueltas), si se incluyen los **datos** y las **imágenes y fuentes**, y una **nota** para quien lo abra. El enlace se genera en el navegador y se copia al portapapeles; con contraseña usa `#e=` y los enlaces antiguos (`#p=`, versiones 1 y 2) siguen abriéndose igual. La caducidad la respeta PugIDE pero no impide que quien ya tenga el enlace lo copie (sin servidor no se puede revocar); el diálogo lo dice.
+- **Abrir un enlace compartido como proyecto nuevo** (diseño P-16, aprobado). El diálogo ofrece, marcada por defecto, «Abrir como proyecto nuevo»: el proyecto actual se guarda antes en «Mis proyectos» y el del enlace se abre con un nombre que no repite ninguno. «Reemplazar mi sesión» sigue disponible pero sin marcar. Un enlace con contraseña la pide (tras 5 fallos seguidos pide esperar 30 s), uno caducado dice cuándo caducó, y sin sesión guardada se abre directo como antes.
+- Escenario `46-compartir` (interfaz), e2e `30` y pruebas unitarias del cifrado, la caducidad y la manipulación del texto cifrado.
+
+### Cambiado
+- El aviso flotante de «Copiar enlace» pasa al diálogo «Enlace copiado» (con el resumen, el enlace, los avisos de lo que no cabe y el `.zip` si es muy largo).
+
 ## [0.8.0] - 2026-11-09
 
 Primera entrega de la 0.8: la oleada 1 (accesibilidad y robustez, sin cambios de diseño), la importación de un `translations.json` como idioma y las correcciones de `.less` y `locals.x.y`. No cambia el formato de los proyectos.

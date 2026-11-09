@@ -2,7 +2,6 @@ import {
   Component,
   ChangeDetectionStrategy,
   inject,
-  signal,
   computed,
 } from '@angular/core';
 import { Router } from '@angular/router';
@@ -41,16 +40,6 @@ import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.
           <button type="button" class="save-btn" (click)="onSave()">Guardar</button>
         </div>
       </div>
-      @if (shareNotice(); as n) {
-        <div class="share-notice" [class.warn]="n.warn" role="status">
-          <span>{{ n.text }}
-            @if (n.offerZip) {
-              <button class="notice-link" (click)="projectIo.downloadZip()">Descargar .zip completo</button>
-            }
-          </span>
-          <button class="notice-close" title="Cerrar aviso" (click)="shareNotice.set(null)">&times;</button>
-        </div>
-      }
     </header>
     <app-projects-dialog [isOpen]="ui.projectsOpen()" (closed)="ui.projectsOpen.set(false)" />
   `,
@@ -152,42 +141,6 @@ import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.
 
 
 
-    .share-notice {
-      position: absolute;
-      top: 100%;
-      right: 24px;
-      max-width: 420px;
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      padding: 10px 14px;
-      font-size: 13px;
-      color: var(--text-primary);
-      background: var(--bg-surface-container-highest, var(--bg-surface));
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-      z-index: 60;
-    }
-
-    .share-notice.warn {
-      border-color: #e0a030;
-    }
-
-    .notice-link {
-      display: block;
-      margin-top: 6px;
-      color: var(--accent-color);
-      font-size: 13px;
-      text-decoration: underline;
-    }
-
-    .notice-close {
-      color: var(--text-secondary);
-      font-size: 18px;
-      line-height: 1;
-    }
-
     .save-btn {
       padding: 0 16px;
       height: 36px;
@@ -218,7 +171,6 @@ export class TopbarComponent {
   private terminal = inject(TerminalState);
   protected projectState = inject(ProjectState);
   protected ui = inject(UiState);
-  protected shareNotice = signal<{ text: string; warn: boolean; offerZip: boolean } | null>(null);
 
   goHome(event?: Event): void {
     event?.preventDefault();
@@ -233,23 +185,9 @@ export class TopbarComponent {
     this.preferences.toggleTheme();
   }
 
-  async onShare(): Promise<void> {
-    const { url, length, tooLong, included, omitted } = this.projectIo.buildShareLink(location.origin + '/ide');
-    let copied = true;
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      copied = false;
-    }
-    let text = copied ? 'Enlace copiado al portapapeles.' : 'No se pudo copiar automáticamente: copia el enlace de la barra de direcciones.';
-    if (!copied) history.replaceState(null, '', url);
-    if (included.length) text += ` Incluye ${included.length} asset(s) pequeño(s).`;
-    if (omitted.length) text += ` No caben en el enlace: ${omitted.join(', ')}.`;
-    if (tooLong) {
-      text += ` Aviso: el enlace es muy largo (${length} caracteres) y puede no funcionar en algunos navegadores o aplicaciones de mensajería. Considera exportar un .zip.`;
-    }
-    this.shareNotice.set({ text, warn: tooLong || !copied || omitted.length > 0, offerZip: tooLong || omitted.length > 0 });
-    this.terminal.addEntry(tooLong ? 'warning' : 'success', 'Compartir', text);
+  /** «Copiar enlace para compartir»: abre «Compartir proyecto» (P-15) con sus opciones. */
+  onShare(): void {
+    this.ui.shareCreateOpen.set(true);
   }
 
   onExportHtml(): void {
@@ -295,7 +233,7 @@ export class TopbarComponent {
 
   protected onExportAction(id: string): void {
     switch (id) {
-      case 'share': void this.onShare(); break;
+      case 'share': this.onShare(); break;
       case 'html': this.onExportHtml(); break;
       case 'png': void this.projectIo.exportPng(); break;
       case 'print': this.ui.requestPanel('print'); break;

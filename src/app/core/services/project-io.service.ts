@@ -10,8 +10,10 @@ import { ASSET_EXT_RE, TEXT_FILE_RE, mimeForPath } from '../utils/asset.util';
 import { DataState } from '../state/data.state';
 import { PreviewState } from '../state/preview.state';
 import {
-  SHARE_URL_WARN_LENGTH, SharePayload, ShareDecodeError, buildShareUrl, decodeShare, encodeShare, splitAssetsForShare,
+  SHARE_URL_WARN_LENGTH, SharePayload, ShareDecodeError, ShareExpiredError, ShareLink, ShareLinkOptions, buildShareUrl, decodeShare, encodeShare, encryptShare, encryptedFromHash, payloadFromHash, splitAssetsForShare,
 } from '../utils/share.util';
+import { formatShareDate } from '../utils/share-options.util';
+import type { ShareOpenRequest } from '../state/ui.state';
 import { captureHtmlToPng } from '../utils/capture.util';
 import { collectDropped, DroppedFile, EntryLike, isZip } from '../utils/drop-import.util';
 import { isStylePath } from '../utils/style-refs.util';
@@ -245,21 +247,57 @@ export class ProjectIoService {
   /**
    * Enlace compartible del proyecto (archivos de texto + datos, comprimidos en el hash de la URL).
    * Los assets pequeños (hasta `SHARE_MAX_ASSET_BYTES` en total) viajan dentro; el resto se devuelve en `omitted`.
+   * Sin opciones es el enlace de siempre; con `expiresAt`, `note`, `includeData` o `includeAssets` (P-15) cambia lo que lleva.
    */
-  buildShareLink(base: string): { url: string; length: number; tooLong: boolean; included: string[]; omitted: string[] } {
+  buildShareLink(base: string, opts: ShareLinkOptions = {}): ShareLink {
+    return this.assembleShare(base, opts).link;
+  }
+
+  /** Como `buildShareLink`, y si hay `password` cifra el contenido (AES-GCM; el enlace pasa a `#e=`). */
+  async buildShareLinkProtected(base: string, opts: ShareLinkOptions = {}): Promise<ShareLink> {
+    const { link, payload } = this.assembleShare(base, opts);
+    if (!opts.password) return link;
+    const url = buildShareUrl(base, await encryptShare(payload, opts.password), true);
+    return { ...link, url, length: url.length, tooLong: url.length > SHARE_URL_WARN_LENGTH, encrypted: true };
+  }
+
+  private assembleShare(base: string, opts: ShareLinkOptions): { link: ShareLink; payload: string } {
     const files = new Map(this.editorState.allFileContents());
     const active = this.editorState.activeTab()?.path;
     if (active && files.has(active)) files.set(active, this.editorState.editorContent()); // lo que se está escribiendo
-    const { included, omitted } = splitAssetsForShare(this.assetState.assets().values());
-    const payload = encodeShare(this.projectState.projectName(), files, this.dataState.data(), included);
+    const { included, omitted } = opts.includeAssets === false ? { included: [], omitted: [] } : splitAssetsForShare(this.assetState.assets().values());
+    const data = opts.includeData === false ? {} : this.dataState.data();
+    const payload = encodeShare(this.projectState.projectName(), files, data, included, { expiresAt: opts.expiresAt, note: opts.note });
     const url = buildShareUrl(base, payload);
     return {
-      url,
-      length: url.length,
-      tooLong: url.length > SHARE_URL_WARN_LENGTH,
-      included: included.map((a) => a.path),
-      omitted: omitted.map((a) => a.path),
+      payload,
+      link: {
+        url,
+        length: url.length,
+        tooLong: url.length > SHARE_URL_WARN_LENGTH,
+        included: included.map((a) => a.path),
+        omitted: omitted.map((a) => a.path),
+        encrypted: false,
+        expiresAt: opts.expiresAt,
+      },
     };
+  }
+
+  /** Qué hay en el hash de la URL (P-16): un enlace con contraseña, uno abierto, uno que no se puede abrir o nada. */
+  openRequestFromHash(hash: string, hasSession: boolean): ShareOpenRequest | null {
+    const encrypted = encryptedFromHash(hash);
+    if (encrypted !== null) return { encrypted, payload: null, hasSession, problem: null };
+    const plain = payloadFromHash(hash);
+    if (plain === null) return null;
+    try {
+      return { encrypted: null, payload: decodeShare(plain), hasSession, problem: null };
+    } catch (err) {
+      const problem = err instanceof ShareExpiredError
+        ? `Este enlace caducó el ${formatShareDate(err.expiresAt)}. Pide uno nuevo a quien te lo envió.`
+        : `${err instanceof ShareDecodeError ? err.message : 'No se pudo leer el enlace.'} Se ignora el enlace.`;
+      this.terminalState.addEntry('error', 'Compartir', problem);
+      return { encrypted: null, payload: null, hasSession, problem };
+    }
   }
 
   /** Decodifica un payload de enlace; en caso de error lo anota en el terminal y devuelve null. */
@@ -273,14 +311,24 @@ export class ProjectIoService {
     }
   }
 
-  loadShared(shared: SharePayload): void {
-    this.orchestrator.loadProject(shared.files, shared.projectName, shared.assets, null, shared.data);
-    const n = shared.assets.length;
-    this.terminalState.addEntry(
-      'info',
-      'Compartir',
-      n > 0 ? `Proyecto cargado desde un enlace (${n} asset${n === 1 ? '' : 's'} incluido${n === 1 ? '' : 's'}).` : 'Proyecto cargado desde un enlace (sin imágenes ni fuentes).',
-    );
+  /** Abre un proyecto compartido: por defecto como proyecto nuevo (el actual se guarda antes en «Mis proyectos»). */
+  loadShared(shared: SharePayload, mode: 'new' | 'replace' = 'new'): void {
+    void this.orchestrator.openShared(shared, mode).then((name) => {
+      const n = shared.assets.length;
+      this.terminalState.addEntry(
+        'info',
+        'Compartir',
+        `Proyecto «${name}» cargado desde un enlace ${mode === 'new' ? 'como proyecto nuevo' : 'en lugar del actual'} ` +
+          (n > 0 ? `(${n} asset${n === 1 ? '' : 's'} incluido${n === 1 ? '' : 's'}).` : '(sin imágenes ni fuentes).'),
+      );
+    });
+  }
+
+  /** Quita el enlace compartido de la barra de direcciones. */
+  clearShareHash(): void {
+    try {
+      history.replaceState(null, '', location.pathname + location.search);
+    } catch { /* ignore */ }
   }
 
   /** HTML renderizado autocontenido (sin inspector ni atributos data-pugide-*, assets locales como data URI). */

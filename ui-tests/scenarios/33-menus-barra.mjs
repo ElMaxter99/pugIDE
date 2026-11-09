@@ -123,8 +123,8 @@ export default async function (env) {
   const png = await downloadFrom('png');
   check('33 Captura PNG del preview descarga el .png', /\.png$/.test(png.suggestedFilename()), png.suggestedFilename());
   await chooseMenu(page, 'exportar', 'share');
-  check('33 Copiar enlace para compartir muestra el aviso', !!(await waitUntil(async () => (await page.locator('.share-notice').count()) === 1)));
-  await page.locator('.share-notice .notice-close').click();
+  check('33 Copiar enlace para compartir abre «Compartir proyecto»', !!(await waitUntil(async () => (await page.locator('[data-testid="share-create"]').count()) === 1)));
+  await page.keyboard.press('Escape');
 
   // --- Autocompilar en la barra de estado ---
   const auto = page.locator('[data-testid="autocompile-toggle"]');
