@@ -1,0 +1,118 @@
+- var fmtMoney = function (value) { var n = Number(value || 0); if (!isFinite(n)) { n = 0; } return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+- var fmtAmount = function (value) { var n = Number(value || 0); if (!isFinite(n)) { n = 0; } return fmtMoney(n) + ' €'; };
+- var CHUNK_ROWS = 8;
+
+mixin infBand()
+  img.inf-band(src="/images/pdf/ejemplo/header.png", alt="Ejemplo")
+
+mixin infStockLines()
+  span.inf-ml= 'Valor del'
+  span.inf-ml= 'almacén'
+  span.inf-ml= 'a 31/12'
+
+mixin infUnitsLines()
+  span.inf-ml
+  span.inf-ml= 'Unidades'
+  span.inf-ml= '31/12'
+
+mixin infTableHead()
+  colgroup
+    col(style="width:16.5%")
+    col(style="width:1.0%")
+  thead
+    tr.inf-hr1
+      td(colspan="1")
+      td.inf-sh(colspan="2")
+        span.inf-grpl= t('SALES_REPORT.GROUP_RESULTS')
+      td.inf-sh(colspan="2")
+        span.inf-grpl= t('SALES_REPORT.GROUP_OWNER')
+    tr.inf-hr2
+      td.inf-c(colspan="2")= t('SALES_REPORT.COL_PRODUCT')
+      td.inf-r(colspan="1")= ' ' + t('SALES_REPORT.COL_CODE')
+      td.inf-c(colspan="1")= '  ' + t('SALES_REPORT.COL_TAX')
+      td(colspan="1")
+        +infStockLines()
+      td(colspan="2")
+        +infUnitsLines()
+
+mixin infRow(infRow)
+  tr.inf-tr
+    td.inf-c(colspan="2")= infRow.name
+    td.inf-c.inf-code(colspan="1")= infRow.code
+    td.inf-sh.inf-c(colspan="1")= fmtAmount(infRow.income)
+    td.inf-sh.inf-c(colspan="1")= fmtAmount(infRow.expense)
+    td.inf-c(colspan="1")= fmtAmount(infRow.tax)
+    td.inf-r(colspan="1")= infRow.stock === null || infRow.stock === undefined ? '' : fmtAmount(infRow.stock)
+    td.inf-r(colspan="2")= infRow.units === null || infRow.units === undefined ? '' : infRow.units.toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 6 })
+    td.inf-sh.inf-c(colspan="1")= infRow.ownerName
+    td.inf-sh.inf-c.inf-owner-id(colspan="1")= infRow.ownerId
+
+mixin infTable(rows)
+  - var chunkCount = Math.ceil(rows.length / CHUNK_ROWS);
+  each ch in Array.from({ length: chunkCount }, function (_, i) { return i; })
+    .inf-table-wrap
+      if ch > 0
+        +infBand()
+      table.inf-table
+        +infTableHead()
+        tbody
+          each infRow in rows.slice(ch * CHUNK_ROWS, (ch + 1) * CHUNK_ROWS)
+            +infRow(infRow)
+
+mixin infCover(report)
+  .inf-cover
+    +infBand()
+    p.inf-title
+      span= t('SALES_REPORT.TITLE')
+      span.inf-title-blue= ' ' + (report.year || '')
+    p.inf-greet= t('SALES_REPORT.GREETING')
+    p.inf-field= report.customer.fullName
+    p
+    p.inf-field= report.customer.idCard
+
+mixin infDiscountRow(infDiscount)
+  tr.inf-tr
+    td.inf-c= infDiscount.name
+    td.inf-c.inf-code= infDiscount.code
+    td.inf-c= infDiscount.supplier
+    td.inf-r= fmtAmount(infDiscount.amount)
+    td.inf-r= (infDiscount.discountPct === null || infDiscount.discountPct === undefined ? '' : infDiscount.discountPct.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %')
+
+mixin infDiscountTable(discounts)
+  - var chunkCount = Math.ceil(discounts.length / CHUNK_ROWS);
+  each ch in Array.from({ length: chunkCount }, function (_, i) { return i; })
+    .inf-table-wrap
+      table.inf-table
+        tbody
+          each infDiscount in discounts.slice(ch * CHUNK_ROWS, (ch + 1) * CHUNK_ROWS)
+            +infDiscountRow(infDiscount)
+
+mixin infMain(report)
+  .inf-main
+    +infBand()
+    p.inf-section= t('SALES_REPORT.SECTION_TITLE')
+    if !report.rows || !report.rows.length
+      p.inf-intro= t('SALES_REPORT.NO_DATA')
+    else
+      +infTable(report.rows)
+
+mixin infDiscounts(report)
+  if report.discounts && report.discounts.length
+    .inf-main
+      +infBand()
+      p.inf-section= t('SALES_REPORT.DISCOUNTS_TITLE')
+      +infDiscountTable(report.discounts)
+
+mixin infClose(report)
+  .inf-close
+    +infBand()
+    p.inf-note= t('SALES_REPORT.FOOTER_NOTE')
+    p.inf-sp9!= '&nbsp;'
+    .inf-brands
+      img.inf-footer-logo(src="/images/pdf/ejemplo/logo.jpeg", alt="Ejemplo")
+
+mixin infBody(report)
+  +infCover(report)
+  +infMain(report)
+  +infDiscounts(report)
+  +infClose(report)
