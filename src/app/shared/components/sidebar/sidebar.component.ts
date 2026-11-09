@@ -483,6 +483,7 @@ export class SidebarComponent {
 
   /** F2 / Supr sobre un archivo del árbol. */
   onNodeAction(action: 'rename' | 'delete', node: FileNode): void {
+    if (node.type === 'directory') return; // renombrar y borrar carpetas aún no existe (anotado en el plan): no se abre un diálogo que no haría nada
     if (action === 'rename') this.showRenameDialog(node.path);
     else this.showDeleteDialog(node.path);
   }

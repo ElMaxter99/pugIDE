@@ -119,6 +119,12 @@ Detalle, evidencia y qué está verificado en `design/propuestas/0.8-plan.md`.
 - ⏳ **16.2 Oleada 2, pantallas (con diseño):** interfaz usable con ventana baja o zoom al 200 %, botones de arreglo de «Problemas» visibles, tema inicial según el sistema, navegación por teclado más corta, plurales e idioma de reserva.
 - ⏳ **16.3 Oleada 3, funciones (con diseño):** exportar «para correo» (CSS inline y avisos), navegar entre páginas y exportar todas, sesión en IndexedDB y datos grandes, PDF con tablas enormes, OpenAPI por endpoint.
 
+### Fase 17. Versión 0.9 (propuesta)
+
+- ✅ **17.1 Compartir con opciones** (P-15, P-16): caducidad, contraseña cifrada, datos e imágenes opcionales, nota, y abrir un enlace como proyecto nuevo por defecto. Ver `design/propuestas/0.9-compartir.md`.
+- ✅ **17.2 Visor de JSON estilo Firefox** (P-17): conmutador «Árbol | Código», filtro, menú de fila y, en los idiomas, «sin traducir» y «falta». Ver `design/propuestas/0.9-visor-json.md`.
+- ⏳ **17.3 Renombrar y borrar carpetas** (anotado, falta diseño): clic derecho en una carpeta del árbol → «Borrar carpeta» (con todo lo que contiene: archivos de texto y assets) y «Renombrar». Hoy el menú de una carpeta solo ofrece «Nuevo archivo». A tener en cuenta al diseñarlo: el diálogo de confirmación dice cuántos archivos e imágenes se borran y lista los primeros; **Deshacer** de la paleta (Ctrl+K) lo recupera entero de una vez (hoy `FileOp` solo guarda un archivo); cierra las pestañas de lo borrado y, si el archivo de la vista previa estaba dentro, la vista previa vuelve a automática (`pinnedAfterDelete`); renombrar mueve todo el contenido (y sus historiales); F2 y Supr en una carpeta hacen lo mismo que el menú (hoy se ignoran); no se puede borrar la raíz; las referencias que se rompen (`include`, `link`, `img`) salen en «Problemas» como siempre.
+
 ### Fase 13. Mantenimiento (parcial)
 
 - ⏳ **13.1** Los 18 avisos moderados de `npm audit` (`minimatch` dentro de `eslint`): subir `eslint` cuando salga una versión con `minimatch` 11.

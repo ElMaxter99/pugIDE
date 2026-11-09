@@ -10,9 +10,12 @@ import {
   ViewChild,
   viewChild,
   untracked,
+  computed,
 } from '@angular/core';
 import { registerPugLanguage } from './pug-language';
 import { ProjectSearchComponent } from './project-search.component';
+import { JsonViewerComponent } from '../json-viewer/json-viewer.component';
+import { isLocaleFile, jsonViewModeFor } from '../../core/utils/json-view.util';
 import { TabsComponent } from '../../shared/components/tabs/tabs.component';
 import { EditorState } from '../../core/state/editor.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
@@ -44,7 +47,7 @@ const MODEL_LANGUAGES: Record<string, string> = {
 @Component({
   selector: 'app-editor-panel',
   standalone: true,
-  imports: [TabsComponent, ProjectSearchComponent],
+  imports: [TabsComponent, ProjectSearchComponent, JsonViewerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="editor-section" aria-label="Editor" (keydown)="onHostKeydown($event)">
@@ -58,7 +61,10 @@ const MODEL_LANGUAGES: Record<string, string> = {
             <p>Abre un archivo desde el panel Archivos</p>
           </div>
         }
-        <div #editorContainer class="monaco-host" [class.hidden]="!editorState.activeTab()"></div>
+        <div #editorContainer class="monaco-host" [class.hidden]="!editorState.activeTab() || showTree()"></div>
+        @if (showTree(); as t) {
+          <app-json-viewer [path]="t.path" [text]="t.text" [files]="editorState.files()" (editAt)="onTreeEdit(t.path, $event)" />
+        }
       </div>
     </main>
   `,
@@ -137,6 +143,21 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   @ViewChild('editorContainer') editorContainer!: ElementRef<HTMLDivElement>;
 
   protected editorState = inject(EditorState);
+
+  /** Si el archivo activo es un `.json` en vista de árbol: su ruta y su texto actual (si no, null y se ve el editor). */
+  protected readonly showTree = computed(() => {
+    const tab = this.editorState.activeTab();
+    if (!tab || jsonViewModeFor(tab.path, this.preferences.jsonView()) !== 'tree') return null;
+    const live = this.editorState.editorContent();
+    return { path: tab.path, text: live !== '' ? live : (this.editorState.files().get(tab.path) ?? '') };
+  });
+
+  /** «Editar en el código»: pasa el archivo a la vista de código y salta a la línea. */
+  protected onTreeEdit(path: string, line: number): void {
+    const current = this.preferences.jsonView();
+    this.preferences.update({ jsonView: isLocaleFile(path) ? { ...current, translations: 'code' } : { ...current, other: 'code' } });
+    setTimeout(() => this.editorState.revealLine(path, line), 0);
+  }
   private orchestrator = inject(OrchestratorService);
   private preferences = inject(PreferencesState);
   private terminalState = inject(TerminalState);

@@ -5,9 +5,20 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [Sin publicar]
 
 ### Añadido
+- **Visor de JSON en árbol, al estilo del de Firefox** (diseño P-17, aprobado). Cada `.json` tiene un conmutador **«Árbol | Código»** en la barra de pestañas; la vista se recuerda por tipo de archivo (los archivos de idioma se abren en árbol y el resto en código). El árbol tiene dos columnas (clave y valor), triángulos para plegar, recuentos `{4}` y `[3]`, colores por tipo, **filtro** al instante (deja las coincidencias con sus padres, las marca y las cuenta), «Contraer todo», «Expandir todo» y «Copiar JSON». El menú de cada fila (clic derecho, Mayús+F10 o la tecla de menú) ofrece **Copiar ruta** (`HOME.TITLE`), **Copiar valor** y **Editar en el código** (pasa a «Código» en esa línea). En los archivos de idioma añade la insignia **«sin traducir»**, el filtro **«Solo sin traducir (N)»**, las claves que **faltan** respecto al primer idioma (filas «falta») y **«Ver en la plantilla»**, que abre la plantilla en la línea que usa la clave. Es de solo lectura (se edita en «Código»), un JSON no válido enseña el error con su línea y «Ir al error», y solo se pintan las filas visibles (un JSON de 6000 claves no congela la página). Accesible: `treegrid` con ↑/↓/Inicio/Fin/←/→/Intro, `/` enfoca el filtro, contraste AA en oscuro y claro.
+- Escenario `47-visor-json` y pruebas unitarias de `json-view.util`.
+
+### Corregido
+- **El menú «⋯» de «Datos» (juego de datos, datos de ejemplo, entrada y salida) salía cortado por la izquierda y por abajo** al abrirlo desde el panel lateral, que es estrecho y está pegado al borde de la ventana. Todos los menús desplegables se colocan ahora dentro de la ventana (se ajustan al borde, se abren hacia donde hay sitio y, si no caben enteros, hacen scroll) y ya no los recorta el panel que los contiene. Escenario `48-menus-en-ventana`.
+- **F2 y Supr sobre una carpeta del árbol** (añadidos en la 0.8.0) abrían un diálogo de renombrar o borrar que no hacía nada. Ahora se ignoran en las carpetas hasta que exista renombrar y borrar carpetas (anotado en `docs/PLAN.md`, 17.3).
+
+### Añadido
 - **Compartir con opciones** (diseño P-15, aprobado). «Copiar enlace para compartir» abre «Compartir proyecto»: **caducidad** (1 hora, 1 día, 7 días —por defecto—, 30 días o nunca), **contraseña** opcional (mínimo 8 caracteres) que cifra el contenido con AES-GCM de 256 bits y una clave derivada con PBKDF2-SHA-256 (600 000 vueltas), si se incluyen los **datos** y las **imágenes y fuentes**, y una **nota** para quien lo abra. El enlace se genera en el navegador y se copia al portapapeles; con contraseña usa `#e=` y los enlaces antiguos (`#p=`, versiones 1 y 2) siguen abriéndose igual. La caducidad la respeta PugIDE pero no impide que quien ya tenga el enlace lo copie (sin servidor no se puede revocar); el diálogo lo dice.
 - **Abrir un enlace compartido como proyecto nuevo** (diseño P-16, aprobado). El diálogo ofrece, marcada por defecto, «Abrir como proyecto nuevo»: el proyecto actual se guarda antes en «Mis proyectos» y el del enlace se abre con un nombre que no repite ninguno. «Reemplazar mi sesión» sigue disponible pero sin marcar. Un enlace con contraseña la pide (tras 5 fallos seguidos pide esperar 30 s), uno caducado dice cuándo caducó, y sin sesión guardada se abre directo como antes.
 - Escenario `46-compartir` (interfaz), e2e `30` y pruebas unitarias del cifrado, la caducidad y la manipulación del texto cifrado.
+
+### Corregido
+- **F2 y Supr sobre una carpeta del árbol** (añadidos en la 0.8.0) abrían un diálogo de renombrar o borrar que no hacía nada. Ahora se ignoran en las carpetas hasta que exista renombrar y borrar carpetas (anotado en `docs/PLAN.md`, 17.3).
 
 ### Cambiado
 - El aviso flotante de «Copiar enlace» pasa al diálogo «Enlace copiado» (con el resumen, el enlace, los avisos de lo que no cabe y el `.zip` si es muy largo).
