@@ -135,6 +135,8 @@ export interface TerminalEntry {
   /** Ubicación en el proyecto: el Registro la convierte en un enlace que abre el archivo en esa línea. */
   path?: string;
   line?: number;
+  /** El Registro enseña un botón «Deshacer» que deshace la última operación sobre archivos (borrar una carpeta). */
+  undo?: boolean;
 }
 
 export interface InspectorNode {

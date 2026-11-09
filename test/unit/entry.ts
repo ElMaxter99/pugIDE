@@ -37,3 +37,5 @@ export * from '../../src/app/core/utils/share-options.util';
 export * from '../../src/app/core/utils/json-view.util';
 export { literalStrings, resolveKeyArgument } from '../../src/app/parser/pug-parser.service';
 export * from '../../src/app/core/state/viewport.state';
+export * from '../../src/app/core/utils/folder-ops.util';
+export { releaseNotes } from '../../scripts/release-notes.mjs';

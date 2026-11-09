@@ -59,13 +59,19 @@ export default async function (env) {
   check('45 Supr pide confirmar el borrado del archivo con el foco', /otra/.test(await dialog.innerText()), await dialog.innerText());
   await closeDialog(page, 'app-dialog [role="dialog"]');
   check('45 y no lo borra hasta confirmar', (await page.locator('.file-row[data-path="/otra.pug"]').count()) === 1);
-  // En una carpeta, F2 y Supr no abren un diálogo que no haría nada
+  // En una carpeta, F2 renombra y Supr borra (P-18)
+  await page.locator('.file-row[data-path="/partials"]').focus();
+  await page.keyboard.press('F2');
+  const folderDlg = page.locator('app-dialog [role="dialog"]');
+  await folderDlg.waitFor({ timeout: 4000 });
+  check('45 F2 sobre una carpeta abre «Renombrar carpeta»', /Renombrar carpeta/.test(await folderDlg.innerText()), await folderDlg.innerText());
+  await closeDialog(page, 'app-dialog [role="dialog"]');
   await page.locator('.file-row[data-path="/partials"]').focus();
   await page.keyboard.press('Delete');
-  await page.keyboard.press('F2');
-  await page.waitForTimeout(300);
-  const dlgTxt = await page.locator('app-dialog [role="dialog"]').allInnerTexts();
-  check('45 F2 y Supr sobre una carpeta no abren diálogos', dlgTxt.length === 0, dlgTxt.join(' / '));
+  await folderDlg.waitFor({ timeout: 4000 });
+  check('45 Supr sobre una carpeta abre «Borrar carpeta»', /Borrar carpeta/.test(await folderDlg.innerText()), await folderDlg.innerText());
+  await closeDialog(page, 'app-dialog [role="dialog"]');
+  check('45 y no se borra nada hasta confirmar', (await page.locator('.file-row[data-path="/partials/card.pug"]').count()) === 1);
   check('45 sin errores ni peticiones externas', app.errors.length === 0 && app.external.length === 0, app.errors.concat(app.external).join(' | '));
   await app.close();
 }

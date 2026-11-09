@@ -47,7 +47,7 @@ export class TerminalState {
     this.overlayOpen.set(true);
   }
 
-  addEntry(type: TerminalEntry['type'], source: string, message: string, loc?: { path: string; line: number }, detail = false): void {
+  addEntry(type: TerminalEntry['type'], source: string, message: string, loc?: { path: string; line: number }, detail = false, undo = false): void {
     const entry: TerminalEntry = {
       id: crypto.randomUUID(),
       timestamp: Date.now(),
@@ -55,6 +55,7 @@ export class TerminalState {
       source,
       message,
       ...(detail ? { detail: true } : {}),
+      ...(undo ? { undo: true } : {}),
       ...(loc ? { path: loc.path, line: loc.line } : {}),
     };
     this.entries.update((entries) => [...entries.slice(-999), entry]);
