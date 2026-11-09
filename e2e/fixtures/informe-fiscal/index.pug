@@ -1,0 +1,21 @@
+html
+  head
+    title Informe fiscal anual de ejemplo
+    meta(charset="utf-8")
+    style(type="text/css").
+      * { margin: 0; padding: 0; }
+      @page { size: 841.9pt 595.3pt; margin: 0; }
+      @font-face { font-family: 'Fuente Ejemplo'; font-style: normal; font-weight: 300; src: url('/fonts/ejemplo/Ejemplo-Light.woff2') format('woff2'), url('/fonts/ejemplo/Ejemplo-Light.woff') format('woff'); }
+      body { font-family: 'Fuente Ejemplo', 'Calibri', sans-serif; font-size: 11pt; color: #1E1E1E; line-height: normal; padding: 0 51.05pt; }
+      .inf-cover, .inf-financial, .inf-close { padding: 0; }
+      .inf-financial, .inf-close { page-break-before: always; }
+      .inf-table-wrap { overflow: hidden; page-break-inside: avoid; text-align: center; }
+      .inf-table-wrap + .inf-table-wrap { page-break-before: always; }
+      .inf-table .inf-tr td { height: 23.9pt; font-size: 7pt; color: #414141; vertical-align: middle; page-break-inside: avoid; border: none; border-bottom: 1pt solid #1f4e79; }
+      .inf-sh { background-color: #e8eef4; }
+  body
+    include ./mixins
+    //- cachebust-force-recompile: 12 columnas (fund/isin/gan/perd/ret/pat/par/ent/nif + separadores)
+    - var reported = pdfData.reported;
+    .report
+      +infBody(reported)

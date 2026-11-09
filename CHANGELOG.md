@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Cambiado
+- **Ejemplo de pruebas ficticio.** El ejemplo de informe fiscal de las pruebas e2e (`e2e/fixtures/`) pasa a ser totalmente inventado («Ejemplo», fuente, colores y claves `FISCAL_REPORT.*` genéricos), sin ninguna marca ni dato de un cliente real. Prueba exactamente lo mismo que antes.
+
 ## [0.10.0] - 2026-11-09
 
 ### Añadido

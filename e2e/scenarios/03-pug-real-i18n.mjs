@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 // 16. real-world report: top-level `- var` helpers, `var reported = pdfData.reported` alias, i18n `t('KEY')`
 //     calls, inline functions / object literals / Array.from, rows.slice(...) iteration
 {
-  const d = new URL('../fixtures/allianz/', import.meta.url).pathname;
+  const d = new URL('../fixtures/informe-fiscal/', import.meta.url).pathname;
   const a = await run({
     '/index.pug': readFileSync(d + 'index.pug', 'utf8'),
     '/mixins.pug': readFileSync(d + 'mixins.pug', 'utf8'),
@@ -15,12 +15,12 @@ import { readFileSync, readdirSync } from 'node:fs';
   check('16 data root is pdfData + translations (no JS junk)', JSON.stringify(Object.keys(data).sort()) === '["pdfData","translations"]', Object.keys(data).join(','));
   check('16 reported shape', rep && 'exercise' in rep && 'fullName' in rep.declaredClient && Array.isArray(rep.rows) && Array.isArray(rep.dividends), JSON.stringify(data));
   check('16 row items typed', rep.rows[0] && 'fundName' in rep.rows[0] && 'gain' in rep.rows[0] && typeof rep.rows[0].participations === 'number', JSON.stringify(rep?.rows));
-  check('16 mocked translation rendered, table rendered', html(a).includes(data.translations.FISCAL_REPORT_ALLIANZ.TITLE) && html(a).includes('<table'), html(a).slice(0, 200));
+  check('16 mocked translation rendered, table rendered', html(a).includes(data.translations.FISCAL_REPORT.TITLE) && html(a).includes('<table'), html(a).slice(0, 200));
 }
 
 // 17. index compiled while its mixins file is still empty (data gets pdfData.reported = ''), then the mixins are pasted in
 {
-  const d = new URL('../fixtures/allianz/', import.meta.url).pathname;
+  const d = new URL('../fixtures/informe-fiscal/', import.meta.url).pathname;
   const mixins = readFileSync(d + 'mixins.pug', 'utf8');
   const a = await run({
     '/main.pug': readFileSync(d + 'index.pug', 'utf8'),
