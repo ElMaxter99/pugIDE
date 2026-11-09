@@ -99,22 +99,33 @@ jobs:
           path: dist/pug-ide/browser
       - name: Instalar Electron y electron-builder
         working-directory: desktop
+        timeout-minutes: 8
         run: npm ci
+      - name: Descargar el binario de Electron
+        working-directory: desktop
+        timeout-minutes: 8
+        run: node node_modules/electron/install.js
       - name: Prueba de humo (Electron con el código de src/)
         working-directory: desktop
+        timeout-minutes: 6
         shell: bash
+        env:
+          ELECTRON_ENABLE_LOGGING: '1'
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a node test/smoke.mjs; else node test/smoke.mjs; fi
       - name: Construir los instaladores
         working-directory: desktop
+        timeout-minutes: 25
         shell: bash
         run: ${{ matrix.build }} -- -c.extraMetadata.version="$VERSION"
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Prueba de humo sobre la app ya empaquetada
         working-directory: desktop
+        timeout-minutes: 6
         shell: bash
         env:
+          ELECTRON_ENABLE_LOGGING: '1'
           PUGIDE_EXECUTABLE: ${{ matrix.exe }}
         run: |
           # Ruta absoluta con el formato del sistema (en Windows, no la de Git Bash).
