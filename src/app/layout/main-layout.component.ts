@@ -89,9 +89,8 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
         [config]="addLocaleDialog"
         [isOpen]="ui.addLocaleOpen()"
         (confirmed)="onAddLocale($event)"
-        (extra)="localeFile.click()"
+        (extra)="pickLocaleFiles()"
         (cancelled)="ui.addLocaleOpen.set(false)" />
-      <input #localeFile type="file" accept=".json,application/json" multiple hidden tabindex="-1" aria-hidden="true" (change)="onLocaleFiles($event)" />
       <app-import-locale-dialog />
       <app-dialog
         [config]="shareDialog"
@@ -283,10 +282,17 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** «Importar archivo .json…» del diálogo «Añadir idioma»: lee los archivos y abre la confirmación (P-14). */
-  protected async onLocaleFiles(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const list = Array.from(input.files ?? []);
-    input.value = '';
+  protected pickLocaleFiles(): void {
+    // Un selector que no vive en el DOM: no estorba a los demás `input[type=file]` de la página.
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.multiple = true;
+    input.addEventListener('change', () => void this.onLocaleFiles(Array.from(input.files ?? [])));
+    input.click();
+  }
+
+  private async onLocaleFiles(list: File[]): Promise<void> {
     if (!list.length) return;
     try {
       const files = await Promise.all(list.map(async (f) => ({ name: f.name, text: await f.text() })));
