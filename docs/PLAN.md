@@ -1,4 +1,4 @@
-# Estado y plan de PugIDE (v0.7.2)
+# Estado y plan de PugIDE (v0.8.0)
 
 Actualizado el 2026-11-04. El análisis inicial (v0.3.1) se hizo el 2026-11-03; las seis fases que salieron de él están hechas y resumidas en la sección 4.
 
@@ -113,9 +113,9 @@ Detalle, evidencia y qué está verificado en `design/propuestas/0.8-plan.md`.
 - ✅ **15.2 Globales tapados por los datos de ejemplo** (`Intl`, `encodeURIComponent`, `btoa`, `URL`…): ampliar `BUILTINS`.
 - ✅ **15.3 Aviso al no poder guardar la sesión** (datos de 5 MB o más se pierden al recargar).
 
-### Fase 16. Versión 0.8 (propuesta, por oleadas)
+### Fase 16. Versión 0.8 (por oleadas)
 
-- ⏳ **16.1 Oleada 1, accesibilidad y robustez (sin diseño):** menú contextual del árbol con teclado (F2, Supr), contrastes y bordes, `forced-colors` y `prefers-reduced-motion`, paleta accesible, textos en inglés, errores explicados, importar `.zip`, sesión corrupta, filtro `:escape`.
+- ✅ **16.1 Oleada 1, accesibilidad y robustez (sin diseño):** menú contextual del árbol con teclado (F2, Supr), contrastes y bordes, `forced-colors` y `prefers-reduced-motion`, paleta accesible, textos en inglés, errores explicados, importar `.zip`, sesión corrupta, filtro `:escape`. Publicada en la 0.8.0; quedan fuera el título en español de los problemas, Monaco en español y los bordes de controles bajo 3:1 (pasan al lienzo).
 - ⏳ **16.2 Oleada 2, pantallas (con diseño):** interfaz usable con ventana baja o zoom al 200 %, botones de arreglo de «Problemas» visibles, tema inicial según el sistema, navegación por teclado más corta, plurales e idioma de reserva.
 - ⏳ **16.3 Oleada 3, funciones (con diseño):** exportar «para correo» (CSS inline y avisos), navegar entre páginas y exportar todas, sesión en IndexedDB y datos grandes, PDF con tablas enormes, OpenAPI por endpoint.
 

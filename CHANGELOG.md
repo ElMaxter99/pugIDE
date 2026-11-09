@@ -4,7 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
-Oleada 1 de la 0.8 (accesibilidad y robustez, sin cambios de diseño).
+## [0.8.0] - 2026-11-09
+
+Primera entrega de la 0.8: la oleada 1 (accesibilidad y robustez, sin cambios de diseño), la importación de un `translations.json` como idioma y las correcciones de `.less` y `locals.x.y`. No cambia el formato de los proyectos.
 
 ### Añadido
 - **Menú del árbol y de las pestañas con teclado** (WCAG 2.1.1): `role="menu"`, el foco entra en la primera opción, ↑/↓/Inicio/Fin recorren, Esc cierra y devuelve el foco, Tab cierra. **F2** renombra y **Supr** borra el archivo con el foco (mismos diálogos que el menú).
