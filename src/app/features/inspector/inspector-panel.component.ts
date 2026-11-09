@@ -13,7 +13,7 @@ import { InspectorState } from '../../core/state/inspector.state';
   template: `
     <div class="inspector-panel">
       <div class="panel-header">
-        <span class="panel-title">INSPECTOR</span>
+        <span class="panel-title">Inspector</span>
         <div class="panel-actions">
           <button
             class="panel-action"
@@ -37,7 +37,7 @@ import { InspectorState } from '../../core/state/inspector.state';
               <circle cx="11" cy="11" r="8"/>
               <line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <p>Click the inspector button to enable element selection</p>
+            <p>Pulsa el botón del inspector para poder elegir un elemento</p>
           </div>
         } @else if (inspectorState.selectedElement()) {
           <div class="selected-info">
@@ -47,7 +47,7 @@ import { InspectorState } from '../../core/state/inspector.state';
             <div class="properties">
               @if (inspectorState.selectedElement()!.pugLine !== undefined) {
                 <div class="prop-row">
-                  <span class="prop-label">Pug Line</span>
+                  <span class="prop-label">Línea de Pug</span>
                   <button type="button" class="prop-value clickable" title="Ir a la linea Pug (mapeo aproximado)" (click)="goToPug()">
                     {{ pugLabel() }}
                   </button>
@@ -55,13 +55,13 @@ import { InspectorState } from '../../core/state/inspector.state';
               }
               @if (inspectorState.selectedElement()!.pugLine === undefined) {
                 <div class="prop-row">
-                  <span class="prop-label">Pug Line</span>
+                  <span class="prop-label">Línea de Pug</span>
                   <span class="prop-value">sin origen Pug</span>
                 </div>
               }
               @if (inspectorState.selectedElement()!.htmlLine !== undefined) {
                 <div class="prop-row">
-                  <span class="prop-label">HTML Line</span>
+                  <span class="prop-label">Línea de HTML</span>
                   <span class="prop-value">{{ inspectorState.selectedElement()!.htmlLine }}</span>
                 </div>
               }
@@ -75,7 +75,7 @@ import { InspectorState } from '../../core/state/inspector.state';
           </div>
         } @else {
           <div class="no-selection">
-            <p>Select an element in the preview</p>
+            <p>Elige un elemento en la vista previa</p>
           </div>
         }
       </div>
@@ -156,7 +156,6 @@ import { InspectorState } from '../../core/state/inspector.state';
       height: 100%;
       gap: 8px;
       color: var(--text-secondary);
-      opacity: 0.6;
     }
 
     .inspector-hint svg {

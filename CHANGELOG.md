@@ -4,15 +4,31 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+Oleada 1 de la 0.8 (accesibilidad y robustez, sin cambios de diseño).
+
+### Añadido
+- **Menú del árbol y de las pestañas con teclado** (WCAG 2.1.1): `role="menu"`, el foco entra en la primera opción, ↑/↓/Inicio/Fin recorren, Esc cierra y devuelve el foco, Tab cierra. **F2** renombra y **Supr** borra el archivo con el foco (mismos diálogos que el menú).
+- **Paleta de comandos:** `aria-activedescendant` (se anuncia la opción activa) y un anuncio con el número de resultados.
+- **Anuncios para lector de pantalla** al cambiar de disposición, de dispositivo de la vista previa y al corregir un error.
+- **`prefers-reduced-motion`** (para las animaciones infinitas y los fundidos, también en Monaco), **`prefers-contrast: more`** y **`forced-colors`** (el estado activo se marca con contorno).
+- **Errores de Pug explicados:** tabuladores y espacios mezclados, `else` sin `if`, `extends` que no es lo primero, recursión infinita de un mixin (o `include` circular), JavaScript con errores de sintaxis y «Unexpected token». Los errores de JavaScript sin ubicación («Error parsing body of the with expression») ahora se sitúan en su línea.
+- **Filtro `:escape`.**
+- **Sesión dañada:** si lo guardado no se puede leer (JSON truncado, tipos raros) se avisa en el Registro, se rescatan los archivos de texto válidos y se guarda una copia del original (`pug-ide-project-corrupt`) antes de que el autoguardado lo pise.
+- Escenarios `43-sesion-corrupta`, `44-accesibilidad-08`, `45-arbol-teclado` y `48` (e2e).
+- **Importar un `translations.json` como idioma** (diseño P-14). En «Añadir idioma» hay un botón «Importar archivo .json…»: eliges uno o varios archivos, la app propone el código del nombre (`es-ES.json` → `es-ES`; con `translations.json` lo escribes tú) y los guarda en `locales/<código>/translations.json`. Las claves planas (`"HOME.TITLE"`) se convierten a anidadas. Si el idioma ya existe, eliges entre **Fusionar** (por defecto: añade lo nuevo y rellena lo vacío, sin pisar lo traducido) y **Reemplazar**. Al soltar sobre el árbol un JSON que solo trae textos y se llama como un idioma (`es-ES.json`, `translations.json`, `messages.json`…), la app pregunta si es un idioma; «Es un dato más» (o Esc) lo añade como archivo normal. Los demás JSON se añaden como siempre.
+- Escenarios `42-importar-idioma` (interfaz) y `47` (e2e).
+- Escenario `41-less-real`: Less con variables, `@import` y `darken()`, y una hoja `.less` que falta en «Problemas».
+
+### Cambiado
+- **Importar un `.zip`** aplana una carpeta raíz única (`Mi Proyecto/main.pug` ya no rompe `/partials/…`), ignora `__MACOSX`, `.DS_Store` y similares, y avisa de la carpeta quitada y de lo omitido.
+- **Contraste AA:** Inspector activo, `kbd` del menú «Disposición» en claro, filas de detalle del Registro, «Sin mensajes» y el texto del Inspector vacío usan colores sólidos en vez de opacidades (axe da 0 incumplimientos en esos estados, en oscuro y claro).
+- **Nombres:** «Cerrar pestaña» pasa a «Cerrar <archivo>» y mide 24×24 px; el editor se llama «Editor de código».
+- **Textos en español:** menú de las pestañas, Inspector, «Escribe un JSON válido…», «Buscar en el proyecto» e «Ir a la definición».
+
 ### Corregido
 - **Los archivos `.less` se ignoraban al importar una carpeta, un `.zip` o al soltarlos** (solo se aceptaban `.css`, `.scss` y `.sass`), así que el `link` a la hoja no encontraba nada. Ahora se importan como el resto de estilos (Less ya compilaba bien al subirlo con el botón del panel «Archivos»).
 - **Una hoja de estilos referenciada que no existe (sin línea de error) ahora sale en «Problemas»** y cuenta en la barra de estado, con una pista para subir el archivo. Antes solo aparecía en el Registro bajo «Todo» y parecía que simplemente «no pasaba nada».
 - **`locals.x.y` en una plantilla se entiende como el dato `x.y`** (así recibe Pug sus datos: `locals` es el objeto completo). Antes creaba un dato falso llamado `locals`, y el esqueleto de `locals.pdfSettings.fonts` no se generaba.
-
-### Añadido
-- **Importar un `translations.json` como idioma** (diseño P-14). En «Añadir idioma» hay un botón «Importar archivo .json…»: eliges uno o varios archivos, la app propone el código del nombre (`es-ES.json` → `es-ES`; con `translations.json` lo escribes tú) y los guarda en `locales/<código>/translations.json`. Las claves planas (`"HOME.TITLE"`) se convierten a anidadas. Si el idioma ya existe, eliges entre **Fusionar** (por defecto: añade lo nuevo y rellena lo vacío, sin pisar lo traducido) y **Reemplazar**. Al soltar sobre el árbol un JSON que solo trae textos y se llama como un idioma (`es-ES.json`, `translations.json`, `messages.json`…), la app pregunta si es un idioma; «Es un dato más» (o Esc) lo añade como archivo normal. Los demás JSON se añaden como siempre.
-- Escenarios `42-importar-idioma` (interfaz) y `47` (e2e).
-- Escenario `41-less-real`: Less con variables, `@import` y `darken()`, y una hoja `.less` que falta en «Problemas».
 
 ## [0.7.2] - 2026-11-08
 

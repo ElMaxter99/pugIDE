@@ -213,7 +213,7 @@ const NARROW_BELOW = 600;
     }
 
     .inspector-btn.active {
-      color: var(--accent-color);
+      color: var(--text-on-primary-container);
       background: var(--accent-container);
     }
 

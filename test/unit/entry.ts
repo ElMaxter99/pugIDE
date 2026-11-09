@@ -29,3 +29,6 @@ export * from '../../src/app/core/utils/pug-vfs.util';
 export * from '../../src/app/core/utils/layout.util';
 export * from '../../src/app/core/utils/tour.util';
 export { TEXT_FILE_RE, ASSET_EXT_RE } from '../../src/app/core/utils/asset.util';
+export * from '../../src/app/core/utils/zip-import.util';
+export * from '../../src/app/core/utils/session-validate.util';
+export * from '../../src/app/core/utils/code-error-line.util';

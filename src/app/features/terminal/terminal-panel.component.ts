@@ -229,8 +229,9 @@ import { ProblemsPanelComponent } from './problems-panel.component';
         color: var(--text-secondary);
       }
 
-      .log-detail {
-        opacity: 0.7;
+      /* Las filas de detalle se distinguen por el color, no por la opacidad (que baja el contraste bajo 4,5:1). */
+      .log-detail.log-info .log-message {
+        color: var(--text-secondary);
       }
 
       .terminal-tab {
@@ -376,7 +377,6 @@ import { ProblemsPanelComponent } from './problems-panel.component';
         height: 100%;
         color: var(--text-secondary);
         font-size: 12px;
-        opacity: 0.5;
       }
     `,
   ],

@@ -52,6 +52,8 @@ type Draft = Omit<PaletteCommand, 'id'> & { id?: string };
             role="combobox"
             aria-expanded="true"
             aria-controls="palette-list"
+            aria-autocomplete="list"
+            [attr.aria-activedescendant]="results().length ? 'palette-opt-' + activeIndex() : null"
             [value]="query()"
             (input)="onQuery($any($event.target).value)"
             (keydown)="onKey($event)" />
@@ -65,6 +67,7 @@ type Draft = Omit<PaletteCommand, 'id'> & { id?: string };
               }
               <li
                 role="option"
+                [id]="'palette-opt-' + i"
                 class="item"
                 [class.active]="i === activeIndex()"
                 [attr.aria-selected]="i === activeIndex()"
@@ -78,6 +81,7 @@ type Draft = Omit<PaletteCommand, 'id'> & { id?: string };
               <li class="empty">Sin resultados</li>
             }
           </ul>
+          <div class="sr-status" role="status" aria-live="polite">{{ results().length ? results().length + (results().length === 1 ? ' resultado' : ' resultados') : 'Sin resultados' }}</div>
           <div class="foot" aria-hidden="true">
             <span>↑↓ moverse · Enter ejecutar · Esc {{ scope() === 'root' ? 'cerrar' : 'volver' }}</span>
             <span>{{ allCount() }} comandos · escribe para filtrar</span>
@@ -88,7 +92,7 @@ type Draft = Omit<PaletteCommand, 'id'> & { id?: string };
   `,
   styles: [`
     .overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; z-index: 2100; }
-    .palette { width: min(560px, calc(100vw - 32px)); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35); overflow: hidden; }
+    .palette { position: relative; width: min(560px, calc(100vw - 32px)); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35); overflow: hidden; }
     .search { width: 100%; padding: 14px 16px; font-size: 15px; color: var(--text-primary); background: transparent; border: 0; border-bottom: 1px solid var(--border-color); outline: none; box-sizing: border-box; }
     .list { list-style: none; margin: 0; padding: 6px; max-height: 52vh; overflow-y: auto; }
     .item { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-primary); }
@@ -97,6 +101,7 @@ type Draft = Omit<PaletteCommand, 'id'> & { id?: string };
     .group { flex-shrink: 0; font-size: 11px; color: var(--text-secondary); }
     .section { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-secondary); }
     .keys { flex-shrink: 0; margin-left: auto; font-family: var(--font-mono); font-size: 11px; padding: 1px 6px; border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); background: var(--bg-primary); }
+    .sr-status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
     mark { background: transparent; color: var(--accent-color); font-weight: 600; }
     .crumb { display: flex; align-items: center; gap: 12px; padding: 6px 12px; font-size: 12px; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); }
     .back { background: none; border: 0; padding: 4px 6px; color: var(--accent-color); font: inherit; cursor: pointer; }

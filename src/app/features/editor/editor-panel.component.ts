@@ -299,9 +299,11 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
 
     const initialTheme = this.preferences.monacoTheme() === 'vs-dark' ? 'pugIDE-dark' : 'pugIDE-light';
 
+    const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.editor = monaco.editor.create(this.editorContainer.nativeElement, {
       value: '',
       language: 'pug',
+      ariaLabel: 'Editor de código',
       theme: initialTheme,
       fontSize: 13,
       fontFamily: "'JetBrains Mono Variable', 'JetBrains Mono', monospace",
@@ -314,8 +316,8 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       renderWhitespace: 'selection',
       bracketPairColorization: { enabled: true },
       cursorBlinking: 'smooth',
-      cursorSmoothCaretAnimation: 'on',
-      smoothScrolling: true,
+      cursorSmoothCaretAnimation: reduceMotion ? 'off' : 'on',
+      smoothScrolling: !reduceMotion,
       padding: { top: 16 },
       lineHeight: 20,
       suggest: {
@@ -362,7 +364,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
     }));
     this.editor.addAction({
       id: 'pug.searchInProject',
-      label: 'Search in Project',
+      label: 'Buscar en el proyecto',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF],
       run: () => this.openSearch(),
     });
@@ -447,7 +449,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
 
     this.editor.addAction({
       id: 'pug.goToDefinition',
-      label: 'Go to Definition',
+      label: 'Ir a la definición',
       keybindings: [monaco.KeyCode.F12],
       run: () => {
         const pos = this.editor.getPosition();

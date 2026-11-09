@@ -38,7 +38,7 @@ import { ContextMenuAction } from '../../../core/models/index';
                 <span class="dirty-dot" role="img" aria-label="Con cambios sin guardar"></span>
               }
             </button>
-            <button class="tab-close" (click)="closeTab($event, tab.id)" title="Cerrar pestaña" aria-label="Cerrar pestaña">
+            <button class="tab-close" (click)="closeTab($event, tab.id)" [title]="'Cerrar ' + (labels().get(tab.id) ?? tab.name)" [attr.aria-label]="'Cerrar ' + (labels().get(tab.id) ?? tab.name)">
               <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">close</span>
             </button>
           </div>
@@ -152,8 +152,8 @@ import { ContextMenuAction } from '../../../core/models/index';
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 18px;
-      height: 18px;
+      width: 24px;
+      height: 24px;
       border-radius: 3px;
       color: var(--text-tertiary);
       flex-shrink: 0;
@@ -187,11 +187,11 @@ export class TabsComponent {
     event.stopPropagation();
     this.contextMenuTabId = tab.id;
     this.contextMenuItems.set([
-      { label: 'Close', icon: 'close', action: 'close' },
-      { label: 'Close Others', icon: 'close_fullscreen', action: 'closeOthers' },
-      { label: 'Close to the Right', icon: 'last_page', action: 'closeRight' },
+      { label: 'Cerrar', icon: 'close', action: 'close' },
+      { label: 'Cerrar las demás', icon: 'close_fullscreen', action: 'closeOthers' },
+      { label: 'Cerrar las de la derecha', icon: 'last_page', action: 'closeRight' },
       { label: '', action: '', separator: true },
-      { label: 'Close All', icon: 'clear_all', action: 'closeAll' },
+      { label: 'Cerrar todas', icon: 'clear_all', action: 'closeAll' },
     ]);
     this.contextMenuX.set(event.clientX);
     this.contextMenuY.set(event.clientY);

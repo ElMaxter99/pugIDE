@@ -77,7 +77,7 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
           (blur)="applyJson()"
           (keydown)="onTextareaKeydown($event)"
           spellcheck="false"
-          placeholder="Enter valid JSON..."></textarea>
+          placeholder="Escribe un JSON válido…"></textarea>
       </div>
     </section>
   `,

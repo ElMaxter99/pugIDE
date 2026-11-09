@@ -70,6 +70,20 @@ export default async function (env) {
     if (!names.includes('Base')) await page.waitForTimeout(500);
   }
   check('24 el proyecto anterior queda guardado en Mis proyectos', names.includes('Base'), names.join(' | '));
+
+  // 5. Un .zip con una carpeta raíz única y restos de macOS: se aplana y se ignoran los restos
+  const zip2 = zipSync({
+    'Mi Proyecto/main.pug': strToU8('html\n  body\n    include /partials/hola\n'),
+    'Mi Proyecto/partials/hola.pug': strToU8('h1 Hola aplanado\n'),
+    'Mi Proyecto/.DS_Store': strToU8('x'),
+    '__MACOSX/Mi Proyecto/._main.pug': strToU8('x'),
+  });
+  await drop(page, [{ name: 'Mi-Proyecto.zip', type: 'application/zip', b64: b64(zip2) }]);
+  const flat = await waitUntil(async () => (await paths(page)).includes('/partials/hola.pug'), 8000);
+  const flatPaths = (await paths(page)).join(',');
+  check('24 el .zip con una carpeta raíz única se aplana', !!flat && !flatPaths.includes('Mi Proyecto') && !flatPaths.includes('__MACOSX') && !flatPaths.includes('.DS_Store'), flatPaths);
+  check('24 y las rutas absolutas del proyecto funcionan', !!(await waitUntil(async () => (await previewText(page)).includes('Hola aplanado'), 8000)), await previewText(page));
+  check('24 avisa de la carpeta quitada y de los restos ignorados', /carpeta «Mi Proyecto»/.test(await terminal(page)) && /Ignorados 2 archivos del sistema/.test(await terminal(page)), await terminal(page));
   check('24 sin errores no controlados', app.errors.length === 0, app.errors.join(' | '));
   await app.close();
 }

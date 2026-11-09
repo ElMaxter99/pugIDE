@@ -1,3 +1,4 @@
+import { readSession } from '../utils/session-validate.util';
 import { Injectable, signal } from '@angular/core';
 import { AppPreferences } from '../models/index';
 import type { DatasetsFile } from '../utils/datasets.util';
@@ -5,6 +6,7 @@ import { DEFAULT_LAYOUT, isLayoutId, sanitizeDeviceMemory, sanitizePanelSizes } 
 
 const STORAGE_KEY = 'pug-ide-preferences';
 const PROJECT_KEY = 'pug-ide-project';
+const CORRUPT_KEY = 'pug-ide-project-corrupt';
 const CURRENT_ID_KEY = 'pug-ide-current-project';
 const ANALYTICS_CONSENT_KEY = 'pug-ide-analytics-consent';
 const LAST_BACKUP_KEY = 'pug-ide-last-backup';
@@ -77,12 +79,20 @@ export class PersistenceService {
     }
   }
 
+  /** Qué pasó con la última sesión leída si no estaba bien (null: nada). La lee el arranque para avisar en el Registro. */
+  sessionProblem: { reason: string; copied: boolean } | null = null;
+
   loadProjectState(): ProjectSessionState | null {
-    try {
-      const raw = localStorage.getItem(PROJECT_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch { /* ignore */ }
-    return null;
+    let raw: string | null = null;
+    try { raw = localStorage.getItem(PROJECT_KEY); } catch { return null; }
+    const reading = readSession(raw);
+    if (reading.problem) {
+      // Antes de que el autoguardado la pise con el proyecto por defecto, se guarda una copia del texto original.
+      let copied = false;
+      try { if (raw) { localStorage.setItem(CORRUPT_KEY, raw); copied = true; } } catch { /* sin espacio: se avisa igualmente */ }
+      this.sessionProblem = { reason: reading.problem, copied };
+    }
+    return reading.state as ProjectSessionState | null;
   }
 
   saveProjectState(state: ProjectSessionState): void {

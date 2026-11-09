@@ -16,6 +16,7 @@ import { captureHtmlToPng } from '../utils/capture.util';
 import { collectDropped, DroppedFile, EntryLike, isZip } from '../utils/drop-import.util';
 import { isStylePath } from '../utils/style-refs.util';
 import { buildStandaloneHtml } from '../utils/export-html.util';
+import { planZipImport } from '../utils/zip-import.util';
 import { UiState } from '../state/ui.state';
 import { looksLikeTranslations } from '../utils/locales.util';
 import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
@@ -211,11 +212,16 @@ export class ProjectIoService {
       const unzipped = unzipSync(buf);
       const files = new Map<string, string>();
       const assets: AssetFile[] = [];
-      for (const [name, data] of Object.entries(unzipped)) {
-        if (name.endsWith('/')) continue;
-        if (TEXT_FILE_RE.test(name)) files.set('/' + name, strFromU8(data));
-        else if (ASSET_EXT_RE.test(name)) assets.push({ path: '/' + name, mime: mimeForPath(name), data });
+      const plan = planZipImport(Object.keys(unzipped));
+      const skipped: string[] = [];
+      for (const { name, path } of plan.entries) {
+        if (TEXT_FILE_RE.test(name)) files.set(path, strFromU8(unzipped[name]));
+        else if (ASSET_EXT_RE.test(name)) assets.push({ path, mime: mimeForPath(name), data: unzipped[name] });
+        else skipped.push(path);
       }
+      if (plan.stripped) this.terminalState.addEntry('info', 'Importar', `Todo estaba dentro de la carpeta «${plan.stripped}»: se quita para que las rutas del proyecto (/partials/…) funcionen.`);
+      if (skipped.length) this.terminalState.addEntry('info', 'Importar', `Sin importar (tipo no soportado): ${skipped.slice(0, 8).join(', ')}${skipped.length > 8 ? '…' : ''}`);
+      if (plan.junk.length) this.terminalState.addEntry('info', 'Importar', `Ignorados ${plan.junk.length} archivos del sistema (__MACOSX, .DS_Store…).`);
       this.finishImport(files, file.name.replace(/\.zip$/i, ''), assets);
     } catch (err) {
       this.terminalState.addEntry('error', 'Importar', `No se pudo leer el .zip: ${(err as Error).message ?? err}`);

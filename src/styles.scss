@@ -291,3 +291,47 @@ kbd {
 .pugide-reveal-line {
   background: rgba(99, 102, 241, 0.3);
 }
+
+/* --- Preferencias del sistema --- */
+
+/* Sin movimiento: las animaciones infinitas (punto «live», spinner) se paran y los fundidos son instantáneos. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Más contraste: bordes y textos secundarios más marcados en los dos temas. */
+@media (prefers-contrast: more) {
+  :root {
+    --border-color: #9a8fa3;
+    --text-secondary: #eadfed;
+    --text-tertiary: #cfc2d6;
+  }
+  .light-mode {
+    --border-color: #4d4354;
+    --text-secondary: #2e2832;
+    --text-tertiary: #4d4354;
+  }
+}
+
+/* Alto contraste forzado (Windows): el estado activo y el seleccionado no pueden depender de un color de fondo, que el
+   sistema sustituye. Se marcan con contorno y los iconos y bordes usan los colores del sistema. */
+@media (forced-colors: active) {
+  .active,
+  [aria-selected='true'],
+  [aria-pressed='true'],
+  [aria-current='true'],
+  [aria-checked='true'] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .tab.active { border-bottom: 3px solid Highlight; }
+  .item.active { outline: 2px solid Highlight; }
+  button, input, select, textarea { border-color: ButtonText; }
+  kbd { border: 1px solid CanvasText; }
+  :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+}

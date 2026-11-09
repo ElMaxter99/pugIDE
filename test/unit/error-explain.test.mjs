@@ -84,3 +84,21 @@ test('rutas de include y utilidades', () => {
   assert.equal(closestName('zzz', ['saludo']), null);
   assert.equal(closestName('saludos', ['saludo']), 'saludo');
 });
+
+import { findCodeErrorLine } from './.build/units.mjs';
+
+test('explainError: tabuladores mezclados, else suelto, extends, recursión, JS y sintaxis', () => {
+  assert.match(explainError('Invalid indentation, you can use tabs or spaces but not both').hint, /tabuladores y espacios/);
+  assert.match(explainError('unexpected token "else"').hint, /sin su `if`/);
+  assert.match(explainError('Declaration of template inheritance ("extends") should be the first thing in the file. There can only be one extends statement per file.').hint, /lo primero del archivo/);
+  assert.match(explainError('Maximum call stack size exceeded - could not read from /m.pug').hint, /se llama a sí mismo/);
+  assert.match(explainError('Error parsing body of the with expression').hint, /JavaScript con errores/);
+  assert.match(explainError('Syntax Error: Unexpected token').hint, /atributo mal escrito/);
+});
+
+test('findCodeErrorLine localiza la línea de JavaScript que no compila', () => {
+  assert.equal(findCodeErrorLine('p ok\n- var a = 1\n- var x = ;\np= a\n'), 3);
+  assert.equal(findCodeErrorLine('p= 1 +\n'), 1);
+  assert.equal(findCodeErrorLine('p ok\n- var a = 1\np= a\n'), undefined);
+  assert.equal(findCodeErrorLine('- if (x) {\n  p a\n- }\n'), undefined, 'una línea que abre un bloque no es un error');
+});

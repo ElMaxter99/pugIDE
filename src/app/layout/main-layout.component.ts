@@ -27,6 +27,7 @@ import { AnalyticsService } from '../core/services/analytics.service';
 import { ShortcutsDialogComponent } from '../shared/components/shortcuts-dialog/shortcuts-dialog.component';
 import { UiState } from '../core/state/ui.state';
 import { CommandPaletteComponent } from '../shared/components/command-palette/command-palette.component';
+import { AnnouncerComponent } from '../shared/components/announcer/announcer.component';
 import { ImportLocaleDialogComponent } from '../shared/components/import-locale-dialog/import-locale-dialog.component';
 import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dialog.component';
 import { ProjectIoService } from '../core/services/project-io.service';
@@ -41,6 +42,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
   selector: 'app-main-layout',
   standalone: true,
   imports: [
+    AnnouncerComponent,
     ImportLocaleDialogComponent,
     TopbarComponent,
     SidebarComponent,
@@ -92,6 +94,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
         (extra)="pickLocaleFiles()"
         (cancelled)="ui.addLocaleOpen.set(false)" />
       <app-import-locale-dialog />
+      <app-announcer />
       <app-dialog
         [config]="shareDialog"
         [isOpen]="shareDialogOpen()"
@@ -257,6 +260,11 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const saved = this.persistence.loadProjectState();
     const hasSaved = !!saved && Object.keys(saved.files).length > 0;
+    const bad = this.persistence.sessionProblem;
+    if (bad) {
+      this.terminalState.addEntry('warning', 'Sesión',
+        `La sesión guardada no se pudo leer entera: ${bad.reason}. ${hasSaved ? 'Se recuperaron los archivos de texto válidos.' : 'Se abre el proyecto por defecto.'} ${bad.copied ? 'Se guardó una copia del original en este navegador (clave pug-ide-project-corrupt).' : 'No hubo espacio para guardar una copia del original.'}`);
+    }
     const sharedPayload = payloadFromHash(location.hash);
     const shared = sharedPayload !== null ? this.projectIo.parseShare(sharedPayload) : null;
     if (sharedPayload !== null && !shared) this.clearShareHash();
