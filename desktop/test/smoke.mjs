@@ -9,17 +9,24 @@ import { createRequire } from 'node:module';
 const here = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(here, '..');
 let failed = 0;
+const step = (m) => console.log(`... ${m}`); // trazas: si algo se cuelga en el CI, el log dice dónde
+// Perro guardián: si la prueba no termina, falla con un mensaje en vez de colgar el flujo hasta su límite de tiempo.
+const watchdog = setTimeout(() => { console.log('FAIL la prueba de humo no terminó en 4 minutos (¿Electron colgado al arrancar?)'); process.exit(1); }, 4 * 60 * 1000);
+watchdog.unref?.();
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok || !detail ? '' : `  -> ${detail}`}`); if (!ok) failed++; };
 const wait = async (fn, ms = 30000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch { /* sigue */ } await new Promise((r) => setTimeout(r, 250)); } return null; };
 
 // Por defecto, el Electron de desktop/node_modules con el código de src/. Con PUGIDE_EXECUTABLE se prueba el binario ya
 // empaquetado (el de `npm run pack` o el instalado), que es el que recibe la gente.
 const packaged = process.env.PUGIDE_EXECUTABLE;
-const app = await electron.launch({ executablePath: packaged || createRequire(import.meta.url)('electron'), args: packaged ? ['--no-sandbox'] : ['.', '--no-sandbox'], cwd: desktopDir, env: { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' } });
+step('lanzando Electron');
+const app = await electron.launch({ timeout: 90000, executablePath: packaged || createRequire(import.meta.url)('electron'), args: [...(packaged ? [] : ['.']), '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'], cwd: desktopDir, env: { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' } });
 const violations = [];
 const external = [];
 try {
+  step('Electron lanzado, esperando la ventana');
   const page = await app.firstWindow();
+  step('ventana abierta: ' + page.url());
   page.on('console', (m) => { if (/Content Security Policy|Refused to /i.test(m.text())) violations.push(m.text().slice(0, 200)); });
   page.on('request', (r) => { const u = r.url(); if (!/^(pugide:|blob:|data:|devtools:)/.test(u)) external.push(u); });
   // La ventana puede abrirse antes de que cargue la app (en el primer arranque de un binario empaquetado tarda más): se espera.
@@ -72,7 +79,8 @@ try {
   check('sin violaciones de la CSP', violations.length === 0, violations.slice(0, 3).join(' | '));
   check('sin peticiones a internet (funciona sin conexión)', external.length === 0, external.slice(0, 3).join(' | '));
 } finally {
-  await app.close();
+  step('cerrando');
+  await Promise.race([app.close(), new Promise((r) => setTimeout(r, 15000))]).catch(() => undefined);
 }
 console.log(failed ? `\n${failed} FAILED` : '\nall passed');
 process.exit(failed ? 1 : 0);
