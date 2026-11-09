@@ -1,3 +1,6 @@
+/** Archivos de texto del proyecto que se importan desde una carpeta, un `.zip` o al soltarlos (los demás se ignoran). */
+export const TEXT_FILE_RE = /\.(pug|jade|scss|sass|less|css|json|js|html|htm|md|txt)$/i;
+
 /** Binary project assets (images, fonts) that the preview serves from memory instead of a web server. */
 export const ASSET_EXT_RE = /\.(png|jpe?g|gif|webp|avif|bmp|ico|svg|woff2?|ttf|otf|eot)$/i;
 

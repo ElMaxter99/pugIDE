@@ -336,6 +336,8 @@ export class PugParserService {
       if (!base) return null;
       return parts.length === 1 ? base : base + '.' + parts.slice(1).join('.');
     }
+    // `locals` es el objeto de datos entero (así lo recibe Pug): `locals.a.b` es el dato `a.b` y `locals` a secas no es un dato.
+    if (first === 'locals') return parts.length > 1 ? parts.slice(1).join('.') : null;
     if (BUILTINS.has(first) || PUG_KEYWORDS.has(first)) return null;
     return id;
   }

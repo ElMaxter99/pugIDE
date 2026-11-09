@@ -6,7 +6,7 @@ import { ProjectState } from '../state/project.state';
 import { TerminalState } from '../state/terminal.state';
 import { OrchestratorService } from './orchestrator.service';
 import { AssetState, AssetFile } from '../state/asset.state';
-import { ASSET_EXT_RE, mimeForPath } from '../utils/asset.util';
+import { ASSET_EXT_RE, TEXT_FILE_RE, mimeForPath } from '../utils/asset.util';
 import { DataState } from '../state/data.state';
 import { PreviewState } from '../state/preview.state';
 import {
@@ -18,7 +18,6 @@ import { isStylePath } from '../utils/style-refs.util';
 import { buildStandaloneHtml } from '../utils/export-html.util';
 import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
 
-const TEXT_FILE_RE = /\.(pug|jade|scss|sass|css|json|js|html|htm|md|txt)$/i;
 
 /**
  * Handles getting a project into and out of the browser: exports to a real

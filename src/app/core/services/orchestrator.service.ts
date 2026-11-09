@@ -233,7 +233,7 @@ export class OrchestratorService {
         compileErrors: compileResult.errors,
         styleErrors: scssResult.errors,
         extra: localeInfo.diagnostics,
-      }), unlocatedProblems({ entryPath, compileErrors: compileResult.errors }));
+      }), unlocatedProblems({ entryPath, compileErrors: compileResult.errors, styleErrors: scssResult.errors }));
 
       // Los problemas de compilación ya viven en el panel «Problemas»; en el Registro quedan como detalle («Todo»).
       for (const error of compileResult.errors) {

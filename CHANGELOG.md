@@ -4,6 +4,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Corregido
+- **Los archivos `.less` se ignoraban al importar una carpeta, un `.zip` o al soltarlos** (solo se aceptaban `.css`, `.scss` y `.sass`), así que el `link` a la hoja no encontraba nada. Ahora se importan como el resto de estilos (Less ya compilaba bien al subirlo con el botón del panel «Archivos»).
+- **Una hoja de estilos referenciada que no existe (sin línea de error) ahora sale en «Problemas»** y cuenta en la barra de estado, con una pista para subir el archivo. Antes solo aparecía en el Registro bajo «Todo» y parecía que simplemente «no pasaba nada».
+- **`locals.x.y` en una plantilla se entiende como el dato `x.y`** (así recibe Pug sus datos: `locals` es el objeto completo). Antes creaba un dato falso llamado `locals`, y el esqueleto de `locals.pdfSettings.fonts` no se generaba.
+
+### Añadido
+- Escenario `41-less-real`: Less con variables, `@import` y `darken()`, y una hoja `.less` que falta en «Problemas».
+
 ## [0.7.2] - 2026-11-08
 
 Versión de correcciones: dos bugs que daban una salida incorrecta sin avisar (el SCSS con mixins y los globales estándar), el aviso cuando la sesión no se puede guardar y el mantenimiento posterior a la 0.7.1. No cambia el formato de los proyectos.
