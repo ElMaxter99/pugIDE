@@ -1,5 +1,10 @@
 import { Injectable, signal } from '@angular/core';
 
+export interface LocaleImportRequest {
+  source: 'add' | 'drop';
+  files: { name: string; text: string }[];
+}
+
 /** Estado de la interfaz compartido entre componentes (paneles flotantes y diálogos). */
 @Injectable({ providedIn: 'root' })
 export class UiState {
@@ -11,6 +16,8 @@ export class UiState {
   readonly shortcutsOpen = signal(false);
   /** Diálogo para añadir un idioma (`/locales/<código>/translations.json`). */
   readonly addLocaleOpen = signal(false);
+  /** Archivos de idioma por importar (P-14): `add` viene de «Añadir idioma», `drop` de soltar/subir un JSON de textos. */
+  readonly localeImport = signal<LocaleImportRequest | null>(null);
   /** Diálogo con el historial de versiones del archivo activo. */
   readonly historyOpen = signal(false);
   /** Diálogo de instantáneas del proyecto (guardar, comparar, restaurar). */

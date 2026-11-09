@@ -56,3 +56,43 @@ test('tabLabels añade la carpeta solo cuando dos pestañas se llaman igual', ()
   assert.equal(labels.get('c'), 'es-CAT/translations.json');
   assert.equal(tabLabels(tabs.slice(0, 2)).get('b'), 'translations.json');
 });
+
+import { localeCodeFromFileName, normalizeTranslations, countTranslations, diffTranslations, mergeTranslations, looksLikeTranslations } from './.build/units.mjs';
+
+test('el código de idioma sale del nombre del archivo', () => {
+  assert.equal(localeCodeFromFileName('es-ES.json'), 'es-ES');
+  assert.equal(localeCodeFromFileName('i18n/en.json'), 'en');
+  assert.equal(localeCodeFromFileName('translations.json'), null);
+  assert.equal(localeCodeFromFileName('messages.json'), null);
+  assert.equal(localeCodeFromFileName('datos_raros.json'), null);
+});
+
+test('las claves planas se anidan y se cuentan', () => {
+  const n = normalizeTranslations({ 'HOME.TITLE': 'Hola', HOME: { INTRO: 'Bien' }, 'A.B.C': 'x', X: 'y' });
+  assert.deepEqual(n, { HOME: { TITLE: 'Hola', INTRO: 'Bien' }, A: { B: { C: 'x' } }, X: 'y' });
+  assert.equal(countTranslations(n), 4);
+});
+
+test('diffTranslations y mergeTranslations no pisan lo que ya está traducido', () => {
+  const have = { HOME: { TITLE: 'Hola', INTRO: '' }, X: 'x' };
+  const inc = { HOME: { TITLE: 'Otro', INTRO: 'Bien', NEW: 'n' }, Y: 'y' };
+  assert.deepEqual(diffTranslations(have, inc), { added: 3, changed: 1 });
+  const m = mergeTranslations(have, inc);
+  assert.deepEqual(m.value, { HOME: { TITLE: 'Hola', INTRO: 'Bien', NEW: 'n' }, X: 'x', Y: 'y' });
+  assert.equal(m.touched, 3);
+  assert.deepEqual(have, { HOME: { TITLE: 'Hola', INTRO: '' }, X: 'x' });
+});
+
+test('looksLikeTranslations solo acepta JSON de textos con nombre de idioma', () => {
+  const txt = '{ "HOME": { "TITLE": "Hola" }, "OK": "Vale" }';
+  assert.ok(looksLikeTranslations('es-ES.json', txt));
+  assert.ok(looksLikeTranslations('translations.json', txt));
+  assert.ok(looksLikeTranslations('es.json', '{"HOME.TITLE":"Hola"}'));
+  assert.ok(!looksLikeTranslations('datos.json', txt), 'nombre que no sugiere un idioma');
+  assert.ok(!looksLikeTranslations('es.json', '{ "n": 3 }'), 'hojas que no son texto');
+  assert.ok(!looksLikeTranslations('es.json', '{ "a": [1] }'));
+  assert.ok(!looksLikeTranslations('es.json', 'no es json'));
+  assert.ok(!looksLikeTranslations('package.json', '{ "name": "x" }'));
+  assert.ok(!looksLikeTranslations('locales/es/translations.json', txt));
+  assert.ok(!looksLikeTranslations('en.json', ''));
+});

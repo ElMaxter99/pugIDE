@@ -10,6 +10,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **`locals.x.y` en una plantilla se entiende como el dato `x.y`** (así recibe Pug sus datos: `locals` es el objeto completo). Antes creaba un dato falso llamado `locals`, y el esqueleto de `locals.pdfSettings.fonts` no se generaba.
 
 ### Añadido
+- **Importar un `translations.json` como idioma** (diseño P-14). En «Añadir idioma» hay un botón «Importar archivo .json…»: eliges uno o varios archivos, la app propone el código del nombre (`es-ES.json` → `es-ES`; con `translations.json` lo escribes tú) y los guarda en `locales/<código>/translations.json`. Las claves planas (`"HOME.TITLE"`) se convierten a anidadas. Si el idioma ya existe, eliges entre **Fusionar** (por defecto: añade lo nuevo y rellena lo vacío, sin pisar lo traducido) y **Reemplazar**. Al soltar sobre el árbol un JSON que solo trae textos y se llama como un idioma (`es-ES.json`, `translations.json`, `messages.json`…), la app pregunta si es un idioma; «Es un dato más» (o Esc) lo añade como archivo normal. Los demás JSON se añaden como siempre.
+- Escenarios `42-importar-idioma` (interfaz) y `47` (e2e).
 - Escenario `41-less-real`: Less con variables, `@import` y `darken()`, y una hoja `.less` que falta en «Problemas».
 
 ## [0.7.2] - 2026-11-08
