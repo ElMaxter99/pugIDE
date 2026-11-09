@@ -4,7 +4,7 @@ import { findCodeErrorLine } from '../utils/code-error-line.util';
 import { explainError } from '../utils/error-explain.util';
 import { loadHelpers } from '../utils/helpers.util';
 import { createTranslator, TRANSLATE_FNS } from '../utils/i18n.util';
-import { renderMarkdown } from '../utils/markdown.util';
+import { escapeHtml, renderMarkdown } from '../utils/markdown.util';
 import { createPugFilePlugin, normalizeIncludes } from '../utils/pug-vfs.util';
 
 /**
@@ -47,6 +47,7 @@ export function renderPug(bundle: PugBundle, req: RenderRequest): RenderResponse
       // Los filtros que Pug resuelve con paquetes de Node no existen en el navegador.
       filters: {
         cdata: (text: string) => `<![CDATA[${text}]]>`,
+        escape: escapeHtml,
         // Nombres con los que se suele usar Markdown en Pug; todos usan el mismo subconjunto (ver markdown.util).
         markdown: renderMarkdown,
         'markdown-it': renderMarkdown,

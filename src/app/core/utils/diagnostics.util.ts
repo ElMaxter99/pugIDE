@@ -109,7 +109,7 @@ export function groupDiagnostics(list: Diagnostic[]): Map<string, Diagnostic[]> 
 }
 
 /** Filtros de Pug que PugIDE incluye; el resto necesita paquetes de Node que el navegador no tiene. */
-export const AVAILABLE_FILTERS = [':cdata', ':markdown', ':markdown-it', ':marked'] as const;
+export const AVAILABLE_FILTERS = [':cdata', ':escape', ':markdown', ':markdown-it', ':marked'] as const;
 
 /** Añade al mensaje de un filtro desconocido qué filtros hay disponibles. */
 export function explainUnknownFilter(message: string): string {

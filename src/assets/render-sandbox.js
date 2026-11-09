@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: 283d99594b2f222b
+// pugide-runtime source-hash: cc93ae68f2b88075
 "use strict";
 (() => {
   // src/app/core/utils/diagnostics.util.ts
@@ -17,7 +17,7 @@
       message: message || text.trim()
     };
   }
-  var AVAILABLE_FILTERS = [":cdata", ":markdown", ":markdown-it", ":marked"];
+  var AVAILABLE_FILTERS = [":cdata", ":escape", ":markdown", ":markdown-it", ":marked"];
   function explainUnknownFilter(message) {
     const m = /unknown filter "(:?[\w-]+)"/.exec(message);
     if (!m) return message;
@@ -482,6 +482,7 @@ ${body}
         // Los filtros que Pug resuelve con paquetes de Node no existen en el navegador.
         filters: {
           cdata: (text) => `<![CDATA[${text}]]>`,
+          escape: escapeHtml,
           // Nombres con los que se suele usar Markdown en Pug; todos usan el mismo subconjunto (ver markdown.util).
           markdown: renderMarkdown,
           "markdown-it": renderMarkdown,

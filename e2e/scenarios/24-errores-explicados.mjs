@@ -23,3 +23,8 @@ const first = async (src) => { const a = await run({ '/main.pug': src }, '/main.
   const e = await first('p(a=)\n');
   check('48 un atributo sin valor se explica', /atributo mal escrito/.test(e?.hint ?? ''), JSON.stringify(e));
 }
+{
+  const a = await run({ '/main.pug': 'pre\n  :escape\n    <b>"a" & b</b>\n' }, '/main.pug');
+  const html = a.PreviewState.compiledHtml();
+  check('48 el filtro :escape escapa el HTML', html.includes('&lt;b&gt;') && html.includes('&amp;') && !html.includes('<b>'), html + JSON.stringify(a.PreviewState.errors()));
+}
