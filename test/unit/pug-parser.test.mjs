@@ -101,3 +101,35 @@ test('`locals.a.b` es el dato `a.b` y `locals` no es un dato', async () => {
   assert.ok(paths(r).includes('title'));
   assert.ok(!paths(r).some((p) => p === 'locals' || p.startsWith('locals.')), paths(r).join(','));
 });
+
+test('una clave calculada con una variable de texto del template se resuelve', async () => {
+  const r = await parser.parse("- var textS = 'SINGLE'\np= t(`TEXT_${textS}`)\np= t('PIE_' + textS)\np= t(textS)\n");
+  assert.deepEqual(r.errors, []);
+  assert.deepEqual([...r.translationKeys].sort(), ['PIE_SINGLE', 'SINGLE', 'TEXT_SINGLE']);
+});
+
+test('un ternario de textos genera las dos claves (lo que se usa para singular y plural a mano)', async () => {
+  const r = await parser.parse("- var n = items.length\n- var suf = n === 1 ? 'SINGLE' : 'PLURAL'\np= t(`ITEMS_${suf}`, { count: n })\n");
+  assert.deepEqual([...r.translationKeys].sort(), ['ITEMS_PLURAL', 'ITEMS_SINGLE']);
+});
+
+test('una clave calculada con un dato no se inventa: solo las claves que se pueden saber', async () => {
+  const r = await parser.parse("p= t(`TEXT_${kind}`)\np= t(`OTRO_${obj.tipo}`)\np= t('FIJA.CLAVE')\n");
+  assert.deepEqual([...r.translationKeys], ['FIJA.CLAVE']);
+  const r2 = await parser.parse("- var s = fn()\np= t(`X_${s}`)\n");
+  assert.deepEqual([...r2.translationKeys], []);
+});
+
+import { literalStrings, resolveKeyArgument } from './.build/units.mjs';
+test('literalStrings y resolveKeyArgument', () => {
+  assert.deepEqual(literalStrings("'A'"), ['A']);
+  assert.deepEqual(literalStrings("n === 1 ? 'A' : 'B'"), ['A', 'B']);
+  assert.deepEqual(literalStrings("x ? 'A' : (y ? 'B' : 'C')"), ['A', 'B', 'C']);
+  assert.equal(literalStrings('datos.nombre'), null);
+  assert.equal(literalStrings("x ? 'A' : y"), null);
+  const consts = new Map([['s', ['ONE', 'MANY']]]);
+  assert.deepEqual(resolveKeyArgument('`T_${s}_X`', consts), ['T_ONE_X', 'T_MANY_X']);
+  assert.deepEqual(resolveKeyArgument("'T_' + s", consts), ['T_ONE', 'T_MANY']);
+  assert.deepEqual(resolveKeyArgument('`T_${otra}`', consts), []);
+  assert.deepEqual(resolveKeyArgument('', consts), []);
+});
