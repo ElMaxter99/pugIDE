@@ -73,6 +73,21 @@ export default async function (env) {
     await audit(page, `Inspector activo (${theme})`);
     await page.locator('.inspector-btn').click();
   }
+  // --- Preferencias del sistema ---
+  const chromium = (process.env.PUGIDE_BROWSER ?? 'chromium') === 'chromium';
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const motion = await page.evaluate(() => { const probe = document.createElement('div'); probe.className = 'live-indicator'; document.body.append(probe); const cs = getComputedStyle(probe); const r = { count: cs.animationIterationCount, dur: cs.animationDuration }; probe.remove(); return r; });
+  check('44 con «reducir movimiento» las animaciones infinitas se paran', motion.count === '1' && parseFloat(motion.dur) < 0.01, JSON.stringify(motion));
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  if (chromium) {
+    await page.emulateMedia({ forcedColors: 'active' });
+    const outline = await page.evaluate(() => { const t = document.querySelector('.tab.active, .tab [aria-current="true"]'); return t ? getComputedStyle(t).outlineStyle : 'sin pestaña activa'; });
+    check('44 en alto contraste forzado el estado activo se marca con contorno', outline === 'solid', outline);
+    await page.emulateMedia({ forcedColors: 'none', contrast: 'more' });
+    const border = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim() + '|' + getComputedStyle(document.body).getPropertyValue('--border-color').trim());
+    check('44 con «más contraste» los bordes son más marcados', /#4d4354|#9a8fa3/i.test(border) && !/^#cfc2d6\|#cfc2d6$/i.test(border), border);
+    await page.emulateMedia({ contrast: 'no-preference' });
+  }
   check('44 sin errores ni peticiones externas', app.errors.length === 0 && app.external.length === 0, app.errors.concat(app.external).join(' | '));
   await app.close();
 }

@@ -299,6 +299,7 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
 
     const initialTheme = this.preferences.monacoTheme() === 'vs-dark' ? 'pugIDE-dark' : 'pugIDE-light';
 
+    const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.editor = monaco.editor.create(this.editorContainer.nativeElement, {
       value: '',
       language: 'pug',
@@ -315,8 +316,8 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
       renderWhitespace: 'selection',
       bracketPairColorization: { enabled: true },
       cursorBlinking: 'smooth',
-      cursorSmoothCaretAnimation: 'on',
-      smoothScrolling: true,
+      cursorSmoothCaretAnimation: reduceMotion ? 'off' : 'on',
+      smoothScrolling: !reduceMotion,
       padding: { top: 16 },
       lineHeight: 20,
       suggest: {
