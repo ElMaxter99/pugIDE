@@ -55,6 +55,14 @@ Cuando el script termina, la rama \`release\` ya está bien puesta. Falta desple
 
 - Vercel → proyecto \`pug-ide\` → **Deployments** → el despliegue de la rama \`release\` (su commit es el de la versión) → **Promote to Production** (o **Redeploy**). Si la rama de producción configurada es \`release\`, el push ya lo habrá lanzado: comprueba que su despliegue está en verde.
 
+## Los instaladores de escritorio salen solos
+
+Al publicarse la release, el flujo \`Escritorio\` (\`.github/workflows/desktop.yml\`) construye los instaladores de Windows, macOS y Linux (sin firmar), los prueba y los **adjunta a la release** de GitHub, con el aviso de «sin firmar» en sus notas. Tarda unos 15–25 minutos y no hay que hacer nada:
+
+- Mira en GitHub → **Actions** → **Escritorio** que la web y las tres máquinas (Linux, Windows, macOS) terminan en verde, y que la release de \`${tag}\` tiene sus archivos (\`.exe\`, \`.dmg\`, \`.AppImage\`, \`.deb\`, \`.rpm\`).
+- Si algo falla, repítelo: Actions → **Escritorio** → *Run workflow* con el tag \`${tag}\` (o \`gh workflow run desktop.yml -f tag=${tag}\`).
+- Guía para quien instala: [docs/INSTALAR.md](../INSTALAR.md).
+
 ## Comprobación a mano en producción
 
 Con una ventana de incógnito (el service worker de la PWA cachea la versión anterior):
