@@ -28,10 +28,42 @@ permissions:
   contents: read
 
 jobs:
+  # La web se compila UNA vez, en Linux (como la sirve Vercel), y los tres instaladores llevan exactamente esa misma compilación.
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # En una release se construye exactamente lo que lleva su tag.
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Versión (la del package.json de la raíz)
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - run: npm ci
+      - name: Compilar la web
+        run: npm run build:prod
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: dist/pug-ide/browser
+          if-no-files-found: error
+          retention-days: 3
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
   build:
     name: ${{ matrix.nombre }}
+    needs: web
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.web.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -51,24 +83,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          # En una release se construye exactamente lo que lleva su tag.
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            desktop/package-lock.json
-      - name: Versión (la del package.json de la raíz)
-        shell: bash
-        run: echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+          cache-dependency-path: desktop/package-lock.json
       - name: Instalar rpmbuild (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y rpm
-      - run: npm ci
-      - name: Compilar la web
-        run: npm run build:prod
+      - name: Traer la web compilada
+        uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: dist/pug-ide/browser
       - name: Instalar Electron y electron-builder
         working-directory: desktop
         run: npm ci
