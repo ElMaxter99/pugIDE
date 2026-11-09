@@ -14,6 +14,7 @@ export default async function (env) {
 
   // Menú de tema
   await page.locator('button[aria-label="Cambiar tema claro u oscuro"]').click();
+  await page.locator('[role="menuitemradio"]').first().waitFor({ timeout: 4000 });
   const items = await page.locator('[role="menuitemradio"]').allInnerTexts();
   check('52 el menú ofrece Automático, Oscuro y Claro', ['Automático', 'Oscuro', 'Claro'].every((l) => items.some((t) => t.includes(l))), JSON.stringify(items));
   check('52 «Automático» está marcado', (await page.locator('[role="menuitemradio"][aria-checked="true"]').innerText()).includes('Automático'));
