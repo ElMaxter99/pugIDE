@@ -13,6 +13,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - Escenario `46-compartir` (interfaz), e2e `30` y pruebas unitarias del cifrado, la caducidad y la manipulación del texto cifrado.
 
 ### Cambiado
+- **Ventana baja o zoom al 200 %** (diseño P-19, aprobado). El panel inferior mide `clamp(120px, 33vh, 240px)` (antes 240 fijos); si con él el editor se quedara con menos de 240 px de alto, el panel se recoge en una **franja de 34 px** («N errores · Problemas · Registro · Mostrar») y se abre sobre el editor (≈60 % del alto) con un clic o Ctrl+J, y se recoge con Esc, Ctrl+J o su botón de cerrar. Por debajo de 900 px de ancho la **barra superior** pasa a solo iconos (logo «P», «Proyecto», «Exportar» y el buscador, que sigue abriendo la paleta; «Guardar» y el tema siempre a la vista) y la **barra de estado** a solo iconos, sin «Compilado en N ms», codificación ni lenguaje y sin partir el texto. Escenario `50-ventana-baja`.
 - **«Problemas»: los botones «Crear mixin…», «Ir al error» y «Copiar mensaje» van en la línea del título**, a la derecha, y se ven con cualquier altura de panel (antes quedaban tapados por la barra de estado). El fragmento de código se acota a 3 líneas con «Ver más», y la pista y el fragmento van lado a lado si hay ancho (diseño P-20, aprobado).
 - El aviso flotante de «Copiar enlace» pasa al diálogo «Enlace copiado» (con el resumen, el enlace, los avisos de lo que no cabe y el `.zip` si es muy largo).
 

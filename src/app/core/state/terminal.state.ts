@@ -6,6 +6,9 @@ export class TerminalState {
   readonly entries = signal<TerminalEntry[]>([]);
   readonly isVisible = signal(true);
   readonly isMaximized = signal(false);
+  /** Ventana baja (P-19): el panel se recoge en una franja y, abierto, se pinta sobre el editor. Lo decide el diseño según el alto de la ventana. */
+  readonly bottomCompact = signal(false);
+  readonly overlayOpen = signal(false);
   /** «Esenciales» oculta los mensajes de detalle; «Todo» los muestra atenuados. */
   readonly activeFilter = signal<'essential' | 'all'>('essential');
 
@@ -33,6 +36,7 @@ export class TerminalState {
   openProblems(focus = true): void {
     this.activeTab.set('problems');
     this.isVisible.set(true);
+    this.overlayOpen.set(true);
     if (focus) this.focusRequest.update((n) => n + 1);
   }
 
@@ -40,6 +44,7 @@ export class TerminalState {
   openLog(): void {
     this.activeTab.set('log');
     this.isVisible.set(true);
+    this.overlayOpen.set(true);
   }
 
   addEntry(type: TerminalEntry['type'], source: string, message: string, loc?: { path: string; line: number }, detail = false): void {
@@ -60,6 +65,8 @@ export class TerminalState {
   }
 
   toggle(): void {
+    // Con la ventana baja no se oculta el panel: se abre y se recoge la franja.
+    if (this.bottomCompact()) { this.overlayOpen.update((v) => !v); return; }
     this.isVisible.update((v) => !v);
   }
 
