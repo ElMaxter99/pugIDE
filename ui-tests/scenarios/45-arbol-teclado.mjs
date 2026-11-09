@@ -1,4 +1,4 @@
-import { check, openApp, waitUntil } from '../lib.mjs';
+import { check, closeDialog, openApp, waitUntil } from '../lib.mjs';
 
 // 0.8, oleada 1 (WCAG 2.1.1): renombrar, duplicar y borrar archivos solo con teclado.
 const session = {
@@ -44,21 +44,20 @@ export default async function (env) {
   const input = page.locator('app-dialog input');
   await input.waitFor({ timeout: 4000 });
   check('45 «Renombrar» desde el menú con teclado abre su diálogo', (await input.inputValue()).includes('otra'), await input.inputValue());
-  await page.keyboard.press('Escape');
+  await closeDialog(page, 'app-dialog [role="dialog"]');
 
   // F2 renombra y Supr borra
   await row.focus();
   await page.keyboard.press('F2');
   await input.waitFor({ timeout: 4000 });
   check('45 F2 renombra el archivo con el foco', (await input.inputValue()).includes('otra'), await input.inputValue());
-  await page.keyboard.press('Escape');
+  await closeDialog(page, 'app-dialog [role="dialog"]');
   await row.focus();
   await page.keyboard.press('Delete');
   const dialog = page.locator('app-dialog [role="dialog"]');
   await dialog.waitFor({ timeout: 4000 });
   check('45 Supr pide confirmar el borrado del archivo con el foco', /otra/.test(await dialog.innerText()), await dialog.innerText());
-  await page.keyboard.press('Escape');
-  await dialog.waitFor({ state: 'detached', timeout: 4000 });
+  await closeDialog(page, 'app-dialog [role="dialog"]');
   check('45 y no lo borra hasta confirmar', (await page.locator('.file-row[data-path="/otra.pug"]').count()) === 1);
   // En una carpeta, F2 y Supr no abren un diálogo que no haría nada
   await page.locator('.file-row[data-path="/partials"]').focus();
