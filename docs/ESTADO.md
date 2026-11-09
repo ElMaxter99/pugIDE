@@ -4,7 +4,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 
 ## Versiones
 - **0.8.0**: publicada (tag `v0.8.0` y release de GitHub hechos). La rama `release` ya contiene la 0.8.0 y, por un merge manual, trabajo de la 0.9 hasta la PR 57. Falta, si no se ha hecho, **desplegar `release` en Vercel a mano**.
-- **0.9.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.9.0.md`). Falta mergearla y lanzar `npm run release:deploy`.
+- **0.9.0**: publicada (tag y release hechos con `release:deploy`).
+- **0.9.1**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.9.1.md`): doble clic en una plantilla la previsualiza. Falta mergearla y lanzar `npm run release:deploy`.
 
 ## Plan 0.9
 | Pieza | Estado |
@@ -21,5 +22,5 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 | Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | 🔄 en su PR |
 
 ## Pendiente de la persona responsable
-- Mergear la PR de la 0.9.0.
+- Mergear la PR de la 0.9.1.
 - Después, desde la carpeta del proyecto: `npm run release:deploy` y desplegar `release` en Vercel a mano.
