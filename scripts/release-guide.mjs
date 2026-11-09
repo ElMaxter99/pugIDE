@@ -100,7 +100,7 @@ git tag -a ${tag} $SHA -m "PugIDE ${version}"
 git push origin ${tag}
 \`\`\`
 
-Un tag publicado no se mueve ni se reutiliza. Si el tag ya existe en el remoto, comprueba que apunta al mismo commit (\`git rev-parse ${tag}^{}\`) y sigue.
+Un tag publicado no se mueve ni se reutiliza. Si el tag ya existe en el remoto, comprueba que apunta al mismo commit (\`git rev-list -n 1 ${tag}\`, igual en PowerShell y Bash) y sigue.
 
 ## 4. Release en GitHub
 
