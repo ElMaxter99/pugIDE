@@ -39,9 +39,7 @@ import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.
               <span class="sr-only">Buscar comandos y archivos</span>
             }
           </button>
-          <button type="button" class="icon-btn" title="Cambiar tema claro u oscuro" aria-label="Cambiar tema claro u oscuro" (click)="onToggleTheme()">
-            <span aria-hidden="true" class="material-symbols-outlined">contrast</span>
-          </button>
+          <app-dropdown-menu label="Tema" icon="contrast" ariaLabel="Cambiar tema claro u oscuro" [iconOnly]="true" testId="menu-tema" align="right" [items]="themeItems()" (chosen)="onThemeChoice($event)" />
           <button type="button" class="save-btn" (click)="onSave()">Guardar</button>
         </div>
       </div>
@@ -195,8 +193,17 @@ export class TopbarComponent {
     this.orchestrator.saveFile();
   }
 
-  onToggleTheme(): void {
-    this.preferences.toggleTheme();
+  protected readonly themeItems = computed<MenuItem[]>(() => {
+    const t = this.preferences.theme();
+    return [
+      { id: 'auto', label: 'Automático', hint: 'Sigue el tema de tu sistema', checked: t === 'auto', radio: true },
+      { id: 'dark', label: 'Oscuro', checked: t === 'dark', radio: true },
+      { id: 'light', label: 'Claro', checked: t === 'light', radio: true },
+    ];
+  });
+
+  onThemeChoice(id: string): void {
+    if (id === 'auto' || id === 'dark' || id === 'light') this.preferences.update({ theme: id });
   }
 
   /** «Copiar enlace para compartir»: abre «Compartir proyecto» (P-15) con sus opciones. */

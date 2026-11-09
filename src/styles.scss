@@ -335,3 +335,12 @@ kbd {
   kbd { border: 1px solid CanvasText; }
   :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
 }
+
+/* F6 entre regiones (P-21): marco visible un momento en la región a la que se acaba de ir. */
+[data-region].region-flash {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-region].region-flash { transition: outline-color 0.2s ease; }
+}

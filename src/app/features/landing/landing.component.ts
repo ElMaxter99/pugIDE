@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, effect } from '@angular/core';
 import { Router } from '@angular/router';
 import { APP_VERSION } from '../../core/models/version.token';
 import { PreferencesState } from '../../core/services/preferences.state';
@@ -20,13 +20,13 @@ export class LandingComponent {
   protected hasSavedSession = false;
 
   constructor() {
-    document.documentElement.classList.toggle('light-mode', this.prefs.theme() === 'light');
+    effect(() => document.documentElement.classList.toggle('light-mode', this.prefs.resolvedTheme() === 'light'));
     const saved = this.persistence.loadProjectState();
     this.hasSavedSession = !!saved && Object.keys(saved.files).length > 0;
   }
 
   get isDark(): boolean {
-    return this.prefs.theme() === 'dark';
+    return this.prefs.resolvedTheme() === 'dark';
   }
 
   toggleTheme(): void {

@@ -59,7 +59,7 @@ export default async function (env) {
 
   // --- Contraste y nombres en más estados (axe), oscuro y claro ---
   for (const theme of ['oscuro', 'claro']) {
-    if (theme === 'claro') { await page.locator('button[title="Cambiar tema claro u oscuro"]').click(); await page.waitForTimeout(400); }
+    if (theme === 'claro') { await page.locator('button[aria-label="Cambiar tema claro u oscuro"]').click(); await page.locator('[role="menuitemradio"]', { hasText: 'Claro' }).click(); await page.waitForTimeout(400); }
     await openLogTab(page);
     await page.locator('[data-testid="log-filter-all"]').click();
     await audit(page, `Registro «Todo» (${theme})`);

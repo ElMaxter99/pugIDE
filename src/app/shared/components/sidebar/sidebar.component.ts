@@ -43,7 +43,7 @@ type PendingAction =
   imports: [DialogComponent, ContextMenuComponent, FileTreeComponent, SmartDataEditorComponent, PanelResizerComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <aside class="sidebar" [class.collapsed]="preferences.sidebarCollapsed()">
+    <aside class="sidebar" aria-label="Archivos y datos" [class.collapsed]="preferences.sidebarCollapsed()">
       @if (!preferences.sidebarCollapsed()) {
         <app-panel-resizer
           testId="resizer-sidebar"

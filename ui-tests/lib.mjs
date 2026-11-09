@@ -37,8 +37,8 @@ export async function waitUntil(fn, timeout = 6000, step = 150) {
  * - `welcome`: por defecto la bienvenida de primer uso se da por vista (`pug-ide-welcome`) para que no estorbe en los
  *   escenarios que abren `/ide` sin sesión; con `welcome: true` se parte de un primer uso de verdad.
  */
-export async function openApp(env, { path = '/ide?demo=true', session, prefs, consent = 'denied', storage, welcome = false, viewport = { width: 1400, height: 850 }, wait = 4000 } = {}) {
-  const context = await env.browser.newContext({ viewport, serviceWorkers: env.serviceWorkers ?? 'block' });
+export async function openApp(env, { path = '/ide?demo=true', session, prefs, consent = 'denied', storage, welcome = false, viewport = { width: 1400, height: 850 }, wait = 4000, colorScheme = 'dark' } = {}) {
+  const context = await env.browser.newContext({ viewport, colorScheme, serviceWorkers: env.serviceWorkers ?? 'block' });
   const external = [];
   const requests = [];
   context.on('request', (r) => requests.push(r.url()));

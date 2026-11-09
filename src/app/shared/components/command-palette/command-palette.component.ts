@@ -174,6 +174,7 @@ export class CommandPaletteComponent {
       { group: 'Ajustes', title: 'Ver la bienvenida', keywords: 'plantillas primeros pasos empezar', run: () => this.ui.welcomeOpen.set(true) },
       { group: 'Ajustes', title: 'Atajos de teclado', keywords: 'ayuda keyboard shortcuts teclas', run: () => this.ui.shortcutsOpen.set(true) },
       { group: 'Ajustes', title: 'Alternar tema claro/oscuro', keywords: 'dark light', run: () => this.preferences.toggleTheme() },
+      { group: 'Ajustes', title: 'Tema: Automático (el del sistema)', keywords: 'dark light sistema auto', run: () => this.preferences.update({ theme: 'auto' }) },
       {
         group: 'Ajustes', keywords: 'formatear formato atributos orden', run: () => this.preferences.update({ sortAttributes: !this.preferences.sortAttributes() }),
         title: `Formato de Pug: ordenar atributos (${this.preferences.sortAttributes() ? 'activado' : 'desactivado'})`,
