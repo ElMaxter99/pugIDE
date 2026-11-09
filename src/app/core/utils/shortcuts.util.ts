@@ -28,6 +28,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { label: 'Ir a símbolo (mixins y bloques)', keys: 'Ctrl+Shift+O' },
       { label: 'Ir a la definición de include / extends / +mixin', keys: 'F12 o Ctrl+clic' },
       { label: 'Formatear Pug', keys: 'Shift+Alt+F' },
+      { label: 'Previsualizar una plantilla del árbol (con teclado: menú de la fila → «Previsualizar este archivo»)', keys: 'Doble clic' },
       { label: 'Tab mueve el foco fuera del editor (en vez de sangrar); otra vez para volver (en macOS: Ctrl+Mayús+M)', keys: 'Ctrl+M' },
     ],
   },
