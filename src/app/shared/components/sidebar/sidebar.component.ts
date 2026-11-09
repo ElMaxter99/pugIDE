@@ -138,7 +138,7 @@ type PendingAction =
           </div>
         </div>
 
-        <app-file-tree (pickAsset)="pickAssets($event)" (nodeContextMenu)="onNodeContextMenu($event.event, $event.node)" />
+        <app-file-tree (pickAsset)="pickAssets($event)" (nodeContextMenu)="onNodeContextMenu($event.event, $event.node)" (nodeAction)="onNodeAction($event.action, $event.node)" />
         </div>
 
         @if (!layout.dataColumn()) {
@@ -479,6 +479,12 @@ export class SidebarComponent {
     this.contextMenuX.set(event.clientX);
     this.contextMenuY.set(event.clientY);
     this.contextMenuOpen.set(true);
+  }
+
+  /** F2 / Supr sobre un archivo del árbol. */
+  onNodeAction(action: 'rename' | 'delete', node: FileNode): void {
+    if (action === 'rename') this.showRenameDialog(node.path);
+    else this.showDeleteDialog(node.path);
   }
 
   onContextAction(action: string): void {

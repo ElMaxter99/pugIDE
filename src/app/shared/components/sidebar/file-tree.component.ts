@@ -219,6 +219,8 @@ export class FileTreeComponent {
   /** Se pide subir el archivo que falta en esa ruta. */
   readonly pickAsset = output<string>();
   readonly nodeContextMenu = output<{ event: MouseEvent; node: FileNode }>();
+  /** F2 renombra y Supr borra el archivo con el foco (los mismos diálogos que el menú contextual). */
+  readonly nodeAction = output<{ action: 'rename' | 'delete'; node: FileNode }>();
 
   protected onDragOver(event: DragEvent): void {
     if (!event.dataTransfer?.types.includes('Files')) return;
@@ -285,7 +287,7 @@ export class FileTreeComponent {
     return out;
   }
 
-  /** Enter/Espacio abren; flechas arriba/abajo mueven el foco; derecha/izquierda despliegan y pliegan; tecla de menú o Mayús+F10 abren el menú contextual. */
+  /** Enter/Espacio abren; flechas arriba/abajo mueven el foco; derecha/izquierda despliegan y pliegan; F2 renombra, Supr borra, y la tecla de menú o Mayús+F10 abren el menú contextual. */
   protected onRowKeydown(event: KeyboardEvent, node: FileNode): void {
     const rows = Array.from((this.host.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.file-row'));
     const index = rows.findIndex((r) => r.dataset['path'] === node.path);
@@ -308,6 +310,14 @@ export class FileTreeComponent {
         break;
       case 'ArrowLeft':
         if (node.type === 'directory' && this.isExpanded(node.path)) { event.preventDefault(); this.projectState.toggleDir(node.path); }
+        break;
+      case 'F2':
+        event.preventDefault();
+        this.nodeAction.emit({ action: 'rename', node });
+        break;
+      case 'Delete':
+        event.preventDefault();
+        this.nodeAction.emit({ action: 'delete', node });
         break;
       case 'ContextMenu':
       case 'F10':

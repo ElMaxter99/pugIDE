@@ -5,7 +5,12 @@ import {
   output,
   computed,
   HostListener,
+  ElementRef,
+  effect,
+  untracked,
+  viewChild,
 } from '@angular/core';
+import { rememberFocus } from '../../../core/utils/focus-trap.util';
 import { ContextMenuAction } from '../../../core/models/index';
 
 @Component({
@@ -15,12 +20,15 @@ import { ContextMenuAction } from '../../../core/models/index';
   template: `
     @if (isOpen()) {
       <div class="context-overlay" (click)="close()"></div>
-      <div class="context-menu" [style.left.px]="clampedX()" [style.top.px]="clampedY()">
+      <div #menu class="context-menu" role="menu" [attr.aria-label]="ariaLabel()" [style.left.px]="clampedX()" [style.top.px]="clampedY()" (keydown)="onKeydown($event)">
         @for (item of items(); track item.label) {
           @if (item.separator) {
-            <div class="context-separator"></div>
+            <div class="context-separator" role="separator"></div>
           } @else {
             <button
+              type="button"
+              role="menuitem"
+              tabindex="-1"
               class="context-item"
               [class.disabled]="item.disabled"
               [disabled]="item.disabled"
@@ -78,6 +86,12 @@ import { ContextMenuAction } from '../../../core/models/index';
       color: var(--bg-primary);
     }
 
+    .context-item:focus-visible:not(.disabled) {
+      background: var(--accent-color);
+      color: var(--bg-primary);
+      outline: none;
+    }
+
     .context-item.disabled {
       opacity: 0.4;
       cursor: default;
@@ -120,6 +134,50 @@ export class ContextMenuComponent {
   positionY = input(0);
   isOpen = input(false);
   actionSelected = output<string>();
+  /** Nombre accesible del menú. */
+  ariaLabel = input('Menú contextual');
+
+  private readonly menu = viewChild<ElementRef<HTMLElement>>('menu');
+  private restoreFocus: (() => void) | null = null;
+
+  constructor() {
+    // Al abrirse (con ratón o con Mayús+F10) el foco entra en el menú, en la primera opción; al cerrarse vuelve a donde estaba.
+    effect(() => {
+      if (this.isOpen()) {
+        untracked(() => {
+          this.restoreFocus = rememberFocus();
+          setTimeout(() => this.items_()[0]?.focus());
+        });
+      } else if (this.restoreFocus) {
+        const back = this.restoreFocus;
+        this.restoreFocus = null;
+        untracked(() => setTimeout(back));
+      }
+    });
+  }
+
+  private items_(): HTMLButtonElement[] {
+    return Array.from(this.menu()?.nativeElement.querySelectorAll<HTMLButtonElement>('button.context-item:not(:disabled)') ?? []);
+  }
+
+  /** Flechas, Inicio y Fin recorren las opciones (sin salir del menú); Tab cierra el menú; Esc ya lo cierra. */
+  protected onKeydown(event: KeyboardEvent): void {
+    const list = this.items_();
+    if (!list.length) return;
+    const at = list.indexOf(document.activeElement as HTMLButtonElement);
+    let to: number | null = null;
+    switch (event.key) {
+      case 'ArrowDown': to = (at + 1) % list.length; break;
+      case 'ArrowUp': to = (at - 1 + list.length) % list.length; break;
+      case 'Home': to = 0; break;
+      case 'End': to = list.length - 1; break;
+      case 'Tab': event.preventDefault(); this.close(); return;
+      default: return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    list[to].focus();
+  }
 
   /** Keeps the menu inside the viewport (approximate size: 200px wide, 34px per row). */
   clampedX = computed(() => Math.max(8, Math.min(this.positionX(), window.innerWidth - 208)));
