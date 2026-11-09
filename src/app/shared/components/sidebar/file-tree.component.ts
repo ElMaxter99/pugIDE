@@ -84,6 +84,7 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
           [style.padding-left.px]="16 + level * 16"
           [class.active]="isActive(node.path)"
           (click)="onNodeClick(node)"
+          (dblclick)="onNodeDblClick(node)"
           (focus)="focusPath.set(node.path)"
           (keydown)="onRowKeydown($event, node)"
           (contextmenu)="onNodeContextMenu($event, node)">
@@ -259,6 +260,12 @@ export class FileTreeComponent {
     } else {
       this.editorState.openFile(node.path, node.name, getFileType(node.name), node.content ?? '');
     }
+  }
+
+  /** Doble clic en una plantilla Pug/Jade: se previsualiza ese archivo (lo mismo que «Previsualizar este archivo» del menú). */
+  protected onNodeDblClick(node: FileNode): void {
+    if (node.type !== 'file' || node.isAsset || !/\.(pug|jade)$/i.test(node.path)) return;
+    void this.orchestrator.setPreviewEntry(node.path);
   }
 
   protected onNodeContextMenu(event: MouseEvent, node: FileNode): void {
