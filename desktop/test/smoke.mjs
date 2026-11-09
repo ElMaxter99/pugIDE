@@ -29,7 +29,16 @@ try {
   const info = await page.evaluate(() => window.pugideDesktop ?? null);
   check('el preload expone la plataforma y la versión', !!info && typeof info.platform === 'string' && /^\d+\.\d+\.\d+/.test(info.version), JSON.stringify(info));
   check('y nada más (sin funciones ni acceso al sistema)', !!info && Object.values(info).every((v) => typeof v === 'string') && Object.keys(info).length === 3, JSON.stringify(info));
-  check('la página no tiene Node (sin require ni process)', await page.evaluate(() => typeof require === 'undefined' && typeof process === 'undefined'));
+  // Monaco define un `require` propio (su cargador AMD), así que no basta con mirar si existe: se comprueba que la página no
+  // pueda llegar a Node (ni `process` de Node ni cargar `fs`).
+  await wait(async () => (await page.locator('.monaco-editor').count()) > 0); // que el cargador de Monaco ya esté puesto
+  const node = await page.evaluate(() => {
+    const hasProcess = typeof process !== 'undefined' && !!process.versions?.node;
+    let fs = false;
+    try { fs = typeof require === 'function' && !!require('fs')?.readFileSync; } catch { fs = false; }
+    return { hasProcess, fs, module: typeof module !== 'undefined' };
+  });
+  check('la página no tiene Node (ni process de Node, ni puede cargar fs)', !node.hasProcess && !node.fs && !node.module, JSON.stringify(node));
 
   const editor = await wait(async () => (await page.locator('.monaco-editor').count()) > 0);
   check('carga el editor (Monaco, con sus workers bajo la CSP)', !!editor);
