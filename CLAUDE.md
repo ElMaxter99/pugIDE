@@ -26,6 +26,16 @@ Todo cambio en lo que ve el usuario (pantallas, flujos, textos de pantalla) se d
 - Al terminar el diseño, pasa el enlace y una lista corta de decisiones por tomar con tu recomendación. **No programes la interfaz hasta que esté aprobada.** Lo que no se ve (motor, pruebas, rendimiento, docs) avanza sin esperar.
 - Tras la aprobación, copia `canvas.json` y los `*.dc.html` a `design/canvas/` en la misma PR que registra el cambio, actualiza la tabla de mesas de `design/README.md` y el CHANGELOG. La PR de código enlaza la mesa que implementa. Si al programar hay que apartarse del diseño, primero se corrige el lienzo.
 
+## Publicar una versión (regla fija)
+
+Siempre que se prepare una versión (`chore(release): X.Y.Z`), quien la prepara:
+
+1. Genera la guía de despliegue con `npm run release:guide -- X.Y.Z` (crea `docs/releases/vX.Y.Z.md`: comandos exactos para PowerShell y Bash, comprobaciones, vuelta atrás y lo que lleva la versión) y la incluye en el mismo PR. `npm run release:check` falla si falta.
+2. **Pasa a la persona responsable los comandos en el chat** (un bloque `bash` por comando, y los de PowerShell si usa Windows) y le dice dónde está la guía.
+3. No empuja tags ni avanza `release` desde su sesión: lo hace una persona o el agente de despliegue, con confirmación expresa para producción.
+
+Las notas de la release de GitHub salen del CHANGELOG con `node scripts/release-notes.mjs X.Y.Z archivo.md` (sin `awk`). Detalle en [docs/RELEASE.md](docs/RELEASE.md).
+
 ## Flujo principal
 
 parser -> datos -> orquestador -> compilador -> preview. Ver `src/app/core/services/orchestrator.service.ts` (`processCode`).

@@ -30,7 +30,8 @@ Los comandos están en PowerShell (también valen en Bash); el `&&` se ha evitad
    - `npm run version:patch` (o `version:minor` / `version:major`), que cambia `package.json` y `package-lock.json` sin crear tag ni commit.
    - En `CHANGELOG.md`, lo de «Sin publicar» pasa a una sección `## [X.Y.Z] - AAAA-MM-DD` (formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)).
    - Actualiza el badge de versión del `README.md` y el título de `docs/PLAN.md`.
-   - Comprueba que todo cuadra: `npm run release:check` (versión en `package.json`, `package-lock.json`, README, `docs/PLAN.md` y CHANGELOG, y que «Sin publicar» está vacío).
+   - Genera la guía de despliegue de la versión: `npm run release:guide -- X.Y.Z` (escribe `docs/releases/vX.Y.Z.md` con los comandos exactos, las comprobaciones y la vuelta atrás; va en el mismo PR). Quien prepara la versión **pasa además los comandos a la persona responsable en el chat**.
+   - Comprueba que todo cuadra: `npm run release:check` (también exige que exista la guía) (versión en `package.json`, `package-lock.json`, README, `docs/PLAN.md` y CHANGELOG, y que «Sin publicar» está vacío).
    - Antes de abrir el PR: `npm run lint`, `npm run test:unit`, `npm run build:prod`, `npm run test:e2e` y `npm run test:ui` (también con `PUGIDE_BROWSER=firefox` y `webkit`).
 2. **Merge a `master`** cuando el CI esté en verde: `build-test`, `ui-firefox` y `ui-webkit`.
 3. **Tag anotado** sobre el commit del merge:
@@ -47,7 +48,7 @@ Los comandos están en PowerShell (también valen en Bash); el `&&` se ha evitad
    git push origin vX.Y.Z
    ```
 
-4. **Release en GitHub**: https://github.com/ElMaxter99/pugIDE/releases/new, eligiendo el tag existente y pegando como notas la sección de ese número del `CHANGELOG.md`.
+4. **Release en GitHub**: `node scripts/release-notes.mjs X.Y.Z release-notes.md` y `gh release create vX.Y.Z --title "PugIDE X.Y.Z" --notes-file release-notes.md --verify-tag` (o, a mano, https://github.com/ElMaxter99/pugIDE/releases/new con las notas de esa sección del `CHANGELOG.md`). Los comandos completos de cada versión están en `docs/releases/vX.Y.Z.md`.
 5. **Producción**: avanzar `release` al mismo commit del tag.
 
    ```powershell

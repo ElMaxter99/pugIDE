@@ -32,7 +32,9 @@
     "prebuild": "node scripts/bundle-sass.mjs && node scripts/validate-build.js",
     "test:ui": "node ui-tests/run.mjs",
     "perf": "node scripts/perf.mjs",
-    "test:unit": "node test/unit/build.mjs && node --test test/unit/*.test.mjs"
+    "test:unit": "node test/unit/build.mjs && node --test test/unit/*.test.mjs",
+    "release:notes": "node scripts/release-notes.mjs",
+    "release:guide": "node scripts/release-guide.mjs"
   },
   "private": true,
   "dependencies": {
