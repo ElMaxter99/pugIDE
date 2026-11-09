@@ -1,0 +1,20 @@
+html
+  head
+    title Informe de ventas de ejemplo
+    meta(charset="utf-8")
+    style(type="text/css").
+      * { margin: 0; padding: 0; }
+      @page { size: 841.9pt 595.3pt; margin: 0; }
+      body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1e1e1e; line-height: normal; padding: 0 51pt; }
+      .inf-cover, .inf-main, .inf-close { padding: 0; }
+      .inf-main, .inf-close { page-break-before: always; }
+      .inf-table-wrap { overflow: hidden; page-break-inside: avoid; text-align: center; }
+      .inf-table-wrap + .inf-table-wrap { page-break-before: always; }
+      .inf-table .inf-tr td { height: 24pt; font-size: 7pt; color: #414141; vertical-align: middle; page-break-inside: avoid; border: none; border-bottom: 1pt solid #1f4e79; }
+      .inf-sh { background-color: #e8eef4; }
+  body
+    include ./mixins
+    //- Tabla ancha con varias columnas y separadores
+    - var report = pdfData.report;
+    .report
+      +infBody(report)

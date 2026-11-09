@@ -4,6 +4,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.10.1] - 2026-11-09
+
+### Cambiado
+- **Ejemplos genéricos** en las pruebas: el proyecto de ejemplo de informe de las pruebas e2e pasa a ser un informe de ventas inventado, con fuentes, imágenes y textos genéricos. No cambia nada para quien usa la app.
+
 ## [0.10.0] - 2026-11-09
 
 ### Añadido
