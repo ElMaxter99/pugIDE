@@ -132,6 +132,16 @@ test('--no-prod hace el tag y la release pero no toca release', async () => {
   assert.equal(remoteRef(fx, 'refs/heads/release'), before);
 });
 
+test('si release ya contiene el commit de la versión (va por delante), no hace nada ni falla', async () => {
+  const fx = fixture();
+  git(fx.work, 'push', 'origin', 'master:release');
+  const ahead = remoteRef(fx, 'refs/heads/release');
+  const r = await run(fx, ['0.8.0']);
+  assert.equal(r.error, null, r.out);
+  assert.match(r.out, /ya contiene/);
+  assert.equal(remoteRef(fx, 'refs/heads/release'), ahead, 'release queda como estaba');
+});
+
 test('si release no es fast-forward, no se fuerza nada y avisa', async () => {
   const fx = fixture();
   git(fx.work, 'checkout', '-b', 'otra', 'master~2');

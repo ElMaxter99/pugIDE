@@ -158,7 +158,9 @@ export async function main(argv, env = process.env) {
   }
   const current = git(['rev-parse', `${remote}/release`], { allowFail: true }).out;
   if (current === sha) log(`    release ya está en ${sha.slice(0, 7)}: nada que hacer`);
-  else {
+  else if (current && git(['merge-base', '--is-ancestor', sha, current], { allowFail: true }).status === 0) {
+    log(`    release (${current.slice(0, 7)}) ya contiene ${sha.slice(0, 7)}: la versión ya está en producción, nada que hacer`);
+  } else {
     if (current && git(['merge-base', '--is-ancestor', current, sha], { allowFail: true }).status !== 0) {
       throw new Error(`release (${current.slice(0, 7)}) tiene algo que ${sha.slice(0, 7)} no tiene: NO es fast-forward. No se fuerza nada: investígalo.`);
     }
