@@ -1,0 +1,76 @@
+# Instaladores de PugIDE de escritorio. SIN FIRMAR a propósito: el proyecto es libre y gratuito, no usa certificados de
+# pago (ver docs/INSTALAR.md). Se construye cada sistema en su propia máquina (ver .github/workflows/desktop.yml).
+appId: com.elmaxter99.pugide
+productName: PugIDE
+copyright: Copyright © ElMaxter99. Licencia MIT.
+artifactName: PugIDE-${version}-${os}-${arch}.${ext}
+directories:
+  output: dist
+  buildResources: build
+files:
+  - src/**/*
+  - package.json
+extraResources:
+  - from: ../dist/pug-ide/browser
+    to: app-web
+  - from: ../vercel.json
+    to: vercel.json
+electronLanguages:
+  - es
+  - en-US
+protocols:
+  - name: PugIDE
+    schemes:
+      - pugide
+publish: null
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  artifactName: PugIDE-${version}-windows-${arch}-instalador.${ext}
+portable:
+  artifactName: PugIDE-${version}-windows-${arch}-portable.${ext}
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+dmg:
+  artifactName: PugIDE-${version}-mac-${arch}.${ext}
+
+linux:
+  category: Development
+  maintainer: ElMaxter99 <elmaxter99@users.noreply.github.com>
+  synopsis: IDE de Pug/Jade 100 % local
+  description: IDE de Pug/Jade en una ventana propia, con vista previa en vivo y datos de ejemplo. Funciona sin conexión; tu código no sale de tu equipo.
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+    - target: rpm
+      arch: [x64]
+  executableName: pugide
+  syncDesktopName: true
+  desktop:
+    entry:
+      StartupWMClass: PugIDE
+      Keywords: pug;jade;html;template;
+appImage:
+  artifactName: PugIDE-${version}-linux-${arch}.${ext}
+deb:
+  artifactName: PugIDE-${version}-linux-${arch}.${ext}
+rpm:
+  artifactName: PugIDE-${version}-linux-${arch}.${ext}

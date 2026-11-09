@@ -1,0 +1,24 @@
+{
+  "name": "pugide-desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "PugIDE de escritorio: la misma app, empaquetada con Electron para Windows, macOS y Linux. Funciona sin conexión.",
+  "author": "ElMaxter99",
+  "license": "MIT",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron . --no-sandbox",
+    "test": "node test/smoke.mjs",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:linux": "electron-builder --linux",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  },
+  "homepage": "https://github.com/ElMaxter99/pugIDE",
+  "desktopName": "pugide.desktop"
+}

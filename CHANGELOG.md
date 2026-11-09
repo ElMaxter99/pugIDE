@@ -4,6 +4,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Añadido
+- **PugIDE de escritorio para Windows, macOS y Linux** (Electron, `desktop/`), gratuito y **sin firmar** (sin certificados de pago): software libre MIT, sin garantía y bajo la responsabilidad de cada persona usuaria, con los avisos en el README, en `docs/INSTALAR.md` y en las notas de cada release. Instaladores: Windows (instalador y portable), macOS (dmg Intel y Apple Silicon) y Linux (`AppImage`, `deb`, `rpm`). **Funciona del todo sin conexión** y sin llamadas de red por su cuenta; sin analítica ni aviso de privacidad ni service worker. La app se sirve desde el disco con las **mismas cabeceras de seguridad que producción** (CSP y `sandbox` de los marcos, leídas de `vercel.json`); `contextIsolation` y `sandbox`, sin Node en la página y sin abrir ventanas ni navegar fuera de la app (los enlaces `https` abren el navegador). Los enlaces `pugide://` abren la app. Los proyectos de la web, la PWA y el escritorio son perfiles aparte (se llevan con Exportar/Importar `.zip`).
+- **`.github/workflows/desktop.yml`:** al publicarse una release construye los instaladores en las tres máquinas, ejecuta la prueba de humo sobre cada app ya empaquetada y los adjunta a la release (con el aviso de «sin firmar» en sus notas). También se lanza a mano (Actions → Escritorio) y en los PR que tocan `desktop/`.
+- **PWA instalable documentada y comprobada:** manifiesto con idioma y descripción en español; escenario `55-pwa-instalable` con las condiciones que exigen Chrome, Edge y Safari para ofrecer «Instalar».
+- Comandos `npm run desktop:install`, `desktop:start`, `desktop:test` y `desktop:pack`. Prueba de humo `desktop/test/smoke.mjs` (Electron real con Playwright), pruebas unitarias de `desktop.util` y `docs/INSTALAR.md`.
+
 ## [0.9.1] - 2026-11-09
 
 ### Añadido

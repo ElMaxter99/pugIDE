@@ -3,6 +3,7 @@ import { ProjectIoService } from '../../../core/services/project-io.service';
 import { TerminalState } from '../../../core/state/terminal.state';
 import { UiState } from '../../../core/state/ui.state';
 import { focusableElements, rememberFocus, trapTab } from '../../../core/utils/focus-trap.util';
+import { shareBaseUrl } from '../../../core/utils/desktop.util';
 import { SHARE_MIN_PASSWORD, ShareLink } from '../../../core/utils/share.util';
 import { EXPIRY_CHOICES, ExpiryChoice, expiryFrom, formatShareDate } from '../../../core/utils/share-options.util';
 
@@ -158,7 +159,7 @@ export class ShareCreateDialogComponent {
     this.busy.set(true);
     this.error.set(null);
     try {
-      const link = await this.projectIo.buildShareLinkProtected(location.origin + '/ide', {
+      const link = await this.projectIo.buildShareLinkProtected(shareBaseUrl(location.origin) + '/ide', {
         expiresAt: expiryFrom(this.expiry(), Date.now()),
         password: this.password() || undefined,
         includeData: this.includeData(),

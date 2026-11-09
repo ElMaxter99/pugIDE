@@ -8,7 +8,7 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **0.9.1**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.9.1.md`): doble clic en una plantilla la previsualiza. Falta mergearla y lanzar `npm run release:deploy`.
 
 ## Propuesta en estudio
-- **PugIDE de escritorio** (Windows, macOS, Linux): investigación y plan en [ESCRITORIO.md](ESCRITORIO.md); a la espera de que la persona responsable apruebe las 7 decisiones del final del documento.
+- **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.
 
 ## Plan 0.9
 | Pieza | Estado |

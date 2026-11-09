@@ -130,6 +130,10 @@ parser  →  data  →  orchestrator  →  compiler  →  preview
 
 Angular 22 (standalone components, signals), Monaco, the Pug compiler bundled for the browser, `sass` and `less` on the client, and Angular's service worker for offline use. The details are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (in Spanish).
 
+## Install
+
+PugIDE runs in the browser, as a **PWA** (its own icon and window, nothing to download) and as a **desktop app** for **Windows, macOS and Linux**, offline. The desktop installers are free and **unsigned** (no paid certificates): open-source MIT software, no warranty, use at your own responsibility. Steps and warnings in **[docs/INSTALAR.md](docs/INSTALAR.md)** (Spanish); installers are on the [releases](https://github.com/ElMaxter99/pugIDE/releases) page.
+
 ## Getting started
 
 You need Node.js and npm.
@@ -188,6 +192,8 @@ These documents are in Spanish.
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): architecture, isolation, CSP, PDF and measured performance.
 - [docs/PLAN.md](docs/PLAN.md): project status and next steps.
+- [docs/INSTALAR.md](docs/INSTALAR.md): installing PugIDE as a PWA or a desktop app.
+- [docs/ESCRITORIO.md](docs/ESCRITORIO.md): how and why the desktop app was built, and what is missing.
 - [docs/RELEASE.md](docs/RELEASE.md): how a version is released and deployed.
 - [CHANGELOG.md](CHANGELOG.md): what changes in each version.
 - [design/README.md](design/README.md): the design canvas ("design first") and the tokens in [docs/brand/DESIGN_TOKENS.md](docs/brand/DESIGN_TOKENS.md).

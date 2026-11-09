@@ -35,7 +35,11 @@
     "test:unit": "node test/unit/build.mjs && node --test test/unit/*.test.mjs",
     "release:notes": "node scripts/release-notes.mjs",
     "release:guide": "node scripts/release-guide.mjs",
-    "release:deploy": "node scripts/release.mjs"
+    "release:deploy": "node scripts/release.mjs",
+    "desktop:install": "npm ci --prefix desktop",
+    "desktop:start": "npm run build:prod && npm start --prefix desktop",
+    "desktop:test": "npm test --prefix desktop",
+    "desktop:pack": "npm run build:prod && npm run pack --prefix desktop"
   },
   "private": true,
   "dependencies": {

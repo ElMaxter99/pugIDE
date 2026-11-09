@@ -1,6 +1,24 @@
 # PugIDE de escritorio (Windows, macOS y Linux): investigación y plan
 
-Estado: **propuesta para aprobar** (2026-11-09). Nada de esto está programado. Las decisiones que necesitan visto bueno están al final.
+Estado (2026-11-09): **fases 0, 1 y 2 hechas** (PWA instalable, contenedor Electron y empaquetado con CI), sin firma y sin coste. Falta la Fase 4 (aviso de versión nueva) y la 5 (espacios por cliente). La guía para quien instala está en [INSTALAR.md](INSTALAR.md).
+
+## Decisiones tomadas
+Resueltas por la persona responsable el 2026-11-09:
+1. **Electron** para la app de escritorio, y **PWA** como opción ligera. ✅
+2. **Sin firma ni notarización, ni certificados de pago, ni presupuesto**: todo gratuito, con avisos claros («software libre, sin garantía, bajo la responsabilidad de cada persona usuaria») en README, INSTALAR.md y las notas de cada release. La antigua **Fase 3 queda descartada**.
+3. **Primero**, que la app sea instalable y funcione del todo sin conexión; **después**, las actualizaciones desde internet.
+4. Un solo repositorio (`desktop/`) y la misma versión que la web.
+5. El flujo de GitHub Actions (`desktop.yml`) se añade en esta fase.
+
+## Qué hay hecho
+- **Fase 0, PWA:** manifiesto revisado (idioma, descripción) y prueba `55-pwa-instalable` con las condiciones que exigen los navegadores para ofrecer «Instalar».
+- **Fase 1, Electron (`desktop/`):** la app se sirve desde el disco con el protocolo `pugide://app` y **las mismas cabeceras que `vercel.json`** (CSP y `sandbox` de los marcos); `contextIsolation` y `sandbox`, sin Node en la página, sin navegar ni abrir ventanas fuera de la app (los `https` van al navegador), permisos denegados salvo portapapeles y carpetas. En escritorio no hay service worker ni analítica ni aviso de privacidad, y los enlaces de compartir usan la dirección web configurada. Prueba de humo con Playwright (`desktop/test/smoke.mjs`) sobre el código y **sobre la app ya empaquetada**: arranque, Monaco y workers bajo la CSP, vista previa aislada, cabeceras, rutas, ni una petición a internet.
+- **Fase 2, empaquetado:** `electron-builder` genera Windows (instalador NSIS y portable), macOS (dmg Intel y Apple Silicon) y Linux (`AppImage`, `deb`, `rpm`). `.github/workflows/desktop.yml` los construye en cada sistema, ejecuta la prueba de humo sobre cada uno y los adjunta a la release.
+
+## Lo que sigue (propuesto)
+### Fase 4, aviso de versión nueva (sin firma, sin coste)
+`electron-updater` instalaría la actualización sola, pero **en macOS exige app firmada**, así que no es una opción gratuita. Propuesta que sí lo es en los tres sistemas: **«Buscar actualizaciones» opcional** (apagado por defecto y con el aviso de que hace una consulta a GitHub) que compara la versión instalada con la última release y, si hay una nueva, muestra un aviso con **«Descargar»** (abre la página de la release en el navegador). Es una pantalla nueva: pasa por el lienzo antes de programarla. Más adelante, si se quiere, actualización automática solo en Windows y Linux (AppImage), donde no exige firma.
+
 
 ## Objetivo
 Tener PugIDE como aplicación instalable, como Postman, y no solo en la web: una ventana propia, que funcione sin conexión, con **espacios de trabajo por cliente** (cada cliente con sus maquetas y plantillas) y que se actualice sola. La versión web en Vercel se mantiene; la de escritorio es la misma app dentro de un contenedor.
@@ -46,7 +64,7 @@ Tener PugIDE como aplicación instalable, como Postman, y no solo en la web: una
 - Flujo de GitHub Actions con una máquina por sistema operativo: cuando `release:deploy` crea el tag, el flujo construye los instaladores y los **adjunta a la release de GitHub**. Compilar en cada sistema (no cruzado) es lo fiable.
 - Requiere tocar `.github/workflows` (**regla de CLAUDE.md: coordinarlo**, decisión 5).
 
-### Fase 3: firma y notarización (depende de presupuesto)
+### Fase 3: firma y notarización — DESCARTADA (se decidió no firmar ni gastar)
 - **macOS:** firma con Developer ID y notarización (Apple Developer Program, unos 99 USD/año). Sin ella, macOS bloquea o avisa al abrir la app.
 - **Windows:** sin firma sale el aviso de SmartScreen. Opciones: Azure Artifact Signing (antes Trusted Signing; unos 10 USD/mes según fuentes de terceros, disponible solo en ciertos países; **hay que comprobar el tuyo**) o un certificado OV/EV (de 200 a 700 USD/año).
 - **Linux:** no requiere firma de la app; `deb` y `rpm` pueden firmarse con GPG.
@@ -72,7 +90,7 @@ Es la razón de hacerlo, y **cambia lo que ve la persona usuaria**, así que pri
 - **Wayland, HiDPI y arm64** en Linux: se prueban en la fase de empaquetado.
 - La investigación en la web fue sobre **fuentes secundarias** (blogs y guías de terceros, con cifras que no coinciden entre sí). Antes de contratar nada, verificar precios y condiciones en las páginas oficiales de Apple, Microsoft y electron.build.
 
-## Decisiones para quien aprueba
+## Decisiones para quien aprueba (histórico: ver «Decisiones tomadas» arriba)
 1. **Tecnología:** ¿Electron? (recomiendo que sí; Tauri solo si el tamaño del instalador fuese lo principal).
 2. **Fase 0** (PWA instalable ya): ¿la hago ahora? (recomiendo que sí, es de un día).
 3. **Firma:** ¿presupuesto para Apple Developer (99 USD/año) y para Windows? (recomiendo empezar con macOS y Windows con Azure Artifact Signing si está disponible en tu país; hasta entonces, instaladores sin firmar con aviso en las notas de la release).

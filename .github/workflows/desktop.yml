@@ -1,0 +1,135 @@
+name: Escritorio
+
+# Construye los instaladores de PugIDE de escritorio (Windows, macOS y Linux), SIN FIRMAR, y los adjunta a la release.
+#  - Al publicarse una release (la crea `npm run release:deploy`): construye y adjunta los instaladores a esa release.
+#  - A mano (Actions → Escritorio → Run workflow): sin «tag» solo construye y guarda los instaladores como artefactos;
+#    con «tag» (una release que ya existe) también los adjunta a ella.
+#  - En un PR que toque `desktop/**`: construye y prueba (no adjunta nada).
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag de una release existente a la que adjuntar los instaladores (vacío: solo construir)'
+        required: false
+        default: ''
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/desktop.yml'
+      - 'vercel.json'
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.nombre }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nombre: Linux
+            os: ubuntu-latest
+            build: npm run dist:linux
+            exe: dist/linux-unpacked/pugide
+          - nombre: Windows
+            os: windows-latest
+            build: npm run dist:win
+            exe: dist/win-unpacked/PugIDE.exe
+          - nombre: macOS
+            os: macos-latest
+            build: npm run dist:mac
+            exe: dist/mac-arm64/PugIDE.app/Contents/MacOS/PugIDE
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # En una release se construye exactamente lo que lleva su tag.
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+      - name: Versión (la del package.json de la raíz)
+        shell: bash
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+      - name: Instalar rpmbuild (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: npm ci
+      - name: Compilar la web
+        run: npm run build:prod
+      - name: Instalar Electron y electron-builder
+        working-directory: desktop
+        run: npm ci
+      - name: Prueba de humo (Electron con el código de src/)
+        working-directory: desktop
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a node test/smoke.mjs; else node test/smoke.mjs; fi
+      - name: Construir los instaladores
+        working-directory: desktop
+        shell: bash
+        run: ${{ matrix.build }} -- -c.extraMetadata.version="$VERSION"
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Prueba de humo sobre la app ya empaquetada
+        working-directory: desktop
+        shell: bash
+        env:
+          PUGIDE_EXECUTABLE: ${{ matrix.exe }}
+        run: |
+          # Ruta absoluta con el formato del sistema (en Windows, no la de Git Bash).
+          export PUGIDE_EXECUTABLE="$(node -p "require('path').resolve(process.env.PUGIDE_EXECUTABLE)")"
+          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a node test/smoke.mjs; else node test/smoke.mjs; fi
+      - name: Guardar los instaladores
+        uses: actions/upload-artifact@v4
+        with:
+          name: instaladores-${{ matrix.nombre }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.dmg
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+            desktop/dist/*.rpm
+
+  adjuntar:
+    name: Adjuntar a la release
+    needs: build
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: instaladores-*
+          merge-multiple: true
+          path: instaladores
+      - name: Adjuntar los instaladores
+        run: |
+          ls -la instaladores
+          gh release upload "$TAG" instaladores/* --clobber --repo "$GITHUB_REPOSITORY"
+      - name: Añadir el aviso de instaladores sin firmar a las notas (una sola vez)
+        run: |
+          BODY="$(gh release view "$TAG" --json body -q .body --repo "$GITHUB_REPOSITORY")"
+          if ! grep -q 'instaladores-escritorio' <<<"$BODY"; then
+            AVISO=$'\n\n<!-- instaladores-escritorio -->\n### Instaladores de escritorio (Windows, macOS, Linux)\nSon software libre (MIT), **sin garantía y bajo la responsabilidad de cada persona usuaria**. **No están firmados** (el proyecto es gratuito y no usa certificados de pago), así que Windows y macOS mostrarán un aviso la primera vez. Cómo instalarlos y qué hacer con ese aviso: https://github.com/'"$GITHUB_REPOSITORY"$'/blob/master/docs/INSTALAR.md'
+            gh release edit "$TAG" --notes "$BODY$AVISO" --repo "$GITHUB_REPOSITORY"
+          fi
