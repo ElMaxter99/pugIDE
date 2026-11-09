@@ -17,6 +17,7 @@ export default async function (env) {
 
   await page.locator('[data-testid="preview-view-menu"]').click();
   const item = page.locator('[role="menuitem"]', { hasText: 'Idiomas…' });
+  await item.waitFor({ timeout: 4000 }).catch(() => undefined);
   check('53 el menú «Vista» ofrece «Idiomas…»', (await item.count()) === 1);
   await item.click();
   const dlg = page.locator('[data-testid="locales-dialog"]');

@@ -16,9 +16,9 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 | P-20 botones de «Problemas» | ✅ en master |
 | Claves de traducción calculadas | ✅ en master |
 | `npm run release:deploy` (un solo comando) | ✅ en master (arreglo de «release ya adelantada»: PR 59, mergeada) |
-| P-21 tema Automático/Oscuro/Claro, enlaces de salto, F6 | 🔄 programado en la rama `claude/dazzling-ritchie-onhmhj`; falta CI en 3 navegadores y PR |
-| P-22 idioma por defecto y de reserva (sin plurales automáticos) | ⏳ sin empezar |
-| Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | ⏳ cuando P-21 y P-22 estén en master |
+| P-21 tema Automático/Oscuro/Claro, enlaces de salto, F6 | ✅ hecho; en la PR de la rama `claude/dazzling-ritchie-onhmhj` |
+| P-22 idioma por defecto y de reserva (sin plurales automáticos) | ✅ hecho; en la misma PR |
+| Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | ⏳ cuando la PR de P-21 y P-22 esté en master |
 
 ## Pendiente de la persona responsable
 - Mergear la PR de P-21 cuando esté abierta y en verde.
