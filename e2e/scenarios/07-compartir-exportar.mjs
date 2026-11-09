@@ -26,7 +26,7 @@ import { check, run, sleep, html } from '../lib.mjs';
   check('27 rechaza basura y caracteres invalidos', bad('!!!') && bad('abc') && bad(''));
   const { deflateSync, strToU8 } = await import('fflate');
   const enc = (o) => Buffer.from(deflateSync(strToU8(JSON.stringify(o)))).toString('base64url');
-  check('27 rechaza version, archivos vacios, tipos y rutas con ..', bad(enc({ v: 3, f: { '/a.pug': 'x' } })) && bad(enc({ v: 1, f: {} })) && bad(enc({ v: 1, f: { '/a.pug': 5 } })) && bad(enc({ v: 1, f: { '/../a.pug': 'x' } })) && bad(enc({ v: 1, f: { '/a.pug': 'x' }, d: [] })));
+  check('27 rechaza version, archivos vacios, tipos y rutas con ..', bad(enc({ v: 4, f: { '/a.pug': 'x' } })) && bad(enc({ v: 1, f: {} })) && bad(enc({ v: 1, f: { '/a.pug': 5 } })) && bad(enc({ v: 1, f: { '/../a.pug': 'x' } })) && bad(enc({ v: 1, f: { '/a.pug': 'x' }, d: [] })));
   check('27 rechaza bomba de descompresion', bad(enc({ v: 1, f: { '/a.pug': 'a'.repeat(6 * 1024 * 1024) } })));
   check('27 acepta sin datos y normaliza ruta', decodeShare(enc({ v: 1, f: { 'a.pug': 'p x' } })).files.has('/a.pug'));
   check('27 parseShare anota error en terminal y devuelve null', io.parseShare('zzz') === null && app.TerminalState.entries().some((e) => e.source === 'Compartir' && e.type === 'error'));
@@ -54,4 +54,32 @@ import { check, run, sleep, html } from '../lib.mjs';
   check('29 imagenes locales como data URI, sin blob:', out.includes('data:image/png;base64,iVBORw==') && !out.includes('blob:'), out.slice(0, 600));
   check('29 CSS inline y contenido intactos', out.includes('<style') && out.includes('color:red') && out.includes('Hola') && out.includes('ñandú €'));
   check('29 el preview sigue con inspector (no se muta el estado)', html(app).includes('data-pugide-line'));
+}
+
+// 30. Opciones del enlace (P-15) y abrir como proyecto nuevo (P-16)
+{
+  const { decodeShare, decryptShare, payloadFromHash, encryptedFromHash, ShareExpiredError } = await import('../.build/services.mjs');
+  const a = await run({ '/main.pug': 'h1= titulo\n' }, '/main.pug', async (x) => { x.DataState.setInitialData({ titulo: 'Hola' }); await x.orch.manualCompile(); });
+  const io = a.ProjectIoService;
+  const now = Date.now();
+  const sin = io.buildShareLink('https://x.test/ide', { includeData: false, expiresAt: now + 1000, note: 'Hola' });
+  const d1 = decodeShare(payloadFromHash(new URL(sin.url).hash));
+  check('30 sin datos el enlace no los lleva, y trae caducidad y nota', Object.keys(d1.data).length === 0 && d1.expiresAt === now + 1000 && d1.note === 'Hola', JSON.stringify(d1.data));
+  const prot = await io.buildShareLinkProtected('https://x.test/ide', { password: 'correcto-caballo', note: 'secreta' });
+  const enc = encryptedFromHash(new URL(prot.url).hash);
+  check('30 con contraseña el enlace es #e= y no deja ver el nombre del archivo', prot.encrypted && prot.url.includes('#e=') && !!enc && !prot.url.includes('main'), prot.url.slice(0, 40));
+  check('30 se descifra con la contraseña correcta', decodeShare(await decryptShare(enc, 'correcto-caballo')).note === 'secreta');
+  let caducado = false; try { decodeShare(payloadFromHash(new URL(sin.url).hash), now + 5000); } catch (e) { caducado = e instanceof ShareExpiredError; }
+  check('30 pasada la fecha el enlace no se abre', caducado);
+  const sinPass = await io.buildShareLinkProtected('https://x.test/ide', {});
+  check('30 sin contraseña buildShareLinkProtected da el enlace de siempre', sinPass.url.includes('#p=') && !sinPass.encrypted);
+
+  // Abrir como proyecto nuevo: nombre único y el actual queda en la biblioteca
+  const b = await run({ '/old.pug': 'p old' }, '/old.pug');
+  await b.orch.saveToLibrary();
+  const shared = { projectName: 'Mi proyecto', files: new Map([['/main.pug', 'p nuevo']]), assets: [], data: {} };
+  const first = await b.orch.openShared(shared, 'new');
+  const second = await b.orch.openShared({ ...shared, projectName: first }, 'new');
+  check('30 abrir como proyecto nuevo da un nombre', typeof first === 'string' && first.startsWith('Mi proyecto') && typeof second === 'string', `${first} | ${second}`);
+  check('30 el proyecto abierto es el del enlace', b.EditorState.files().has('/main.pug') && !b.EditorState.files().has('/old.pug'));
 }

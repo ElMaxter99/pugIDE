@@ -33,7 +33,9 @@ import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dial
 import { ProjectIoService } from '../core/services/project-io.service';
 import { ProjectLibraryService } from '../core/services/project-library.service';
 import { backupReminderDays } from '../core/utils/backup.util';
-import { SharePayload, payloadFromHash } from '../core/utils/share.util';
+import { ShareCreateDialogComponent } from '../shared/components/share-dialogs/share-create-dialog.component';
+import { ShareOpenDialogComponent } from '../shared/components/share-dialogs/share-open-dialog.component';
+import type { ShareOpenRequest } from '../core/state/ui.state';
 import { getFileType } from '../core/models/tab.model';
 import { parseDatasetsFile } from '../core/utils/datasets.util';
 import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PROJECT_NAME } from '../core/utils/default-project.util';
@@ -42,6 +44,8 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
   selector: 'app-main-layout',
   standalone: true,
   imports: [
+    ShareCreateDialogComponent,
+    ShareOpenDialogComponent,
     AnnouncerComponent,
     ImportLocaleDialogComponent,
     TopbarComponent,
@@ -95,11 +99,8 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
         (cancelled)="ui.addLocaleOpen.set(false)" />
       <app-import-locale-dialog />
       <app-announcer />
-      <app-dialog
-        [config]="shareDialog"
-        [isOpen]="shareDialogOpen()"
-        (confirmed)="onShareConfirm()"
-        (cancelled)="onShareCancel()" />
+      <app-share-create-dialog />
+      <app-share-open-dialog />
     </div>
   `,
   styles: [`
@@ -167,14 +168,6 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   private welcomePending = signal(false);
   private readonly body = viewChild<ElementRef<HTMLElement>>('body');
   private bodyObserver: ResizeObserver | null = null;
-  protected shareDialogOpen = signal(false);
-  protected shareDialog: DialogConfig = {
-    title: 'Abrir proyecto compartido',
-    message: 'Este enlace contiene un proyecto. Si lo abres, reemplazará tu sesión guardada en este navegador (proyecto actual, archivos e imágenes). ¿Continuar?',
-    confirmText: 'Reemplazar y abrir',
-    cancelText: 'Mantener mi sesión',
-    type: 'confirm',
-  };
   protected addLocaleDialog: DialogConfig = {
     title: 'Añadir idioma',
     message: 'Código del idioma; se crea locales/<código>/translations.json (por ejemplo es-ES, es-CAT, en).',
@@ -186,7 +179,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     extraText: 'Importar archivo .json…',
     extraIcon: 'upload_file',
   };
-  private pendingShare: SharePayload | null = null;
+  private pendingShareOpen: ShareOpenRequest | null = null;
   private assetTimer: ReturnType<typeof setTimeout> | null = null;
 
   private restoringSession = false;
@@ -265,22 +258,28 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
       this.terminalState.addEntry('warning', 'Sesión',
         `La sesión guardada no se pudo leer entera: ${bad.reason}. ${hasSaved ? 'Se recuperaron los archivos de texto válidos.' : 'Se abre el proyecto por defecto.'} ${bad.copied ? 'Se guardó una copia del original en este navegador (clave pug-ide-project-corrupt).' : 'No hubo espacio para guardar una copia del original.'}`);
     }
-    const sharedPayload = payloadFromHash(location.hash);
-    const shared = sharedPayload !== null ? this.projectIo.parseShare(sharedPayload) : null;
-    if (sharedPayload !== null && !shared) this.clearShareHash();
-    if (shared && !hasSaved) {
+    // Enlace compartido (P-16): sin sesión se abre directo; con sesión, o con contraseña, o si no se puede abrir, se pregunta.
+    const share = this.projectIo.openRequestFromHash(location.hash, hasSaved);
+    if (share?.payload && !hasSaved) {
       this.orchestrator.markAssetsReady();
-      this.projectIo.loadShared(shared);
-      this.clearShareHash();
+      this.projectIo.loadShared(share.payload, 'new');
+      this.projectIo.clearShareHash();
       return;
     }
-    if (shared) this.pendingShare = shared; // se decide en el diálogo; mientras tanto se restaura la sesión
+    if (share) this.pendingShareOpen = share; // se decide en el diálogo; mientras tanto se restaura la sesión
 
     if (saved && hasSaved) {
       this.restoreSession(saved);
     } else {
       void this.startFresh();
+      this.openPendingShare();
     }
+  }
+
+  private openPendingShare(): void {
+    if (!this.pendingShareOpen) return;
+    this.ui.shareOpen.set(this.pendingShareOpen);
+    this.pendingShareOpen = null;
   }
 
   /** Los proyectos solo viven en este navegador: si hace tiempo que no se exporta, se recuerda en el Registro. */
@@ -337,26 +336,6 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.persistence.loadWelcomeSeen()) this.welcomePending.set(true);
   }
 
-  onShareConfirm(): void {
-    this.shareDialogOpen.set(false);
-    if (this.pendingShare) {
-      this.projectIo.loadShared(this.pendingShare);
-      this.pendingShare = null;
-    }
-    this.clearShareHash();
-  }
-
-  onShareCancel(): void {
-    this.shareDialogOpen.set(false);
-    this.pendingShare = null;
-    this.clearShareHash();
-  }
-
-  private clearShareHash(): void {
-    try {
-      history.replaceState(null, '', location.pathname + location.search);
-    } catch { /* ignore */ }
-  }
 
   private restoreSession(saved: ProjectSessionState): void {
     this.restoringSession = true;
@@ -387,7 +366,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.orchestrator.restoreAssets();
     this.orchestrator.manualCompile();
     this.restoringSession = false;
-    if (this.pendingShare) this.shareDialogOpen.set(true);
+    this.openPendingShare();
   }
 
   @HostListener('window:keydown', ['$event'])

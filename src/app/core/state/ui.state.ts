@@ -1,4 +1,16 @@
 import { Injectable, signal } from '@angular/core';
+import type { SharePayload } from '../utils/share.util';
+
+/** Abrir un enlace compartido (P-16): contraseña pendiente, elegir cómo abrirlo o decir por qué no se puede. */
+export interface ShareOpenRequest {
+  /** Contenido cifrado que espera la contraseña (null si el enlace no la pide o ya se descifró). */
+  encrypted: string | null;
+  payload: SharePayload | null;
+  /** Hay un proyecto abierto o guardado que no se debe pisar: se pregunta cómo abrir. */
+  hasSession: boolean;
+  /** Por qué no se puede abrir (caducado, dañado). */
+  problem: string | null;
+}
 
 export interface LocaleImportRequest {
   source: 'add' | 'drop';
@@ -18,6 +30,10 @@ export class UiState {
   readonly addLocaleOpen = signal(false);
   /** Archivos de idioma por importar (P-14): `add` viene de «Añadir idioma», `drop` de soltar/subir un JSON de textos. */
   readonly localeImport = signal<LocaleImportRequest | null>(null);
+  /** Diálogo «Compartir proyecto» (P-15): caducidad, contraseña y datos del enlace. */
+  readonly shareCreateOpen = signal(false);
+  /** Enlace compartido que se está abriendo (P-16). */
+  readonly shareOpen = signal<ShareOpenRequest | null>(null);
   /** Diálogo con el historial de versiones del archivo activo. */
   readonly historyOpen = signal(false);
   /** Diálogo de instantáneas del proyecto (guardar, comparar, restaurar). */
