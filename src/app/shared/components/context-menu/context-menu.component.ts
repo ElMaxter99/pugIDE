@@ -151,7 +151,9 @@ export class ContextMenuComponent {
       } else if (this.restoreFocus) {
         const back = this.restoreFocus;
         this.restoreFocus = null;
-        untracked(() => setTimeout(back));
+        // Solo se devuelve el foco si nadie lo ha movido ya (al cerrarse, el de la opción desaparece y queda en `body`);
+        // si la persona ya pasó a otro control, no se le quita.
+        untracked(() => setTimeout(() => { const a = document.activeElement; if (!a || a === document.body) back(); }));
       }
     });
   }
