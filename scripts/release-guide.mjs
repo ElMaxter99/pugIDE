@@ -22,89 +22,69 @@ const tag = `v${version}`;
 
 const guide = `# Publicar ${tag}${when ? ` (${when})` : ''}
 
-Guía para quien despliega (una persona o un agente). Sigue los pasos en orden y no te saltes las comprobaciones. Más contexto del proceso: [docs/RELEASE.md](../RELEASE.md).
+Guía para quien despliega (una persona o un agente). Más contexto del proceso: [docs/RELEASE.md](../RELEASE.md).
 
-## Antes de empezar
+## El comando
 
-- El PR de la versión («chore(release): ${version}») está **mergeado en \`master\`** y su CI estaba en verde (\`build-test\`, \`ui-firefox\`, \`ui-webkit\`).
-- Se necesita \`git\` con permiso de push de tags y de la rama \`release\`, y \`gh\` (GitHub CLI) con sesión iniciada. Los agentes de IA que trabajan en el repositorio **no** pueden empujar tags ni \`release\`: lo hace una persona o el agente de despliegue con esos permisos.
-- No avances \`release\` (producción) sin confirmación expresa de la persona responsable.
+Con el PR de la versión **mergeado en \`master\`** y su CI en verde, desde la carpeta del proyecto:
 
-## 1. Fijar el commit de la versión
-
-PowerShell:
-
-\`\`\`powershell
-git fetch origin master release --tags
+\`\`\`bash
+npm run release:deploy
 \`\`\`
 
-\`\`\`powershell
-$SHA = git rev-parse origin/master
+Es el mismo en PowerShell, Bash y CI. No hay que pasarle versión ni commit: se pone en \`master\`, lo actualiza (si no tienes cambios sin guardar), lee la versión que declara (\`${version}\`), encuentra su commit (el merge del PR de la versión) y:
+
+1. Comprueba que ese commit lleva la versión en \`package.json\` y su sección fechada del CHANGELOG.
+2. Crea y sube el tag anotado \`${tag}\` (si ya existe, comprueba que apunta a ese commit; un tag publicado no se mueve).
+3. Crea la release de GitHub con las notas del CHANGELOG (si ya existe, la deja).
+4. Deja la rama \`release\` (la de producción en Vercel) en ese commit, solo si es fast-forward. Si no lo es, **no fuerza nada** y se detiene con un aviso.
+
+Se puede repetir sin miedo: lo que ya está hecho se salta. Antes de lanzarlo de verdad se puede ver qué haría:
+
+\`\`\`bash
+npm run release:deploy -- --dry-run
 \`\`\`
 
-\`\`\`powershell
-git log --oneline -3 origin/master
-\`\`\`
+Otras opciones: \`--no-prod\` (tag y release de GitHub sin tocar \`release\`), \`${version}\` como argumento (una versión concreta, por si \`master\` ya declara otra) y \`--sha COMMIT\` / \`--remote NOMBRE\` (casos raros).
 
-Bash:
+Necesita \`git\` con permiso de push de tags y de la rama \`release\`, y \`gh\` (GitHub CLI) con sesión iniciada. Los agentes de IA que preparan la versión **no** pueden empujar tags ni \`release\`: lo lanza una persona o el agente de despliegue con esos permisos.
+
+## Lo único que queda a mano: Vercel
+
+Cuando el script termina, la rama \`release\` ya está bien puesta. Falta desplegarla en Vercel:
+
+- Vercel → proyecto \`pug-ide\` → **Deployments** → el despliegue de la rama \`release\` (su commit es el de la versión) → **Promote to Production** (o **Redeploy**). Si la rama de producción configurada es \`release\`, el push ya lo habrá lanzado: comprueba que su despliegue está en verde.
+
+## Comprobación a mano en producción
+
+Con una ventana de incógnito (el service worker de la PWA cachea la versión anterior):
+
+- Carga el editor y la vista previa, y el Workspace muestra \`v${version}\`.
+- \`Ctrl+V\` pega en el editor.
+- La consola del navegador no muestra violaciones de CSP.
+- Una plantilla con imágenes remotas se ve.
+
+## Si algo falla
+
+- **«No es fast-forward»:** \`release\` tiene algo que \`master\` no tiene. No fuerces nada: investígalo y avisa.
+- **El tag ya existe y apunta a otro commit:** un tag publicado no se mueve. Investígalo.
+- **\`gh\` falla:** inicia sesión con \`gh auth login\` y repite el comando (el tag no se vuelve a crear).
+- **Volver atrás, rápido:** en Vercel → Deployments, el despliegue de producción anterior → **Promote to Production** (o **Instant Rollback**).
+- **Volver atrás, definitivo:** corregir en \`master\` con un PR, publicar un parche y repetir. No se reescribe el historial ni se reutilizan tags.
+
+## Los mismos pasos a mano (por si el script no se puede usar)
 
 \`\`\`bash
 git fetch origin master release --tags
 \`\`\`
 
 \`\`\`bash
-SHA=$(git rev-parse origin/master)
-\`\`\`
-
-\`\`\`bash
-git log --oneline -3 origin/master
-\`\`\`
-
-Comprueba que el último commit es el merge del PR de ${tag}. Si hay otros commits después, usa el SHA del merge de la versión, no el de la punta de \`master\`.
-
-## 2. Comprobar que la versión cuadra
-
-\`\`\`bash
-git checkout --detach $SHA
-\`\`\`
-
-\`\`\`bash
-npm ci
-\`\`\`
-
-\`\`\`bash
-npm run release:check
-\`\`\`
-
-Debe imprimir \`Versión ${version}\` y todo con ✓. (En PowerShell, \`$SHA\` funciona igual en \`git checkout --detach $SHA\`.)
-
-## 3. Etiquetar (tag anotado)
-
-PowerShell:
-
-\`\`\`powershell
-git tag -a ${tag} $SHA -m "PugIDE ${version}"
-\`\`\`
-
-\`\`\`powershell
-git push origin ${tag}
-\`\`\`
-
-Bash:
-
-\`\`\`bash
-git tag -a ${tag} $SHA -m "PugIDE ${version}"
+git tag -a ${tag} <SHA del merge del PR de la versión> -m "PugIDE ${version}"
 \`\`\`
 
 \`\`\`bash
 git push origin ${tag}
 \`\`\`
-
-Un tag publicado no se mueve ni se reutiliza. Si el tag ya existe en el remoto, comprueba que apunta al mismo commit (\`git rev-list -n 1 ${tag}\`, igual en PowerShell y Bash) y sigue.
-
-## 4. Release en GitHub
-
-Las notas salen del CHANGELOG con un script de Node (sirve igual en PowerShell, Bash y CI):
 
 \`\`\`bash
 node scripts/release-notes.mjs ${version} release-notes.md
@@ -115,51 +95,10 @@ gh release create ${tag} --title "PugIDE ${version}" --notes-file release-notes.
 \`\`\`
 
 \`\`\`bash
-gh release view ${tag}
+git push origin <SHA del merge>:refs/heads/release
 \`\`\`
 
-(El archivo \`release-notes.md\` es temporal: bórralo después, no se versiona.)
-
-## 5. Producción (Vercel): avanzar \`release\`
-
-Solo con confirmación de la persona responsable. \`release\` solo se mueve **hacia delante** (fast-forward) y a un commit que ya está en \`master\`:
-
-PowerShell:
-
-\`\`\`powershell
-git merge-base --is-ancestor origin/release $SHA; if ($LASTEXITCODE -eq 0) { "fast-forward posible" } else { "NO es fast-forward: para y avisa" }
-\`\`\`
-
-\`\`\`powershell
-git push origin "$($SHA):refs/heads/release"
-\`\`\`
-
-Bash:
-
-\`\`\`bash
-git merge-base --is-ancestor origin/release $SHA && echo "fast-forward posible" || echo "NO es fast-forward: para y avisa"
-\`\`\`
-
-\`\`\`bash
-git push origin $SHA:refs/heads/release
-\`\`\`
-
-Si el push se rechaza por no ser fast-forward, \`release\` tiene algo que \`master\` no tiene: no fuerces nada, investígalo y avisa.
-
-## 6. Comprobación a mano en producción
-
-Con una ventana de incógnito (el service worker de la PWA cachea la versión anterior):
-
-- Carga el editor y la vista previa, y el Workspace muestra \`v${version}\`.
-- \`Ctrl+V\` pega en el editor.
-- La consola del navegador no muestra violaciones de CSP.
-- Una plantilla con imágenes remotas se ve.
-- En Vercel → Deployments, el despliegue de producción corresponde al commit \`${'$SHA'}\`.
-
-## Volver atrás
-
-- **Rápido, sin tocar el repositorio:** en Vercel → Deployments, el despliegue de producción anterior → **Promote to Production** (o **Instant Rollback**).
-- **Definitivo:** corregir en \`master\` con un PR, publicar un parche y avanzar \`release\`. No se reescribe el historial ni se reutilizan tags.
+Antes del último, comprueba el fast-forward: \`git merge-base --is-ancestor origin/release <SHA>\`.
 
 ## Qué lleva ${tag}
 

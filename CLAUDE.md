@@ -30,11 +30,11 @@ Todo cambio en lo que ve el usuario (pantallas, flujos, textos de pantalla) se d
 
 Siempre que se prepare una versión (`chore(release): X.Y.Z`), quien la prepara:
 
-1. Genera la guía de despliegue con `npm run release:guide -- X.Y.Z` (crea `docs/releases/vX.Y.Z.md`: comandos exactos para PowerShell y Bash, comprobaciones, vuelta atrás y lo que lleva la versión) y la incluye en el mismo PR. `npm run release:check` falla si falta.
-2. **Pasa a la persona responsable los comandos en el chat** (un bloque `bash` por comando, y los de PowerShell si usa Windows) y le dice dónde está la guía.
-3. No empuja tags ni avanza `release` desde su sesión: lo hace una persona o el agente de despliegue, con confirmación expresa para producción.
+1. Genera la guía de despliegue con `npm run release:guide -- X.Y.Z` (crea `docs/releases/vX.Y.Z.md`: el comando único, las comprobaciones, la vuelta atrás, los pasos a mano y lo que lleva la versión) y la incluye en el mismo PR. `npm run release:check` falla si falta.
+2. **Pasa a la persona responsable el comando en el chat**: tras mergear el PR, desde la carpeta del proyecto, `npm run release:deploy` (el mismo en PowerShell y Bash). Hace todo solo: se pone en `master`, lee la versión, encuentra su commit (nadie escribe un SHA), crea el tag, la release de GitHub y deja la rama `release` bien puesta; lo único a mano es desplegar en Vercel. Le dice también dónde está la guía.
+3. No empuja tags ni avanza `release` desde su sesión (no tiene permiso): lo hace `npm run release:deploy` lanzado por una persona o por el agente de despliegue.
 
-Las notas de la release de GitHub salen del CHANGELOG con `node scripts/release-notes.mjs X.Y.Z archivo.md` (sin `awk`). Detalle en [docs/RELEASE.md](docs/RELEASE.md).
+Detalle en [docs/RELEASE.md](docs/RELEASE.md).
 
 ## Flujo principal
 

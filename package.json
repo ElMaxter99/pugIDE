@@ -34,7 +34,8 @@
     "perf": "node scripts/perf.mjs",
     "test:unit": "node test/unit/build.mjs && node --test test/unit/*.test.mjs",
     "release:notes": "node scripts/release-notes.mjs",
-    "release:guide": "node scripts/release-guide.mjs"
+    "release:guide": "node scripts/release-guide.mjs",
+    "release:deploy": "node scripts/release.mjs"
   },
   "private": true,
   "dependencies": {
