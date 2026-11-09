@@ -4,6 +4,7 @@ import {
   inject,
   computed,
 } from '@angular/core';
+import { ViewportState } from '../../../core/state/viewport.state';
 import { Router } from '@angular/router';
 import { EditorState } from '../../../core/state/editor.state';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
@@ -21,18 +22,22 @@ import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.
   imports: [ProjectsDialogComponent, DropdownMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <header class="topbar">
+    <header class="topbar" [class.compact]="viewport.compact()">
       <div class="topbar-left">
-        <h1 class="logo"><a href="/" title="Volver al inicio" (click)="goHome($event)">PugIDE</a></h1>
+        <h1 class="logo"><a href="/" title="Volver al inicio" aria-label="PugIDE" (click)="goHome($event)">{{ viewport.compact() ? 'P' : 'PugIDE' }}</a></h1>
       </div>
       <div class="topbar-right">
         <div class="topbar-actions">
-          <app-dropdown-menu label="Proyecto" icon="folder_open" ariaLabel="Proyecto" testId="menu-proyecto" [items]="projectItems()" (chosen)="onProjectAction($event)" />
-          <app-dropdown-menu label="Exportar" icon="download" ariaLabel="Exportar" testId="menu-exportar" align="right" [items]="exportItems()" (chosen)="onExportAction($event)" />
-          <button type="button" class="search-field" data-testid="open-palette" data-tour="search" title="Abrir la paleta de comandos (Ctrl+K)" (click)="ui.paletteOpen.set(true)">
+          <app-dropdown-menu label="Proyecto" icon="folder_open" ariaLabel="Proyecto" [iconOnly]="viewport.compact()" [caret]="!viewport.compact()" testId="menu-proyecto" [items]="projectItems()" (chosen)="onProjectAction($event)" />
+          <app-dropdown-menu label="Exportar" icon="download" ariaLabel="Exportar" [iconOnly]="viewport.compact()" [caret]="!viewport.compact()" testId="menu-exportar" align="right" [items]="exportItems()" (chosen)="onExportAction($event)" />
+          <button type="button" class="search-field" [class.compact]="viewport.compact()" data-testid="open-palette" data-tour="search" title="Abrir la paleta de comandos (Ctrl+K)" (click)="ui.paletteOpen.set(true)">
             <span aria-hidden="true" class="material-symbols-outlined">search</span>
-            <span class="search-text">Buscar comandos y archivos…</span>
-            <kbd>Ctrl K</kbd>
+            @if (!viewport.compact()) {
+              <span class="search-text">Buscar comandos y archivos…</span>
+              <kbd>Ctrl K</kbd>
+            } @else {
+              <span class="sr-only">Buscar comandos y archivos</span>
+            }
           </button>
           <button type="button" class="icon-btn" title="Cambiar tema claro u oscuro" aria-label="Cambiar tema claro u oscuro" (click)="onToggleTheme()">
             <span aria-hidden="true" class="material-symbols-outlined">contrast</span>
@@ -56,6 +61,11 @@ import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.
       z-index: 50;
       flex-shrink: 0;
     }
+
+    /* Ventana estrecha (P-19): barra más baja, logo reducido y huecos más pequeños, para que «Guardar» y el tema sigan a la vista. */
+    .topbar.compact { height: 56px; padding: 0 12px; }
+    .topbar.compact .logo { font-size: 24px; }
+    .topbar.compact .topbar-left, .topbar.compact .topbar-right, .topbar.compact .topbar-actions { gap: 6px; }
 
     .topbar-left, .topbar-right {
       display: flex;
@@ -117,6 +127,8 @@ import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.
       margin: 0 4px;
     }
 
+    .search-field.compact { min-width: 0; width: 36px; padding: 0; justify-content: center; }
+
     .search-field {
       display: flex;
       align-items: center;
@@ -140,6 +152,8 @@ import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.
 
 
 
+
+    .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
     .save-btn {
       padding: 0 16px;
@@ -193,6 +207,8 @@ export class TopbarComponent {
   onExportHtml(): void {
     this.projectIo.exportHtml();
   }
+
+  protected viewport = inject(ViewportState);
 
   protected projectItems = computed<MenuItem[]>(() => [
     { id: 'projects', icon: 'folder_open', label: 'Mis proyectos…', hint: this.projectState.projectName() },

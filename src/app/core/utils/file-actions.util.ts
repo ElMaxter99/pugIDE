@@ -1,5 +1,6 @@
 import type { DialogConfig } from '../../shared/components/dialogs/dialog.component';
 import type { ContextMenuAction } from '../models/index';
+import { FolderSummary, countsText, folderName, needsTypedConfirm } from './folder-ops.util';
 
 /** Textos y reglas de las acciones sobre archivos del Workspace (nuevo, renombrar, borrar, importar), sin Angular. */
 
@@ -51,6 +52,39 @@ export function deleteDialog(path: string): DialogConfig {
   };
 }
 
+/** Renombrar una carpeta (P-18): dice cuánto se mueve y que las referencias rotas saldrán en «Problemas». */
+export function renameFolderDialog(path: string, files: number, images: number): DialogConfig {
+  return {
+    title: 'Renombrar carpeta',
+    message: `Se mueven ${countsText(files, images)} de ${path} a la nueva ruta.`,
+    note: 'Los include, extends, link e img que apuntaban a la carpeta vieja no se cambian: PugIDE avisa de los que se rompan (un include que falta se vuelve a crear vacío).',
+    confirmText: 'Renombrar',
+    cancelText: 'Cancelar',
+    showInput: true,
+    inputLabel: 'Nueva ruta de la carpeta',
+    inputValue: path,
+  };
+}
+
+/** Borrar una carpeta con todo lo que contiene (P-18): lista lo primero que se borra; con más de 10 archivos pide escribir su nombre. */
+export function deleteFolderDialog(path: string, summary: FolderSummary): DialogConfig {
+  const big = needsTypedConfirm(summary.files, summary.images);
+  const name = folderName(path);
+  return {
+    title: 'Borrar carpeta',
+    message: big
+      ? `Se borrará ${path} y todo lo que contiene: ${countsText(summary.files, summary.images)}. Es mucho: para confirmar, escribe el nombre de la carpeta.`
+      : `Se borrará ${path} y todo lo que contiene: ${countsText(summary.files, summary.images)}.`,
+    detail: summary.sample,
+    detailMore: summary.more ? `…y ${summary.more} más` : undefined,
+    note: 'Después puedes deshacerlo, todo de una vez, desde el Registro o desde la paleta de comandos (Ctrl+K) → «Deshacer borrado».',
+    confirmText: 'Borrar carpeta',
+    cancelText: 'Cancelar',
+    type: 'warning',
+    ...(big ? { showInput: true, inputLabel: `Escribe «${name}» para confirmar`, inputValue: '', requireValue: name } : { showInput: false }),
+  };
+}
+
 export function importDialog(supportsFolders: boolean): DialogConfig {
   return {
     title: 'Importar proyecto',
@@ -74,7 +108,14 @@ export interface PreviewMenuContext {
 }
 
 export function contextMenuFor(node: { type: 'file' | 'directory'; isAsset?: boolean; path?: string }, preview?: PreviewMenuContext): ContextMenuAction[] {
-  if (node.type === 'directory') return [{ label: 'Nuevo archivo', icon: 'note_add', action: 'newFile' }];
+  if (node.type === 'directory') {
+    return [
+      { label: 'Nuevo archivo', icon: 'note_add', action: 'newFile' },
+      { label: 'Renombrar', icon: 'edit', action: 'rename' },
+      { label: '', action: '', separator: true },
+      { label: 'Borrar carpeta', icon: 'delete', action: 'delete' },
+    ];
+  }
   if (node.isAsset) {
     return [
       { label: 'Renombrar', icon: 'edit', action: 'rename' },

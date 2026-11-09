@@ -30,32 +30,19 @@ Los comandos están en PowerShell (también valen en Bash); el `&&` se ha evitad
    - `npm run version:patch` (o `version:minor` / `version:major`), que cambia `package.json` y `package-lock.json` sin crear tag ni commit.
    - En `CHANGELOG.md`, lo de «Sin publicar» pasa a una sección `## [X.Y.Z] - AAAA-MM-DD` (formato [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/)).
    - Actualiza el badge de versión del `README.md` y el título de `docs/PLAN.md`.
-   - Comprueba que todo cuadra: `npm run release:check` (versión en `package.json`, `package-lock.json`, README, `docs/PLAN.md` y CHANGELOG, y que «Sin publicar» está vacío).
+   - Genera la guía de despliegue de la versión: `npm run release:guide -- X.Y.Z` (escribe `docs/releases/vX.Y.Z.md` con los comandos exactos, las comprobaciones y la vuelta atrás; va en el mismo PR). Quien prepara la versión **pasa además los comandos a la persona responsable en el chat**.
+   - Comprueba que todo cuadra: `npm run release:check` (versión en `package.json`, `package-lock.json`, README, `docs/PLAN.md` y CHANGELOG, la guía `docs/releases/vX.Y.Z.md`, y que «Sin publicar» está vacío).
    - Antes de abrir el PR: `npm run lint`, `npm run test:unit`, `npm run build:prod`, `npm run test:e2e` y `npm run test:ui` (también con `PUGIDE_BROWSER=firefox` y `webkit`).
 2. **Merge a `master`** cuando el CI esté en verde: `build-test`, `ui-firefox` y `ui-webkit`.
-3. **Tag anotado** sobre el commit del merge:
+3. **Publicar con un solo comando** (lo lanza una persona o el agente de despliegue; los agentes que preparan la versión no tienen permiso de push de tags ni de `release`). Desde la carpeta del proyecto, el mismo en PowerShell y Bash:
 
-   ```powershell
-   git fetch origin master
+   ```bash
+   npm run release:deploy
    ```
 
-   ```powershell
-   git tag -a vX.Y.Z origin/master -m "PugIDE X.Y.Z"
-   ```
-
-   ```powershell
-   git push origin vX.Y.Z
-   ```
-
-4. **Release en GitHub**: https://github.com/ElMaxter99/pugIDE/releases/new, eligiendo el tag existente y pegando como notas la sección de ese número del `CHANGELOG.md`.
-5. **Producción**: avanzar `release` al mismo commit del tag.
-
-   ```powershell
-   git push origin origin/master:refs/heads/release
-   ```
-
-   Si el push se rechaza por no ser fast-forward es que `release` tiene algo que `master` no tiene: se investiga antes de forzar nada.
-6. **Comprobación a mano** en la URL de producción, con una ventana de incógnito (el service worker de la PWA cachea la versión anterior):
+   Sin pasarle versión ni commit, el script (`scripts/release.mjs`): se pone en `master` y lo actualiza; lee la versión que declara; encuentra su commit (el merge del PR de la versión, aunque `master` ya haya avanzado); comprueba `package.json` y el CHANGELOG; crea y sube el tag anotado `vX.Y.Z` (si ya existe, comprueba que apunta a ese commit); crea la release de GitHub con las notas del CHANGELOG (`gh`); y deja la rama `release` en ese commit **solo si es fast-forward** (si no, no fuerza nada y se detiene). Se puede repetir: lo ya hecho se salta. `npm run release:deploy -- --dry-run` cuenta qué haría sin cambiar nada; `--no-prod` hace el tag y la release sin tocar `release`. Los pasos a mano equivalentes están al final de `docs/releases/vX.Y.Z.md`.
+4. **Producción (Vercel)**: lo único a mano. Con `release` ya bien puesta por el script, en Vercel → Deployments se promueve o se redespliega el despliegue de la rama `release` (si la rama de producción configurada es `release`, el push ya lo lanza).
+5. **Comprobación a mano** en la URL de producción, con una ventana de incógnito (el service worker de la PWA cachea la versión anterior):
    - Carga el editor y el preview, y el Workspace muestra `vX.Y.Z`.
    - `Ctrl+V` pega en el editor.
    - La consola del navegador no muestra violaciones de CSP.

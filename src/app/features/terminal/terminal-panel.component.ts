@@ -8,6 +8,7 @@ import {
   HostListener,
 } from "@angular/core";
 
+import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { DiagnosticsState } from '../../core/state/diagnostics.state';
 import { EditorState } from '../../core/state/editor.state';
 import { TerminalState } from "../../core/state/terminal.state";
@@ -142,6 +143,9 @@ import { ProblemsPanelComponent } from './problems-panel.component';
             <span class="log-time">{{ formatTime(entry.timestamp) }}</span>
             <span class="log-source">[{{ entry.source }}]</span>
             <span class="log-message">{{ entry.message }}</span>
+            @if (entry.undo && canUndo(entry.id)) {
+              <button class="log-link" type="button" data-testid="log-undo" (click)="orchestrator.undoFileOp()">Deshacer</button>
+            }
             @if (entry.path && entry.line) {
               <button class="log-link" type="button" (click)="goTo(entry.path, entry.line)"
                 [attr.aria-label]="'Ir a ' + fileName(entry.path) + ', línea ' + entry.line">{{ fileName(entry.path) }}:{{ entry.line }}</button>
@@ -388,6 +392,7 @@ export class TerminalPanelComponent {
 
   protected terminalState = inject(TerminalState);
   protected diagnostics = inject(DiagnosticsState);
+  protected orchestrator = inject(OrchestratorService);
   private editorState = inject(EditorState);
 
   /** Flechas, Inicio y Fin cambian de pestaña y llevan el foco a la nueva (patrón de pestañas de WAI-ARIA). */
@@ -408,6 +413,12 @@ export class TerminalPanelComponent {
   private focusActiveTab(): void {
     const el = this.terminalState.activeTab() === 'problems' ? this.tabProblems : this.tabLog;
     queueMicrotask(() => el?.nativeElement.focus());
+  }
+
+  /** El «Deshacer» del Registro solo vale en el último borrado de carpeta, mientras sea lo último que se puede deshacer. */
+  protected canUndo(id: string): boolean {
+    const last = [...this.terminalState.entries()].reverse().find((e) => e.undo);
+    return last?.id === id && (this.orchestrator.fileUndoLabel() ?? '').startsWith('Deshacer borrado de la carpeta');
   }
 
   protected goTo(path: string, line: number): void {

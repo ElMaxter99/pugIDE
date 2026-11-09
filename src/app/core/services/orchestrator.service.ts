@@ -38,6 +38,7 @@ import { buildDataSkeleton } from '../utils/data-skeleton.util';
 import { errorifyData, mockifyData, mockLeaf } from '../utils/mock-data.util';
 import { DatasetKind, DatasetsFile, parseDatasetsFile } from '../utils/datasets.util';
 import { inferData } from '../utils/schema-infer.util';
+import { checkFolderRename, countsText, isInsideFolder, movedPath, pathsInFolder } from '../utils/folder-ops.util';
 import { buildTranslationSkeleton, TRANSLATIONS_KEY } from '../utils/i18n.util';
 import {
   addMissingKeys, blankTranslations, countTranslations, isValidLocaleCode, listLocales, localePath, mergeTranslations, normalizeTranslations, parseTranslations, resolveLocale, serializeTranslations,
@@ -963,6 +964,20 @@ export class OrchestratorService {
       this.renameFile(op.to, op.from, false);
       return;
     }
+    if (op.kind === 'renameFolder') {
+      this.renameFolder(op.to, op.from, false);
+      return;
+    }
+    if (op.kind === 'deleteFolder') {
+      this.editorState.files.update((f) => { for (const x of op.files) if (!f.has(x.path)) f.set(x.path, x.content); return f; });
+      for (const a of op.assets) if (!this.assetState.has(a.path)) this.assetState.add(a.path, a.data, a.mime);
+      this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+      this.refreshTree();
+      this.terminalState.addEntry('info', 'Archivos', `Restaurada la carpeta ${op.path} (${countsText(op.files.length, op.assets.length)}).`);
+      this.saveSession();
+      void this.manualCompile();
+      return;
+    }
     if (op.asset) {
       this.assetState.add(op.asset.path, op.asset.data, op.asset.mime);
       this.refreshTree();
@@ -976,13 +991,13 @@ export class OrchestratorService {
     this.terminalState.addEntry('info', 'Archivos', `Restaurado ${op.path}`);
   }
 
-  renameFile(oldPath: string, newPath: string, record = true): void {
+  renameFile(oldPath: string, newPath: string, record = true, log = true): void {
     if (this.assetState.has(oldPath)) {
       if (this.assetState.has(newPath)) return;
       this.assetState.rename(oldPath, newPath);
       if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });
       this.refreshTree();
-      this.terminalState.addEntry('info', 'Archivos', `Renombrado ${oldPath} → ${newPath}`);
+      if (log) this.terminalState.addEntry('info', 'Archivos', `Renombrado ${oldPath} → ${newPath}`);
       void this.manualCompile();
       return;
     }
@@ -1012,8 +1027,56 @@ export class OrchestratorService {
       void this.manualCompile();
     }
     if (record) this.pushFileOp({ kind: 'rename', from: oldPath, to: newPath });
-    this.terminalState.addEntry('info', 'Archivos', `Renombrado ${oldPath} → ${newPath}`);
+    if (log) this.terminalState.addEntry('info', 'Archivos', `Renombrado ${oldPath} → ${newPath}`);
     this.saveSession(); // el autoguardado no ve este cambio si el archivo no está abierto (el mapa se muta en sitio)
+  }
+
+  /** Cuántos archivos de texto e imágenes hay dentro de una carpeta (rutas ordenadas). */
+  folderContents(folder: string): { files: string[]; assets: string[] } {
+    return { files: pathsInFolder(this.editorState.files().keys(), folder), assets: pathsInFolder(this.assetState.assets().keys(), folder) };
+  }
+
+  /** Borra una carpeta con todo lo que contiene (archivos de texto e imágenes) como una sola operación que se puede deshacer. */
+  deleteFolder(folder: string): boolean {
+    const { files, assets } = this.folderContents(folder);
+    if (!files.length && !assets.length) return false;
+    const live = this.editorState.activeTab()?.path;
+    const saved = files.map((path) => ({ path, content: (path === live ? this.editorState.editorContent() : this.editorState.files().get(path)) ?? '' }));
+    const savedAssets = assets.map((p) => this.assetState.assets().get(p)).filter((a): a is AssetFile => !!a);
+    this.pushFileOp({ kind: 'deleteFolder', path: folder, files: saved, assets: savedAssets });
+    this.editorState.files.update((f) => { for (const p of files) f.delete(p); return f; });
+    for (const p of files) this.editorState.closeTabByPath(p);
+    for (const p of assets) this.assetState.remove(p);
+    this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+    const pinned = this.previewState.pinnedEntry();
+    if (pinned && isInsideFolder(pinned, folder)) {
+      this.previewState.pinnedEntry.set(null);
+      this.terminalState.addEntry('info', 'Vista previa', `Se eliminó ${pinned}, que era el archivo elegido: la vista previa vuelve a ser automática.`);
+    }
+    this.refreshTree();
+    this.terminalState.addEntry('info', 'Archivos', `Carpeta ${folder} borrada (${countsText(files.length, assets.length)}).`, undefined, false, true);
+    this.saveSession();
+    void this.manualCompile();
+    return true;
+  }
+
+  /** Renombra (mueve) una carpeta con todo lo que contiene. Las referencias que se rompan las marca «Problemas». */
+  renameFolder(from: string, to: string, record = true): boolean {
+    const { files, assets } = this.folderContents(from);
+    const all = [...this.editorState.files().keys(), ...this.assetState.assets().keys()];
+    const check = checkFolderRename(from, to, all);
+    if (!check.ok) {
+      this.terminalState.addEntry('warning', 'Archivos', check.reason);
+      return false;
+    }
+    if (!files.length && !assets.length) return false;
+    for (const p of files) this.renameFile(p, movedPath(p, from, check.to), false, false);
+    for (const p of assets) this.renameFile(p, movedPath(p, from, check.to), false, false);
+    if (record) this.pushFileOp({ kind: 'renameFolder', from, to: check.to });
+    this.refreshTree();
+    this.terminalState.addEntry('info', 'Archivos', `Renombrada ${from} → ${check.to} (${countsText(files.length, assets.length)}).`);
+    void this.manualCompile();
+    return true;
   }
 
   deleteFile(path: string): void {
@@ -1330,8 +1393,12 @@ export function uniqueProjectName(base: string, existing: string[]): string {
 
 type FileOp =
   | { kind: 'delete'; path: string; content?: string; asset?: AssetFile }
-  | { kind: 'rename'; from: string; to: string };
+  | { kind: 'rename'; from: string; to: string }
+  | { kind: 'deleteFolder'; path: string; files: { path: string; content: string }[]; assets: AssetFile[] }
+  | { kind: 'renameFolder'; from: string; to: string };
 
 function describeFileOp(op: FileOp): string {
+  if (op.kind === 'deleteFolder') return `Deshacer borrado de la carpeta ${op.path}`;
+  if (op.kind === 'renameFolder') return `Deshacer renombrar la carpeta ${op.from} → ${op.to}`;
   return op.kind === 'delete' ? `Deshacer borrar ${op.path}` : `Deshacer renombrar ${op.from} → ${op.to}`;
 }

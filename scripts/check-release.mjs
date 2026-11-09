@@ -20,6 +20,10 @@ const checks = [
   ['sección fechada del CHANGELOG', new RegExp(`^## \\[${version.replace(/\./g, '\\.')}\\] - \\d{4}-\\d{2}-\\d{2}$`, 'm').test(read('CHANGELOG.md')), `falta «## [${version}] - AAAA-MM-DD»`],
 ];
 
+// La guía de despliegue de la versión (`npm run release:guide -- X.Y.Z`) tiene que estar en el repositorio.
+import { existsSync } from 'node:fs';
+checks.push([`guía de despliegue docs/releases/v${version}.md`, existsSync(path.join(root, `docs/releases/v${version}.md`)), `falta: ejecuta «npm run release:guide -- ${version}»`]);
+
 // «Sin publicar» no debe llevar entradas si la versión ya está fechada: se olvidaron al publicar.
 const unreleased = /^## \[Sin publicar\]\n([\s\S]*?)(?=^## \[)/m.exec(read('CHANGELOG.md'))?.[1].trim() ?? '';
 checks.push(['CHANGELOG sin entradas sueltas en «Sin publicar»', unreleased === '', 'hay entradas en «Sin publicar»: muévelas a la versión o deja para la siguiente']);

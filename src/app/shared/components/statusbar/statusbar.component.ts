@@ -7,6 +7,7 @@ import { PreviewState } from '../../../core/state/preview.state';
 import { ParserState } from '../../../core/state/parser.state';
 import { PersistenceService } from '../../../core/services/persistence.service';
 import { PreferencesState } from '../../../core/services/preferences.state';
+import { ViewportState } from '../../../core/state/viewport.state';
 import { LayoutService } from '../../../core/services/layout.service';
 import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.component';
 import { LAYOUTS } from '../../../core/utils/layout.util';
@@ -32,7 +33,7 @@ import { LAYOUTS } from '../../../core/utils/layout.util';
             <span aria-hidden="true" class="material-symbols-outlined info-icon">sync</span>
             <span>Analizando&hellip;</span>
           </div>
-        } @else if (previewState.compilationTime() > 0) {
+        } @else if (previewState.compilationTime() > 0 && !viewport.compact()) {
           <div class="status-group">
             <span aria-hidden="true" class="material-symbols-outlined info-icon">info</span>
             <span>Compilado en {{ previewState.compilationTime() | number:'1.0-0' }} ms</span>
@@ -48,21 +49,24 @@ import { LAYOUTS } from '../../../core/utils/layout.util';
           [title]="preferences.autoCompile() ? 'Autocompilación activada: recompila al escribir. Púlsalo para desactivarla.' : 'Autocompilación desactivada: pulsa Guardar o Ctrl+S para compilar. Púlsalo para activarla.'"
           (click)="preferences.update({ autoCompile: !preferences.autoCompile() })">
           <span aria-hidden="true" class="auto-dot" [class.on]="preferences.autoCompile()"></span>
-          <span>Autocompilar: {{ preferences.autoCompile() ? 'sí' : 'no' }}</span>
+          <span [class.sr-only]="viewport.compact()">Autocompilar: {{ preferences.autoCompile() ? 'sí' : 'no' }}</span>
         </button>
         <div class="layout-menu">
           <app-dropdown-menu
             testId="layout-menu"
             tone="barra"
             icon="web"
+            [iconOnly]="viewport.compact()"
             [label]="'Disposición: ' + layout.def().label"
             placement="arriba"
             align="right"
             [items]="layoutItems()"
             (chosen)="onLayoutChoice($event)" />
         </div>
-        <span class="status-item dim">UTF-8</span>
-        <span class="status-item dim">{{ getLanguage() }}</span>
+        @if (!viewport.compact()) {
+          <span class="status-item dim">UTF-8</span>
+          <span class="status-item dim">{{ getLanguage() }}</span>
+        }
         <div
           class="status-item"
           [class.failed]="persistence.lastWriteFailed()"
@@ -72,7 +76,7 @@ import { LAYOUTS } from '../../../core/utils/layout.util';
           <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">
             {{ persistence.lastWriteFailed() ? 'cloud_off' : (editorState.hasUnsavedChanges() ? 'edit' : 'cloud_done') }}
           </span>
-          <span>{{ persistence.lastWriteFailed() ? 'No se pudo guardar' : (editorState.hasUnsavedChanges() ? 'Cambios sin guardar' : 'Guardado') }}</span>
+          <span [class.sr-only]="viewport.compact()">{{ persistence.lastWriteFailed() ? 'No se pudo guardar' : (editorState.hasUnsavedChanges() ? 'Cambios sin guardar' : 'Guardado') }}</span>
         </div>
       </div>
     </footer>
@@ -105,6 +109,9 @@ import { LAYOUTS } from '../../../core/utils/layout.util';
       flex-shrink: 0;
       z-index: 60;
     }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .statusbar { white-space: nowrap; overflow: hidden; }
 
     .status-left, .status-right {
       display: flex;
@@ -203,6 +210,7 @@ export class StatusbarComponent {
   protected persistence = inject(PersistenceService);
   protected preferences = inject(PreferencesState);
   protected layout = inject(LayoutService);
+  protected viewport = inject(ViewportState);
 
   /** Filas del menú «Disposición»: las cuatro disposiciones (con su atajo), los paneles y «Restablecer los tamaños». */
   protected layoutItems = computed<MenuItem[]>(() => [

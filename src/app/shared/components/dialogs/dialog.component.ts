@@ -23,6 +23,13 @@ export interface DialogConfig {
   /** Acción secundaria bajo el campo (p. ej. «Importar archivo .json…»); emite `extra`. */
   extraText?: string;
   extraIcon?: string;
+  /** Lista de rutas bajo el mensaje (qué se va a borrar); `detailMore` dice cuántas quedan sin enseñar. */
+  detail?: string[];
+  detailMore?: string;
+  /** Aviso en un recuadro bajo el mensaje y la lista. */
+  note?: string;
+  /** El botón de confirmar no se activa hasta que el campo valga exactamente esto (borrar una carpeta grande). */
+  requireValue?: string;
 }
 
 @Component({
@@ -45,6 +52,13 @@ export interface DialogConfig {
           </div>
           <div class="dialog-body">
             <p class="dialog-message">{{ config().message }}</p>
+            @if (config().detail?.length) {
+              <ul class="dialog-detail" aria-label="Se borrará">
+                @for (d of config().detail; track d) { <li>{{ d }}</li> }
+                @if (config().detailMore) { <li class="more-line">{{ config().detailMore }}</li> }
+              </ul>
+            }
+            @if (config().note) { <p class="dialog-note">{{ config().note }}</p> }
             @if (config().showInput) {
               <label class="dialog-label">{{ config().inputLabel }}</label>
               <input
@@ -66,7 +80,7 @@ export interface DialogConfig {
             <button class="dialog-btn secondary" (click)="onCancel()">
               {{ config().cancelText ?? 'Cancel' }}
             </button>
-            <button class="dialog-btn primary" (click)="onConfirm()">
+            <button class="dialog-btn primary" [disabled]="!canConfirm()" (click)="onConfirm()">
               {{ config().confirmText ?? 'Confirm' }}
             </button>
           </div>
@@ -173,6 +187,11 @@ export interface DialogConfig {
     .dialog-extra:hover { background: var(--bg-hover); }
     .dialog-extra .material-symbols-outlined { font-size: 16px; }
 
+    .dialog-detail { list-style: none; margin: 10px 0 0; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 3px; max-height: 180px; overflow: auto; }
+    .dialog-detail .more-line { font-family: var(--font-family); color: var(--text-secondary); }
+    .dialog-note { margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-input); font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+    .dialog-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
     .dialog-footer {
       display: flex;
       justify-content: flex-end;
@@ -253,7 +272,13 @@ export class DialogComponent {
     if (dlg) trapTab(e, dlg);
   }
 
+  canConfirm(): boolean {
+    const need = this.config().requireValue;
+    return !need || this.inputValue().trim() === need;
+  }
+
   onConfirm(): void {
+    if (!this.canConfirm()) return;
     this.confirmed.emit(this.inputValue());
   }
 

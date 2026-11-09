@@ -115,3 +115,14 @@ test('sanitizeDeviceMemory descarta PDF, nombres vacíos y tamaños absurdos', (
     assert.equal(sanitizeDeviceMemory(malo), null, JSON.stringify(malo));
   }
 });
+
+import { bottomPanelHeight, bottomPanelCompact } from './.build/units.mjs';
+test('el panel inferior mide clamp(120, 33 vh, 240) px y se recoge si el editor queda bajo 240 px', () => {
+  assert.equal(bottomPanelHeight(900), 240);
+  assert.equal(bottomPanelHeight(540), 178);
+  assert.equal(bottomPanelHeight(300), 120);
+  assert.equal(bottomPanelCompact(900), false);
+  assert.equal(bottomPanelCompact(540), false);
+  assert.equal(bottomPanelCompact(480), true);
+  assert.equal(bottomPanelCompact(360), true);
+});

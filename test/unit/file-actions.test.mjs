@@ -28,7 +28,7 @@ test('diálogos: textos en español y con campo de texto donde toca', () => {
 });
 
 test('contextMenuFor según el tipo de nodo', () => {
-  assert.deepEqual(contextMenuFor({ type: 'directory' }).map((i) => i.action), ['newFile']);
+  assert.deepEqual(contextMenuFor({ type: 'directory' }).map((i) => i.action), ['newFile', 'rename', '', 'delete']);
   assert.deepEqual(contextMenuFor({ type: 'file', isAsset: true }).map((i) => i.action), ['rename', 'delete']);
   assert.deepEqual(contextMenuFor({ type: 'file' }).map((i) => i.action), ['rename', 'duplicate', '', 'delete']);
 });

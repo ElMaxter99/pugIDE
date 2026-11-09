@@ -43,20 +43,29 @@ interface RowView extends ProblemRow {
             <span aria-hidden="true" class="material-symbols-outlined sev" [class.warn]="r.severity === 'warning'">{{ r.severity === 'error' ? 'error' : 'warning' }}</span>
             <span class="title">{{ r.message }}</span>
             @if (r.path) { <span class="where">{{ r.file }}:{{ r.line }}</span> }
+            <div class="actions">
+              @if (r.fix; as fix) {
+                <button type="button" class="act primary diag-fix" (click)="fixIt($event, fix)">{{ fix.label }}</button>
+              }
+              @if (r.path) {
+                <button type="button" class="act diag-go" (click)="goTo($event, r)">Ir al error<span class="sr"> · {{ r.file }}:{{ r.line }}</span></button>
+              }
+              <button type="button" class="act" (click)="copy($event, r)">{{ copiedId() === r.id ? 'Copiado' : 'Copiar mensaje' }}</button>
+            </div>
           </div>
-          @if (r.hint) { <p class="why">{{ r.hint }}</p> }
-          @if (r.snippet.length) {
-            <pre class="code" aria-label="Código cercano"><code>@for (l of r.snippet; track l.n) {<span class="ln" [class.mark]="l.marked"><span class="num">{{ l.n }}</span><span class="txt">{{ l.text }}</span></span>}</code></pre>
+          @if (r.hint || r.snippet.length) {
+            <div class="detail">
+              @if (r.hint) { <p class="why">{{ r.hint }}</p> }
+              @if (r.snippet.length) {
+                <div class="snip">
+                  <pre class="code" aria-label="Código cercano"><code>@for (l of r.snippet; track l.n) {<span class="ln" [class.mark]="l.marked"><span class="num">{{ l.n }}</span><span class="txt">{{ l.text }}</span></span>}</code></pre>
+                  @if (r.path && r.line) {
+                    <button type="button" class="expand-link" [attr.aria-expanded]="isExpanded(r.id)" (click)="toggleSnippet($event, r.id)">{{ isExpanded(r.id) ? 'Ver menos' : 'Ver más' }}</button>
+                  }
+                </div>
+              }
+            </div>
           }
-          <div class="actions">
-            @if (r.fix; as fix) {
-              <button type="button" class="act primary diag-fix" (click)="fixIt($event, fix)">{{ fix.label }}</button>
-            }
-            @if (r.path) {
-              <button type="button" class="act diag-go" (click)="goTo($event, r)">Ir al error · {{ r.file }}:{{ r.line }}</button>
-            }
-            <button type="button" class="act" (click)="copy($event, r)">{{ copiedId() === r.id ? 'Copiado' : 'Copiar mensaje' }}</button>
-          </div>
         </li>
       } @empty {
         <li class="empty">
@@ -93,7 +102,13 @@ interface RowView extends ProblemRow {
     .ln.mark { background: rgba(255, 82, 82, 0.14); box-shadow: inset 3px 0 0 var(--error-color); }
     .diag-row.warning .ln.mark { background: rgba(249, 226, 175, 0.14); box-shadow: inset 3px 0 0 var(--warning-color); }
     .num { min-width: 2ch; text-align: right; color: var(--text-secondary); user-select: none; }
-    .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    /* Los botones van en la línea del título, a la derecha: con cualquier altura de panel siguen a la vista (P-20). */
+    .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+    .detail { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 16px; }
+    .detail .why { flex: 1 1 320px; min-width: 0; }
+    .snip { flex: 0 1 440px; min-width: 0; max-width: 100%; display: flex; flex-direction: column; gap: 2px; }
+    .expand-link { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--accent-color); font: inherit; font-size: 11px; cursor: pointer; text-decoration: underline; }
+    .sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     .act { min-height: 24px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: 6px; background: transparent; color: var(--text-primary); font: inherit; font-size: 12px; cursor: pointer; }
     .act:hover { background: var(--bg-hover); }
     .act.primary { background: var(--accent-color); border-color: var(--accent-color); color: var(--on-accent, var(--bg-primary)); font-weight: 600; }
@@ -109,6 +124,15 @@ export class ProblemsPanelComponent {
   protected severity = signal<Severity>('all');
   protected onlyOpen = signal(false);
   protected copiedId = signal<string | null>(null);
+  /** Problemas cuyo fragmento de código se ve entero (por defecto, la línea y una de contexto por arriba y otra por abajo). */
+  private expandedSnippets = signal<ReadonlySet<string>>(new Set());
+  protected isExpanded(id: string): boolean { return this.expandedSnippets().has(id); }
+  protected toggleSnippet(event: Event, id: string): void {
+    event.stopPropagation();
+    const next = new Set(this.expandedSnippets());
+    if (next.has(id)) next.delete(id); else next.add(id);
+    this.expandedSnippets.set(next);
+  }
 
   protected counts = computed(() => countProblems(this.diagnostics.rows()));
 
@@ -118,13 +142,14 @@ export class ProblemsPanelComponent {
     const active = this.editorState.activeTab()?.path;
     const only = this.onlyOpen();
     const files = this.editorState.allFileContents();
+    const expanded = this.expandedSnippets();
     return this.diagnostics
       .rows()
       .filter((r) => (sev === 'all' || r.severity === sev) && (!only || (!!active && r.path === active)))
       .map((r) => ({
         ...r,
         file: r.path ? (r.path.split('/').pop() ?? r.path) : '',
-        snippet: r.path && r.line ? snippetLines(files.get(r.path) ?? '', r.line) : [],
+        snippet: r.path && r.line ? snippetLines(files.get(r.path) ?? '', r.line, expanded.has(r.id) ? 5 : 1) : [],
       }));
   });
 

@@ -106,6 +106,8 @@ export class PugParserService {
 
   /** `- var x = ...` names seen in the project (JS `var` is function-wide, so includes and mixins see them) → data path they alias, or null for plain locals. */
   private declared = new Map<string, string | null>();
+  /** Variables del template con valores de texto conocidos (`- var s = 'SINGLE'`, `n === 1 ? 'A' : 'B'`): sirven para resolver claves calculadas `t(`TEXT_${s}`)`. */
+  private stringConsts = new Map<string, string[]>();
   /** Free functions called by expressions of the last extraction (`t('KEY')`). */
   private calledFns = new Set<string>();
   /** Literal keys of translator calls of the last extraction. */
@@ -278,6 +280,7 @@ export class PugParserService {
     const collected = new Map<string, PugVariable>();
     const mixinDefs = new Map<string, { params: string[]; body: PugAstNode[] }>();
     this.declared = new Map();
+    this.stringConsts = new Map();
     this.calledFns = new Set();
     this.translationKeys = new Set();
 
@@ -287,7 +290,12 @@ export class PugParserService {
       }
       // Locals declared anywhere are not data, even when a mixin body reads them before the declaration is visited.
       if (node.type === 'Code' && node.buffer !== true && typeof node.val === 'string') {
-        for (const { name } of this.parseDeclarations(node.val)) this.declared.set(name, null);
+        for (const { name, init } of this.parseDeclarations(node.val)) {
+          this.declared.set(name, null);
+          const values = init ? literalStrings(init) : null;
+          if (values) this.stringConsts.set(name, [...new Set([...(this.stringConsts.get(name) ?? []), ...values])]);
+          else this.stringConsts.delete(name);
+        }
       }
     });
 
@@ -706,8 +714,13 @@ export class PugParserService {
             && (parts.length === 1 || TRANSLATOR_OBJECT_RE.test(parts[parts.length - 2]));
           if (isTranslator) {
             calls.push(parts.join('.'));
-            const lit = expr.slice(nextIdx).match(/^\(\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1/);
+            // La clave es el argumento entero: `t('PIE_' + s)` no es la clave «PIE_».
+            const lit = expr.slice(nextIdx).match(/^\(\s*(['"`])((?:\\.|(?!\1)[^\\])*)\1\s*(?=[,)])/);
             if (lit && !lit[2].includes('${') && TRANSLATION_KEY_RE.test(lit[2])) keys.push(lit[2]);
+            else {
+              // Clave calculada: `t(`TEXT_${s}`)`, `t('TEXT_' + s)` o `t(s)` con `s` una variable de texto conocida del template.
+              for (const k of resolveKeyArgument(firstArgument(expr, nextIdx), this.stringConsts)) if (TRANSLATION_KEY_RE.test(k)) keys.push(k);
+            }
           } else if (parts.length === 1) {
             calls.push(first);
           } else if (!VALUE_METHODS.has(lastPart)) {
@@ -959,4 +972,110 @@ function loadScript(src: string): Promise<void> {
     script.onerror = () => reject(new Error(`Failed to load ${src}`));
     document.head.appendChild(script);
   });
+}
+
+
+/** Primer argumento de la llamada cuyo paréntesis de apertura está en `open` (hasta la coma o el cierre del mismo nivel). */
+function firstArgument(expr: string, open: number): string {
+  let depth = 0;
+  let i = open + 1;
+  for (; i < expr.length; i++) {
+    const c = expr[i];
+    if (c === '"' || c === "'" || c === '`') {
+      for (i++; i < expr.length && expr[i] !== c; i++) if (expr[i] === '\\') i++;
+      continue;
+    }
+    if ('([{'.includes(c)) depth++;
+    else if (')]}'.includes(c)) { if (depth === 0) break; depth--; }
+    else if (c === ',' && depth === 0) break;
+  }
+  return expr.slice(open + 1, i).trim();
+}
+
+const STRING_LITERAL_RE = /^(['"])((?:\\.|(?!\1)[^\\])*)\1$/;
+const MAX_KEYS = 12;
+
+/** Divide por un operador de nivel superior (fuera de textos, paréntesis y plantillas); devuelve null si no aparece. */
+function splitTopLevel(expr: string, op: string): string[] | null {
+  const parts: string[] = [];
+  let depth = 0;
+  let last = 0;
+  for (let i = 0; i < expr.length; i++) {
+    const c = expr[i];
+    if (c === '"' || c === "'" || c === '`') {
+      for (i++; i < expr.length && expr[i] !== c; i++) if (expr[i] === '\\') i++;
+      continue;
+    }
+    if ('([{'.includes(c)) depth++;
+    else if (')]}'.includes(c)) depth--;
+    else if (depth === 0 && expr.startsWith(op, i) && !(op === '?' && (expr[i + 1] === '?' || expr[i + 1] === '.' || expr[i - 1] === '?'))) {
+      parts.push(expr.slice(last, i));
+      last = i + op.length;
+      i += op.length - 1;
+    }
+  }
+  if (!parts.length) return null;
+  parts.push(expr.slice(last));
+  return parts.map((p) => p.trim());
+}
+
+/**
+ * Valores de texto que puede tener una expresión escrita en el template: un literal, o los dos de un ternario
+ * (`n === 1 ? 'SINGLE' : 'PLURAL'`). null si no se puede saber (viene de un dato, de una llamada…).
+ */
+export function literalStrings(expr: string): string[] | null {
+  let e = expr.trim();
+  while (e.startsWith('(') && e.endsWith(')') && splitTopLevel(e.slice(1, -1), '?') !== null) e = e.slice(1, -1).trim();
+  const lit = STRING_LITERAL_RE.exec(e);
+  if (lit) return [lit[2]];
+  const tpl = /^`([^`$]*)`$/.exec(e);
+  if (tpl) return [tpl[1]];
+  const q = splitTopLevel(e, '?');
+  if (q && q.length === 2) {
+    const branches = splitTopLevel(q[1], ':');
+    if (branches && branches.length === 2) {
+      const a = literalStrings(branches[0]);
+      const b = literalStrings(branches[1]);
+      if (a && b) return [...new Set([...a, ...b])].slice(0, MAX_KEYS);
+    }
+  }
+  return null;
+}
+
+/** Valores posibles de un trozo de clave: un literal, una variable de texto conocida o un ternario de literales. */
+function pieceValues(piece: string, consts: ReadonlyMap<string, string[]>): string[] | null {
+  const lit = literalStrings(piece);
+  if (lit) return lit;
+  return /^[A-Za-z_$][\w$]*$/.test(piece.trim()) ? (consts.get(piece.trim()) ?? null) : null;
+}
+
+/**
+ * Claves de traducción que puede pedir un argumento calculado: `\`TEXT_${s}\``, `'TEXT_' + s` o `s`, siempre que cada variable
+ * sea un texto conocido del template. Si algo no se puede saber, no se inventa ninguna clave (la lista sale vacía).
+ */
+export function resolveKeyArgument(arg: string, consts: ReadonlyMap<string, string[]>): string[] {
+  const a = arg.trim();
+  if (!a) return [];
+  let pieces: (string[] | null)[];
+  if (a.startsWith('`') && a.endsWith('`') && a.includes('${')) {
+    pieces = [];
+    const body = a.slice(1, -1);
+    let last = 0;
+    const re = /\$\{([^}]*)\}/g;
+    for (let m = re.exec(body); m; m = re.exec(body)) {
+      if (m.index > last) pieces.push([body.slice(last, m.index)]);
+      pieces.push(pieceValues(m[1], consts));
+      last = m.index + m[0].length;
+    }
+    if (last < body.length) pieces.push([body.slice(last)]);
+  } else {
+    const plus = splitTopLevel(a, '+');
+    pieces = (plus ?? [a]).map((p) => pieceValues(p, consts));
+  }
+  if (!pieces.length || pieces.some((p) => p === null)) return [];
+  let keys: string[] = [''];
+  for (const values of pieces as string[][]) {
+    keys = keys.flatMap((k) => values.map((v) => k + v)).slice(0, MAX_KEYS);
+  }
+  return [...new Set(keys)];
 }

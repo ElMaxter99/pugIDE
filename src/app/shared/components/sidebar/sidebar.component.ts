@@ -15,7 +15,8 @@ import { EditorState } from '../../../core/state/editor.state';
 import { getFileType } from '../../../core/models/tab.model';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { ProjectIoService } from '../../../core/services/project-io.service';
-import { contextMenuFor, defaultNewFileDir, deleteDialog, importDialog, newFileDialog, renameDialog, toProjectPath } from '../../../core/utils/file-actions.util';
+import { summarizeFolder } from '../../../core/utils/folder-ops.util';
+import { contextMenuFor, defaultNewFileDir, deleteDialog, deleteFolderDialog, renameFolderDialog, importDialog, newFileDialog, renameDialog, toProjectPath } from '../../../core/utils/file-actions.util';
 import { FileTreeComponent } from './file-tree.component';
 import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
@@ -32,6 +33,8 @@ type PendingAction =
   | { type: 'newFile'; dir: string }
   | { type: 'rename'; path: string }
   | { type: 'delete'; path: string }
+  | { type: 'renameFolder'; path: string }
+  | { type: 'deleteFolder'; path: string }
   | { type: 'importProject' };
 
 @Component({
@@ -435,6 +438,20 @@ export class SidebarComponent {
     await this.projectIo.importFromZipFile(file);
   }
 
+  private showRenameFolderDialog(path: string): void {
+    const { files, assets } = this.orchestrator.folderContents(path);
+    this.pendingAction = { type: 'renameFolder', path };
+    this.dialogConfig.set(renameFolderDialog(path, files.length, assets.length));
+    this.dialogOpen.set(true);
+  }
+
+  private showDeleteFolderDialog(path: string): void {
+    const { files, assets } = this.orchestrator.folderContents(path);
+    this.pendingAction = { type: 'deleteFolder', path };
+    this.dialogConfig.set(deleteFolderDialog(path, summarizeFolder(files, assets)));
+    this.dialogOpen.set(true);
+  }
+
   private showDeleteDialog(path: string): void {
     this.pendingAction = { type: 'delete', path };
     this.dialogConfig.set(deleteDialog(path));
@@ -462,6 +479,10 @@ export class SidebarComponent {
       this.orchestrator.renameFile(action.path, newPath);
     } else if (action.type === 'delete') {
       this.orchestrator.deleteFile(action.path);
+    } else if (action.type === 'renameFolder') {
+      this.orchestrator.renameFolder(action.path, value);
+    } else if (action.type === 'deleteFolder') {
+      this.orchestrator.deleteFolder(action.path);
     } else if (action.type === 'importProject') {
       if (this.projectIo.supportsFileSystemAccess) {
         this.projectIo.importFromDirectory();
@@ -483,7 +504,11 @@ export class SidebarComponent {
 
   /** F2 / Supr sobre un archivo del árbol. */
   onNodeAction(action: 'rename' | 'delete', node: FileNode): void {
-    if (node.type === 'directory') return; // renombrar y borrar carpetas aún no existe (anotado en el plan): no se abre un diálogo que no haría nada
+    if (node.type === 'directory') {
+      if (action === 'rename') this.showRenameFolderDialog(node.path);
+      else this.showDeleteFolderDialog(node.path);
+      return;
+    }
     if (action === 'rename') this.showRenameDialog(node.path);
     else this.showDeleteDialog(node.path);
   }
@@ -499,7 +524,8 @@ export class SidebarComponent {
         this.showNewFileDialog(node.path + '/');
         break;
       case 'rename':
-        this.showRenameDialog(node.path);
+        if (node.type === 'directory') this.showRenameFolderDialog(node.path);
+        else this.showRenameDialog(node.path);
         break;
       case 'duplicate':
         this.orchestrator.duplicateFile(node.path);
@@ -511,7 +537,8 @@ export class SidebarComponent {
         this.orchestrator.setPreviewEntry(null);
         break;
       case 'delete':
-        this.showDeleteDialog(node.path);
+        if (node.type === 'directory') this.showDeleteFolderDialog(node.path);
+        else this.showDeleteDialog(node.path);
         break;
     }
   }

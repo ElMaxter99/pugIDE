@@ -33,6 +33,8 @@ import { DialogComponent, DialogConfig } from '../shared/components/dialogs/dial
 import { ProjectIoService } from '../core/services/project-io.service';
 import { ProjectLibraryService } from '../core/services/project-library.service';
 import { backupReminderDays } from '../core/utils/backup.util';
+import { DiagnosticsState } from '../core/state/diagnostics.state';
+import { ViewportState } from '../core/state/viewport.state';
 import { ShareCreateDialogComponent } from '../shared/components/share-dialogs/share-create-dialog.component';
 import { ShareOpenDialogComponent } from '../shared/components/share-dialogs/share-open-dialog.component';
 import type { ShareOpenRequest } from '../core/state/ui.state';
@@ -79,9 +81,18 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
           <app-preview-panel data-tour="preview" [style.flex]="'0 0 ' + layout.resolved().preview + 'px'" [style.width.px]="layout.resolved().preview" />
         </div>
         @if (terminalState.isVisible()) {
-          <section class="app-terminal" aria-label="Problemas y Registro" [class.maximized]="terminalState.isMaximized()">
-            <app-terminal-panel />
-          </section>
+          @if (terminalState.bottomCompact() && !terminalState.overlayOpen()) {
+            <!-- Ventana baja (P-19): el panel inferior se recoge en una franja de 34 px y se abre sobre el editor. -->
+            <button type="button" class="bottom-strip" data-testid="bottom-strip" aria-expanded="false" aria-label="Mostrar el panel Problemas y Registro" (click)="terminalState.overlayOpen.set(true)">
+              <span class="strip-errors" [class.has-errors]="diagnostics.counts().errors > 0">{{ diagnostics.counts().errors }} {{ diagnostics.counts().errors === 1 ? 'error' : 'errores' }}</span>
+              <span class="strip-title">Problemas · Registro</span>
+              <span class="strip-show">Mostrar <span aria-hidden="true" class="material-symbols-outlined">keyboard_arrow_up</span></span>
+            </button>
+          } @else {
+            <section class="app-terminal" aria-label="Problemas y Registro" [class.maximized]="terminalState.isMaximized()" [class.overlay]="terminalState.bottomCompact()" (keydown.escape)="onBottomEscape()">
+              <app-terminal-panel />
+            </section>
+          }
         }
       </div>
       <app-statusbar />
@@ -120,6 +131,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     }
 
     .app-content {
+      position: relative;
       display: flex;
       flex-direction: column;
       flex: 1;
@@ -136,7 +148,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     }
 
     .app-terminal {
-      height: 240px;
+      height: clamp(120px, 33vh, 240px);
       min-height: 100px;
       border-top: 1px solid var(--border-color);
       flex-shrink: 0;
@@ -146,6 +158,59 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     .app-terminal.maximized {
       height: 70vh;
     }
+
+    /* Ventana baja: el panel se abre sobre el editor (como mucho el 60 % del alto) en vez de quitarle el sitio. */
+    .app-terminal.overlay {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 60%;
+      z-index: 40;
+      background: var(--bg-primary);
+      box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .app-terminal.overlay.maximized {
+      height: 90%;
+    }
+
+    .bottom-strip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 34px;
+      flex-shrink: 0;
+      padding: 0 12px;
+      border: 0;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .bottom-strip:hover {
+      background: var(--bg-hover);
+    }
+
+    .strip-errors.has-errors {
+      color: var(--error-color);
+    }
+
+    .strip-show {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--accent-color);
+    }
+
+    .strip-show .material-symbols-outlined {
+      font-size: 16px;
+    }
   `],
 })
 export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -154,6 +219,8 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   private route = inject(ActivatedRoute);
   protected editorState = inject(EditorState);
   protected terminalState = inject(TerminalState);
+  protected diagnostics = inject(DiagnosticsState);
+  private viewport = inject(ViewportState);
   private previewState = inject(PreviewState);
   private dataState = inject(DataState);
   private projectState = inject(ProjectState);
@@ -186,6 +253,14 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    // Ventana baja (P-19): el panel inferior se recoge en una franja; al volver a haber sitio se enseña entero.
+    effect(() => {
+      const compact = this.viewport.bottomCompact();
+      untracked(() => {
+        this.terminalState.bottomCompact.set(compact);
+        if (!compact) this.terminalState.overlayOpen.set(false);
+      });
+    });
     const theme = this.preferences.theme();
     document.documentElement.classList.toggle('light-mode', theme === 'light');
     effect(() => {
@@ -286,6 +361,11 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   protected onAddLocale(code: string): void {
     this.ui.addLocaleOpen.set(false);
     if (code.trim()) this.orchestrator.addLocale(code);
+  }
+
+  /** Esc dentro del panel inferior abierto sobre el editor (ventana baja) lo recoge. */
+  protected onBottomEscape(): void {
+    if (this.terminalState.bottomCompact()) this.terminalState.overlayOpen.set(false);
   }
 
   /** «Importar archivo .json…» del diálogo «Añadir idioma»: lee los archivos y abre la confirmación (P-14). */
