@@ -257,6 +257,11 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const saved = this.persistence.loadProjectState();
     const hasSaved = !!saved && Object.keys(saved.files).length > 0;
+    const bad = this.persistence.sessionProblem;
+    if (bad) {
+      this.terminalState.addEntry('warning', 'Sesión',
+        `La sesión guardada no se pudo leer entera: ${bad.reason}. ${hasSaved ? 'Se recuperaron los archivos de texto válidos.' : 'Se abre el proyecto por defecto.'} ${bad.copied ? 'Se guardó una copia del original en este navegador (clave pug-ide-project-corrupt).' : 'No hubo espacio para guardar una copia del original.'}`);
+    }
     const sharedPayload = payloadFromHash(location.hash);
     const shared = sharedPayload !== null ? this.projectIo.parseShare(sharedPayload) : null;
     if (sharedPayload !== null && !shared) this.clearShareHash();
