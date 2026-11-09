@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, HostListener, computed, inject, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, Injector, afterNextRender, computed, inject, input, output, signal, viewChild } from '@angular/core';
 
 /** Una fila de un menú desplegable. Sin `id` es un separador o, con `heading`, un título de grupo. */
 export interface MenuItem {
@@ -123,6 +123,7 @@ export class DropdownMenuComponent {
   /** Dónde se pinta el menú (coordenadas de la ventana): se calcula al abrirlo para que nunca se salga de ella. */
   protected readonly pos = signal<{ left: number; top: number; maxHeight: number } | null>(null);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   private readonly trigger = viewChild<ElementRef<HTMLButtonElement>>('trigger');
   private readonly list = viewChild<ElementRef<HTMLElement>>('list');
   protected readonly enabledCount = computed(() => this.items().filter((i) => i.id && !i.disabled).length);
@@ -136,8 +137,13 @@ export class DropdownMenuComponent {
   private openMenu(focusFirst: boolean): void {
     this.pos.set(null);
     this.open.set(true);
-    // Tras pintar la lista: se coloca dentro de la ventana y el foco va a la primera fila solo si se abrió con teclado.
-    setTimeout(() => { this.reposition(); if (focusFirst) this.focusItem(0); });
+    // Tras pintar la lista (no antes: en WebKit un `setTimeout` puede adelantarse a Angular): se coloca dentro de la ventana y,
+    // ya con la posición pintada (mientras no, el menú está con `visibility: hidden` y no se deja enfocar), el foco va a la
+    // primera fila solo si se abrió con teclado.
+    afterNextRender(() => {
+      this.reposition();
+      if (focusFirst) afterNextRender(() => this.focusItem(0), { injector: this.injector });
+    }, { injector: this.injector });
   }
 
   /**
@@ -165,7 +171,7 @@ export class DropdownMenuComponent {
 
   @HostListener('window:resize')
   protected onResize(): void {
-    if (this.open()) { this.pos.set(null); setTimeout(() => this.reposition()); }
+    if (this.open()) { this.pos.set(null); afterNextRender(() => this.reposition(), { injector: this.injector }); }
   }
 
   close(restoreFocus: boolean): void {
