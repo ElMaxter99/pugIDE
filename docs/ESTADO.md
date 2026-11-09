@@ -4,7 +4,7 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 
 ## Versiones
 - **0.8.0**: publicada (tag `v0.8.0` y release de GitHub hechos). La rama `release` ya contiene la 0.8.0 y, por un merge manual, trabajo de la 0.9 hasta la PR 57. Falta, si no se ha hecho, **desplegar `release` en Vercel a mano**.
-- **0.9.0**: en preparación. Plan aprobado: P-18 a P-22.
+- **0.9.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.9.0.md`). Falta mergearla y lanzar `npm run release:deploy`.
 
 ## Plan 0.9
 | Pieza | Estado |
@@ -16,11 +16,10 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 | P-20 botones de «Problemas» | ✅ en master |
 | Claves de traducción calculadas | ✅ en master |
 | `npm run release:deploy` (un solo comando) | ✅ en master (arreglo de «release ya adelantada»: PR 59, mergeada) |
-| P-21 tema Automático/Oscuro/Claro, enlaces de salto, F6 | ✅ hecho; en la PR de la rama `claude/dazzling-ritchie-onhmhj` |
-| P-22 idioma por defecto y de reserva (sin plurales automáticos) | ✅ hecho; en la misma PR |
-| Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | ⏳ cuando la PR de P-21 y P-22 esté en master |
+| P-21 tema Automático/Oscuro/Claro, enlaces de salto, F6 | ✅ en master (PR 60) |
+| P-22 idioma por defecto y de reserva (sin plurales automáticos) | ✅ en master (PR 60) |
+| Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | 🔄 en su PR |
 
 ## Pendiente de la persona responsable
-- Mergear la PR de P-21 cuando esté abierta y en verde.
-- Desplegar `release` en Vercel a mano (0.8.0).
-- Cuando exista la 0.9.0: `npm run release:deploy` y desplegar en Vercel.
+- Mergear la PR de la 0.9.0.
+- Después, desde la carpeta del proyecto: `npm run release:deploy` y desplegar `release` en Vercel a mano.
