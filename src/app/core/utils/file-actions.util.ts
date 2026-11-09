@@ -57,7 +57,7 @@ export function renameFolderDialog(path: string, files: number, images: number):
   return {
     title: 'Renombrar carpeta',
     message: `Se mueven ${countsText(files, images)} de ${path} a la nueva ruta.`,
-    note: 'Los include, extends, link e img que apuntaban a la carpeta vieja no se cambian: los que se rompan saldrán en «Problemas» con «Ir al error».',
+    note: 'Los include, extends, link e img que apuntaban a la carpeta vieja no se cambian: PugIDE avisa de los que se rompan (un include que falta se vuelve a crear vacío).',
     confirmText: 'Renombrar',
     cancelText: 'Cancelar',
     showInput: true,
