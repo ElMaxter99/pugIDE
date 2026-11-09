@@ -22,6 +22,8 @@ try {
   const page = await app.firstWindow();
   page.on('console', (m) => { if (/Content Security Policy|Refused to /i.test(m.text())) violations.push(m.text().slice(0, 200)); });
   page.on('request', (r) => { const u = r.url(); if (!/^(pugide:|blob:|data:|devtools:)/.test(u)) external.push(u); });
+  // La ventana puede abrirse antes de que cargue la app (en el primer arranque de un binario empaquetado tarda más): se espera.
+  await page.waitForURL(/^pugide:\/\/app\//, { timeout: 60000 });
   await page.waitForLoadState('domcontentloaded');
 
   check('arranca en la app (pugide://app/ide)', page.url().startsWith('pugide://app/'), page.url());
