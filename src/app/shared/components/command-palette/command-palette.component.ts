@@ -180,10 +180,10 @@ export class CommandPaletteComponent {
         group: 'Ajustes', keywords: 'formatear formato atributos orden', run: () => this.preferences.update({ sortAttributes: !this.preferences.sortAttributes() }),
         title: `Formato de Pug: ordenar atributos (${this.preferences.sortAttributes() ? 'activado' : 'desactivado'})`,
       },
-      {
+      ...(this.analytics.desktop ? [] : [{
         group: 'Ajustes', keywords: 'privacidad cookies telemetria visitas', run: () => this.analytics.toggle(),
         title: `Privacidad: analítica anónima de visitas (${this.analytics.consent() === 'granted' ? 'permitida' : 'no permitida'})`,
-      },
+      }]),
       { group: 'Ajustes', title: 'Alternar auto-compilación', keywords: 'autocompile', run: () => this.preferences.update({ autoCompile: !this.preferences.autoCompile() }) },
       { group: 'Problemas', title: 'Abrir el panel Problemas', keywords: 'errores avisos lista', run: () => this.terminalState.openProblems() },
       { group: 'Ajustes', title: 'Abrir el Registro', keywords: 'terminal log consola', run: () => this.terminalState.openLog() },

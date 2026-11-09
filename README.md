@@ -128,6 +128,10 @@ parser  →  datos  →  orquestador  →  compilador  →  preview
 
 Angular 22 (componentes standalone, signals), Monaco, el compilador de Pug empaquetado para el navegador, `sass` y `less` en el cliente, y el service worker de Angular para el uso sin conexión. El detalle está en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Instalar
+
+PugIDE funciona en el navegador, como **PWA** (un icono y una ventana propia, sin descargar nada) y como **aplicación de escritorio** para **Windows, macOS y Linux**, sin conexión. Los instaladores de escritorio son gratuitos y **no están firmados** (sin certificados de pago): software libre MIT, sin garantía y bajo la responsabilidad de cada persona. Pasos y avisos en **[docs/INSTALAR.md](docs/INSTALAR.md)**; instaladores en las [releases](https://github.com/ElMaxter99/pugIDE/releases).
+
 ## Empezar
 
 Necesitas Node.js y npm.
@@ -151,6 +155,8 @@ Abre <http://localhost:4200/ide?demo=true> para cargar un proyecto de ejemplo co
 | `npm run test:ui` | Pruebas de interfaz con Playwright sobre el build (`PUGIDE_BROWSER=firefox` o `webkit` para los otros navegadores) |
 | `npm run perf` | Mediciones de rendimiento del paginado y del preview |
 | `npm run screenshots` | Regenera las capturas de este README |
+| `npm run desktop:start` | Abre la app de escritorio (Electron) desde el código fuente |
+| `npm run desktop:test` | Prueba de humo de la app de escritorio |
 | `npm run release:check` | Comprueba que la versión es coherente antes de etiquetar |
 
 ## Atajos útiles
@@ -184,6 +190,8 @@ La lista completa está en la paleta → «Atajos de teclado». En Mac, `Ctrl` e
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): arquitectura, aislamiento, CSP, PDF y rendimiento medido.
 - [docs/PLAN.md](docs/PLAN.md): estado del proyecto y siguientes pasos.
+- [docs/INSTALAR.md](docs/INSTALAR.md): instalar PugIDE como PWA o como aplicación de escritorio.
+- [docs/ESCRITORIO.md](docs/ESCRITORIO.md): cómo y por qué se hizo la app de escritorio, y lo que falta.
 - [docs/RELEASE.md](docs/RELEASE.md): cómo se publica una versión y se despliega.
 - [CHANGELOG.md](CHANGELOG.md): qué cambia en cada versión.
 - [design/README.md](design/README.md): el lienzo de diseño («diseño primero») y los tokens de [docs/brand/DESIGN_TOKENS.md](docs/brand/DESIGN_TOKENS.md).

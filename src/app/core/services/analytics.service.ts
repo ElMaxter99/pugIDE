@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { inject as injectVercelAnalytics } from '@vercel/analytics';
 import { AnalyticsConsent, PersistenceService } from './persistence.service';
+import { isDesktopApp } from '../utils/desktop.util';
 
 /**
  * Analítica anónima de visitas (Vercel Web Analytics: sin cookies de seguimiento y sin ningún dato del
@@ -12,7 +13,9 @@ export class AnalyticsService {
   private loaded = false;
 
   /** Decisión del usuario; null mientras no haya contestado al aviso. */
-  readonly consent = signal<AnalyticsConsent | null>(this.persistence.loadAnalyticsConsent());
+  /** En la app de escritorio no hay analítica de ningún tipo: siempre «denied», sin aviso y sin guardar nada. */
+  readonly desktop = isDesktopApp();
+  readonly consent = signal<AnalyticsConsent | null>(this.desktop ? 'denied' : this.persistence.loadAnalyticsConsent());
 
   /** Carga la analítica si ya hay consentimiento (al arrancar la app). */
   init(): void {
@@ -20,6 +23,7 @@ export class AnalyticsService {
   }
 
   accept(): void {
+    if (this.desktop) return;
     this.set('granted');
     this.load();
   }
@@ -35,6 +39,7 @@ export class AnalyticsService {
   }
 
   private set(value: AnalyticsConsent): void {
+    if (this.desktop) return;
     this.consent.set(value);
     this.persistence.saveAnalyticsConsent(value);
   }

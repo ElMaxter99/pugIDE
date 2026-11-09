@@ -126,6 +126,11 @@ Detalle, evidencia y qué está verificado en `design/propuestas/0.8-plan.md`.
 - ⏳ **17.3 Renombrar y borrar carpetas** (diseño P-18, pendiente de visto bueno): clic derecho en una carpeta del árbol → «Borrar carpeta» (con todo lo que contiene: archivos de texto y assets) y «Renombrar». Hoy el menú de una carpeta solo ofrece «Nuevo archivo». A tener en cuenta al diseñarlo: el diálogo de confirmación dice cuántos archivos e imágenes se borran y lista los primeros; **Deshacer** de la paleta (Ctrl+K) lo recupera entero de una vez (hoy `FileOp` solo guarda un archivo); cierra las pestañas de lo borrado y, si el archivo de la vista previa estaba dentro, la vista previa vuelve a automática (`pinnedAfterDelete`); renombrar mueve todo el contenido (y sus historiales); F2 y Supr en una carpeta hacen lo mismo que el menú (hoy se ignoran); no se puede borrar la raíz; las referencias que se rompen (`include`, `link`, `img`) salen en «Problemas» como siempre.
 - ➡️ **17.4 La antigua oleada 2 de la 0.8, ahora en la 0.9** (diseño P-19 a P-22, aprobado): ✅ P-19 ventana baja, ✅ P-20 botones de Problemas, ✅ P-21 tema Automático y teclado (F6, enlaces de salto), ✅ P-22 idioma por defecto y de reserva (sin plurales automáticos; las claves calculadas ya están). Ver `design/propuestas/0.9-carpetas-y-ola-2.md`.
 
+### Fase 18. PugIDE de escritorio
+- ✅ **18.0 PWA instalable**, **18.1 contenedor Electron** (`desktop/`), **18.2 empaquetado y CI** (Windows, macOS, Linux; sin firmar, gratis). Ver [ESCRITORIO.md](ESCRITORIO.md) e [INSTALAR.md](INSTALAR.md).
+- ❌ **18.3 firma y notarización:** descartada (el proyecto no usa certificados de pago).
+- ⏳ **18.4 aviso de versión nueva** opt-in con «Descargar» (la actualización automática exige firma en macOS), **18.5 espacios de trabajo por cliente** (con diseño primero).
+
 ### Fase 13. Mantenimiento (parcial)
 
 - ⏳ **13.1** Los 18 avisos moderados de `npm audit` (`minimatch` dentro de `eslint`): subir `eslint` cuando salga una versión con `minimatch` 11.
