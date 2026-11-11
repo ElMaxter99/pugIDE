@@ -98,6 +98,8 @@ La paleta de comandos reúne las acciones, las plantillas de inicio, los disposi
 - **Tu espacio, a tu medida:** cuatro disposiciones (`Ctrl+Alt+1…4`), paneles redimensionables con tiradores y los datos como pestaña del panel lateral; se recuerdan en tus preferencias.
 - **Modo PDF** con `@page`, cabeceras y pies, avisos de corte, impresión y guardado como PDF.
 - **Captura PNG** del preview, inspector de elementos y auditoría de accesibilidad.
+- **Navegador de páginas** en el modo PDF: anterior, siguiente, ir a la página y un panel con una ficha por hoja.
+- Los enlaces entre plantillas (`href="factura.pug"`) previsualizan esa plantilla.
 - Avisos de calidad: datos sin usar, peso del HTML (p. ej. el límite de 102 KB de Gmail).
 </details>
 
@@ -107,6 +109,9 @@ La paleta de comandos reúne las acciones, las plantillas de inicio, los disposi
 - **Primer uso guiado:** una bienvenida con plantillas de un clic (Informe, Factura, Correo, vacío) y un recorrido de 4 pasos, solo la primera vez.
 - Biblioteca de proyectos en tu navegador: abrir, crear desde plantilla, renombrar, duplicar y borrar.
 - **Importar** una carpeta o un `.zip` (también **arrastrándolos** al árbol de archivos) y **exportar** a carpeta, `.zip` o HTML autocontenido.
+- **Exportar para correo**: CSS en línea, sin scripts, peso contra el límite de Gmail y avisos de compatibilidad (Outlook, fuentes web, imágenes sin `alt`).
+- **Exportar todas las plantillas** de un proyecto a un `.zip` de `.html`.
+- **Plantillas propias**: guarda un proyecto como punto de partida y reutilízalo; se exportan e importan como `.zip`.
 - Compartir por enlace y recordatorio de copia de seguridad.
 - La app **se actualiza sola**: te avisa de las versiones nuevas sin que tengas que borrar la caché.
 </details>
