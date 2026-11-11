@@ -518,9 +518,41 @@ export class OrchestratorService {
     );
   }
 
+  /**
+   * Cambios hechos fuera de la app (otro editor, git) en la carpeta de un espacio de trabajo: se aplican sin pasar por
+   * «deshacer» de archivos. `null` = el archivo ya no existe. Las pestañas abiertas reciben el contenido nuevo.
+   */
+  applyExternalChanges(texts: Record<string, string | null>, assets: Record<string, { mime: string; data: Uint8Array } | null> = {}): void {
+    const files = this.editorState.files();
+    const changed: string[] = [];
+    for (const [path, text] of Object.entries(texts)) {
+      if (text === null) {
+        if (!files.has(path)) continue;
+        files.delete(path);
+        this.editorState.closeTabByPath(path);
+        this.previewState.pinnedEntry.set(pinnedAfterDelete(this.previewState.pinnedEntry(), path));
+      } else {
+        files.set(path, text);
+        changed.push(path);
+      }
+    }
+    for (const [path, asset] of Object.entries(assets)) {
+      if (asset) this.assetState.add(path, asset.data, asset.mime);
+      else if (this.assetState.has(path)) this.assetState.remove(path);
+    }
+    this.editorState.files.set(new Map(files));
+    this.projectState.setAssetPaths(this.assetState.paths(), this.editorState.files());
+    if (changed.length) this.editorState.notifyFileSync(changed);
+    void this.manualCompile();
+  }
+
+  /** Sube cada vez que se guarda la sesión: quien guarda en otro sitio (un espacio de trabajo en disco) lo sigue. */
+  readonly sessionSaves = signal(0);
+
   saveSession(): void {
     const session = this.buildSession();
     if (!session) return;
+    this.sessionSaves.update((n) => n + 1);
     this.persistence.saveProjectState(session);
     this.reportSessionSave();
     void this.saveToLibrary();

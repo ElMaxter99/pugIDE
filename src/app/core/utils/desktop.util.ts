@@ -7,6 +7,9 @@ interface DesktopInfo {
   version: string;
   /** Dirección de la versión web, para que los enlaces de compartir funcionen fuera de la app de escritorio. */
   webUrl: string;
+  /** Llamadas al sistema (espacios de trabajo y aviso de versión nueva). Solo existe en la app de escritorio. */
+  invoke?: (channel: string, payload?: unknown) => Promise<unknown>;
+  onEvent?: (callback: (payload: unknown) => void) => () => void;
 }
 
 function info(): DesktopInfo | null {
@@ -16,6 +19,23 @@ function info(): DesktopInfo | null {
   } catch {
     return null;
   }
+}
+
+/** ¿La app de escritorio ofrece las funciones del sistema (espacios de trabajo, aviso de versión)? */
+export function desktopHasSystem(): boolean {
+  return typeof info()?.invoke === 'function';
+}
+
+/** Llama al sistema; en la web (o en una app antigua) se rechaza. */
+export function desktopInvoke<T>(channel: string, payload?: unknown): Promise<T> {
+  const invoke = info()?.invoke;
+  return invoke ? (invoke(channel, payload) as Promise<T>) : Promise.reject(new Error('Solo en la app de escritorio'));
+}
+
+/** Escucha los avisos del sistema; devuelve cómo dejar de escuchar. */
+export function onDesktopEvent(callback: (payload: { type?: string; [k: string]: unknown }) => void): () => void {
+  const on = info()?.onEvent;
+  return on ? on((p) => { if (p && typeof p === 'object') callback(p as { type?: string }); }) : () => undefined;
 }
 
 /** ¿Se está ejecutando dentro de la aplicación de escritorio? */

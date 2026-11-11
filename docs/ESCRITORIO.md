@@ -1,6 +1,6 @@
 # PugIDE de escritorio (Windows, macOS y Linux): investigación y plan
 
-Estado (2026-11-09): **fases 0, 1 y 2 hechas** (PWA instalable, contenedor Electron y empaquetado con CI), sin firma y sin coste. Falta la Fase 4 (aviso de versión nueva) y la 5 (espacios por cliente). La guía para quien instala está en [INSTALAR.md](INSTALAR.md).
+Estado (2026-11-11): **fases 0, 1, 2, 4 y 5 hechas** (PWA instalable, contenedor Electron, empaquetado con CI, aviso de versión nueva y espacios de trabajo por cliente), sin firma y sin coste. La guía para quien instala está en [INSTALAR.md](INSTALAR.md).
 
 ## Decisiones tomadas
 Resueltas por la persona responsable el 2026-11-09:
@@ -14,6 +14,11 @@ Resueltas por la persona responsable el 2026-11-09:
 - **Fase 0, PWA:** manifiesto revisado (idioma, descripción) y prueba `55-pwa-instalable` con las condiciones que exigen los navegadores para ofrecer «Instalar».
 - **Fase 1, Electron (`desktop/`):** la app se sirve desde el disco con el protocolo `pugide://app` y **las mismas cabeceras que `vercel.json`** (CSP y `sandbox` de los marcos); `contextIsolation` y `sandbox`, sin Node en la página, sin navegar ni abrir ventanas fuera de la app (los `https` van al navegador), permisos denegados salvo portapapeles y carpetas. En escritorio no hay service worker ni analítica ni aviso de privacidad, y los enlaces de compartir usan la dirección web configurada. Prueba de humo con Playwright (`desktop/test/smoke.mjs`) sobre el código y **sobre la app ya empaquetada**: arranque, Monaco y workers bajo la CSP, vista previa aislada, cabeceras, rutas, ni una petición a internet.
 - **Fase 2, empaquetado:** `electron-builder` genera Windows (instalador NSIS y portable), macOS (dmg Intel y Apple Silicon) y Linux (`AppImage`, `deb`, `rpm`). `.github/workflows/desktop.yml` los construye en cada sistema, ejecuta la prueba de humo sobre cada uno y los adjunta a la release.
+
+## Fases 4 y 5, hechas (diseño P-26 y P-27)
+- **Dónde está el código:** `desktop/src/workspaces.cjs` (leer, escribir y vigilar carpetas; lista de espacios) y `desktop/src/updates.cjs` (versiones), sin Electron para poder probarlos con Node; `desktop/src/main.cjs` los expone por IPC y `preload.cjs` deja pasar solo una lista corta de canales. En la app: `WorkspaceService`, `DesktopUpdateService`, `workspace.util.ts` y los componentes de `shared/components/desktop/`.
+- **Seguridad:** una carpeta solo puede convertirse en espacio si la eligió la persona en el diálogo del sistema (el proceso principal guarda un resguardo de un solo uso); toda ruta se resuelve dentro de la carpeta del espacio y lo que se sale se rechaza; las llamadas solo se aceptan del marco principal de la ventana de la app, nunca de los marcos del usuario. La consulta de versión la hace el proceso principal, solo a `api.github.com` y solo si se aceptó (o al pulsar «Buscar ahora»).
+- **Sincronización:** la app recuerda lo que hay en disco; cada guardado de la sesión escribe solo lo que cambió (escritura atómica) y borra lo que se quitó. Un cambio hecho fuera se compara con lo recordado: si es el propio guardado se ignora, si aquí no hay cambios se carga, y si cambió en los dos sitios se pregunta.
 
 ## Lo que sigue (propuesto)
 ### Fase 4, aviso de versión nueva (sin firma, sin coste)

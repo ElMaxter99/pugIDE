@@ -1,12 +1,15 @@
 'use strict';
 // PugIDE de escritorio. Mismo código que la web, dentro de Electron: la app se sirve desde el disco con el protocolo
 // `pugide://app` y las mismas cabeceras de seguridad que producción; no hace ninguna llamada de red por su cuenta.
-const { app, BrowserWindow, Menu, protocol, session, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, protocol, session, shell, dialog, ipcMain, net } = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
 const { existsSync } = require('node:fs');
 const { loadRules } = require('./headers.cjs');
 const { resolveRequest } = require('./serve.cjs');
 const config = require('./config.json');
+const { WorkspaceStore, readWorkspace, readPaths, writeWorkspace, watchedPath, COLORS } = require('./workspaces.cjs');
+const { compareVersions, parseLatestRelease, latestReleaseApi } = require('./updates.cjs');
 
 const SCHEME = 'pugide';
 const ORIGIN = `${SCHEME}://app`;
@@ -28,7 +31,8 @@ let mainWindow = null;
 let pendingLink = null;
 
 function isOurs(url) {
-  try { return new URL(url).origin === ORIGIN; } catch { return false; }
+  // `URL.origin` vale 'null' para los esquemas propios: se comparan el esquema y el nombre.
+  try { const u = new URL(url); return u.protocol === `${SCHEME}:` && u.host === 'app'; } catch { return false; }
 }
 
 function createWindow(webRoot) {
@@ -83,13 +87,173 @@ function installMenu() {
     // «Edición» es imprescindible en macOS: sin ella no funcionan Cmd+C, Cmd+V ni Cmd+Z en el editor.
     { label: 'Edición', submenu: [{ role: 'undo', label: 'Deshacer' }, { role: 'redo', label: 'Rehacer' }, { type: 'separator' }, { role: 'cut', label: 'Cortar' }, { role: 'copy', label: 'Copiar' }, { role: 'paste', label: 'Pegar' }, { role: 'selectAll', label: 'Seleccionar todo' }] },
     { label: 'Ver', submenu: [{ role: 'reload', label: 'Recargar' }, { type: 'separator' }, { role: 'resetZoom', label: 'Tamaño real' }, { role: 'zoomIn', label: 'Acercar' }, { role: 'zoomOut', label: 'Alejar' }, { type: 'separator' }, { role: 'togglefullscreen', label: 'Pantalla completa' }, ...(app.isPackaged ? [] : [{ type: 'separator' }, { role: 'toggleDevTools' }])] },
+    { label: 'Espacios', submenu: [
+      { label: 'Espacios de trabajo…', accelerator: 'CmdOrCtrl+Shift+E', click: () => sendEvent({ type: 'open-workspaces' }) },
+    ] },
     { label: 'Ayuda', submenu: [
+      { label: 'Buscar actualizaciones…', click: () => sendEvent({ type: 'open-updates' }) },
+      { type: 'separator' },
       { label: 'Documentación y código fuente', click: () => shell.openExternal(config.repoUrl) },
       { label: 'Notas de las versiones', click: () => shell.openExternal(`${config.repoUrl}/releases`) },
       ...(isMac ? [] : [{ type: 'separator' }, { label: `Acerca de ${config.appName}`, click: about }]),
     ] },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+function sendEvent(payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('pugide:event', payload);
+}
+
+// ---------- Espacios de trabajo (P-26) y aviso de versión nueva (P-27) ----------
+let store = null;
+/** Carpetas elegidas con el diálogo del sistema en esta sesión: solo esas pueden convertirse en un espacio. */
+const pickedFolders = new Map();
+const watchers = new Map();
+/** Rutas absolutas que acaba de escribir la app (para no avisar de sus propios cambios). */
+const ownWrites = new Map();
+
+function stopWatching(id) {
+  const w = watchers.get(id);
+  if (w) { try { w.watcher.close(); } catch { /* ya cerrado */ } clearTimeout(w.timer); watchers.delete(id); }
+}
+
+function startWatching(ws) {
+  stopWatching(ws.id);
+  try {
+    const pending = new Set();
+    const entry = { watcher: null, timer: null };
+    entry.watcher = fs.watch(ws.path, { recursive: true }, (_event, file) => {
+      if (!file) return;
+      const rel = String(file);
+      if (!watchedPath(rel)) return;
+      const abs = path.join(ws.path, rel);
+      const mine = ownWrites.get(abs);
+      if (mine && Date.now() - mine < 1500) return;
+      pending.add('/' + rel.replace(/\\/g, '/'));
+      clearTimeout(entry.timer);
+      entry.timer = setTimeout(() => { const paths = [...pending]; pending.clear(); sendEvent({ type: 'workspace-changed', id: ws.id, paths }); }, 350);
+    });
+    entry.watcher.on('error', () => stopWatching(ws.id));
+    watchers.set(ws.id, entry);
+  } catch { /* sin vigilancia (carpeta de red, límite del sistema): la app sigue guardando */ }
+}
+
+async function checkForUpdate() {
+  const api = latestReleaseApi(config.repoUrl);
+  const updates = store.state.updates;
+  if (!api) return { ok: false, reason: 'config' };
+  try {
+    const res = await net.fetch(api, { headers: { 'User-Agent': 'PugIDE-desktop', Accept: 'application/vnd.github+json' } });
+    if (!res.ok) return { ok: false, reason: 'http' };
+    const latest = parseLatestRelease(await res.json(), config.repoUrl);
+    if (!latest) return { ok: false, reason: 'format' };
+    updates.lastCheck = Date.now();
+    updates.latest = latest;
+    store.save();
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: 'offline' };
+  }
+}
+
+function updateState() {
+  const u = store.state.updates;
+  const current = app.getVersion();
+  const newer = !!u.latest && compareVersions(u.latest.version, current) > 0;
+  return { current, asked: !!u.asked, enabled: !!u.enabled, lastCheck: u.lastCheck || 0, latest: newer ? u.latest : null, dismissed: newer && u.dismissed === u.latest.version };
+}
+
+/** Si la persona lo aceptó: una consulta al abrir (como mucho una al día) y otra cada 24 h. */
+function scheduleUpdateChecks() {
+  const DAY = 24 * 60 * 60 * 1000;
+  const tick = async () => {
+    const u = store.state.updates;
+    if (!u.enabled || Date.now() - (u.lastCheck || 0) < DAY - 60000) return;
+    if ((await checkForUpdate()).ok) sendEvent({ type: 'updates-changed' });
+  };
+  setTimeout(tick, 4000);
+  setInterval(tick, 60 * 60 * 1000);
+}
+
+function setupIpc() {
+  const handlers = {
+    'ws:list': () => ({ workspaces: store.list(), lastId: store.state.lastId, colors: COLORS }),
+    'ws:pick-folder': async () => {
+      // Para las pruebas automáticas: sin diálogo del sistema.
+      const forced = process.env.PUGIDE_TEST_PICK_FOLDER;
+      let dir = forced || null;
+      if (!dir) {
+        const r = await dialog.showOpenDialog(mainWindow ?? undefined, { title: 'Elegir la carpeta del espacio de trabajo', properties: ['openDirectory', 'createDirectory'] });
+        dir = r.canceled ? null : r.filePaths[0] ?? null;
+      }
+      if (!dir) return null;
+      const token = require('node:crypto').randomUUID();
+      pickedFolders.set(token, dir);
+      let pugCount = 0;
+      try { const r = await readWorkspace(dir); if (r.ok) pugCount = Object.keys(r.files).filter((p) => /\.(pug|jade)$/i.test(p)).length; else return { token, path: dir, pugCount: 0, tooBig: true }; } catch { /* se verá al abrir */ }
+      return { token, path: dir, pugCount, tooBig: false };
+    },
+    'ws:create': ({ name, color, token }) => {
+      const dir = pickedFolders.get(token);
+      if (!dir) return null;
+      const ws = store.create(name, color, dir);
+      return { id: ws.id };
+    },
+    'ws:relocate': ({ id, token }) => {
+      const dir = pickedFolders.get(token);
+      return dir && store.update(id, { path: dir }) ? { ok: true } : { ok: false };
+    },
+    'ws:update': ({ id, name, color }) => ({ ok: !!store.update(id, { name, color }) }),
+    'ws:remove': ({ id }) => { stopWatching(id); store.remove(id); return { ok: true }; },
+    'ws:open': async ({ id }) => {
+      const ws = store.get(id);
+      if (!ws) return { ok: false, reason: 'missing' };
+      try { if (!fs.statSync(ws.path).isDirectory()) throw new Error('no dir'); } catch { return { ok: false, reason: 'no-folder' }; }
+      const r = await readWorkspace(ws.path);
+      if (!r.ok) return r;
+      store.touch(id);
+      startWatching(ws);
+      return { ...r, workspace: { id: ws.id, name: ws.name, color: ws.color, path: ws.path } };
+    },
+    'ws:read-paths': async ({ id, paths }) => {
+      const ws = store.get(id);
+      return ws && Array.isArray(paths) ? readPaths(ws.path, paths.filter((p) => typeof p === 'string')) : {};
+    },
+    'ws:write': async ({ id, change }) => {
+      const ws = store.get(id);
+      if (!ws || !change || typeof change !== 'object') return { written: [], failed: ['?'] };
+      const now = Date.now();
+      const mark = (p) => { if (typeof p === 'string') ownWrites.set(path.join(ws.path, '.' + p), now); };
+      Object.keys(change.files ?? {}).forEach(mark);
+      (change.assets ?? []).forEach((a) => mark(a?.path));
+      (change.deleted ?? []).forEach(mark);
+      if (typeof change.datasets === 'string') mark('/.pugide/datasets.json');
+      if (ownWrites.size > 5000) for (const [k, t] of ownWrites) if (now - t > 5000) ownWrites.delete(k);
+      return writeWorkspace(ws.path, change);
+    },
+    'ws:close': ({ id }) => { stopWatching(id); store.setLast(null); return { ok: true }; },
+    'ws:reveal': ({ id }) => { const ws = store.get(id); if (ws) void shell.openPath(ws.path); return { ok: !!ws }; },
+    'upd:state': () => updateState(),
+    'upd:answer': ({ enabled }) => {
+      store.state.updates.asked = true;
+      store.state.updates.enabled = !!enabled;
+      store.save();
+      if (enabled) void checkForUpdate().then((r) => { if (r.ok) sendEvent({ type: 'updates-changed' }); });
+      return updateState();
+    },
+    'upd:check': async () => { const r = await checkForUpdate(); return { ...updateState(), checked: r.ok, reason: r.ok ? null : r.reason }; },
+    'upd:dismiss': () => { const u = store.state.updates; if (u.latest) { u.dismissed = u.latest.version; store.save(); } return updateState(); },
+    'upd:download': () => { const u = store.state.updates; if (u.latest && String(u.latest.url).startsWith(config.repoUrl)) void shell.openExternal(u.latest.url); return { ok: !!u.latest }; },
+  };
+  for (const [channel, fn] of Object.entries(handlers)) {
+    ipcMain.handle(channel, async (event, payload) => {
+      // Solo la ventana principal de la app (no los marcos del usuario ni otras ventanas).
+      const frame = event.senderFrame;
+      if (!frame || frame.parent || !isOurs(frame.url) || event.sender !== mainWindow?.webContents) throw new Error('No permitido');
+      return fn(payload && typeof payload === 'object' ? payload : {});
+    });
+  }
 }
 
 /** Seguridad: nada de navegar fuera de la app ni de abrir ventanas arbitrarias. */
@@ -139,6 +303,9 @@ if (!app.requestSingleInstanceLock()) {
       const { status, body, headers } = await resolveRequest(webRoot, rules, new URL(request.url).pathname);
       return new Response(body, { status, headers });
     });
+    store = new WorkspaceStore(path.join(app.getPath('userData'), 'pugide-desktop.json'));
+    setupIpc();
+    scheduleUpdateChecks();
     setupPermissions();
     installMenu();
     app.setAsDefaultProtocolClient(SCHEME);

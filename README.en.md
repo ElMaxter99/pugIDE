@@ -137,7 +137,7 @@ Angular 22 (standalone components, signals), Monaco, the Pug compiler bundled fo
 
 ## Install
 
-PugIDE runs in the browser, as a **PWA** (its own icon and window, nothing to download) and as a **desktop app** for **Windows, macOS and Linux**, offline. The desktop installers are free and **unsigned** (no paid certificates): open-source MIT software, no warranty, use at your own responsibility. Steps and warnings in **[docs/INSTALAR.md](docs/INSTALAR.md)** (Spanish); installers are on the [releases](https://github.com/ElMaxter99/pugIDE/releases) page.
+In the desktop app, each client can be a **workspace**: a folder on your computer that PugIDE opens and saves as plain files. PugIDE runs in the browser, as a **PWA** (its own icon and window, nothing to download) and as a **desktop app** for **Windows, macOS and Linux**, offline. The desktop installers are free and **unsigned** (no paid certificates): open-source MIT software, no warranty, use at your own responsibility. Steps and warnings in **[docs/INSTALAR.md](docs/INSTALAR.md)** (Spanish); installers are on the [releases](https://github.com/ElMaxter99/pugIDE/releases) page.
 
 ## Getting started
 

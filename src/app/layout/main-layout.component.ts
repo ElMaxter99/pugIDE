@@ -39,6 +39,11 @@ import { ViewportState } from '../core/state/viewport.state';
 import { EmailExportDialogComponent } from '../shared/components/export-dialogs/email-export-dialog.component';
 import { ExportAllDialogComponent } from '../shared/components/export-dialogs/export-all-dialog.component';
 import { SaveTemplateDialogComponent } from '../shared/components/templates-dialogs/save-template-dialog.component';
+import { DesktopBarsComponent } from '../shared/components/desktop/desktop-bars.component';
+import { WorkspacesDialogComponent } from '../shared/components/desktop/workspaces-dialog.component';
+import { UpdatesDialogComponent } from '../shared/components/desktop/updates-dialog.component';
+import { WorkspaceService } from '../core/services/workspace.service';
+import { DesktopUpdateService } from '../core/services/desktop-update.service';
 import { LocalesDialogComponent } from '../shared/components/locales-dialog/locales-dialog.component';
 import { ShareCreateDialogComponent } from '../shared/components/share-dialogs/share-create-dialog.component';
 import { ShareOpenDialogComponent } from '../shared/components/share-dialogs/share-open-dialog.component';
@@ -56,6 +61,9 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     EmailExportDialogComponent,
     ExportAllDialogComponent,
     SaveTemplateDialogComponent,
+    DesktopBarsComponent,
+    WorkspacesDialogComponent,
+    UpdatesDialogComponent,
     ShareOpenDialogComponent,
     AnnouncerComponent,
     ImportLocaleDialogComponent,
@@ -85,6 +93,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       </nav>
       <app-topbar />
       <app-update-bar />
+      <app-desktop-bars />
       <div class="app-content">
         <div class="app-body" #body>
           <app-sidebar data-tour="files" data-region="archivos" [style.flex]="'0 0 ' + layout.resolved().sidebar + 'px'" [style.width.px]="layout.resolved().sidebar" />
@@ -129,6 +138,8 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-email-export-dialog />
       <app-export-all-dialog />
       <app-save-template-dialog />
+      <app-workspaces-dialog />
+      <app-updates-dialog />
       <app-share-open-dialog />
     </div>
   `,
@@ -257,6 +268,9 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   private library = inject(ProjectLibraryService);
   protected layout = inject(LayoutService);
   private analytics = inject(AnalyticsService);
+  private workspace = inject(WorkspaceService);
+  /** Se crea aquí para que escuche los menús nativos de la app de escritorio desde el arranque. */
+  protected desktopUpdates = inject(DesktopUpdateService);
   private injector = inject(Injector);
   /** Primer uso: la bienvenida espera a que se decida el aviso de privacidad para no solaparse con él. */
   private welcomePending = signal(false);
@@ -372,9 +386,23 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (saved && hasSaved) {
       this.restoreSession(saved);
+      void this.resumeWorkspace();
     } else {
       void this.startFresh();
       this.openPendingShare();
+    }
+  }
+
+  /** Escritorio: se vuelve a abrir el último espacio de trabajo (la carpeta manda sobre la copia guardada en la app). */
+  private async resumeWorkspace(): Promise<void> {
+    if (!this.workspace.available || this.pendingShareOpen) return;
+    await this.workspace.refresh();
+    const last = this.workspace.lastWorkspaceId();
+    if (last) { await this.workspace.open(last); return; }
+    // Sin ningún espacio todavía: se enseña la pantalla una vez (después, desde «Espacios de trabajo…»).
+    if (this.workspace.workspaces().length === 0 && !this.persistence.workspacesIntroSeen() && !this.ui.welcomeOpen()) {
+      this.persistence.markWorkspacesIntroSeen();
+      this.ui.workspacesOpen.set(true);
     }
   }
 
