@@ -165,6 +165,9 @@ export class CommandPaletteComponent {
       { group: 'Proyecto', title: 'Descargar proyecto como .zip', run: () => this.projectIo.downloadZip() },
       { group: 'Proyecto', title: 'Exportar captura PNG del preview', keywords: 'imagen screenshot foto', run: () => void this.projectIo.exportPng() },
       { group: 'Proyecto', title: 'Exportar HTML renderizado', run: () => this.projectIo.exportHtml() },
+      { group: 'Exportar', title: 'Exportar HTML para correo…', keywords: 'email mail newsletter css en línea inline gmail outlook', run: () => this.ui.emailExportOpen.set(true) },
+      { group: 'Exportar', title: 'Exportar todas las plantillas (.zip)…', keywords: 'html páginas varias todas zip', run: () => this.ui.exportAllOpen.set(true) },
+      { group: 'Proyecto', title: 'Guardar como plantilla…', keywords: 'plantilla propia reutilizar base cliente', run: () => this.ui.saveTemplateOpen.set(true) },
       { group: 'Idiomas', title: 'Idiomas del proyecto: por defecto y de reserva…', keywords: 'traducciones locales fallback reserva defecto idioma', run: () => this.ui.localesOpen.set(true) },
       { group: 'Idiomas', title: 'Añadir idioma…', keywords: 'traducciones locales translations es-ES idioma', run: () => this.ui.addLocaleOpen.set(true) },
       ...this.orchestrator.locales().map((code) => ({

@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: 1e7b279103cd2447
+// pugide-runtime source-hash: 62afea64eb86509a
 "use strict";
 (() => {
   // src/app/core/utils/page-rules.util.ts
@@ -517,6 +517,11 @@ ${inline}`).map((f) => ({ kind: "unsupported", page: 0, element: f === "string" 
     if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     const target = e.target instanceof Element ? e.target.closest("a[href], area[href]") : null;
     const href = target?.getAttribute("href");
+    if (target && href && /\.(pug|jade)([#?].*)?$/i.test(href) && !/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith("//")) {
+      e.preventDefault();
+      post({ source: "pugide-open-template", href: href.slice(0, 500) });
+      return;
+    }
     if (!target || !href || !href.startsWith("#") || (target.getAttribute("target") ?? "_self") !== "_self") return;
     e.preventDefault();
     location.hash = href;

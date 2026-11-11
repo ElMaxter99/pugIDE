@@ -36,6 +36,9 @@ import { REGION_FOCUS, RegionId, nextRegionIndex } from '../core/utils/regions.u
 import { backupReminderDays } from '../core/utils/backup.util';
 import { DiagnosticsState } from '../core/state/diagnostics.state';
 import { ViewportState } from '../core/state/viewport.state';
+import { EmailExportDialogComponent } from '../shared/components/export-dialogs/email-export-dialog.component';
+import { ExportAllDialogComponent } from '../shared/components/export-dialogs/export-all-dialog.component';
+import { SaveTemplateDialogComponent } from '../shared/components/templates-dialogs/save-template-dialog.component';
 import { LocalesDialogComponent } from '../shared/components/locales-dialog/locales-dialog.component';
 import { ShareCreateDialogComponent } from '../shared/components/share-dialogs/share-create-dialog.component';
 import { ShareOpenDialogComponent } from '../shared/components/share-dialogs/share-open-dialog.component';
@@ -50,6 +53,9 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
   imports: [
     ShareCreateDialogComponent,
     LocalesDialogComponent,
+    EmailExportDialogComponent,
+    ExportAllDialogComponent,
+    SaveTemplateDialogComponent,
     ShareOpenDialogComponent,
     AnnouncerComponent,
     ImportLocaleDialogComponent,
@@ -120,6 +126,9 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-announcer />
       <app-share-create-dialog />
       <app-locales-dialog />
+      <app-email-export-dialog />
+      <app-export-all-dialog />
+      <app-save-template-dialog />
       <app-share-open-dialog />
     </div>
   `,

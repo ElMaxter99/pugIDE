@@ -100,6 +100,8 @@ The command palette gathers actions, starter templates, preview devices and quic
 - **Your workspace, your way:** four layouts (`Ctrl+Alt+1…4`), resizable panels with drag handles, and data as a tab of the side panel; they are remembered in your preferences.
 - **PDF mode** with `@page`, headers and footers, break warnings, printing and saving as PDF.
 - **PNG capture** of the preview, element inspector and accessibility audit.
+- **Page navigator** in PDF mode: previous, next, go to page, and a panel with one tile per sheet.
+- Links between templates (`href="invoice.pug"`) preview that template.
 - Quality hints: unused data, HTML weight (e.g. Gmail's 102 KB limit).
 </details>
 
@@ -109,6 +111,9 @@ The command palette gathers actions, starter templates, preview devices and quic
 - **Guided first run:** a welcome with one-click starter templates (report, invoice, email, empty) and a 4-step tour, only the first time.
 - A project library in your browser: open, create from a template, rename, duplicate and delete.
 - **Import** a folder or a `.zip` (also by **dragging** them onto the file tree) and **export** to a folder, a `.zip` or a self-contained HTML file.
+- **Export for email**: inlined CSS, no scripts, weight against Gmail's limit, and compatibility warnings (Outlook, web fonts, images without `alt`).
+- **Export every template** in a project to a `.zip` of `.html` files.
+- **Your own templates**: save a project as a starting point and reuse it; export and import them as `.zip`.
 - Share by link, and a backup reminder.
 - The app **updates itself**: it tells you about new versions so you never have to clear your cache.
 </details>

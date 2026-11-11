@@ -92,7 +92,7 @@ const NARROW_BELOW = 600;
         </div>
       </div>
       @if (previewState.isPdf()) {
-        <app-pdf-bar [pageCount]="pageCount()" [issues]="pageIssues()" (printRequested)="onPrint()" />
+        <app-pdf-bar [pageCount]="pageCount()" [page]="currentPage()" [issues]="pageIssues()" (printRequested)="onPrint()" (goToPage)="goToPage($event)" />
       }
       @if (diagnosticsState.counts().total > 0) {
         <div class="problem-strip" [class.only-warnings]="diagnosticsState.counts().errors === 0" data-testid="problem-strip">
@@ -105,7 +105,7 @@ const NARROW_BELOW = 600;
         </div>
       }
       <div class="preview-viewport">
-        <div class="preview-canvas" #canvas tabindex="0" role="region" aria-label="Documento de la vista previa">
+        <div class="preview-canvas" #canvas tabindex="0" role="region" aria-label="Documento de la vista previa" (scroll)="onCanvasScroll()" (keydown)="onCanvasKey($event)">
           <div class="checkerboard"></div>
           @if (previewState.isLoading()) {
             <div class="loading-overlay">
@@ -462,6 +462,44 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   protected readonly scale = computed(() =>
     fitScale(this.previewState.zoomMode(), this.canvasSize(), { width: this.frameWidth(), height: this.frameHeight() }, this.previewState.isPdf()));
 
+  /** Desplazamiento vertical del lienzo (para saber qué página se ve en el modo PDF). */
+  private readonly scrollTop = signal(0);
+
+  /** Alto en pantalla de una hoja. */
+  private pageStep(): number {
+    return this.previewState.pageSize().height * this.scale();
+  }
+
+  /** Página que ocupa la parte alta del lienzo (1 = primera). */
+  protected readonly currentPage = computed(() => {
+    if (!this.previewState.isPdf()) return 1;
+    const step = this.pageStep();
+    const n = step > 0 ? Math.floor((this.scrollTop() + step * 0.35) / step) + 1 : 1;
+    return Math.max(1, Math.min(this.pageCount(), n));
+  });
+
+  protected onCanvasScroll(): void {
+    this.scrollTop.set(this.canvas?.nativeElement.scrollTop ?? 0);
+  }
+
+  /** Lleva el lienzo al principio de una página del PDF. */
+  protected goToPage(n: number): void {
+    const el = this.canvas?.nativeElement;
+    if (!el || !this.previewState.isPdf()) return;
+    const page = Math.max(1, Math.min(this.pageCount(), Math.round(n)));
+    const wrap = el.querySelector<HTMLElement>('.frame-wrap');
+    const top = (wrap ? wrap.offsetTop : 0) + (page - 1) * this.pageStep();
+    el.scrollTo({ top: page === 1 ? 0 : top, behavior: 'auto' });
+    this.scrollTop.set(el.scrollTop);
+  }
+
+  /** Re Pág y Av Pág pasan de hoja en el modo PDF. */
+  protected onCanvasKey(event: KeyboardEvent): void {
+    if (!this.previewState.isPdf() || event.target !== this.canvas?.nativeElement) return;
+    if (event.key === 'PageDown') { event.preventDefault(); this.goToPage(this.currentPage() + 1); }
+    else if (event.key === 'PageUp') { event.preventDefault(); this.goToPage(this.currentPage() - 1); }
+  }
+
   protected readonly scalePercent = computed(() => Math.round(this.scale() * 100));
   protected readonly zoomValue = computed(() => String(this.previewState.zoomMode()));
   /**
@@ -504,6 +542,9 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
             if (this.pendingHtml !== null) this.deliver();
           }
           this.sendFrameState();
+          break;
+        case 'pugide-open-template':
+          if (typeof d['href'] === 'string') void this.orchestrator.followTemplateLink(d['href']);
           break;
         case 'pugide-doc-error':
           // El navegador no dejó reescribir el documento o crear las URL: se vuelve al srcdoc completo.

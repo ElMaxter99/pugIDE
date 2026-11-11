@@ -10,6 +10,11 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **0.10.2**: corrección urgente preparada en una PR (al cambiar de proyecto se pisaba el archivo del mismo nombre y el editor quedaba en blanco). Falta mergearla y lanzar `npm run release:deploy`.
 - **0.10.1**: publicada. Antes: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.10.1.md`): ejemplos genéricos en las pruebas. Falta mergearla y lanzar `npm run release:deploy`; los instaladores se construyen y adjuntan solos.
 
+## En curso: 0.11
+- **PR A** (web, PWA y escritorio): exportar para correo (P-23), varias páginas (P-24) y plantillas propias (P-25). Programada.
+- **PR B** (solo escritorio): espacios de trabajo por cliente (P-26) y aviso de versión nueva (P-27). Diseño aprobado; pendiente de programar.
+- El instalador de Windows se prueba con la 0.11 (decisión de la persona responsable).
+
 ## Propuesta en estudio
 - **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.
 

@@ -4,6 +4,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Añadido
+- **Exportar para correo** (diseño P-23, aprobado). «Exportar → HTML para correo…» (y la paleta) pasa el CSS a atributos `style` respetando la cascada (`!important`, especificidad y orden; el `style` propio se conserva), quita `<script>` y los atributos de eventos, conserva `@media` y `:hover` en un `<style>` y permite un texto de vista previa del correo. Mide el peso contra los **102 KB a partir de los que Gmail recorta** y avisa de lo que el correo no admite: flexbox y grid (Outlook), `position`, fuentes web, imágenes sin `alt`, `<form>`, `<video>`… Con «Copiar HTML» y «Descargar .html». Sin incrustar las imágenes locales, llevan la ruta del proyecto y se avisa. Todo en el navegador.
+- **Documentos de varias páginas** (P-24). En el modo PDF, **navegador de páginas**: anterior y siguiente, «ir a la página», Re Pág / Av Pág y un panel «Páginas» con una ficha por hoja, que marca las que tienen un aviso de corte. **«Exportar → Todas las plantillas (.zip)…»** compila cada plantilla que es una página (los parciales de `include` y `extends` no) a un `.html` autocontenido, sin cambiar la vista previa; las que no compilan se dicen. **Los enlaces entre plantillas** (`a(href="factura.pug")`) previsualizan esa plantilla al pulsarlos y pasan a `.html` al exportar.
+- **Plantillas propias** (P-25). «Proyecto → Guardar como plantilla…» guarda el proyecto abierto (archivos y, si se quiere, datos, imágenes y fuentes e idiomas) como punto de partida. «Mis proyectos» enseña **«Mis plantillas»** con Usar, Renombrar, Actualizar con el proyecto abierto, Exportar (`.zip`) y Borrar, e «Importar plantilla (.zip)…». Hasta 30 plantillas de 25 MB, guardadas en el navegador (IndexedDB).
+- Escenarios `56-exportar-correo`, `57-varias-paginas` y `58-plantillas-propias`, y pruebas unitarias de `email-export.util`, `user-template.util` y de las páginas y enlaces de `pug-vfs.util`.
+
 ## [0.10.2] - 2026-11-11
 
 ### Corregido
