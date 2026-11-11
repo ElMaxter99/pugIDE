@@ -76,7 +76,7 @@ async function compare(env, label, source) {
   });
   const { page } = app;
   const bar = (await page.locator('.pdf-bar').innerText()).replace(/\s+/g, ' ');
-  const previewPages = Number(bar.match(/(\d+) página/)?.[1]);
+  const previewPages = Number(bar.match(/Página\s+de\s+(\d+)/)?.[1]);
   check(`28 (${label}) el preview tiene las mismas páginas que la impresión real`, previewPages === real.count && real.count > 3, `preview=${previewPages} real=${real.count}`);
   const frame = await previewFrame(page);
   const got = await previewPagesText(frame, real.count);

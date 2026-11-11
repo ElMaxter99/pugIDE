@@ -15,7 +15,7 @@ export default async function (env) {
   // Tabla grande con cabecera repetida en modo PDF
   const app = await openPdfProject(env, tablePug(2000));
   const { page } = app;
-  const pages = Number((await page.locator('.pdf-bar').innerText()).match(/(\d+) página/)?.[1]);
+  const pages = Number((await page.locator('.pdf-bar').innerText()).match(/Página\s+de\s+(\d+)/)?.[1]);
   check('27 la tabla de 2000 filas ocupa muchas hojas', pages > 30, `páginas=${pages}`);
   const copies = await (await previewFrame(page)).evaluate(
     () => [...document.querySelectorAll('tr[data-pg-spacer]')].filter((r) => r.textContent.includes('Referencia')).length,
