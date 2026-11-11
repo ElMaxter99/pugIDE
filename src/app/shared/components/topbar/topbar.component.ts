@@ -234,6 +234,8 @@ export class TopbarComponent {
   protected exportItems = computed<MenuItem[]>(() => [
     { id: 'share', icon: 'link', label: 'Copiar enlace para compartir' },
     { id: 'html', icon: 'code', label: 'HTML autocontenido' },
+    { id: 'email', icon: 'mail', label: 'HTML para correo…' },
+    { id: 'all', icon: 'library_books', label: 'Todas las plantillas (.zip)…' },
     { id: 'png', icon: 'photo_camera', label: 'Captura PNG del preview' },
     { id: 'print', icon: 'picture_as_pdf', label: 'Imprimir o guardar como PDF' },
     { separator: true },
@@ -258,6 +260,8 @@ export class TopbarComponent {
     switch (id) {
       case 'share': this.onShare(); break;
       case 'html': this.onExportHtml(); break;
+      case 'email': this.ui.emailExportOpen.set(true); break;
+      case 'all': this.ui.exportAllOpen.set(true); break;
       case 'png': void this.projectIo.exportPng(); break;
       case 'print': this.ui.requestPanel('print'); break;
       case 'project': void this.projectIo.exportProject(); break;

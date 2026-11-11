@@ -34,6 +34,12 @@ export class UiState {
   readonly shareCreateOpen = signal(false);
   /** «Idiomas del proyecto» (P-22): idioma por defecto y de reserva. */
   readonly localesOpen = signal(false);
+  /** «Exportar para correo» (P-23). */
+  readonly emailExportOpen = signal(false);
+  /** «Exportar todas las plantillas» (P-24). */
+  readonly exportAllOpen = signal(false);
+  /** «Guardar como plantilla» (P-25). */
+  readonly saveTemplateOpen = signal(false);
   /** Enlace compartido que se está abriendo (P-16). */
   readonly shareOpen = signal<ShareOpenRequest | null>(null);
   /** Diálogo con el historial de versiones del archivo activo. */

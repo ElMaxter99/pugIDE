@@ -15,9 +15,11 @@ import { FileHistoryService } from './file-history.service';
 import { FileVersion } from '../utils/history.util';
 import { helperExportNames } from '../utils/helpers.util';
 import { ProjectSnapshotService, RestoreOutcome, SaveOutcome } from './project-snapshot.service';
+import { TemplateSaveOutcome, UserTemplateService } from './user-template.service';
+import { TemplateIncludes, cleanTemplateName, templateContent } from '../utils/user-template.util';
 import { SnapshotState } from '../state/snapshot.state';
 import type { SnapshotContent, SnapshotMeta } from '../models/project-snapshot.model';
-import { autoSnapshotName, cleanSnapshotName, defaultSnapshotName, diffAssetMaps, diffFileMaps, formatBytes } from '../utils/snapshot.util';
+import { autoSnapshotName, cleanSnapshotName, defaultSnapshotName, diffAssetMaps, diffFileMaps, formatBytes, plural } from '../utils/snapshot.util';
 import { buildDiagnostics, Diagnostic, unlocatedProblems } from '../utils/diagnostics.util';
 import { includeSpecifier, includesFile } from '../utils/error-explain.util';
 import { appendMixin, insertInclude, replaceOnLine } from '../utils/fix-apply.util';
@@ -43,7 +45,7 @@ import { buildTranslationSkeleton, TRANSLATIONS_KEY } from '../utils/i18n.util';
 import {
   addMissingKeys, blankTranslations, countTranslations, isValidLocaleCode, listLocales, localePath, mergeTranslations, normalizeTranslations, applyFallback, parseTranslations, resolveLocale, serializeTranslations,
 } from '../utils/locales.util';
-import { findEntryPath, isPugFile, listTemplates, normalize, pinnedAfterDelete, pinnedAfterRename, resolveVirtualPath, validPinned } from '../utils/pug-vfs.util';
+import { findEntryPath, htmlNameFor, isPugFile, listTemplates, pageTemplates, rewriteTemplateLinks, normalize, pinnedAfterDelete, pinnedAfterRename, resolveVirtualPath, validPinned } from '../utils/pug-vfs.util';
 
 @Injectable({ providedIn: 'root' })
 export class OrchestratorService {
@@ -64,6 +66,7 @@ export class OrchestratorService {
   private assetStorage = inject(AssetStorageService);
   private library = inject(ProjectLibraryService);
   private snapshots = inject(ProjectSnapshotService);
+  private userTemplates = inject(UserTemplateService);
   private snapshotState = inject(SnapshotState);
 
   private codeChange$ = new Subject<string>();
@@ -600,6 +603,85 @@ export class OrchestratorService {
     this.terminalState.addEntry('success', 'Historial', `${path} vuelve a una versión anterior (el estado previo queda en el historial).`);
     this.saveSession();
     void this.manualCompile();
+  }
+
+  // ---- Plantillas propias (P-25) ----
+
+  /** Guarda el proyecto abierto como plantilla propia (o actualiza la plantilla `id` con él). */
+  async saveAsTemplate(rawName: string, description: string, include: TemplateIncludes, id?: string): Promise<TemplateSaveOutcome> {
+    const name = cleanTemplateName(rawName);
+    if (!name) return { ok: false, reason: 'unavailable' };
+    const outcome = await this.userTemplates.save(name, description.trim().slice(0, 200), templateContent(this.currentSnapshotContent(), include), id);
+    if (outcome.ok) {
+      this.terminalState.addEntry('success', 'Plantillas', `Plantilla «${name}» ${id ? 'actualizada' : 'guardada'} (${plural(outcome.meta.fileCount, 'archivo', 'archivos')}, ${formatBytes(outcome.meta.bytes)}).`);
+    } else if (outcome.reason === 'too-big') {
+      this.terminalState.addEntry('warning', 'Plantillas', `No se guardó «${name}»: ocupa ${formatBytes(outcome.bytes)} y el tope por plantilla es ${formatBytes(outcome.max)}.`);
+    } else if (outcome.reason === 'full') {
+      this.terminalState.addEntry('warning', 'Plantillas', `No se guardó «${name}»: ya tienes ${outcome.max} plantillas. Borra alguna para guardar otra.`);
+    } else {
+      this.terminalState.addEntry('warning', 'Plantillas', `No se pudo guardar «${name}» (almacenamiento lleno o bloqueado).`);
+    }
+    return outcome;
+  }
+
+  /** Crea un proyecto nuevo a partir de una plantilla propia (guardando antes el actual). */
+  async createFromUserTemplate(id: string): Promise<boolean> {
+    const meta = this.userTemplates.items().find((t) => t.id === id) ?? (await this.userTemplates.refresh()).find((t) => t.id === id);
+    const content = meta ? await this.userTemplates.load(id) : null;
+    if (!meta || !content) {
+      this.terminalState.addEntry('error', 'Plantillas', 'No se pudo abrir la plantilla: ya no existe.');
+      return false;
+    }
+    await this.saveToLibrary();
+    const existing = (await this.library.list()).map((p) => p.name);
+    this.loadProject(new Map(Object.entries(content.files)), uniqueProjectName(meta.name, existing), content.assets, content.datasets ?? null, content.datasets ? null : {});
+    this.terminalState.addEntry('info', 'Plantillas', `Proyecto nuevo desde la plantilla «${meta.name}».`);
+    return true;
+  }
+
+  // ---- Varias plantillas (P-24) ----
+
+  /** Plantillas del proyecto separadas en páginas (se exportan) y parciales (no). */
+  templatePages(): { pages: string[]; partials: string[] } {
+    return pageTemplates(this.editorState.allFileContents());
+  }
+
+  /**
+   * Compila una plantilla del proyecto a HTML autocontenido con los datos actuales, sin tocar la vista previa ni el estado.
+   * Devuelve `null` y los errores si no compila.
+   */
+  async renderStandalone(entryPath: string): Promise<{ html: string | null; errors: string[] }> {
+    const files = this.editorState.allFileContents();
+    const active = this.editorState.activeTab()?.path;
+    if (active && files.has(active)) files.set(active, this.editorState.editorContent());
+    const code = files.get(entryPath);
+    if (code === undefined) return { html: null, errors: ['El archivo no existe.'] };
+    const parseResult = await this.parser.parse(code, entryPath, files);
+    const locales = listLocales(files.keys());
+    let data = this.dataState.data();
+    if (locales.length) {
+      const activeLocale = resolveLocale(this.dataState.translationLocale(), locales, this.dataState.defaultLocale())!;
+      let tr = parseTranslations(files.get(localePath(activeLocale)) ?? '').value;
+      const fb = this.dataState.fallbackLocale();
+      if (fb && fb !== activeLocale && locales.includes(fb)) tr = applyFallback(tr, parseTranslations(files.get(localePath(fb)) ?? '').value).value;
+      data = { ...data, [TRANSLATIONS_KEY]: tr };
+    }
+    const result = await this.compiler.compile(code, data, entryPath, files, parseResult.calledFunctions);
+    const errors = result.errors.filter((e) => e.severity === 'error').map((e) => `${e.path ?? entryPath}:${e.line ?? '?'} ${e.message}`);
+    if (!result.html || errors.length) return { html: null, errors: errors.length ? errors : ['No se generó HTML.'] };
+    let html = result.html;
+    const inlined = await inlineLocalStylesheets(html, files, (p) => this.scssCompiler.compileFile(p, files));
+    html = inlined.html;
+    const css = (await this.scssCompiler.compileAll(files, inlined.used)).css;
+    if (css) html = injectIntoHead(html, `<style>\n${css}\n</style>`);
+    const uris = this.assetState.blobToDataUri();
+    html = rewriteRefs(html, (ref) => { const hit = this.assetState.resolve(ref); const url = hit ? this.assetState.urlFor(hit) : null; return url ? (uris.get(url) ?? null) : null; });
+    return { html: rewriteTemplateLinks(html, entryPath, files), errors: [] };
+  }
+
+  /** Nombre del `.html` de una plantilla al exportar. */
+  htmlNameFor(path: string): string {
+    return htmlNameFor(path);
   }
 
   // ---- Instantáneas del proyecto ----

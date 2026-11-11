@@ -20,6 +20,7 @@ import { isStylePath } from '../utils/style-refs.util';
 import { buildStandaloneHtml } from '../utils/export-html.util';
 import { planZipImport } from '../utils/zip-import.util';
 import { UiState } from '../state/ui.state';
+import { EmailOptions, EmailResult, toEmailHtml } from '../utils/email-export.util';
 import { looksLikeTranslations } from '../utils/locales.util';
 import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
 
@@ -334,6 +335,35 @@ export class ProjectIoService {
   /** HTML renderizado autocontenido (sin inspector ni atributos data-pugide-*, assets locales como data URI). */
   buildStandaloneHtml(): string {
     return buildStandaloneHtml(this.previewState.compiledHtml(), this.assetState.blobToDataUri());
+  }
+
+  /**
+   * HTML para correo (P-23) a partir de lo que se ve en la vista previa: CSS en línea, sin scripts y con avisos.
+   * Sin incrustar las imágenes, sus URL pasan a ser la ruta del archivo en el proyecto (`images/logo.png`): hay que subirlas a un servidor.
+   */
+  buildEmailHtml(options: EmailOptions, embedImages: boolean): EmailResult | null {
+    const compiled = this.previewState.compiledHtml();
+    if (!compiled) return null;
+    const urls = new Map<string, string>();
+    if (embedImages) for (const [blob, uri] of this.assetState.blobToDataUri()) urls.set(blob, uri);
+    else for (const a of this.assetState.assets().values()) { const url = this.assetState.urlFor(a.path); if (url) urls.set(url, a.path.replace(/^\//, '')); }
+    const doc = new DOMParser().parseFromString(buildStandaloneHtml(compiled, urls), 'text/html');
+    const result = toEmailHtml(doc, options, (d) => '<!doctype html>\n' + d.documentElement.outerHTML);
+    const local = embedImages ? 0 : Array.from(doc.querySelectorAll('img')).filter((i) => !/^(https?:|data:|cid:)/i.test(i.getAttribute('src') ?? '')).length;
+    if (local) result.warnings.push({ level: 'warning', title: `${local} ${local === 1 ? 'imagen local' : 'imágenes locales'} sin incrustar`, detail: 'Llevan la ruta del proyecto: súbelas a un servidor y pon su dirección https, o marca «Incrustar las imágenes locales».' });
+    return result;
+  }
+
+  /** Descarga un texto como archivo. */
+  downloadText(text: string, fileName: string, type = 'text/html;charset=utf-8'): void {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   exportHtml(): boolean {

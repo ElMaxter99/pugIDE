@@ -41,3 +41,4 @@ export * from '../../src/app/core/utils/folder-ops.util';
 export { releaseNotes } from '../../scripts/release-notes.mjs';
 export * from '../../src/app/core/utils/regions.util';
 export * from '../../src/app/core/utils/desktop.util';
+export * from '../../src/app/core/utils/email-export.util';
