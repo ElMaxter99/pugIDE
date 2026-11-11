@@ -5,6 +5,11 @@ import { ProjectLibraryService, ProjectSummary } from '../../../core/services/pr
 import { ProjectState } from '../../../core/state/project.state';
 import { rememberFocus, trapTab } from '../../../core/utils/focus-trap.util';
 import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
+import { UiState } from '../../../core/state/ui.state';
+import { TerminalState } from '../../../core/state/terminal.state';
+import { UserTemplateService } from '../../../core/services/user-template.service';
+import { formatBytes } from '../../../core/utils/snapshot.util';
+import { UserTemplateMeta, cleanTemplateName, packTemplate, unpackTemplate } from '../../../core/utils/user-template.util';
 
 /** Lista de proyectos guardados en el navegador: abrir, crear, renombrar, duplicar y borrar. */
 @Component({
@@ -53,7 +58,44 @@ import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
               <li class="empty">{{ loading() ? 'Cargando…' : 'Aún no hay proyectos guardados.' }}</li>
             }
           </ul>
+          <div class="tpl-head">
+            <h3>Mis plantillas · {{ userTemplates().length }}</h3>
+            <button class="btn" data-testid="template-import" (click)="file.click()">Importar plantilla (.zip)…</button>
+            <button class="btn" data-testid="template-save-current" (click)="ui.saveTemplateOpen.set(true)">Guardar el proyecto abierto como plantilla…</button>
+            <input #file type="file" accept=".zip,application/zip" hidden (change)="importTemplate($any($event.target))" />
+          </div>
+          <ul class="list tpl-list" data-testid="user-templates">
+            @for (t of userTemplates(); track t.id) {
+              <li class="row">
+                <div class="info">
+                  @if (renamingTplId() === t.id) {
+                    <input class="name-input" [value]="t.name" #tplName aria-label="Nombre de la plantilla"
+                      (keydown.enter)="renameTemplate(t, tplName.value)" (keydown.escape)="renamingTplId.set(null)" (blur)="renameTemplate(t, tplName.value)" autofocus />
+                  } @else {
+                    <span class="name">{{ t.name }}</span>
+                  }
+                  @if (t.description) { <span class="meta">{{ t.description }}</span> }
+                  <span class="meta">{{ t.fileCount }} archivo(s) · {{ t.assetCount }} asset(s) · {{ size(t.bytes) }} · {{ t.at | date: 'short' }}</span>
+                </div>
+                <div class="actions">
+                  <button class="btn primary small" [attr.data-testid]="'template-use-' + t.name" (click)="useTemplate(t)">Usar</button>
+                  <button class="btn" (click)="renamingTplId.set(t.id)">Renombrar</button>
+                  <button class="btn" title="Sustituye el contenido de la plantilla por el del proyecto abierto" (click)="updateTemplate(t)">Actualizar</button>
+                  <button class="btn" (click)="exportTemplate(t)">Exportar</button>
+                  @if (confirmDeleteTplId() === t.id) {
+                    <button class="btn danger" (click)="removeTemplate(t)">Confirmar</button>
+                  } @else {
+                    <button class="btn" (click)="confirmDeleteTplId.set(t.id)">Borrar</button>
+                  }
+                </div>
+              </li>
+            } @empty {
+              <li class="empty small-empty">Aún no tienes plantillas propias. Guarda el proyecto abierto como plantilla para reutilizarlo como punto de partida.</li>
+            }
+          </ul>
+          @if (tplMessage(); as m) { <p class="hint msg" role="status">{{ m }}</p> }
           <div class="footer">
+            <span class="footer-label">De PugIDE:</span>
             <select class="template-select" aria-label="Plantilla del proyecto nuevo" #tpl>
               <option value="">Proyecto vacío</option>
               @for (t of templates; track t.id) {
@@ -89,6 +131,13 @@ import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
     .btn.danger { background: #b3261e; color: #fff; }
     .empty { padding: 20px; text-align: center; color: var(--text-secondary); font-size: 13px; }
     .template-select { font-size: 13px; padding: 5px 8px; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; }
+    .tpl-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 20px 4px; border-top: 1px solid var(--border-color); margin-top: 8px; }
+    h3 { margin: 0 auto 0 0; font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .tpl-list { flex-shrink: 0; max-height: 34vh; }
+    .btn.small { padding: 4px 12px; font-size: 12px; }
+    .small-empty { padding: 10px 8px; text-align: left; }
+    .msg { padding-top: 6px; }
+    .footer-label { font-size: 12px; color: var(--text-secondary); }
     .footer { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 20px 16px; }
   `],
 })
@@ -100,7 +149,15 @@ export class ProjectsDialogComponent {
   private library = inject(ProjectLibraryService);
   private projectState = inject(ProjectState);
 
+  protected readonly ui = inject(UiState);
+  private userTemplateStore = inject(UserTemplateService);
+  private terminal = inject(TerminalState);
   protected templates = PROJECT_TEMPLATES;
+  protected userTemplates = this.userTemplateStore.items;
+  protected renamingTplId = signal<string | null>(null);
+  protected confirmDeleteTplId = signal<string | null>(null);
+  protected tplMessage = signal<string | null>(null);
+  protected size = formatBytes;
   protected projects = signal<ProjectSummary[]>([]);
   protected loading = signal(false);
   protected renamingId = signal<string | null>(null);
@@ -117,6 +174,8 @@ export class ProjectsDialogComponent {
         untracked(() => {
           this.restoreFocus = rememberFocus();
           void this.refresh();
+          void this.userTemplateStore.refresh();
+          this.tplMessage.set(null);
           setTimeout(() => this.dialog()?.nativeElement.focus());
         });
       } else if (this.restoreFocus) {
@@ -145,6 +204,50 @@ export class ProjectsDialogComponent {
   protected async create(templateId: string): Promise<void> {
     await this.orchestrator.createProject(undefined, templateId || undefined);
     this.closed.emit();
+  }
+
+  protected async useTemplate(t: UserTemplateMeta): Promise<void> {
+    if (await this.orchestrator.createFromUserTemplate(t.id)) this.closed.emit();
+  }
+
+  protected async renameTemplate(t: UserTemplateMeta, value: string): Promise<void> {
+    if (this.renamingTplId() !== t.id) return;
+    this.renamingTplId.set(null);
+    const name = cleanTemplateName(value);
+    if (name && name !== t.name) await this.userTemplateStore.rename(t.id, name);
+  }
+
+  protected async updateTemplate(t: UserTemplateMeta): Promise<void> {
+    const r = await this.orchestrator.saveAsTemplate(t.name, t.description, { data: true, assets: true, locales: true }, t.id);
+    this.tplMessage.set(r.ok ? `«${t.name}» actualizada con el proyecto abierto.` : `No se pudo actualizar «${t.name}».`);
+  }
+
+  protected async exportTemplate(t: UserTemplateMeta): Promise<void> {
+    const content = await this.userTemplateStore.load(t.id);
+    if (!content) { this.tplMessage.set('La plantilla ya no existe.'); return; }
+    const url = URL.createObjectURL(new Blob([packTemplate(t, content) as BlobPart], { type: 'application/zip' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `${t.name.replace(/[\\/:*?"<>|]+/g, '-')}-plantilla.zip`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    this.terminal.addEntry('success', 'Plantillas', `Plantilla «${t.name}» exportada como ${a.download}.`);
+  }
+
+  protected async removeTemplate(t: UserTemplateMeta): Promise<void> {
+    this.confirmDeleteTplId.set(null);
+    await this.userTemplateStore.remove(t.id);
+    this.terminal.addEntry('info', 'Plantillas', `Plantilla «${t.name}» borrada.`);
+  }
+
+  protected async importTemplate(input: HTMLInputElement): Promise<void> {
+    const f = input.files?.[0];
+    input.value = '';
+    if (!f) return;
+    const r = unpackTemplate(new Uint8Array(await f.arrayBuffer()), f.name.replace(/(-plantilla)?\.zip$/i, '') || 'Plantilla');
+    if (!r.ok) { this.tplMessage.set(r.reason); return; }
+    const saved = await this.userTemplateStore.save(r.name, r.description, r.content);
+    this.tplMessage.set(saved.ok ? `Plantilla «${r.name}» importada.` : saved.reason === 'full' ? `Ya tienes ${saved.max} plantillas: borra alguna.` : saved.reason === 'too-big' ? 'La plantilla supera los 25 MB.' : 'No se pudo guardar en el navegador.');
+    if (saved.ok) this.terminal.addEntry('success', 'Plantillas', `Plantilla «${r.name}» importada (${saved.meta.fileCount} archivos).`);
   }
 
   protected async rename(p: ProjectSummary, value: string): Promise<void> {

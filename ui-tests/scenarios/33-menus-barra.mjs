@@ -48,9 +48,9 @@ export default async function (env) {
     return { out, expanded };
   };
   const proj = await itemsOf('proyecto');
-  check('33 «Proyecto» es un menú (role=menu) con sus 9 acciones', proj.expanded === 'true' && proj.out.length === 9 && proj.out[0] === 'Mis proyectos…' && proj.out.some((t) => t.startsWith('Buscar en el proyecto') && t.includes('Ctrl+Shift+F')), JSON.stringify(proj));
+  check('33 «Proyecto» es un menú (role=menu) con sus 10 acciones', proj.expanded === 'true' && proj.out.length === 10 && proj.out[0] === 'Mis proyectos…' && proj.out.some((t) => t.startsWith('Buscar en el proyecto') && t.includes('Ctrl+Shift+F')), JSON.stringify(proj));
   const exp = await itemsOf('exportar');
-  check('33 «Exportar» es un menú con sus 5 acciones', exp.out.length === 5 && exp.out[0] === 'Copiar enlace para compartir', JSON.stringify(exp));
+  check('33 «Exportar» es un menú con sus 7 acciones', exp.out.length === 7 && exp.out[0] === 'Copiar enlace para compartir', JSON.stringify(exp));
 
   // --- Teclado ---
   const trig = page.locator('[data-testid="menu-proyecto"]');

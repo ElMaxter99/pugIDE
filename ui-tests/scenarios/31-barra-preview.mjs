@@ -100,7 +100,7 @@ export default async function (env) {
   const pp = pdf.page;
   await pp.locator('.pdf-bar').waitFor({ timeout: 8000 });
   const bar = (await pp.locator('.pdf-bar').innerText()).replace(/\s+/g, ' ');
-  check('31 en PDF la segunda fila trae Vertical, Horizontal, páginas e Imprimir', /Vertical/.test(bar) && /Horizontal/.test(bar) && /\d+ página/.test(bar) && /Imprimir/.test(bar), bar);
+  check('31 en PDF la segunda fila trae Vertical, Horizontal, páginas e Imprimir', /Vertical/.test(bar) && /Horizontal/.test(bar) && /Página\s+de\s+\d+/.test(bar) && /Imprimir/.test(bar), bar);
   const pdfMenu = await openViewMenu(pp);
   check('31 en PDF el menú «Vista» no ofrece dispositivos', (await pdfMenu.locator('[data-menu-id^="device:"]').count()) === 0 && (await pdfMenu.locator('[data-menu-id="png"]').count()) === 1);
   check('31 sin errores ni peticiones externas (PDF)', pdf.errors.length === 0 && pdf.external.length === 0, pdf.errors.concat(pdf.external).join(' | '));

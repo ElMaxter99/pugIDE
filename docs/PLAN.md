@@ -117,7 +117,7 @@ Detalle, evidencia y qué está verificado en `design/propuestas/0.8-plan.md`.
 
 - ✅ **16.1 Oleada 1, accesibilidad y robustez (sin diseño):** menú contextual del árbol con teclado (F2, Supr), contrastes y bordes, `forced-colors` y `prefers-reduced-motion`, paleta accesible, textos en inglés, errores explicados, importar `.zip`, sesión corrupta, filtro `:escape`. Publicada en la 0.8.0; quedan fuera el título en español de los problemas, Monaco en español y los bordes de controles bajo 3:1 (pasan al lienzo).
 - ➡️ **16.2 Oleada 2, pantallas (con diseño), movida a la 0.9 (17.4):** interfaz usable con ventana baja o zoom al 200 %, botones de arreglo de «Problemas» visibles, tema inicial según el sistema, navegación por teclado más corta, plurales e idioma de reserva.
-- ⏳ **16.3 Oleada 3, funciones (con diseño):** exportar «para correo» (CSS inline y avisos), navegar entre páginas y exportar todas, sesión en IndexedDB y datos grandes, PDF con tablas enormes, OpenAPI por endpoint.
+- ➡️ **16.3 Oleada 3, funciones (con diseño):** ✅ exportar «para correo» (P-23), ✅ navegar entre páginas y exportar todas las plantillas (P-24), ✅ plantillas propias (P-25); ⏳ sesión en IndexedDB y datos grandes, PDF con tablas enormes, «un PDF por plantilla», OpenAPI por endpoint.
 
 ### Fase 17. Versión 0.9 (propuesta)
 

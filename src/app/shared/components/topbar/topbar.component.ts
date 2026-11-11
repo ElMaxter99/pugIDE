@@ -244,6 +244,7 @@ export class TopbarComponent {
   protected projectItems = computed<MenuItem[]>(() => [
     { id: 'projects', icon: 'folder_open', label: 'Mis proyectos…', hint: this.projectState.projectName() },
     { id: 'new-template', icon: 'add', label: 'Nuevo proyecto desde plantilla…' },
+    { id: 'save-template', icon: 'bookmark_add', label: 'Guardar como plantilla…' },
     { id: 'snapshots', icon: 'photo_camera', label: 'Instantáneas del proyecto…' },
     { id: 'history', icon: 'history', label: 'Historial del archivo…' },
     { separator: true },
@@ -273,6 +274,8 @@ export class TopbarComponent {
   protected exportItems = computed<MenuItem[]>(() => [
     { id: 'share', icon: 'link', label: 'Copiar enlace para compartir' },
     { id: 'html', icon: 'code', label: 'HTML autocontenido' },
+    { id: 'email', icon: 'mail', label: 'HTML para correo…' },
+    { id: 'all', icon: 'library_books', label: 'Todas las plantillas (.zip)…' },
     { id: 'png', icon: 'photo_camera', label: 'Captura PNG del preview' },
     { id: 'print', icon: 'picture_as_pdf', label: 'Imprimir o guardar como PDF' },
     { separator: true },
@@ -284,6 +287,7 @@ export class TopbarComponent {
       case 'projects':
       case 'new-template': this.ui.projectsOpen.set(true); break;
       case 'snapshots': this.ui.snapshotsOpen.set(true); break;
+      case 'save-template': this.ui.saveTemplateOpen.set(true); break;
       case 'history': this.ui.historyOpen.set(true); break;
       case 'import': this.ui.requestPanel('import-project'); break;
       case 'assets': this.ui.requestPanel('upload-assets'); break;
@@ -297,6 +301,8 @@ export class TopbarComponent {
     switch (id) {
       case 'share': this.onShare(); break;
       case 'html': this.onExportHtml(); break;
+      case 'email': this.ui.emailExportOpen.set(true); break;
+      case 'all': this.ui.exportAllOpen.set(true); break;
       case 'png': void this.projectIo.exportPng(); break;
       case 'print': this.ui.requestPanel('print'); break;
       case 'project': void this.projectIo.exportProject(); break;

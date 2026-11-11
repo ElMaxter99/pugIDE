@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, computed, inject, input, output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, input, output, signal } from '@angular/core';
 import { PreviewState } from '../../core/state/preview.state';
 import { PageBreakIssue } from '../../core/utils/paginate.util';
 import { describePageIssue } from '../../core/utils/preview-layout.util';
@@ -24,7 +24,22 @@ import { describePageIssue } from '../../core/utils/preview-layout.util';
           <span>Horizontal</span>
         </button>
       </div>
-      <span class="pdf-size">{{ pageCount() }} {{ pageCount() === 1 ? 'página' : 'páginas' }}</span>
+      <div class="page-nav" role="group" aria-label="Páginas del documento">
+        <button type="button" class="nav-btn" title="Página anterior (Re Pág)" aria-label="Página anterior" data-testid="pdf-prev" [disabled]="page() <= 1" (click)="goToPage.emit(page() - 1)">
+          <span aria-hidden="true" class="material-symbols-outlined">keyboard_arrow_left</span>
+        </button>
+        <label class="pdf-size page-label">Página
+          <input class="page-input" type="text" inputmode="numeric" aria-label="Ir a la página" data-testid="pdf-page" [value]="page()"
+            (keydown.enter)="jump($any($event.target))" (blur)="jump($any($event.target))" (focus)="$any($event.target).select()" />
+          de <span data-testid="pdf-count">{{ pageCount() }}</span></label>
+        <button type="button" class="nav-btn" title="Página siguiente (Av Pág)" aria-label="Página siguiente" data-testid="pdf-next" [disabled]="page() >= pageCount()" (click)="goToPage.emit(page() + 1)">
+          <span aria-hidden="true" class="material-symbols-outlined">keyboard_arrow_right</span>
+        </button>
+        <button type="button" class="device-btn pages-btn" [class.active]="pagesOpen()" [attr.aria-expanded]="pagesOpen()" aria-controls="pdf-pages" data-testid="pdf-pages-btn" (click)="pagesOpen.set(!pagesOpen())">
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">grid_view</span>
+          <span>Páginas</span>
+        </button>
+      </div>
       @if (issues().length) {
         <span class="pdf-size pdf-warn" [title]="issuesTitle()">
           <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px; vertical-align: -3px;">warning</span>
@@ -36,6 +51,18 @@ import { describePageIssue } from '../../core/utils/preview-layout.util';
         <span>Imprimir</span>
       </button>
     </div>
+    @if (pagesOpen()) {
+      <div class="pages" id="pdf-pages" data-testid="pdf-pages" role="group" aria-label="Ir a una página" (keydown.escape)="pagesOpen.set(false)">
+        @for (n of pageNumbers(); track n) {
+          <button type="button" class="page-tile" [class.current]="n === page()" [attr.aria-current]="n === page() ? 'page' : null"
+            [attr.aria-label]="'Ir a la página ' + n + (warned().has(n) ? ' (con aviso de corte)' : '')" [attr.title]="warned().has(n) ? 'Página ' + n + ': tiene un aviso de corte' : 'Página ' + n"
+            (click)="goToPage.emit(n)">
+            <span class="sheet" [class.landscape]="isLandscape()">@if (warned().has(n)) { <span class="dot"></span> }</span>
+            <span class="num">{{ n }}</span>
+          </button>
+        }
+      </div>
+    }
   `,
   styles: [`
     :host { display: block; flex-shrink: 0; }
@@ -58,6 +85,25 @@ import { describePageIssue } from '../../core/utils/preview-layout.util';
     }
 
     .pdf-warn { color: #e0a030; cursor: help; }
+
+    .page-nav { display: inline-flex; align-items: center; gap: 6px; }
+    .page-label { display: inline-flex; align-items: center; gap: 6px; }
+    .page-input { width: 40px; height: 26px; text-align: center; font: inherit; color: var(--text-primary); background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 4px; }
+    .page-input:focus { border-color: var(--accent-color); outline: none; }
+    .nav-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 1px solid var(--border-color); border-radius: var(--radius); color: var(--text-primary); }
+    .nav-btn .material-symbols-outlined { font-size: 18px; }
+    .nav-btn:hover:not(:disabled) { background: var(--bg-surface-variant); }
+    .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pages-btn { border: 1px solid var(--border-color); }
+    .pages { display: flex; flex-wrap: wrap; gap: 8px; max-height: 168px; overflow-y: auto; padding: 8px 16px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface-container-low); }
+    .page-tile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px; }
+    .page-tile:hover { background: var(--bg-hover); }
+    .page-tile.current { border: 2px solid var(--accent-color); padding: 3px; }
+    .sheet { position: relative; display: block; width: 34px; height: 48px; background: #f9f9f9; border-radius: 2px; }
+    .sheet.landscape { width: 48px; height: 34px; }
+    .dot { position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: #c77700; }
+    .num { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); }
+    .page-tile.current .num { color: var(--accent-color); }
 
     .device-switcher {
       display: flex;
@@ -111,6 +157,20 @@ export class PdfBarComponent {
   protected previewState = inject(PreviewState);
 
   readonly pageCount = input.required<number>();
+  /** Página que se ve ahora (1 = primera). */
+  readonly page = input(1);
+  /** Ir a una página; quien mueve el documento es el preview. */
+  readonly goToPage = output<number>();
+  protected readonly pagesOpen = signal(false);
+  protected readonly pageNumbers = computed(() => Array.from({ length: this.pageCount() }, (_, i) => i + 1));
+  /** Páginas con un aviso de corte. */
+  protected readonly warned = computed(() => new Set(this.issues().filter((i) => i.page > 0).map((i) => i.page)));
+
+  protected jump(input: HTMLInputElement): void {
+    const n = Math.round(Number(input.value));
+    if (Number.isFinite(n) && n >= 1) this.goToPage.emit(Math.min(n, this.pageCount()));
+    input.value = String(this.page());
+  }
   /** La persona pide imprimir; la orden la ejecuta el preview, que es quien habla con el documento aislado. */
   readonly printRequested = output<void>();
   /** Elementos que se partirían mal al imprimir. */

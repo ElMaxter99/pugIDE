@@ -17,10 +17,12 @@ export interface SnapshotBackend {
   remove(ids: string[]): Promise<void>;
 }
 
-class IndexedDbSnapshotBackend implements SnapshotBackend {
+export class IndexedDbSnapshotBackend implements SnapshotBackend {
+  constructor(private readonly dbName = DB_NAME) {}
+
   private open(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
+      const req = indexedDB.open(this.dbName, 1);
       req.onupgradeneeded = () => {
         const meta = req.result.createObjectStore(META, { keyPath: 'id' });
         meta.createIndex('projectId', 'projectId');

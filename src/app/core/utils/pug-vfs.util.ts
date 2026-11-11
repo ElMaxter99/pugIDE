@@ -34,6 +34,39 @@ export function listTemplates(files: Map<string, string>): string[] {
   return [...files.keys()].filter(isPugFile).sort((a, b) => a.localeCompare(b));
 }
 
+/**
+ * Plantillas que son páginas (P-24): las que ningún otro archivo incluye ni extiende. Los parciales (`include`, `extends`)
+ * no se exportan sueltos.
+ */
+export function pageTemplates(files: Map<string, string>): { pages: string[]; partials: string[] } {
+  const all = listTemplates(files);
+  const used = new Set<string>();
+  for (const from of all) {
+    for (const line of (files.get(from) ?? '').split('\n')) {
+      const m = /^\s*(?:include|extends)\s+(['"]?)([^'"\s]+)\1\s*$/.exec(line);
+      const hit = m ? resolveVirtualPath(m[2], from, files) : null;
+      if (hit && hit !== from) used.add(hit);
+    }
+  }
+  return { pages: all.filter((p) => !used.has(p)), partials: all.filter((p) => used.has(p)) };
+}
+
+/** `/facturas/abril.pug` → `facturas/abril.html`. */
+export function htmlNameFor(path: string): string {
+  return path.replace(/^\//, '').replace(/\.(pug|jade)$/i, '.html');
+}
+
+/**
+ * Enlaces entre plantillas (P-24): `href="factura.pug"` pasa a `href="factura.html"` al exportar. Solo se tocan los que
+ * apuntan a una plantilla del proyecto; `from` es la plantilla que contiene el enlace.
+ */
+export function rewriteTemplateLinks(html: string, from: string, files: Map<string, string>): string {
+  return html.replace(/(<a\b[^>]*?\shref=)(["'])([^"'#?]+\.(?:pug|jade))([#?][^"']*)?\2/gi, (all, pre: string, q: string, target: string, tail = '') => {
+    const hit = /^[a-z][a-z0-9+.-]*:/i.test(target) ? null : resolveVirtualPath(target, from, files);
+    return hit ? `${pre}${q}${target.replace(/\.(pug|jade)$/i, '.html')}${tail}${q}` : all;
+  });
+}
+
 /** El archivo elegido sigue a su archivo cuando este se renombra o se mueve. */
 export function pinnedAfterRename(pinned: string | null, oldPath: string, newPath: string): string | null {
   if (!pinned) return null;

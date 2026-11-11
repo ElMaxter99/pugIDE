@@ -56,7 +56,7 @@ export default async function (env) {
   });
   const { page } = app;
   const bar = (await page.locator('.pdf-bar').innerText()).replace(/\s+/g, ' ');
-  const previewPages = Number(bar.match(/(\d+) página/)?.[1]);
+  const previewPages = Number(bar.match(/Página\s+de\s+(\d+)/)?.[1]);
   check('03 el preview PDF tiene las mismas páginas que la impresión real', previewPages === realPages && realPages > 1, `preview=${previewPages} real=${realPages}`);
 
   const boxes = await page.locator('.pg-box').allInnerTexts();

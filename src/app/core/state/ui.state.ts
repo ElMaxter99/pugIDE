@@ -34,6 +34,12 @@ export class UiState {
   readonly shareCreateOpen = signal(false);
   /** «Idiomas del proyecto» (P-22): idioma por defecto y de reserva. */
   readonly localesOpen = signal(false);
+  /** «Exportar para correo» (P-23). */
+  readonly emailExportOpen = signal(false);
+  /** «Exportar todas las plantillas» (P-24). */
+  readonly exportAllOpen = signal(false);
+  /** «Guardar como plantilla» (P-25). */
+  readonly saveTemplateOpen = signal(false);
   /** Escritorio: «Espacios de trabajo» (P-26). */
   readonly workspacesOpen = signal(false);
   /** Escritorio: «Buscar actualizaciones» (P-27). */

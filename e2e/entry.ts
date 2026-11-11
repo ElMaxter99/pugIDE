@@ -26,6 +26,7 @@ export { uniqueProjectName } from '../src/app/core/services/orchestrator.service
 export { PROJECT_TEMPLATES } from '../src/app/core/utils/templates.util';
 export { FileHistoryService, MemoryHistoryBackend } from '../src/app/core/services/file-history.service';
 export { ProjectSnapshotService, MemorySnapshotBackend } from '../src/app/core/services/project-snapshot.service';
+export { UserTemplateService } from '../src/app/core/services/user-template.service';
 export { SnapshotState } from '../src/app/core/state/snapshot.state';
 export { DiagnosticsState } from '../src/app/core/state/diagnostics.state';
 export { LayoutService } from '../src/app/core/services/layout.service';
