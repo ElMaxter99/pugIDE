@@ -7,7 +7,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **0.9.0**: publicada (tag y release hechos con `release:deploy`).
 - **0.9.1**: publicada (doble clic en una plantilla la previsualiza).
 - **0.10.0**: publicada (PWA instalable y app de escritorio para Windows, macOS y Linux).
-- **0.10.1**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.10.1.md`): ejemplos genéricos en las pruebas. Falta mergearla y lanzar `npm run release:deploy`; los instaladores se construyen y adjuntan solos.
+- **0.10.2**: corrección urgente preparada en una PR (al cambiar de proyecto se pisaba el archivo del mismo nombre y el editor quedaba en blanco). Falta mergearla y lanzar `npm run release:deploy`.
+- **0.10.1**: publicada. Antes: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.10.1.md`): ejemplos genéricos en las pruebas. Falta mergearla y lanzar `npm run release:deploy`; los instaladores se construyen y adjuntan solos.
 
 ## En curso: 0.11
 - **PR A** (web, PWA y escritorio): exportar para correo (P-23), varias páginas (P-24) y plantillas propias (P-25). Programada.

@@ -10,6 +10,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **Plantillas propias** (P-25). «Proyecto → Guardar como plantilla…» guarda el proyecto abierto (archivos y, si se quiere, datos, imágenes y fuentes e idiomas) como punto de partida. «Mis proyectos» enseña **«Mis plantillas»** con Usar, Renombrar, Actualizar con el proyecto abierto, Exportar (`.zip`) y Borrar, e «Importar plantilla (.zip)…». Hasta 30 plantillas de 25 MB, guardadas en el navegador (IndexedDB).
 - Escenarios `56-exportar-correo`, `57-varias-paginas` y `58-plantillas-propias`, y pruebas unitarias de `email-export.util`, `user-template.util` y de las páginas y enlaces de `pug-vfs.util`.
 
+## [0.10.2] - 2026-11-11
+
+### Corregido
+- **Al crear un proyecto o cambiar de proyecto, el archivo del mismo nombre se pisaba y el editor se quedaba en blanco.** Si el proyecto que se abría tenía un archivo con el mismo nombre que el que estaba abierto (lo habitual: `main.pug`), su contenido quedaba sustituido por el del proyecto anterior y el editor no enseñaba nada. Afectaba a «Nuevo proyecto», a abrir otro proyecto de «Mis proyectos» y a crear uno desde una plantilla, en la web y en la app de escritorio. La causa: al cambiar de proyecto, el editor cargaba la pestaña nueva antes de soltar los archivos del proyecto anterior, y al hacerlo escribía el contenido viejo en el archivo nuevo. Ahora primero se sueltan y después se carga. Escenario `59-cambiar-de-proyecto` (crear, cambiar, volver y recargar: cada proyecto conserva lo suyo).
+- **Qué hacer si te pasó:** abre ese proyecto y mira «Proyecto → Historial del archivo…»: si el archivo se había guardado antes, sus versiones anteriores siguen ahí (hasta 30 por archivo). También valen las «Instantáneas del proyecto…» y cualquier `.zip` exportado.
+
 ## [0.10.1] - 2026-11-09
 
 ### Cambiado
