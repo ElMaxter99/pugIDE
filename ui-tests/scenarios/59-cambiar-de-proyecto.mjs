@@ -46,7 +46,10 @@ export default async function (env) {
   await dlg(page).waitFor({ state: 'detached', timeout: 6000 });
   check('59 el proyecto nuevo conserva lo que se escribió en él', !!(await waitUntil(async () => /marca del proyecto nuevo/.test((await model(page)) ?? '') && !/proyecto de origen/.test((await model(page)) ?? ''), 8000)), String(await model(page)));
 
-  // Tras recargar, sigue bien
+  // Tras recargar, sigue bien. Antes se espera al guardado automático y a que el editor termine de cargar su worker:
+  // recargar a media descarga la cancela y WebKit lo anota como error de página, sin que sea un fallo de la app.
+  await page.waitForTimeout(1500);
+  await page.waitForLoadState('networkidle');
   await page.reload();
   await page.locator('.monaco-editor').first().waitFor({ timeout: 20000 });
   check('59 tras recargar, el proyecto abierto sigue con su contenido', !!(await waitUntil(async () => /marca del proyecto nuevo/.test((await model(page)) ?? ''), 8000)), String(await model(page)));
