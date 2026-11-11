@@ -178,12 +178,25 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
   private lastResetToken = 0;
 
   constructor() {
+    // Proyecto nuevo (cambia `resetToken`) y pestaña activa van en el MISMO efecto y en este orden: primero se sueltan
+    // los modelos del proyecto anterior y después se carga la pestaña. Con dos efectos, el de la pestaña podía ir antes:
+    // `loadModel` escribía el contenido del modelo viejo en el archivo del mismo nombre del proyecto nuevo (lo pisaba)
+    // y el editor se quedaba en blanco.
     effect(() => {
+      const token = this.editorState.resetToken();
       const tab = this.editorState.activeTab();
-      if (tab && this.editorReady() && tab.id !== this.lastTabId) {
-        this.lastTabId = tab.id;
-        this.loadModel(tab);
-      }
+      if (!this.editorReady()) return;
+      untracked(() => {
+        if (token !== this.lastResetToken) {
+          this.lastResetToken = token;
+          this.disposeAllModels();
+          this.lastTabId = null;
+        }
+        if (tab && tab.id !== this.lastTabId) {
+          this.lastTabId = tab.id;
+          this.loadModel(tab);
+        }
+      });
     });
 
     effect(() => {
@@ -203,14 +216,6 @@ export class EditorPanelComponent implements AfterViewInit, OnDestroy {
         if (cmd.id === 'pug.searchInProject') this.openSearch();
         else void this.editor?.getAction(cmd.id)?.run();
       });
-    });
-
-    effect(() => {
-      const token = this.editorState.resetToken();
-      if (token !== this.lastResetToken) {
-        this.lastResetToken = token;
-        this.disposeAllModels();
-      }
     });
 
     effect(() => {
