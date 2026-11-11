@@ -220,6 +220,7 @@ export class TopbarComponent {
   protected projectItems = computed<MenuItem[]>(() => [
     { id: 'projects', icon: 'folder_open', label: 'Mis proyectos…', hint: this.projectState.projectName() },
     { id: 'new-template', icon: 'add', label: 'Nuevo proyecto desde plantilla…' },
+    { id: 'save-template', icon: 'bookmark_add', label: 'Guardar como plantilla…' },
     { id: 'snapshots', icon: 'photo_camera', label: 'Instantáneas del proyecto…' },
     { id: 'history', icon: 'history', label: 'Historial del archivo…' },
     { separator: true },
@@ -247,6 +248,7 @@ export class TopbarComponent {
       case 'projects':
       case 'new-template': this.ui.projectsOpen.set(true); break;
       case 'snapshots': this.ui.snapshotsOpen.set(true); break;
+      case 'save-template': this.ui.saveTemplateOpen.set(true); break;
       case 'history': this.ui.historyOpen.set(true); break;
       case 'import': this.ui.requestPanel('import-project'); break;
       case 'assets': this.ui.requestPanel('upload-assets'); break;

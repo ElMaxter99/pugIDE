@@ -127,6 +127,12 @@ function onAnchorClick(e: MouseEvent): void {
   if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
   const target = e.target instanceof Element ? e.target.closest('a[href], area[href]') : null;
   const href = target?.getAttribute('href');
+  // Enlace a otra plantilla del proyecto (`href="factura.pug"`): la app la previsualiza (P-24).
+  if (target && href && /\.(pug|jade)([#?].*)?$/i.test(href) && !/^[a-z][a-z0-9+.-]*:/i.test(href) && !href.startsWith('//')) {
+    e.preventDefault();
+    post({ source: 'pugide-open-template', href: href.slice(0, 500) });
+    return;
+  }
   if (!target || !href || !href.startsWith('#') || (target.getAttribute('target') ?? '_self') !== '_self') return;
   e.preventDefault();
   location.hash = href;

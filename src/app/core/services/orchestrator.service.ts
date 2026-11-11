@@ -679,6 +679,19 @@ export class OrchestratorService {
     return { html: rewriteTemplateLinks(html, entryPath, files), errors: [] };
   }
 
+  /** Un enlace `href="otra.pug"` pulsado en la vista previa: se previsualiza esa plantilla si existe en el proyecto. */
+  async followTemplateLink(href: string): Promise<void> {
+    const files = this.editorState.allFileContents();
+    const from = this.previewState.entryPath() ?? undefined;
+    const target = href.replace(/[#?].*$/, '');
+    const hit = resolveVirtualPath(target, from, files);
+    if (!hit || !isPugFile(hit)) {
+      this.terminalState.addEntry('warning', 'Vista previa', `El enlace «${target}» no corresponde a ninguna plantilla del proyecto.`);
+      return;
+    }
+    await this.setPreviewEntry(hit);
+  }
+
   /** Nombre del `.html` de una plantilla al exportar. */
   htmlNameFor(path: string): string {
     return htmlNameFor(path);
