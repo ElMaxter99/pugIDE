@@ -130,7 +130,7 @@ Angular 22 (componentes standalone, signals), Monaco, el compilador de Pug empaq
 
 ## Instalar
 
-PugIDE funciona en el navegador, como **PWA** (un icono y una ventana propia, sin descargar nada) y como **aplicación de escritorio** para **Windows, macOS y Linux**, sin conexión. Los instaladores de escritorio son gratuitos y **no están firmados** (sin certificados de pago): software libre MIT, sin garantía y bajo la responsabilidad de cada persona. Pasos y avisos en **[docs/INSTALAR.md](docs/INSTALAR.md)**; instaladores en las [releases](https://github.com/ElMaxter99/pugIDE/releases).
+En la app de escritorio, cada cliente puede ser un **espacio de trabajo**: una carpeta de tu equipo que PugIDE abre y guarda como archivos normales. PugIDE funciona en el navegador, como **PWA** (un icono y una ventana propia, sin descargar nada) y como **aplicación de escritorio** para **Windows, macOS y Linux**, sin conexión. Los instaladores de escritorio son gratuitos y **no están firmados** (sin certificados de pago): software libre MIT, sin garantía y bajo la responsabilidad de cada persona. Pasos y avisos en **[docs/INSTALAR.md](docs/INSTALAR.md)**; instaladores en las [releases](https://github.com/ElMaxter99/pugIDE/releases).
 
 ## Empezar
 

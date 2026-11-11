@@ -129,7 +129,8 @@ Detalle, evidencia y qué está verificado en `design/propuestas/0.8-plan.md`.
 ### Fase 18. PugIDE de escritorio
 - ✅ **18.0 PWA instalable**, **18.1 contenedor Electron** (`desktop/`), **18.2 empaquetado y CI** (Windows, macOS, Linux; sin firmar, gratis). Ver [ESCRITORIO.md](ESCRITORIO.md) e [INSTALAR.md](INSTALAR.md).
 - ❌ **18.3 firma y notarización:** descartada (el proyecto no usa certificados de pago).
-- ⏳ **18.4 aviso de versión nueva** opt-in con «Descargar» (la actualización automática exige firma en macOS), **18.5 espacios de trabajo por cliente** (con diseño primero).
+- ✅ **18.4 aviso de versión nueva** opt-in con «Descargar» (P-27) y **18.5 espacios de trabajo por cliente** (P-26): carpeta en disco, guardado en archivos, recarga de cambios hechos fuera.
+- ⏳ Más adelante: ver diferencias en un conflicto, exportar PDF con el motor nativo, asociar `.pug` a la app, mover a una carpeta un proyecto guardado en la app.
 
 ### Fase 13. Mantenimiento (parcial)
 

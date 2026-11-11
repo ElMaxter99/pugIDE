@@ -48,10 +48,19 @@ xattr -dr com.apple.quarantine /Applications/PugIDE.app
 
 ## Cómo se actualiza
 - **Navegador y PWA:** la app avisa cuando hay versión nueva y recargas.
-- **Aplicación de escritorio:** **por ahora no se actualiza sola**. Descarga el instalador nuevo de la página de releases e instálalo encima (tus proyectos se conservan). Más adelante tendrá un aviso de «versión nueva» (opcional y con tu permiso, porque implica una consulta a GitHub).
+- **Aplicación de escritorio:** no se instala sola (los instaladores no están firmados), pero **puede avisarte**. La primera vez pregunta si quieres el aviso; si aceptas, consulta en github.com el número de la última versión (una vez al día y al abrir, sin enviar nada tuyo) y, cuando hay una nueva, enseña una barra con «Descargar», que abre la página de la versión. Descargas el instalador y lo instalas encima: tus proyectos y espacios se conservan. Se cambia en **Ayuda → Buscar actualizaciones…**; sin aceptar, la app no hace ninguna llamada de red.
+
+## Espacios de trabajo (solo en la app de escritorio)
+Un **espacio de trabajo** es una carpeta de tu equipo: la de las plantillas de un cliente, por ejemplo. Ábrelos desde **Espacios de trabajo…** en la barra superior.
+
+- **Nuevo espacio…**: pon un nombre, elige un color y la carpeta. Si ya tiene plantillas `.pug`, se usan; si no, empieza con una plantilla.
+- Lo que editas **se guarda en los archivos de esa carpeta** (los datos de ejemplo, en `.pugide/datasets.json`). Puedes usar git, otro editor o tu copia de seguridad habitual.
+- Si un archivo **cambia fuera** de PugIDE, se recarga solo. Si lo cambiaste en los dos sitios, PugIDE pregunta con cuál quedarse.
+- PugIDE solo lee plantillas, estilos, JSON, imágenes y fuentes; lo demás (`.git`, `node_modules`, otros tipos de archivo) **no se toca**. Elige la carpeta de las plantillas, no la de un proyecto entero: el límite es de 2000 archivos y 60 MB.
+- «Quitar de la lista» no borra nada del disco. El historial por archivo y las instantáneas se guardan en el perfil de la app, no en la carpeta.
 
 ## Tus proyectos y tu privacidad
-- La app de escritorio **no hace ninguna llamada de red por su cuenta** y **no lleva analítica**. Funciona con el cable desenchufado. (Los enlaces `https` que abras desde ella se abren en tu navegador.)
+- La app de escritorio **no hace ninguna llamada de red por su cuenta** (salvo, si lo aceptas, la consulta de versión nueva a github.com) y **no lleva analítica**. Funciona con el cable desenchufado. (Los enlaces `https` que abras desde ella se abren en tu navegador.)
 - Los proyectos se guardan en **el perfil de cada app**: la web, la PWA y la app de escritorio **no comparten** proyectos entre sí. Para llevarte uno: **Proyecto → Exportar** (`.zip`) y en la otra, **Proyecto → Importar**.
 - Los enlaces de **compartir** funcionan igual en las tres. Desde la app de escritorio apuntan a la versión web (`https://pug-ide.vercel.app`, configurable en `desktop/src/config.json`, clave `webUrl`), así que se abren en cualquier navegador. Si se vaciara esa clave, saldrían como `pugide://app/…`, que solo abre quien tenga la app de escritorio instalada.
 

@@ -34,6 +34,10 @@ export class UiState {
   readonly shareCreateOpen = signal(false);
   /** «Idiomas del proyecto» (P-22): idioma por defecto y de reserva. */
   readonly localesOpen = signal(false);
+  /** Escritorio: «Espacios de trabajo» (P-26). */
+  readonly workspacesOpen = signal(false);
+  /** Escritorio: «Buscar actualizaciones» (P-27). */
+  readonly updatesOpen = signal(false);
   /** Enlace compartido que se está abriendo (P-16). */
   readonly shareOpen = signal<ShareOpenRequest | null>(null);
   /** Diálogo con el historial de versiones del archivo activo. */

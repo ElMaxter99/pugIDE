@@ -174,6 +174,15 @@ export class PersistenceService {
   }
 
   /** Guarda el primer uso si aún no consta. */
+  /** Escritorio: la pantalla de espacios de trabajo ya se enseñó una vez al arrancar (no se repite sola). */
+  workspacesIntroSeen(): boolean {
+    try { return localStorage.getItem('pug-ide-workspaces-intro') !== null; } catch { return true; }
+  }
+
+  markWorkspacesIntroSeen(): void {
+    try { localStorage.setItem('pug-ide-workspaces-intro', String(Date.now())); } catch { /* ignore */ }
+  }
+
   ensureFirstUse(at = Date.now()): void {
     try {
       if (!localStorage.getItem(FIRST_USE_KEY)) localStorage.setItem(FIRST_USE_KEY, String(at));

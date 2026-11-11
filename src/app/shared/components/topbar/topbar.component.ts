@@ -14,6 +14,8 @@ import { PreferencesState } from '../../../core/services/preferences.state';
 import { UiState } from '../../../core/state/ui.state';
 import { ProjectState } from '../../../core/state/project.state';
 import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.component';
+import { WorkspaceService } from '../../../core/services/workspace.service';
+import { shortPath } from '../../../core/utils/workspace.util';
 import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.component';
 
 @Component({
@@ -25,6 +27,18 @@ import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.
     <header class="topbar" [class.compact]="viewport.compact()">
       <div class="topbar-left">
         <h1 class="logo"><a href="/" title="Volver al inicio" aria-label="PugIDE" (click)="goHome($event)">{{ viewport.compact() ? 'P' : 'PugIDE' }}</a></h1>
+        @if (workspace.available) {
+          @if (workspace.active(); as ws) {
+            <span class="ws-dot" [style.background]="ws.color" aria-hidden="true"></span>
+            <app-dropdown-menu [label]="ws.name" ariaLabel="Espacio de trabajo" testId="menu-espacio" [items]="workspaceItems()" (chosen)="onWorkspaceAction($event)" />
+            @if (!viewport.compact()) {
+              <span class="ws-path" [title]="ws.path">{{ shortPath(ws.path) }}</span>
+              <span class="ws-status" [class.err]="workspace.status() === 'error'" role="status" data-testid="workspace-status">{{ workspace.statusText() }}</span>
+            }
+          } @else {
+            <button type="button" class="ws-open" data-testid="workspaces-open" (click)="ui.workspacesOpen.set(true)">Espacios de trabajo…</button>
+          }
+        }
       </div>
       <div class="topbar-right">
         <div class="topbar-actions">
@@ -91,6 +105,16 @@ import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.
       outline-offset: 4px;
       border-radius: 4px;
     }
+
+    .ws-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .ws-path { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+    .ws-status { font-size: 12px; color: var(--success-color); white-space: nowrap; }
+    .ws-status.err { color: var(--error-color); }
+    /* En ventanas medianas la ruta y el «Guardado en disco» ceden el sitio a los menús; un fallo al guardar se ve siempre. */
+    @media (max-width: 1640px) { .ws-path { display: none; } }
+    @media (max-width: 1420px) { .ws-status:not(.err) { display: none; } }
+    .ws-open { height: 32px; padding: 0 12px; border: 1px solid var(--border-color); border-radius: var(--radius); font-size: 13px; color: var(--text-primary); }
+    .ws-open:hover { background: var(--bg-hover); }
 
     .topbar-actions {
       display: flex;
@@ -230,6 +254,21 @@ export class TopbarComponent {
     { id: 'search', icon: 'search', label: 'Buscar en el proyecto', keys: 'Ctrl+Shift+F' },
     { id: 'shortcuts', icon: 'keyboard', label: 'Atajos de teclado' },
   ]);
+
+  protected readonly workspace = inject(WorkspaceService);
+  protected readonly shortPath = shortPath;
+  protected workspaceItems = computed<MenuItem[]>(() => [
+    { id: 'switch', icon: 'swap_horiz', label: 'Cambiar de espacio…' },
+    { id: 'reveal', icon: 'folder_open', label: 'Mostrar la carpeta' },
+    { separator: true },
+    { id: 'close', icon: 'close', label: 'Cerrar el espacio' },
+  ]);
+
+  protected onWorkspaceAction(id: string): void {
+    if (id === 'switch') this.ui.workspacesOpen.set(true);
+    else if (id === 'reveal') this.workspace.reveal();
+    else if (id === 'close') void this.workspace.close();
+  }
 
   protected exportItems = computed<MenuItem[]>(() => [
     { id: 'share', icon: 'link', label: 'Copiar enlace para compartir' },
