@@ -2,17 +2,24 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { zipSync, strToU8 } from 'fflate';
-import { check, libraryNames, openApp, openLogTab, projectName, waitUntil } from '../lib.mjs';
+import { check, libraryNames, openApp, openLogTab, projectName, stable, waitUntil } from '../lib.mjs';
 
 // «Importar proyecto» (P-29): está en «Mis proyectos» y crea un proyecto NUEVO con una carpeta o un .zip.
 // El proyecto abierto no se pierde: sigue en la lista.
 const session = { projectName: 'Informe trimestral', files: { '/main.pug': 'p informe\n' }, openTabPaths: ['/main.pug'], activeTabPath: '/main.pug' };
 const dlg = (page) => page.locator('[role="dialog"][aria-label="Mis proyectos"]');
 const stored = (page) => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('pug-ide-project')); } catch { return null; } });
+/**
+ * Abre «Mis proyectos» y espera a que la lista termine de cargar (IndexedDB, asíncrono): al llegar las filas el pie del
+ * diálogo baja, y un clic en el menú de importar hecho antes caería en otro sitio.
+ */
 async function openProjects(page) {
   await page.locator('[data-testid="menu-proyecto"]').click();
   await page.locator('[role="menuitem"]', { hasText: 'Mis proyectos' }).click();
   await dlg(page).waitFor({ timeout: 5000 });
+  const rows = () => dlg(page).locator('.list:not(.tpl-list) li.row').count();
+  await waitUntil(async () => (await dlg(page).locator('.list .empty', { hasText: 'Cargando' }).count()) === 0 && (await rows()) > 0, 5000);
+  await stable(rows);
 }
 /**
  * Un solo oyente de «filechooser» para toda la prueba. Con `waitForEvent` en cada importación, Playwright apaga la
