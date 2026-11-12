@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.12.0] - 2026-11-12
+
 ### Cambiado
 - **«Importar archivos» añade al proyecto abierto** (diseño P-28, aprobado). El botón de subir del panel de archivos se llamaba «Importar proyecto» y creaba un proyecto nuevo con lo elegido, cuando lo que se espera de él es añadir archivos al que está abierto. Ahora es **«Importar archivos…»** (también en «Proyecto» y en la paleta): se eligen **archivos sueltos o una carpeta entera**, o se sueltan, y se guardan **dentro del proyecto abierto**, en la carpeta que se elija. Antes de escribir nada se ve qué es **nuevo**, qué **ya existe** y qué **no se admite**; con los que ya existen se elige entre no tocarlos (por defecto), sustituirlos (la versión anterior queda en «Historial del archivo») o conservar los dos (`tabla-2.pug`). Una carpeta se puede conservar como subcarpeta o volcar su contenido en el destino. Toda la importación se **deshace de una vez**. El menú de una carpeta ofrece «Importar archivos aquí…».
 - **«Importar proyecto» pasa a «Mis proyectos»** (P-29), junto a «Nuevo proyecto»: desde una carpeta o desde un `.zip`. Crea un proyecto **nuevo** (con nombre libre si ya hay uno igual) y el que estaba abierto sigue guardado en la lista; ya no hace falta el aviso de «esto reemplaza todos los archivos». También está en «Proyecto», en la paleta y en la bienvenida.

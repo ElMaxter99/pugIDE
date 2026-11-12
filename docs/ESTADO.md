@@ -1,24 +1,25 @@
 # Estado del proyecto
 
-Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa a la persona responsable»). Última revisión: 2026-11-11.
+Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa a la persona responsable»). Última revisión: 2026-11-12.
 
 ## Versiones
 - **0.8.0**: publicada (tag `v0.8.0` y release de GitHub hechos). La rama `release` ya contiene la 0.8.0 y, por un merge manual, trabajo de la 0.9 hasta la PR 57. Falta, si no se ha hecho, **desplegar `release` en Vercel a mano**.
 - **0.9.0**: publicada (tag y release hechos con `release:deploy`).
 - **0.9.1**: publicada (doble clic en una plantilla la previsualiza).
 - **0.10.0**: publicada (PWA instalable y app de escritorio para Windows, macOS y Linux).
-- **0.10.2**: mergeada pero no publicada por separado; su corrección (al cambiar de proyecto se pisaba el archivo del mismo nombre) sale dentro de la 0.11.0.
-- **0.11.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.11.0.md`). Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel. Con ella se prueba el instalador de Windows.
+- **0.10.2**: publicada (al cambiar de proyecto se pisaba el archivo del mismo nombre).
+- **0.11.0**: publicada, con los 7 instaladores adjuntos. Con ella se prueba el instalador de Windows (pendiente de la persona responsable).
+- **0.12.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.12.0.md`): importar archivos al proyecto abierto, importar proyecto desde «Mis proyectos» y logo nuevo. Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel. Con ella se comprueba que la app de escritorio 0.11.0 avisa de la versión nueva.
 - **0.10.1**: publicada. Antes: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.10.1.md`): ejemplos genéricos en las pruebas. Falta mergearla y lanzar `npm run release:deploy`; los instaladores se construyen y adjuntan solos.
 
-## En curso: 0.11
+## 0.11 (publicada)
 - **PR A** (web, PWA y escritorio): exportar para correo (P-23), varias páginas (P-24) y plantillas propias (P-25). Mergeada.
 - **PR B** (solo escritorio): espacios de trabajo por cliente (P-26) y aviso de versión nueva (P-27). Mergeada.
 - El instalador de Windows se prueba con la 0.11 (decisión de la persona responsable).
 
 ## En curso: 0.12
-- **Importar archivos e importar proyecto** (P-28 y P-29): diseño aprobado y programado en una PR. «Importar archivos» añade al proyecto abierto; «Importar proyecto» está en «Mis proyectos» y crea uno nuevo.
-- **Logo nuevo**: propuesta D («Mensajero», el pug con la hoja en la boca; mesa L-01), aplicada en su PR (SVG, favicon, iconos de la PWA, Apple, Android, Windows y escritorio; `npm run brand:icons`).
+- **Importar archivos e importar proyecto** (P-28 y P-29): diseño aprobado, programado y mergeado (PR 71). «Importar archivos» añade al proyecto abierto; «Importar proyecto» está en «Mis proyectos» y crea uno nuevo.
+- **Logo nuevo**: propuesta D («Mensajero», el pug con la hoja en la boca; mesa L-01), mergeada (PR 72; SVG, favicon, iconos de la PWA, Apple, Android, Windows y escritorio; `npm run brand:icons`).
 
 ## Propuesta en estudio
 - **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.
