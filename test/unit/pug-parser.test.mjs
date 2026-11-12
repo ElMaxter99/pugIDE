@@ -133,3 +133,20 @@ test('literalStrings y resolveKeyArgument', () => {
   assert.deepEqual(resolveKeyArgument('`T_${otra}`', consts), []);
   assert.deepEqual(resolveKeyArgument('', consts), []);
 });
+
+test('un índice fijo (productos[1].name) es un elemento del array y pide al menos 2', async () => {
+  const r = await parser.parse('p= productos[1].name\np= productos[0].precio\np= pedido[2].total\n');
+  const productos = r.variables.find((v) => v.path === 'productos[]');
+  assert.ok(productos, paths(r).join(','));
+  assert.equal(productos.type, 'array');
+  assert.equal(productos.minItems, 2);
+  assert.ok(paths(r).includes('productos[].name'));
+  assert.ok(paths(r).includes('productos[].precio'));
+  assert.equal(r.variables.find((v) => v.path === 'pedido[]')?.minItems, 3);
+  assert.ok(!paths(r).includes('productos'), 'no queda como texto suelto');
+});
+
+test('un índice dentro de un each se resuelve con su alias', async () => {
+  const r = await parser.parse('each p in pedidos\n  p= p.lineas[2].nombre\n');
+  assert.equal(r.variables.find((v) => v.path === 'pedidos[].lineas[]')?.minItems, 3);
+});

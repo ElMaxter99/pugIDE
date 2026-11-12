@@ -5,6 +5,8 @@ export interface PugVariable {
   defaultValue: unknown;
   parentPath?: string;
   isLeaf: boolean;
+  /** Array read by a fixed index (`productos[1]`): it needs at least this many elements. */
+  minItems?: number;
 }
 
 export type DataType =
