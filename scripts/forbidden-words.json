@@ -1,0 +1,6 @@
+{
+  "comment": "Palabras que no pueden aparecer en el repositorio. Solo se guarda su SHA-256 (sin mayúsculas ni tildes), nunca la palabra. Para añadir una: node scripts/check-forbidden-words.mjs --hash palabra. Ver scripts/check-forbidden-words.mjs.",
+  "words": [
+    { "sha256": "90a3eb9597a1ff5705b4bb64f6c75441907c65102cf5341c19b8cdcc312a621c", "length": 7, "note": "nombre de un cliente real de los primeros ejemplos privados" }
+  ]
+}

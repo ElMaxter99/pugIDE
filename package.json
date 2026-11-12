@@ -19,7 +19,7 @@
     "watch": "ng build --watch",
     "test": "ng test",
     "prelint": "node scripts/subset-icons.mjs --check && node scripts/bundle-sass.mjs",
-    "lint": "ng lint",
+    "lint": "node scripts/check-forbidden-words.mjs && ng lint",
     "test:e2e": "node --test e2e/editor-utils.test.ts && node e2e/build.mjs && node e2e/scenarios.mjs",
     "brand:icons": "node scripts/brand-icons.mjs",
     "fonts:icons": "node scripts/subset-icons.mjs",

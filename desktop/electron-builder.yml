@@ -10,6 +10,9 @@ directories:
 files:
   - src/**/*
   - package.json
+  # Iconos que usa la ventana en tiempo de ejecución (main.cjs, APP_ICON).
+  - build/icon.png
+  - build/icon.ico
 extraResources:
   - from: ../dist/pug-ide/browser
     to: app-web
@@ -25,6 +28,7 @@ protocols:
 publish: null
 
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch: [x64]
