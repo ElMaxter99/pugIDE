@@ -25,7 +25,14 @@ protocols:
   - name: PugIDE
     schemes:
       - pugide
-publish: null
+# Actualizar dentro de la app (P-35/P-36, docs/ACTUALIZAR-ESCRITORIO.md): con esto electron-builder genera latest*.yml,
+# los *.blockmap y, dentro de la app, app-update.yml (y package-type en .deb/.rpm). No publica nada por sí mismo: el CI
+# construye con --publish never y sube los archivos a la release del tag.
+publish:
+  provider: github
+  owner: ElMaxter99
+  repo: pugIDE
+  releaseType: release
 
 win:
   icon: build/icon.ico

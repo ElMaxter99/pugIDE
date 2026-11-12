@@ -23,4 +23,34 @@ function latestReleaseApi(repoUrl) {
   return m ? `https://api.github.com/repos/${m[1]}/${m[2]}/releases/latest` : null;
 }
 
-module.exports = { compareVersions, parseLatestRelease, latestReleaseApi };
+/**
+ * ¿Puede esta instalación actualizarse sola (P-35/P-36)? Ver docs/ACTUALIZAR-ESCRITORIO.md.
+ * - Desde el código (`npm run start:desktop`): no, no hay instalación.
+ * - macOS: no, el sistema solo instala actualizaciones de apps firmadas.
+ * - Windows portable: no, no hay instalación que sustituir (electron-builder pone PORTABLE_EXECUTABLE_FILE).
+ * - Linux: AppImage (pone APPIMAGE) o .deb/.rpm (electron-builder deja resources/package-type); el resto, no.
+ * `linuxPackage` dice si hará falta la contraseña del sistema (.deb y .rpm se instalan con pkexec).
+ */
+function selfUpdateSupport({ platform, isPackaged, env = {}, packageType = null }) {
+  if (!isPackaged) return { ok: false, reason: 'dev' };
+  if (platform === 'darwin') return { ok: false, reason: 'mac' };
+  if (platform === 'win32') return env.PORTABLE_EXECUTABLE_FILE ? { ok: false, reason: 'portable' } : { ok: true, reason: null };
+  if (platform === 'linux') {
+    if (env.APPIMAGE) return { ok: true, reason: null, linuxPackage: null };
+    if (packageType === 'deb' || packageType === 'rpm') return { ok: true, reason: null, linuxPackage: packageType };
+    return { ok: false, reason: 'linux-unknown' };
+  }
+  return { ok: false, reason: 'other' };
+}
+
+/** El error de electron-updater, en una de las causas que enseña la interfaz (P-36, caso 8). */
+function classifyUpdateError(message) {
+  const m = String(message ?? '');
+  if (/cancel/i.test(m)) return 'cancelled';
+  if (/sha512|checksum|mismatch/i.test(m)) return 'checksum';
+  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ECONNREFUSED|net::|socket|network|offline/i.test(m)) return 'offline';
+  if (/404|latest.*\.yml|Cannot find/i.test(m)) return 'missing';
+  return 'other';
+}
+
+module.exports = { compareVersions, parseLatestRelease, latestReleaseApi, selfUpdateSupport, classifyUpdateError };

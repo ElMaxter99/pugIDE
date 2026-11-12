@@ -9,7 +9,8 @@ const { loadRules } = require('./headers.cjs');
 const { resolveRequest } = require('./serve.cjs');
 const config = require('./config.json');
 const { WorkspaceStore, readWorkspace, readPaths, writeWorkspace, watchedPath, COLORS } = require('./workspaces.cjs');
-const { compareVersions, parseLatestRelease, latestReleaseApi } = require('./updates.cjs');
+const { compareVersions, parseLatestRelease, latestReleaseApi, selfUpdateSupport } = require('./updates.cjs');
+const { createSelfUpdater, fakeUpdaterModule } = require('./self-update.cjs');
 const aiCli = require('./ai-cli.cjs');
 
 /** Peticiones de IA en curso (P-30 a P-34), por id: se pueden detener y se paran todas al cerrar la ventana. */
@@ -176,7 +177,33 @@ function updateState() {
   const u = store.state.updates;
   const current = APP_VERSION;
   const newer = !!u.latest && compareVersions(u.latest.version, current) > 0;
-  return { current, asked: !!u.asked, enabled: !!u.enabled, lastCheck: u.lastCheck || 0, latest: newer ? u.latest : null, dismissed: newer && u.dismissed === u.latest.version };
+  return {
+    current, asked: !!u.asked, enabled: !!u.enabled, lastCheck: u.lastCheck || 0, latest: newer ? u.latest : null, dismissed: newer && u.dismissed === u.latest.version,
+    self: selfUpdater ? selfUpdater.state() : null,
+    justUpdated,
+  };
+}
+
+// Actualizar dentro de la app (P-35/P-36). Solo donde el sistema deja sustituir la instalación (ver updates.cjs).
+let selfUpdater = null;
+/** Versión a la que se acaba de actualizar (aviso «PugIDE se ha actualizado a X» al abrir), o null. */
+let justUpdated = null;
+
+function setupSelfUpdate() {
+  const fake = process.env.PUGIDE_TEST_UPDATER; // pruebas: ok | fail | checksum (descarga simulada, no instala)
+  let packageType = null;
+  try { packageType = fs.readFileSync(path.join(process.resourcesPath, 'package-type'), 'utf8').trim(); } catch { /* AppImage, Windows, macOS */ }
+  const support = fake ? { ok: true, reason: null, linuxPackage: process.env.PUGIDE_TEST_UPDATER_PACKAGE || null } : selfUpdateSupport({ platform: process.platform, isPackaged: app.isPackaged, env: process.env, packageType });
+  selfUpdater = createSelfUpdater({
+    support,
+    currentVersion: APP_VERSION,
+    send: sendEvent,
+    load: () => (fake ? fakeUpdaterModule(fake, process.env.PUGIDE_TEST_UPDATER_VERSION || '99.0.0', () => sendEvent({ type: 'upd-test-installed' })) : require('electron-updater')),
+  });
+  // ¿Se acaba de actualizar? Se compara con la versión de la última vez que se abrió.
+  const u = store.state.updates;
+  if (u.lastRunVersion && compareVersions(APP_VERSION, u.lastRunVersion) > 0) justUpdated = APP_VERSION;
+  if (u.lastRunVersion !== APP_VERSION) { u.lastRunVersion = APP_VERSION; store.save(); }
 }
 
 /** Si la persona lo aceptó: una consulta al abrir (como mucho una al día) y otra cada 24 h. */
@@ -189,6 +216,14 @@ function scheduleUpdateChecks() {
   };
   setTimeout(tick, 4000);
   setInterval(tick, 60 * 60 * 1000);
+}
+
+function openRelease() {
+  const u = store.state.updates;
+  const version = selfUpdater?.state().version || u.latest?.version || justUpdated;
+  const url = version ? `${config.repoUrl}/releases/tag/v${version}` : `${config.repoUrl}/releases`;
+  if (/^\d+\.\d+\.\d+$/.test(version || '0.0.0') && url.startsWith(config.repoUrl)) void shell.openExternal(url);
+  return { ok: true };
 }
 
 function setupIpc() {
@@ -273,7 +308,13 @@ function setupIpc() {
       return { runId };
     },
     'ai:cancel': ({ runId }) => { aiRuns.get(runId)?.cancel(); return { ok: aiRuns.has(runId) }; },
-    'upd:download': () => { const u = store.state.updates; if (u.latest && String(u.latest.url).startsWith(config.repoUrl)) void shell.openExternal(u.latest.url); return { ok: !!u.latest }; },
+    // «Ver novedades» y «Descargar» (macOS, portable): la página de la versión en el navegador. upd:download es el nombre antiguo.
+    'upd:open-release': () => openRelease(),
+    'upd:download': () => openRelease(),
+    'upd:update': () => selfUpdater.start(),
+    'upd:cancel': () => selfUpdater.cancel(),
+    'upd:install': ({ when } = {}) => selfUpdater.install(when === 'quit' ? 'quit' : 'now'),
+    'upd:ack-updated': () => { justUpdated = null; return updateState(); },
   };
   for (const [channel, fn] of Object.entries(handlers)) {
     ipcMain.handle(channel, async (event, payload) => {
@@ -338,6 +379,7 @@ if (!app.requestSingleInstanceLock()) {
       return new Response(body, { status, headers });
     });
     store = new WorkspaceStore(path.join(app.getPath('userData'), 'pugide-desktop.json'));
+    setupSelfUpdate();
     setupIpc();
     scheduleUpdateChecks();
     setupPermissions();
