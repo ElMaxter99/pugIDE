@@ -41,7 +41,9 @@
     "desktop:install": "npm ci --prefix desktop",
     "desktop:start": "npm run build:prod && npm start --prefix desktop",
     "desktop:test": "npm test --prefix desktop",
-    "desktop:pack": "npm run build:prod && npm run pack --prefix desktop"
+    "desktop:pack": "npm run build:prod && npm run pack --prefix desktop",
+    "start:desktop": "npm run desktop:start",
+    "test:desktop": "npm run desktop:test"
   },
   "private": true,
   "dependencies": {

@@ -69,7 +69,7 @@ npm run desktop:install
 ```
 
 ```bash
-npm run desktop:start
+npm run start:desktop
 ```
 
 Abre la app con el código de la rama. Para el asistente de IA **no hace falta** `npm run ia`: lo lanza la propia app.
@@ -122,12 +122,32 @@ El aviso compara la versión instalada con la última release de GitHub. Para ve
 3. Cuando haya una versión más nueva publicada, al abrir la app (o con **Buscar actualizaciones…**) sale la barra con **«Descargar»**, que abre la página de la release. La app no se actualiza sola: los instaladores no están firmados.
 4. Instala el nuevo encima del antiguo: conserva tus proyectos, espacios de trabajo y ajustes.
 
-## 7. Las pruebas automáticas (opcional)
+## 7. La batería de pruebas (la misma que pasa el CI)
 
-Las mismas que pasa el CI, por si quieres verlas en tu equipo:
+Desde la carpeta del proyecto, con la rama que quieras probar (o `master`). La primera vez instala los navegadores de prueba:
+
+```bash
+npx playwright-core install chromium firefox webkit
+```
+
+En Ubuntu, si faltan librerías del sistema para los navegadores:
+
+```bash
+sudo npx playwright-core install-deps
+```
+
+Luego, en este orden:
+
+```bash
+npm run lint
+```
 
 ```bash
 npm run test:unit
+```
+
+```bash
+npm run test:e2e
 ```
 
 ```bash
@@ -138,4 +158,44 @@ npm run build:prod
 npm run test:ui
 ```
 
-`npm run test:ui` necesita Playwright con Chromium (`npx playwright install chromium` la primera vez).
+`npm run test:ui` prueba sobre el build de producción, por eso va después de `npm run build:prod`. Dice `all passed (N)` o lista los `FAIL`. Para ejecutar solo un escenario, pon parte de su nombre: `node ui-tests/run.mjs 63` (el asistente de IA).
+
+**En Firefox y WebKit** (Safari):
+
+- PowerShell:
+
+  ```bash
+  $env:PUGIDE_BROWSER="firefox"; npm run test:ui; Remove-Item Env:PUGIDE_BROWSER
+  ```
+
+- Bash:
+
+  ```bash
+  PUGIDE_BROWSER=firefox npm run test:ui
+  ```
+
+Cambia `firefox` por `webkit` para Safari.
+
+### La app de escritorio
+
+Abre la app con el código de la rama (compila la web y lanza Electron):
+
+```bash
+npm run start:desktop
+```
+
+Su prueba automática lanza Electron de verdad y comprueba el arranque, la seguridad (CSP y sandbox), que no sale a internet y que el service worker y la analítica están apagados. Necesita el build de producción y las dependencias de escritorio:
+
+```bash
+npm run build:prod
+```
+
+```bash
+npm run desktop:install
+```
+
+```bash
+npm run test:desktop
+```
+
+Termina con `all passed`. En un Ubuntu sin escritorio (un servidor) usa `xvfb-run -a npm run test:desktop` (`sudo apt install xvfb`).
