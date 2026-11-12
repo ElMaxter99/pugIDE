@@ -2,6 +2,12 @@
 
 Fuente de verdad: [`src/styles.scss`](../../src/styles.scss) (variables CSS en `:root`, tema oscuro por defecto, y `.light-mode`). La mesa «Tokens de diseño» del lienzo ([design/README.md](../../design/README.md)) los muestra **todos**, con sus usos reales y el contraste, y se genera del propio `styles.scss` (`node design/tools/tokens.mjs`). Esta página resume los principales y dice qué pantalla enseña cada cosa.
 
+## Logo
+
+El pug con la hoja en la boca («Mensajero», mesa L-01 del lienzo). Archivos: [`logo.svg`](logo.svg) (símbolo sobre transparente) y [`logo-icono.svg`](logo-icono.svg) (sobre el fondo de la app, con esquinas redondeadas). Colores: pelaje `#EBCBA4`, máscara `#4A3430`, hoja blanca con el acento de la app (`#ddb7ff` y `#8127cf`).
+
+No se editan los PNG a mano: el dibujo vive en `scripts/brand-icons.mjs` y `npm run brand:icons` regenera el SVG de la app, los favicons, los iconos de la PWA, los de Apple, Android y Windows, la imagen para redes y el icono de escritorio. Por debajo de 48 px se dibuja una versión simplificada (sin arrugas y con un solo renglón).
+
 ## Colores principales
 
 | Uso | Variable | Oscuro | Claro |

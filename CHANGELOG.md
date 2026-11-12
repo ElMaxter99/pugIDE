@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Cambiado
+- **Logo nuevo.** Sigue siendo un pug y un documento, pero ahora en una sola figura: el pug trae la hoja en la boca (mesa L-01 del lienzo, propuesta D, elegida entre diez). Sustituye al anterior, que eran dos mitades pegadas, en verde (fuera de la paleta de la app) y que no se distinguía en la pestaña del navegador. Cambian el icono de la pestaña, los iconos de la PWA instalada (también el enmascarable), los de Apple, Android y Windows, la imagen al compartir el enlace y el icono de la app de escritorio. En tamaños pequeños se usa una versión simplificada.
+- Todos los iconos salen de un solo dibujo con `npm run brand:icons` (`scripts/brand-icons.mjs`); el SVG fuente queda también en `docs/brand/`.
+
 ## [0.11.0] - 2026-11-11
 
 ### Añadido
