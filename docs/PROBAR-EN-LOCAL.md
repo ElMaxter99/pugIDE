@@ -72,9 +72,13 @@ La primera vez (y cuando cambian) instala solo las dependencias de escritorio, q
 
 Abre la app con el código de la rama. Para el asistente de IA **no hace falta** `npm run ia`: lo lanza la propia app.
 
-Esta app de prueba se identifica como versión **0.0.0**, así que si activas el **aviso de versión nueva**
-(primera vez que la abres, o **Ayuda → Buscar actualizaciones…**) te avisará de la última versión publicada. Es una
-forma sencilla de comprobar el aviso.
+Esta app de prueba dice la versión del proyecto (la de `package.json`). Para ver el **aviso de versión nueva** sin
+instalar nada, arráncala diciendo que es una versión antigua:
+
+- PowerShell: `$env:PUGIDE_FAKE_VERSION="0.1.0"; npm run start:desktop; Remove-Item Env:PUGIDE_FAKE_VERSION`
+- Bash: `PUGIDE_FAKE_VERSION=0.1.0 npm run start:desktop`
+
+Activa el aviso (primera vez que la abres, o **Ayuda → Buscar actualizaciones…**) y te avisará de la última versión publicada.
 
 ## 5. Los instaladores de la rama
 

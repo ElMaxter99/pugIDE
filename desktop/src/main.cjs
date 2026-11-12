@@ -39,6 +39,13 @@ function isOurs(url) {
   try { const u = new URL(url); return u.protocol === `${SCHEME}:` && u.host === 'app'; } catch { return false; }
 }
 
+// Versión de la app. Empaquetada, la de su package.json (el CI la pone al construir el instalador). Desde el código
+// (`npm run start:desktop`) desktop/package.json vale 0.0.0, así que se lee la del proyecto: si no, el aviso de versión
+// nueva decía «tienes la 0.0.0». Para probar ese aviso desde el código: PUGIDE_FAKE_VERSION=0.1.0 npm run start:desktop.
+const APP_VERSION = app.isPackaged
+  ? app.getVersion()
+  : (process.env.PUGIDE_FAKE_VERSION || require(path.join(__dirname, '..', '..', 'package.json')).version);
+
 // Icono propio en la ventana y la barra de tareas (sin él se ve el de Electron, sobre todo con `npm run start:desktop`).
 // Va empaquetado (electron-builder.yml, `files`): en Windows el .ico, con todos los tamaños; en el resto, el PNG.
 const APP_ICON = path.join(__dirname, '..', 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
@@ -60,7 +67,7 @@ function createWindow(webRoot) {
       nodeIntegration: false,
       webSecurity: true,
       spellcheck: false,
-      additionalArguments: [`--pugide-version=${encodeURIComponent(app.getVersion())}`, `--pugide-web-url=${encodeURIComponent(config.webUrl || '')}`],
+      additionalArguments: [`--pugide-version=${encodeURIComponent(APP_VERSION)}`, `--pugide-web-url=${encodeURIComponent(config.webUrl || '')}`],
     },
   });
   win.once('ready-to-show', () => win.show());
@@ -85,7 +92,7 @@ function installMenu() {
     void dialog.showMessageBox(mainWindow ?? undefined, {
       type: 'info',
       title: `Acerca de ${config.appName}`,
-      message: `${config.appName} ${app.getVersion()}`,
+      message: `${config.appName} ${APP_VERSION}`,
       detail: 'IDE de Pug/Jade 100 % local: tu código no sale de tu equipo.\n\nSoftware libre con licencia MIT, sin garantía y bajo la responsabilidad de cada persona usuaria. Este instalador no está firmado.\n\n' + config.repoUrl,
     });
   };
@@ -167,7 +174,7 @@ async function checkForUpdate() {
 
 function updateState() {
   const u = store.state.updates;
-  const current = app.getVersion();
+  const current = APP_VERSION;
   const newer = !!u.latest && compareVersions(u.latest.version, current) > 0;
   return { current, asked: !!u.asked, enabled: !!u.enabled, lastCheck: u.lastCheck || 0, latest: newer ? u.latest : null, dismissed: newer && u.dismissed === u.latest.version };
 }
