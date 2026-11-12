@@ -11,7 +11,7 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **0.11.0**: publicada, con los 7 instaladores adjuntos. Con ella se prueba el instalador de Windows (pendiente de la persona responsable).
 - **0.12.0**: publicada y desplegada (importar archivos y proyecto, logo nuevo).
 - **0.13.0**: publicada y desplegada, con los 7 instaladores (asistente de IA, índices fijos en los datos, guía para probar en local).
-- **0.13.1** (propuesta): en Windows, `npm run build:prod` fallaba con «render-sandbox.js desactualizado» en clones con CRLF; arreglo en su PR.
+- **0.14.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.14.0.md`): actualizar dentro de la app de escritorio, palabras prohibidas en el CI, icono en los instaladores y arreglos de `start:desktop` en Windows. Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel. Es la primera que se actualiza sola; desde la 0.13 se llega con «Descargar».
 - **0.10.1**: publicada. Antes: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.10.1.md`): ejemplos genéricos en las pruebas. Falta mergearla y lanzar `npm run release:deploy`; los instaladores se construyen y adjuntan solos.
 
 ## 0.11 (publicada)
@@ -28,9 +28,9 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **Asistente de IA** (P-30 a P-34, solo escritorio y local con las CLI `claude`/`copilot`): mergeado (PR 75). Para probarlo a mano: [PROBAR-EN-LOCAL.md](PROBAR-EN-LOCAL.md).
 - **`npm run start:desktop` / `test:desktop`** y la batería de pruebas en local: mergeado (PR 76).
 
-## En curso: 0.14
-- **Actualizar dentro de la app de escritorio** (P-35 y P-36): diseño aprobado y programado, en su PR (encima de la PR 79). Probado de verdad con un AppImage local. Guía reutilizable en [ACTUALIZAR-ESCRITORIO.md](ACTUALIZAR-ESCRITORIO.md).
-- **Palabras prohibidas en el CI, icono de escritorio en los instaladores y versión 0.0.0 desde el código**: PR 79.
+## 0.14 (preparada)
+- **Actualizar dentro de la app de escritorio** (P-35 y P-36): mergeado (PR 80). Probado de verdad con un AppImage local. Guía reutilizable en [ACTUALIZAR-ESCRITORIO.md](ACTUALIZAR-ESCRITORIO.md).
+- **Palabras prohibidas en el CI, icono de escritorio en los instaladores y versión 0.0.0 desde el código**: mergeado (PR 79). Arreglos de Windows (CRLF, dependencias de escritorio): PR 78.
 
 ## Propuesta en estudio
 - **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.

@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.14.0] - 2026-11-12
+
 ### Añadido
 - **Actualizar dentro de la app de escritorio** (diseño P-35 y P-36, aprobado). La barra de versión nueva ya no ofrece «Descargar» (que abría GitHub) sino **«Actualizar»**: descarga la versión nueva de la release, con barra de progreso y «Cancelar» mientras sigues trabajando; comprueba que el archivo es el publicado (huella SHA-512) y la instala con **«Reiniciar y actualizar»** (guarda antes) o **«Al cerrar PugIDE»**. Al volver a abrir avisa de que se ha actualizado. **«Ver novedades»** abre la página de la versión en GitHub. Funciona con el instalador de Windows y en Linux (AppImage, .deb y .rpm; con .deb/.rpm el sistema pide la contraseña). En macOS (exige apps firmadas) y en el portable de Windows sigue «Descargar». Si la descarga falla o no coincide, no se instala nada y se ofrece «Reintentar» o «Descargar desde GitHub». Probado de verdad con un AppImage 0.13.9 que se actualizó a 0.14.0 desde un servidor local (y que se negó con una huella cambiada). Se usa electron-updater; cada release lleva ahora `latest*.yml` y `*.blockmap`. **La primera versión que se actualiza sola es la 0.14.0**: a ella se llega con «Descargar».
 - **Guía reutilizable de cómo se actualiza una app de escritorio** ([docs/ACTUALIZAR-ESCRITORIO.md](docs/ACTUALIZAR-ESCRITORIO.md)): por qué la web es fácil y el escritorio no, los manifiestos, el código mínimo, qué sistemas se actualizan solos sin firma, seguridad, lista de comprobación y cómo probarlo con un servidor local.
