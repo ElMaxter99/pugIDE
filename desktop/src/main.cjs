@@ -39,6 +39,10 @@ function isOurs(url) {
   try { const u = new URL(url); return u.protocol === `${SCHEME}:` && u.host === 'app'; } catch { return false; }
 }
 
+// Icono propio en la ventana y la barra de tareas (sin él se ve el de Electron, sobre todo con `npm run start:desktop`).
+// Va empaquetado (electron-builder.yml, `files`): en Windows el .ico, con todos los tamaños; en el resto, el PNG.
+const APP_ICON = path.join(__dirname, '..', 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
+
 function createWindow(webRoot) {
   const win = new BrowserWindow({
     width: 1440,
@@ -48,7 +52,7 @@ function createWindow(webRoot) {
     show: false,
     title: config.appName,
     backgroundColor: '#16111b',
-    icon: path.join(__dirname, '..', 'build', 'icon.png'),
+    icon: APP_ICON,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -297,6 +301,10 @@ function setupPermissions() {
   ses.setPermissionCheckHandler((_contents, permission, requestingOrigin) => allowed.has(permission) && requestingOrigin.startsWith(ORIGIN));
 }
 
+// Windows agrupa la barra de tareas por este identificador: con el de PugIDE (el `appId` de electron-builder.yml) usa
+// nuestro icono también al ejecutar desde el código, en vez del de electron.exe.
+if (process.platform === 'win32') app.setAppUserModelId('com.elmaxter99.pugide');
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -310,6 +318,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('web-contents-created', (_event, contents) => hardenWebContents(contents));
 
   void app.whenReady().then(() => {
+    if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(path.join(__dirname, '..', 'build', 'icon.png'));
     const { webRoot, vercel } = locate();
     if (!existsSync(path.join(webRoot, 'index.html'))) {
       dialog.showErrorBox('PugIDE', `No se encuentra la aplicación compilada en:\n${webRoot}\n\nEn desarrollo, ejecuta antes «npm run build:prod» en la carpeta del proyecto.`);

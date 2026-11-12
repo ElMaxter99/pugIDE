@@ -47,6 +47,12 @@ try {
 
   check('arranca en la app (pugide://app/ide)', page.url().startsWith('pugide://app/'), page.url());
   check('la ventana se llama PugIDE', (await page.title()).includes('PugIDE'), await page.title());
+  const icon = await app.evaluate(({ app: a }) => {
+    const { existsSync } = process.getBuiltinModule('node:fs');
+    const file = `${a.getAppPath()}/build/${process.platform === 'win32' ? 'icon.ico' : 'icon.png'}`;
+    return { file, ok: existsSync(file) };
+  });
+  check('el icono de la ventana está en la app (si no, se ve el de Electron)', icon.ok, icon.file);
   const info = await page.evaluate(() => window.pugideDesktop ?? null);
   check('el preload expone la plataforma y la versión', !!info && typeof info.platform === 'string' && /^\d+\.\d+\.\d+/.test(info.version), JSON.stringify(info));
   check('y la dirección web para los enlaces de compartir', info?.webUrl === 'https://pug-ide.vercel.app', String(info?.webUrl));

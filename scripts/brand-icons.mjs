@@ -63,7 +63,7 @@ const targets = {
   'desktop/build/icon.png': tile(512, 0.22),
 };
 
-/** Un .ico con varias imágenes PNG dentro (16, 32 y 48 px). */
+/** Un .ico con varias imágenes PNG dentro (de 16 a 256 px; 256 se escribe como 0, como manda el formato). */
 function ico(images) {
   const header = Buffer.alloc(6);
   header.writeUInt16LE(1, 2);
@@ -71,7 +71,7 @@ function ico(images) {
   let offset = 6 + 16 * images.length;
   const entries = images.map(({ size, png }) => {
     const e = Buffer.alloc(16);
-    e.writeUInt8(size, 0); e.writeUInt8(size, 1);
+    e.writeUInt8(size >= 256 ? 0 : size, 0); e.writeUInt8(size >= 256 ? 0 : size, 1);
     e.writeUInt16LE(1, 4); e.writeUInt16LE(32, 6);
     e.writeUInt32LE(png.length, 8); e.writeUInt32LE(offset, 12);
     offset += png.length;
@@ -96,8 +96,12 @@ async function main() {
   const icoImages = [];
   for (const size of [16, 32, 48]) icoImages.push({ size, png: await render(transparent(size)) });
   writeFileSync(join(root, 'src/assets/icons/favicon.ico'), ico(icoImages));
+  // Icono de la app de escritorio en Windows (ventana, barra de tareas, .exe e instalador): todos los tamaños que usa.
+  const winImages = [];
+  for (const size of [16, 24, 32, 48, 64, 128, 256]) winImages.push({ size, png: await render(tile(size, 0.22)) });
+  writeFileSync(join(root, 'desktop/build/icon.ico'), ico(winImages));
   await browser.close();
-  console.log(`${Object.keys(targets).length + 4} archivos de marca generados.`);
+  console.log(`${Object.keys(targets).length + 5} archivos de marca generados.`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await main();
