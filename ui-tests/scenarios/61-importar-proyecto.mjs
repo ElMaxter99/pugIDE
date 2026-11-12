@@ -14,12 +14,29 @@ async function openProjects(page) {
   await page.locator('[role="menuitem"]', { hasText: 'Mis proyectos' }).click();
   await dlg(page).waitFor({ timeout: 5000 });
 }
-async function importWith(page, testid, files) {
+/**
+ * Un solo oyente de «filechooser» para toda la prueba. Con `waitForEvent` en cada importación, Playwright apaga la
+ * captura del selector al recibir el primero y la vuelve a encender en el siguiente; en Firefox eso es asíncrono y el
+ * clic puede llegar antes, con lo que el segundo selector no se captura.
+ */
+function chooserQueue(page) {
+  const ready = [];
+  const waiting = [];
+  page.on('filechooser', (fc) => { const w = waiting.shift(); if (w) w(fc); else ready.push(fc); });
+  return () => {
+    const fc = ready.shift();
+    if (fc) return Promise.resolve(fc);
+    return new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error('no se abrió el selector de archivos')), 6000);
+      waiting.push((x) => { clearTimeout(t); resolve(x); });
+    });
+  };
+}
+async function importWith(page, nextChooser, testid, files) {
   await openProjects(page);
   await dlg(page).locator('[data-testid="import-project"]').click();
-  const chooser = page.waitForEvent('filechooser', { timeout: 6000 });
   await dlg(page).locator(`[data-testid="${testid}"]`).click();
-  await (await chooser).setFiles(files);
+  await (await nextChooser()).setFiles(files);
 }
 
 export default async function (env) {
@@ -34,6 +51,7 @@ export default async function (env) {
 
   const app = await openApp(env, { path: '/ide', session });
   const { page } = app;
+  const nextChooser = chooserQueue(page);
   await page.locator('.monaco-editor').first().waitFor({ timeout: 20000 });
 
   // --- Dónde está ---
@@ -50,7 +68,7 @@ export default async function (env) {
   await dlg(page).waitFor({ state: 'detached', timeout: 6000 }).catch(() => {});
 
   // --- Desde una carpeta ---
-  await importWith(page, 'import-project-folder', folder);
+  await importWith(page, nextChooser, 'import-project-folder', folder);
   check('61 se abre un proyecto nuevo con el nombre de la carpeta', !!(await waitUntil(async () => (await projectName(page)) === 'plantillas-norte', 10000)), await projectName(page));
   const s = await waitUntil(async () => { const x = await stored(page); return x?.projectName === 'plantillas-norte' ? x : null; }, 8000);
   check('61 con sus archivos, sin la carpeta raíz y sin node_modules', !!s && s.files['/main.pug']?.includes('carta de Norte') && s.files['/partials/pie.pug'] === 'p pie de Norte\n' && !Object.keys(s.files).some((p) => p.includes('node_modules') || p.includes('plantillas-norte')), JSON.stringify(Object.keys(s?.files ?? {})));
@@ -60,7 +78,7 @@ export default async function (env) {
 
   // --- Desde un .zip, y con un nombre que ya existe ---
   const zip = Buffer.from(zipSync({ 'plantillas-norte/main.pug': strToU8('p desde el zip\n'), 'plantillas-norte/estilos/base.css': strToU8('p{margin:0}') }));
-  await importWith(page, 'import-project-zip', { name: 'plantillas-norte.zip', mimeType: 'application/zip', buffer: zip });
+  await importWith(page, nextChooser, 'import-project-zip', { name: 'plantillas-norte.zip', mimeType: 'application/zip', buffer: zip });
   check('61 el .zip crea otro proyecto con nombre libre', !!(await waitUntil(async () => (await projectName(page)) === 'plantillas-norte (2)', 10000)), await projectName(page));
   const z = await waitUntil(async () => { const x = await stored(page); return x?.projectName === 'plantillas-norte (2)' ? x : null; }, 8000);
   check('61 con el contenido del .zip', !!z && z.files['/main.pug'] === 'p desde el zip\n' && z.files['/estilos/base.css'] === 'p{margin:0}');
