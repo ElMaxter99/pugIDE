@@ -4,6 +4,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Corregido
+- **`npm run build:prod` (y `npm run start:desktop`) ya no fallan en Windows con «render-sandbox.js desactualizado».** En un clon hecho antes de fijar los saltos de línea a LF (o con `core.autocrlf=true`), las fuentes del motor llegan con CRLF y su hash no coincidía con el de los archivos generados, aunque el código fuera el mismo. La comprobación ya no depende de los saltos de línea.
+- **`npm run start:desktop` funciona a la primera.** Si faltaban las dependencias de la app de escritorio daba «"electron" no se reconoce como un comando»; ahora las instala sola la primera vez y cuando cambia `desktop/package-lock.json` (`scripts/ensure-desktop-deps.mjs`). Lo mismo `test:desktop` y `desktop:pack`.
+
 ## [0.13.0] - 2026-11-12
 
 ### Añadido

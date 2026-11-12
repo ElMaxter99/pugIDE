@@ -23,6 +23,7 @@ const TARGETS = [
   { entry: 'src/app/core/render/preview-entry.ts', out: 'src/assets/preview-runtime.js' },
 ];
 const MARK = '// pugide-runtime source-hash: ';
+const lf = (text) => text.replace(/\r\n/g, '\n');
 
 async function compile({ entry }) {
   const r = await build({
@@ -37,7 +38,9 @@ async function compile({ entry }) {
   });
   const hash = createHash('sha256');
   for (const input of Object.keys(r.metafile.inputs).sort()) {
-    hash.update(input).update('\0').update(readFileSync(path.join(root, input)));
+    // Sin depender de los saltos de línea: un checkout de Windows con CRLF (clones anteriores a .gitattributes, o
+    // core.autocrlf=true) daría otro hash con las mismas fuentes.
+    hash.update(input).update('\0').update(lf(readFileSync(path.join(root, input), 'utf8')));
   }
   const digest = hash.digest('hex').slice(0, 16);
   const code = r.outputFiles[0].text;
@@ -75,7 +78,7 @@ for (const target of TARGETS) {
     const frameFile = path.join(root, FRAME);
     const html = previewFrameHtml(built.text);
     if (check) {
-      const ok = existsSync(frameFile) && readFileSync(frameFile, 'utf8') === html;
+      const ok = existsSync(frameFile) && lf(readFileSync(frameFile, 'utf8')) === lf(html);
       console.log(`  ${ok ? '✓' : '✗'} ${FRAME} ${ok ? 'está al día' : 'desactualizado: ejecuta "npm run bundle:runtime"'}`);
       if (!ok) stale = true;
     } else {
@@ -85,7 +88,7 @@ for (const target of TARGETS) {
   }
   const file = path.join(root, target.out);
   if (check) {
-    const current = existsSync(file) ? readFileSync(file, 'utf8') : '';
+    const current = existsSync(file) ? lf(readFileSync(file, 'utf8')) : '';
     const have = current.startsWith(MARK) ? current.slice(MARK.length, current.indexOf('\n')) : null;
     const ok = have === built.digest;
     console.log(`  ${ok ? '✓' : '✗'} ${target.out} ${ok ? 'está al día' : `desactualizado (fuentes ${built.digest}, archivo ${have ?? 'sin hash'}): ejecuta "npm run bundle:runtime"`}`);

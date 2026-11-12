@@ -65,12 +65,10 @@ Si algo falla, el diálogo enseña el mensaje de la propia CLI (por ejemplo, ses
 Es la forma más rápida de probar la app de escritorio de una rama:
 
 ```bash
-npm run desktop:install
-```
-
-```bash
 npm run start:desktop
 ```
+
+La primera vez (y cuando cambian) instala solo las dependencias de escritorio, que tarda un par de minutos.
 
 Abre la app con el código de la rama. Para el asistente de IA **no hace falta** `npm run ia`: lo lanza la propia app.
 
@@ -184,14 +182,10 @@ Abre la app con el código de la rama (compila la web y lanza Electron):
 npm run start:desktop
 ```
 
-Su prueba automática lanza Electron de verdad y comprueba el arranque, la seguridad (CSP y sandbox), que no sale a internet y que el service worker y la analítica están apagados. Necesita el build de producción y las dependencias de escritorio:
+Su prueba automática lanza Electron de verdad y comprueba el arranque, la seguridad (CSP y sandbox), que no sale a internet y que el service worker y la analítica están apagados. Necesita el build de producción (las dependencias de escritorio se instalan solas si faltan):
 
 ```bash
 npm run build:prod
-```
-
-```bash
-npm run desktop:install
 ```
 
 ```bash
@@ -199,3 +193,17 @@ npm run test:desktop
 ```
 
 Termina con `all passed`. En un Ubuntu sin escritorio (un servidor) usa `xvfb-run -a npm run test:desktop` (`sudo apt install xvfb`).
+
+## 8. Si algo falla
+
+- **«render-sandbox.js desactualizado: ejecuta npm run bundle:runtime»** al compilar en Windows: pasaba en clones hechos antes de la 0.13.1 (los archivos llegan con saltos de línea CRLF). Con la 0.13.1 ya no ocurre. Si quieres dejar tu clon con saltos LF, como en el repositorio (**borra los cambios que no hayas guardado**):
+
+  ```bash
+  git rm -rq --cached .
+  ```
+
+  ```bash
+  git reset --hard
+  ```
+
+- **Electron no arranca en un Ubuntu sin escritorio**: usa `xvfb-run -a` delante del comando.

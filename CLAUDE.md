@@ -58,7 +58,7 @@ parser -> datos -> orquestador -> compilador -> preview. Ver `src/app/core/servi
 - `npm run build:prod` build de producción
 - `npm run test:e2e` pruebas e2e de servicios (`e2e/`)
 - `npm run test:ui` pruebas de interfaz con Playwright sobre el build de producción (`ui-tests/`; ejecuta antes `npm run build:prod`)
-- `npm run start:desktop` app de escritorio con el código actual; `npm run test:desktop` su prueba automática (tras `npm run build:prod` y `npm run desktop:install`)
+- `npm run start:desktop` app de escritorio con el código actual; `npm run test:desktop` su prueba automática (tras `npm run build:prod`; ambas instalan solas las dependencias de `desktop/` si faltan o cambian)
 - `npm run ia` puente local del asistente de IA (solo con `npm start`)
 - Probar una rama a mano en Windows o Ubuntu (web, IA, escritorio, instaladores, aviso de versión): [docs/PROBAR-EN-LOCAL.md](docs/PROBAR-EN-LOCAL.md)
 
