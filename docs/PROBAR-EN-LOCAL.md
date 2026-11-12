@@ -199,3 +199,17 @@ npm run test:desktop
 ```
 
 Termina con `all passed`. En un Ubuntu sin escritorio (un servidor) usa `xvfb-run -a npm run test:desktop` (`sudo apt install xvfb`).
+
+## 8. Si algo falla
+
+- **«render-sandbox.js desactualizado: ejecuta npm run bundle:runtime»** al compilar en Windows: pasaba en clones hechos antes de la 0.13.1 (los archivos llegan con saltos de línea CRLF). Con la 0.13.1 ya no ocurre. Si quieres dejar tu clon con saltos LF, como en el repositorio (**borra los cambios que no hayas guardado**):
+
+  ```bash
+  git rm -rq --cached .
+  ```
+
+  ```bash
+  git reset --hard
+  ```
+
+- **Electron no arranca en un Ubuntu sin escritorio**: usa `xvfb-run -a` delante del comando.
