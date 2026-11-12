@@ -83,7 +83,8 @@ const VALUE_METHODS = new Set([
 const DATE_METHODS = new Set(['toISOString', 'toLocaleDateString', 'getFullYear', 'getTime', 'getMonth', 'getDate']);
 
 /** A data reference found in an expression, with a type hint taken from how it is used (`rows.length` → array). */
-interface ExprRef { id: string; hint?: DataType }
+/** `minItems`: arrays read by a fixed index (`productos[1].name` -> `productos[]` needs at least 2 elements). */
+interface ExprRef { id: string; hint?: DataType; minItems?: [string, number][] }
 
 const IDENTIFIER_RE = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
 const IDENTIFIER_CHAIN_RE = /^[a-zA-Z_$][a-zA-Z0-9_$]*(\.[a-zA-Z_$][a-zA-Z0-9_$]*)*$/;
@@ -108,6 +109,8 @@ export class PugParserService {
   private declared = new Map<string, string | null>();
   /** Variables del template con valores de texto conocidos (`- var s = 'SINGLE'`, `n === 1 ? 'A' : 'B'`): sirven para resolver claves calculadas `t(`TEXT_${s}`)`. */
   private stringConsts = new Map<string, string[]>();
+  /** Arrays read by a fixed index and how many elements that needs (`productos[]` -> 2 for `productos[1]`). */
+  private minItems = new Map<string, number>();
   /** Free functions called by expressions of the last extraction (`t('KEY')`). */
   private calledFns = new Set<string>();
   /** Literal keys of translator calls of the last extraction. */
@@ -281,6 +284,7 @@ export class PugParserService {
     const mixinDefs = new Map<string, { params: string[]; body: PugAstNode[] }>();
     this.declared = new Map();
     this.stringConsts = new Map();
+    this.minItems = new Map();
     this.calledFns = new Set();
     this.translationKeys = new Set();
 
@@ -300,6 +304,10 @@ export class PugParserService {
     });
 
     this.collectNodes(ast.nodes ?? [], new Map(), collected, mixinDefs, 0);
+    for (const [path, n] of this.minItems) {
+      const v = collected.get(path);
+      if (v) v.minItems = n;
+    }
     return Array.from(collected.values()).sort((a, b) => a.path.localeCompare(b.path));
   }
 
@@ -357,9 +365,13 @@ export class PugParserService {
       if (!aliases.has(root) && !this.declared.has(root)) this.calledFns.add(fn);
     }
     for (const key of keys) this.translationKeys.add(key);
-    for (const { id, hint } of refs) {
+    for (const { id, hint, minItems } of refs) {
       const path = this.resolveId(id, aliases);
       if (!path) continue;
+      for (const [arrayId, n] of minItems ?? []) {
+        const arrayPath = this.resolveId(arrayId, aliases);
+        if (arrayPath) this.minItems.set(arrayPath, Math.max(n, this.minItems.get(arrayPath) ?? 0));
+      }
       const name = path.split('.').pop()!.replace('[]', '');
       // A usage hint only decides the type when the name itself doesn't say anything.
       this.addVariable(collected, path, hint && this.inferType(name) === 'string' ? hint : undefined);
@@ -679,7 +691,15 @@ export class PugParserService {
         // `obj.method(…).other` — what follows a dot is a property, not data.
         if (prevSig(start) === '.') continue;
 
-        while (i < expr.length && (expr[i] === '.' || (expr[i] === '?' && expr[i + 1] === '.'))) {
+        while (i < expr.length && (expr[i] === '.' || expr[i] === '[' || (expr[i] === '?' && expr[i + 1] === '.'))) {
+          // `lista[1]` / `lista?.[1]`: an element read by a fixed index is an element of the array.
+          const bracket = expr[i] === '[' ? i : expr[i] === '?' && expr[i + 2] === '[' ? i + 2 : -1;
+          if (bracket >= 0) {
+            const m = /^\[\s*(\d+)\s*\]/.exec(expr.slice(bracket));
+            if (!m) break;
+            i = bracket + m[0].length;
+            continue;
+          }
           const dot = expr[i] === '.' ? i : i + 1;
           if (/[a-zA-Z_$]/.test(expr[dot + 1] ?? '')) {
             i = dot + 1;
@@ -689,8 +709,15 @@ export class PugParserService {
           }
         }
 
-        const parts = expr.slice(start, i).replace(/\?/g, '').split('.');
-        const first = parts[0];
+        // `a?.[2].b` -> `a[2].b` -> segments `a[]`, `b`, remembering that `a[]` needs 3 elements.
+        const chain = expr.slice(start, i).replace(/\?\.\[/g, '[').replace(/\?/g, '');
+        const minItems: [string, number][] = [];
+        const normalized = chain.replace(/\[\s*(\d+)\s*\]/g, (_m, n: string, at: number) => {
+          minItems.push([chain.slice(0, at).replace(/\[\s*\d+\s*\]/g, '[]') + '[]', Number(n) + 1]);
+          return '[]';
+        });
+        const parts = normalized.split('.');
+        const first = parts[0].replace(/\[\]$/, '');
 
         if (first === 'function') {
           // `function name(` — the name is not data (parameters are filtered through `locals`).
@@ -735,9 +762,9 @@ export class PugParserService {
             refs.push({ id: parts.join('.'), hint });
           }
         } else if (parts.length > 1 && parts[parts.length - 1] === 'length') {
-          refs.push({ id: parts.slice(0, -1).join('.'), hint: 'array' });
+          refs.push({ id: parts.slice(0, -1).join('.'), hint: 'array', ...(minItems.length ? { minItems } : {}) });
         } else {
-          refs.push({ id: parts.join('.') });
+          refs.push({ id: parts.join('.'), ...(minItems.length ? { minItems } : {}) });
         }
         continue;
       }

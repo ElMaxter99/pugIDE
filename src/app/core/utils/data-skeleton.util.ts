@@ -45,5 +45,35 @@ export function buildDataSkeleton(variables: PugVariable[]): Obj {
       node = node[key] as Obj;
     }
   }
+  for (const v of variables) if (v.minItems && v.minItems > 1) padArray(data, v.path, v.minItems);
   return data;
+}
+
+/**
+ * Makes the array at `path` (`productos[]`, `pedidos[].lineas[]`) have at least `min` elements, copying the shape of
+ * its first element. Every array along the path is padded (the first element of an outer array is the one that is
+ * filled). Returns whether anything was added. Used on new skeletons and on existing data: a template that reads
+ * `productos[1].name` fails when there is only one product.
+ */
+export function padArray(data: Obj, path: string, min: number): boolean {
+  const segments = path.split('.');
+  let nodes: unknown[] = [data];
+  let changed = false;
+  for (let i = 0; i < segments.length; i++) {
+    const isArraySeg = segments[i].endsWith('[]');
+    const key = segments[i].replace(/\[\]$/, '');
+    const next: unknown[] = [];
+    for (const node of nodes) {
+      if (!isObj(node)) continue;
+      const value = node[key];
+      if (!isArraySeg) { next.push(value); continue; }
+      if (!Array.isArray(value)) continue;
+      if (i === segments.length - 1 && value.length > 0) {
+        while (value.length < min) { value.push(structuredClone(value[value.length - 1])); changed = true; }
+      }
+      next.push(...value);
+    }
+    nodes = next;
+  }
+  return changed;
 }

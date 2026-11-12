@@ -45,3 +45,20 @@ test('stringifyData e insertIndent', () => {
   assert.deepEqual(insertIndent('abcd', 1, 3), { value: 'a  d', cursor: 3 });
   assert.deepEqual(insertIndent('', 0, 0), { value: '  ', cursor: 2 });
 });
+
+test('el esqueleto rellena hasta los elementos que pide la plantilla (padArray)', async () => {
+  const { buildDataSkeleton, padArray } = await import('./.build/units.mjs');
+  const data = buildDataSkeleton([
+    { name: 'productos', path: 'productos[]', type: 'array', defaultValue: [], isLeaf: false, minItems: 3 },
+    { name: 'name', path: 'productos[].name', type: 'string', defaultValue: '', isLeaf: true, parentPath: 'productos[]' },
+  ]);
+  assert.equal(data.productos.length, 3);
+  const existing = { productos: [{ name: 'Licencia' }] };
+  assert.equal(padArray(existing, 'productos[]', 2), true);
+  assert.deepEqual(existing.productos, [{ name: 'Licencia' }, { name: 'Licencia' }]);
+  assert.equal(padArray(existing, 'productos[]', 2), false, 'no toca lo que ya llega');
+  const nested = { pedidos: [{ lineas: [{ a: 1 }] }, { lineas: [] }] };
+  padArray(nested, 'pedidos[].lineas[]', 2);
+  assert.equal(nested.pedidos[0].lineas.length, 2);
+  assert.equal(nested.pedidos[1].lineas.length, 0, 'un array vacío se deja (no hay forma que copiar)');
+});

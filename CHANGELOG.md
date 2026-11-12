@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Corregido
+- **Una plantilla que lee un elemento por su posición ya no falla con los datos de ejemplo.** Con `productos[1].name`, PugIDE no entendía el índice: trataba `productos` como un texto y la vista previa daba «Cannot read properties of undefined (reading 'name')». Ahora reconoce `lista[N]` (también dentro de un `each`) como un elemento de la lista y se asegura de que haya al menos N+1: los datos de ejemplo nuevos se generan con esos elementos, y si tus datos ya tenían menos, se completan copiando la forma del último, sin tocar los que había. Escenario `62-indices-en-datos` y pruebas unitarias del parser y de `padArray`.
+
 ## [0.12.0] - 2026-11-12
 
 ### Cambiado

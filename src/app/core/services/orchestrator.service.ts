@@ -36,7 +36,7 @@ import { inlineLocalStylesheets, isStylePath } from '../utils/style-refs.util';
 import { ASSET_EXT_RE, mimeForPath, refToPath, rewriteRefs } from '../utils/asset.util';
 import { DiagnosticFix, PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
-import { buildDataSkeleton } from '../utils/data-skeleton.util';
+import { buildDataSkeleton, padArray } from '../utils/data-skeleton.util';
 import { errorifyData, mockifyData, mockLeaf } from '../utils/mock-data.util';
 import { DatasetKind, DatasetsFile, parseDatasetsFile } from '../utils/datasets.util';
 import { inferData } from '../utils/schema-infer.util';
@@ -176,7 +176,10 @@ export class OrchestratorService {
       const isAutoLeaf = ds?.kind === 'empty' || ds?.kind === 'error' ? undefined
         : (path: string, v: unknown) => typeof v === 'string' && v === mockLeaf(path.split('.').pop() ?? path, path, mockOpts);
       // El juego "Error" conserva nulos a propósito: no se sustituyen por objetos al autocompletar.
-      if (this.deepMergeMissing(patchedData, skeleton, ds?.kind !== 'error', isAutoLeaf)) {
+      let patched = this.deepMergeMissing(patchedData, skeleton, ds?.kind !== 'error', isAutoLeaf);
+      // `productos[1].name` en la plantilla: la lista necesita al menos 2 elementos (se copia la forma del último).
+      if (ds?.kind !== 'error') for (const v of parseResult.variables) if (v.minItems && v.minItems > 1 && padArray(patchedData, v.path, v.minItems)) patched = true;
+      if (patched) {
         this.dataState.patchMissingData(patchedData);
         this.terminalState.addEntry(
           'info',
