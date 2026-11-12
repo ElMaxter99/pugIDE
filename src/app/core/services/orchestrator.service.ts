@@ -400,11 +400,19 @@ export class OrchestratorService {
   }
 
   /** Guarda el proyecto activo en la biblioteca (IndexedDB), con sus assets. Espera a que los assets estén cargados. */
+  /** Assets que ya están en la biblioteca para el proyecto (el mapa es inmutable: misma referencia, mismos assets). */
+  private libraryAssets: { id: string; ref: Map<string, AssetFile> } | null = null;
+
   async saveToLibrary(): Promise<void> {
     const id = this.projectState.projectId();
     const session = this.buildSession();
     if (!id || !session || !this.assetsReady) return;
-    const ok = await this.library.save(id, { session, assets: [...this.assetState.assets().values()] });
+    // El autoguardado reescribía todas las imágenes y fuentes cada vez (≈1,9 ms por MB con la pantalla congelada):
+    // ahora solo se escriben cuando cambian (añadir, quitar o sustituir) o al guardar otro proyecto.
+    const map = this.assetState.assets();
+    const changed = this.libraryAssets?.id !== id || this.libraryAssets.ref !== map;
+    const ok = await this.library.save(id, { session, assets: changed ? [...map.values()] : undefined }, map.size);
+    if (ok && changed) this.libraryAssets = { id, ref: map };
     if (!ok && !this.libraryWarned) {
       this.libraryWarned = true;
       this.terminalState.addEntry('warning', 'Proyectos', 'No se pudo guardar el proyecto en la biblioteca del navegador (almacenamiento lleno o bloqueado).');

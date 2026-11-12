@@ -18,6 +18,20 @@ import { check, run, sleep } from '../lib.mjs';
   let list = await lib.list();
   check('40 el proyecto activo se guarda en la biblioteca', list.length === 1 && list[0].id === idA && list[0].fileCount === 2 && list[0].assetCount === 1, JSON.stringify(list));
   check('40 el id activo se recuerda', a.PersistenceService.loadCurrentProjectId() === idA);
+  // El autoguardado no reescribe las imágenes si no han cambiado (antes: todas, cada vez).
+  const backendA = lib.backend;
+  check('40 la primera vez se guardan los assets', backendA.assetWrites === 1, String(backendA.assetWrites));
+  a.EditorState.files.update((m) => new Map(m).set('/a.pug', 'h1 Proyecto A cambiado\n'));
+  await a.orch.saveToLibrary();
+  await a.orch.saveToLibrary();
+  check('40 guardar otra vez sin tocar imágenes no las reescribe', backendA.assetWrites === 1, String(backendA.assetWrites));
+  check('40 y siguen guardadas, con el texto nuevo', (await lib.load(idA)).assets.length === 1 && (await lib.load(idA)).session.files['/a.pug'].includes('cambiado') && (await lib.list())[0].assetCount === 1);
+  a.AssetState.add('/img/b.png', new Uint8Array([4, 5]), 'image/png');
+  await a.orch.saveToLibrary();
+  check('40 al añadir una imagen sí se reescriben', backendA.assetWrites === 2 && (await lib.load(idA)).assets.length === 2 && (await lib.list())[0].assetCount === 2);
+  a.AssetState.remove('/img/b.png');
+  await a.orch.saveToLibrary();
+  check('40 y al quitarla también', backendA.assetWrites === 3 && (await lib.load(idA)).assets.length === 1);
 
   await a.orch.createProject('Segundo');
   const idB = a.ProjectState.projectId();
