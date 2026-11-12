@@ -9,6 +9,7 @@ IDE de Pug/Jade 100% en el navegador (Angular 22, componentes standalone, signal
 ## Filosofía (no negociable)
 
 - **Todo local en el navegador.** No hay backend; nada del código del usuario sale de su máquina. No añadas llamadas de red con datos del usuario. La única telemetría es la analítica anónima de visitas de Vercel, **opt-in** (se carga solo si el usuario acepta el aviso de privacidad; `AnalyticsService`): no añadas otra.
+  - **Única excepción: el asistente de IA** (`AiService`, diseño P-30 a P-34). Solo existe en la app de escritorio y al ejecutar PugIDE en tu equipo con `npm start` (+ `npm run ia`); **nunca en la web publicada** (ni en Vercel ni en ningún build de producción servido en un navegador). Lanza la CLI que la persona ya tiene instalada (`claude` o `copilot`) con su propia sesión, **sin herramientas** (no lee ni escribe archivos ni ejecuta órdenes), y **no envía nada hasta que se pulsa «Enviar»**, después de ver exactamente qué se manda. Las propuestas nunca se aplican solas. No amplíes esta excepción a otros servicios ni a la web.
 - **Mocks automáticos.** Se detectan las variables y las claves de traducción `t('KEY')` del template y se generan datos de ejemplo (bajo `translations`); el usuario los edita después.
 - **Preview en vivo.** Compilación con debounce al escribir; el preview (dispositivos y modo PDF/página impresa) siempre debe reflejar el estado actual.
 - **Plantillas reales multi-archivo.** Proyectos con carpetas, `include`, `extends`, estilos CSS/SCSS/Sass/Less y assets locales (imágenes y fuentes en IndexedDB, servidos como `blob:`), no ejemplos de un solo archivo.
@@ -57,6 +58,8 @@ parser -> datos -> orquestador -> compilador -> preview. Ver `src/app/core/servi
 - `npm run build:prod` build de producción
 - `npm run test:e2e` pruebas e2e de servicios (`e2e/`)
 - `npm run test:ui` pruebas de interfaz con Playwright sobre el build de producción (`ui-tests/`; ejecuta antes `npm run build:prod`)
+- `npm run ia` puente local del asistente de IA (solo con `npm start`)
+- Probar una rama a mano en Windows o Ubuntu (web, IA, escritorio, instaladores, aviso de versión): [docs/PROBAR-EN-LOCAL.md](docs/PROBAR-EN-LOCAL.md)
 
 ## Convenciones
 

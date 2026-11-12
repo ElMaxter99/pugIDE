@@ -96,6 +96,11 @@ Estado «fiel a la 0.5»: generada de la app de este repositorio (0.4.1 más los
 | P-29 Importar proyecto | «Mis proyectos» con «Importar proyecto…» (carpeta o .zip), resultado y nombre libre | mismo archivo | `projects-dialog`, `project-io.service` | Diseño 0.12 aprobado y programado |
 | L-01 Logo | Cuatro propuestas de logo (A «Dog-ear», B, C, D «Mensajero») | [`L-01-Logo-propuestas.dc.html`](canvas/L-01-Logo-propuestas.dc.html) | `scripts/brand-icons.mjs` | Elegida la D y aplicada (0.12) |
 | L-02 Logo, segunda ronda | Seis variaciones de las familias A y D | [`L-02-Logo-segunda-ronda.dc.html`](canvas/L-02-Logo-segunda-ronda.dc.html) | (marca) | Descartadas en favor de la D original |
+| P-30 Ajustes del asistente de IA | CLI encontradas (`claude`, `copilot`), modelo por defecto de cada una, proveedor, límites; aviso del puente local | [`P-30-P-34-Asistente-IA.dc.html`](canvas/P-30-P-34-Asistente-IA.dc.html) | `ai-settings-dialog`, `ai.service` | Diseño 0.13 aprobado y programado |
+| P-31 Preparar la petición | Proveedor y modelo, qué se envía, estimación de tokens, orden y texto exactos | mismo archivo | `ai-dialog`, `ai.util` | Diseño 0.13 aprobado y programado |
+| P-32 En marcha | Pasos de la CLI, tokens en vivo, detener | mismo archivo | `ai-dialog` | Diseño 0.13 aprobado y programado |
+| P-33 Propuestas | Propuestas con comprobación, diferencias, probar, aplicar | mismo archivo | `ai-dialog`, `orchestrator` | Diseño 0.13 aprobado y programado |
+| P-34 Probando en la vista previa | Barra de prueba con Revertir y Aplicar; entradas desde Datos y Problemas | mismo archivo | `ai-dialog`, `dataset-bar`, `problems-panel` | Diseño 0.13 aprobado y programado |
 
 Las mesas `P-NN` son la propuesta 0.7 de mejoras funcionales (ver [`propuestas/0.7-mejoras-funcionales.md`](propuestas/0.7-mejoras-funcionales.md)): no están programadas y se generan con `node design/propuestas/build-mesas-0.7.mjs` (ver la cabecera del script). Los `V-NN` no se han tocado; V-01 y V-05 siguen sin el botón de cámara de la 0.6 y se regenerarán al implementar.
 

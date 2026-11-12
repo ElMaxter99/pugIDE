@@ -21,6 +21,11 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **Importar archivos e importar proyecto** (P-28 y P-29): diseño aprobado, programado y mergeado (PR 71). «Importar archivos» añade al proyecto abierto; «Importar proyecto» está en «Mis proyectos» y crea uno nuevo.
 - **Logo nuevo**: propuesta D («Mensajero», el pug con la hoja en la boca; mesa L-01), mergeada (PR 72; SVG, favicon, iconos de la PWA, Apple, Android, Windows y escritorio; `npm run brand:icons`).
 
+## En curso: 0.13
+- **Índices fijos en los datos** (`productos[1].name`): PR 74, CI en verde; falta mergearla.
+- **Asistente de IA** (P-30 a P-34, solo escritorio y local con CLI `claude`/`copilot`): diseño aprobado, programado, en su PR (encima de la PR 74). Para probarlo a mano: [PROBAR-EN-LOCAL.md](PROBAR-EN-LOCAL.md).
+- **0.12.0**: publicada y desplegada.
+
 ## Propuesta en estudio
 - **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.
 

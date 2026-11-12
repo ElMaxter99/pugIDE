@@ -3,6 +3,8 @@ import { DropdownMenuComponent, MenuItem } from '../../shared/components/dropdow
 import { DataState } from '../../core/state/data.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { TerminalState } from '../../core/state/terminal.state';
+import { AiService } from '../../core/services/ai.service';
+import { UiState } from '../../core/state/ui.state';
 import type { DatasetKind } from '../../core/utils/datasets.util';
 
 /** Barra de juegos de datos: elegir, regenerar y, en el menú «⋯», crear, renombrar, duplicar, borrar, idioma de los mocks, importar, copiar y vaciar. */
@@ -88,6 +90,8 @@ import type { DatasetKind } from '../../core/utils/datasets.util';
 })
 export class DatasetBarComponent {
   protected dataState = inject(DataState);
+  private ai = inject(AiService);
+  private ui = inject(UiState);
   private orchestrator = inject(OrchestratorService);
   private terminalState = inject(TerminalState);
 
@@ -119,6 +123,7 @@ export class DatasetBarComponent {
     { id: 'import', icon: 'upload_file', label: 'Importar JSON, Schema u OpenAPI…' },
     { id: 'copy', icon: 'content_copy', label: 'Copiar JSON' },
     { id: 'clear', icon: 'delete', label: 'Dejar objeto vacío…' },
+    ...(this.ai.available ? [{ separator: true } as MenuItem, { id: 'ai', icon: 'neurology', label: 'Proponer datos con IA…' } as MenuItem] : []),
   ]);
 
   protected onMenu(id: string): void {
@@ -133,6 +138,7 @@ export class DatasetBarComponent {
       case 'locale-es': this.setLocale('es'); break;
       case 'locale-en': this.setLocale('en'); break;
       case 'import': this.importInput().nativeElement.click(); break;
+      case 'ai': this.ui.aiRequest.set({ task: 'data' }); break;
       case 'copy': this.copyJson.emit(); break;
       case 'clear': this.clearData.emit(); break;
     }

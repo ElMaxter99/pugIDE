@@ -82,6 +82,8 @@ export class OrchestratorService {
   private hintKeys = new Set<string>();
   /** Descripción de la última operación de archivos que se puede deshacer (null si no hay). */
   readonly fileUndoLabel = signal<string | null>(null);
+  /** Propuesta de la IA que se está probando (P-34): la vista previa la usa sin tocar los archivos ni los datos. */
+  readonly aiTrial = signal<{ label: string; data?: Record<string, unknown>; files?: Map<string, string> } | null>(null);
 
   constructor() {
     this.setupAutoCompile();
@@ -128,8 +130,15 @@ export class OrchestratorService {
     this.parserState.setParsing(true);
 
     try {
-      const files = this.editorState.allFileContents();
+      let files = this.editorState.allFileContents();
       const activePath = this.editorState.activeTab()?.path;
+      // «Probar» una propuesta de la IA: se compila con ella sin tocar tus archivos ni tus datos (sobre una copia:
+      // `allFileContents()` es el mapa vivo del proyecto).
+      const trial = this.aiTrial();
+      if (trial?.files) {
+        files = new Map(files);
+        for (const [p, c] of trial.files) files.set(p, c);
+      }
       // Una elección que ya no es válida (el archivo desapareció) se descarta: vuelve la vista automática.
       if (this.previewState.pinnedEntry() && !validPinned(this.previewState.pinnedEntry(), files)) this.previewState.pinnedEntry.set(null);
       const entryPath = findEntryPath(files, activePath, this.previewState.pinnedEntry());
@@ -140,7 +149,7 @@ export class OrchestratorService {
       }
       this.previewState.entryPath.set(entryPath);
       // The active tab's live content wins over the stored copy (it is the one being typed).
-      const entryCode = entryPath === activePath ? this.editorState.editorContent() : (files.get(entryPath) ?? '');
+      const entryCode = entryPath === activePath && !trial?.files?.has(entryPath) ? this.editorState.editorContent() : (files.get(entryPath) ?? '');
       if (entryPath === activePath) files.set(entryPath, entryCode);
 
       const rawParseResult = await this.parser.parse(entryCode, entryPath);
@@ -176,9 +185,9 @@ export class OrchestratorService {
       const isAutoLeaf = ds?.kind === 'empty' || ds?.kind === 'error' ? undefined
         : (path: string, v: unknown) => typeof v === 'string' && v === mockLeaf(path.split('.').pop() ?? path, path, mockOpts);
       // El juego "Error" conserva nulos a propósito: no se sustituyen por objetos al autocompletar.
-      let patched = this.deepMergeMissing(patchedData, skeleton, ds?.kind !== 'error', isAutoLeaf);
+      let patched = !trial && this.deepMergeMissing(patchedData, skeleton, ds?.kind !== 'error', isAutoLeaf);
       // `productos[1].name` en la plantilla: la lista necesita al menos 2 elementos (se copia la forma del último).
-      if (ds?.kind !== 'error') for (const v of parseResult.variables) if (v.minItems && v.minItems > 1 && padArray(patchedData, v.path, v.minItems)) patched = true;
+      if (!trial && ds?.kind !== 'error') for (const v of parseResult.variables) if (v.minItems && v.minItems > 1 && padArray(patchedData, v.path, v.minItems)) patched = true;
       if (patched) {
         this.dataState.patchMissingData(patchedData);
         this.terminalState.addEntry(
@@ -199,9 +208,10 @@ export class OrchestratorService {
       }
 
       const localeInfo = this.syncLocales(files, locales, parseResult.translationKeys);
+      const baseData = trial?.data ?? this.dataState.data();
       const data = localeInfo.translations
-        ? { ...this.dataState.data(), [TRANSLATIONS_KEY]: localeInfo.translations }
-        : this.dataState.data();
+        ? { ...baseData, [TRANSLATIONS_KEY]: localeInfo.translations }
+        : baseData;
       const compileResult = await this.compiler.compile(entryCode, data, entryPath, files, parseResult.calledFunctions);
 
       // `<link rel="stylesheet" href="local.css">` becomes an inline <style>; the rest of the project styles are still injected.
@@ -696,15 +706,18 @@ export class OrchestratorService {
    * Compila una plantilla del proyecto a HTML autocontenido con los datos actuales, sin tocar la vista previa ni el estado.
    * Devuelve `null` y los errores si no compila.
    */
-  async renderStandalone(entryPath: string): Promise<{ html: string | null; errors: string[] }> {
-    const files = this.editorState.allFileContents();
+  /** `override`: datos o archivos distintos de los del proyecto (comprobar una propuesta de la IA sin aplicarla). */
+  async renderStandalone(entryPath: string, override: { data?: Record<string, unknown>; files?: Map<string, string> } = {}): Promise<{ html: string | null; errors: string[] }> {
+    // Una copia: `allFileContents()` es el mapa vivo del proyecto y aquí no se debe tocar.
+    const files = new Map(this.editorState.allFileContents());
     const active = this.editorState.activeTab()?.path;
     if (active && files.has(active)) files.set(active, this.editorState.editorContent());
+    for (const [p, c] of override.files ?? []) files.set(p, c);
     const code = files.get(entryPath);
     if (code === undefined) return { html: null, errors: ['El archivo no existe.'] };
     const parseResult = await this.parser.parse(code, entryPath, files);
     const locales = listLocales(files.keys());
-    let data = this.dataState.data();
+    let data = override.data ?? this.dataState.data();
     if (locales.length) {
       const activeLocale = resolveLocale(this.dataState.translationLocale(), locales, this.dataState.defaultLocale())!;
       let tr = parseTranslations(files.get(localePath(activeLocale)) ?? '').value;
@@ -1049,6 +1062,31 @@ export class OrchestratorService {
   }
 
   /** Añade al proyecto actual archivos soltados (carpetas incluidas) sin sobrescribir los que ya existen. */
+  /** Prueba (o deja de probar, con null) una propuesta de la IA en la vista previa. */
+  setAiTrial(trial: { label: string; data?: Record<string, unknown>; files?: Map<string, string> } | null): void {
+    this.aiTrial.set(trial);
+    void this.manualCompile();
+  }
+
+  /** Aplica los datos que propuso la IA al juego de datos activo (se deshace con Ctrl+Z en el editor de datos). */
+  applyAiData(data: Record<string, unknown>, label: string): void {
+    this.aiTrial.set(null);
+    const keep = this.dataState.data()[TRANSLATIONS_KEY];
+    this.dataState.setData(keep === undefined ? data : { ...data, [TRANSLATIONS_KEY]: keep });
+    this.terminalState.addEntry('success', 'IA', `Datos de «${this.dataState.activeDataset()?.name ?? 'datos'}» actualizados con ${label}. Se puede deshacer desde el editor de datos.`);
+    this.onDataChange();
+  }
+
+  /**
+   * Aplica los cambios en plantillas que propuso la IA. La versión anterior de cada archivo queda en «Historial del
+   * archivo» y el cambio entero se deshace de una vez (como una importación).
+   */
+  applyAiEdits(changed: Map<string, string>, label: string): void {
+    this.aiTrial.set(null);
+    const n = this.importFiles([...changed].map(([path, content]) => ({ path, content })), { skipped: 0 });
+    if (n) this.terminalState.addEntry('success', 'IA', `${label} aplicada en ${[...changed.keys()].join(', ')}. La versión anterior está en «Historial del archivo».`);
+  }
+
   /**
    * «Importar archivos» (P-28): escribe en el proyecto abierto lo que el diálogo ha decidido. Lo que ya existía y se
    * sustituye queda en el historial del archivo, y toda la importación se deshace de una vez. Devuelve cuántos se escribieron.

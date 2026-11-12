@@ -9,7 +9,9 @@ const arg = (name) => {
 
 // Canales permitidos: espacios de trabajo (solo dentro de las carpetas que la persona eligió) y aviso de versión nueva.
 const CHANNELS = new Set(['ws:list', 'ws:pick-folder', 'ws:create', 'ws:relocate', 'ws:update', 'ws:remove', 'ws:open', 'ws:read-paths', 'ws:write', 'ws:close', 'ws:reveal',
-  'upd:state', 'upd:answer', 'upd:check', 'upd:dismiss', 'upd:download']);
+  'upd:state', 'upd:answer', 'upd:check', 'upd:dismiss', 'upd:download',
+  // Asistente de IA (solo escritorio y local): detectar las CLI, lanzar una petición y detenerla.
+  'ai:detect', 'ai:run', 'ai:cancel']);
 
 contextBridge.exposeInMainWorld('pugideDesktop', Object.freeze({
   platform: process.platform,

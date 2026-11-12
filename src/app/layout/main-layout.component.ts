@@ -38,6 +38,9 @@ import { DiagnosticsState } from '../core/state/diagnostics.state';
 import { ViewportState } from '../core/state/viewport.state';
 import { EmailExportDialogComponent } from '../shared/components/export-dialogs/email-export-dialog.component';
 import { ExportAllDialogComponent } from '../shared/components/export-dialogs/export-all-dialog.component';
+import { AiService } from '../core/services/ai.service';
+import { AiDialogComponent } from '../shared/components/ai/ai-dialog.component';
+import { AiSettingsDialogComponent } from '../shared/components/ai/ai-settings-dialog.component';
 import { ImportFilesDialogComponent } from '../shared/components/import-files-dialog/import-files-dialog.component';
 import { SaveTemplateDialogComponent } from '../shared/components/templates-dialogs/save-template-dialog.component';
 import { DesktopBarsComponent } from '../shared/components/desktop/desktop-bars.component';
@@ -63,6 +66,8 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     ExportAllDialogComponent,
     SaveTemplateDialogComponent,
     ImportFilesDialogComponent,
+    AiDialogComponent,
+    AiSettingsDialogComponent,
     DesktopBarsComponent,
     WorkspacesDialogComponent,
     UpdatesDialogComponent,
@@ -141,6 +146,10 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-export-all-dialog />
       <app-save-template-dialog />
       <app-import-files-dialog />
+      @if (ai.available) {
+        <app-ai-dialog />
+        <app-ai-settings-dialog />
+      }
       <app-workspaces-dialog />
       <app-updates-dialog />
       <app-share-open-dialog />
@@ -254,6 +263,8 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
   `],
 })
 export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
+  /** Asistente de IA: solo en escritorio y con `npm start` (nunca en la web publicada). */
+  protected readonly ai = inject(AiService);
   protected ui = inject(UiState);
   private orchestrator = inject(OrchestratorService);
   private route = inject(ActivatedRoute);

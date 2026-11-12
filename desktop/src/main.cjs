@@ -10,6 +10,10 @@ const { resolveRequest } = require('./serve.cjs');
 const config = require('./config.json');
 const { WorkspaceStore, readWorkspace, readPaths, writeWorkspace, watchedPath, COLORS } = require('./workspaces.cjs');
 const { compareVersions, parseLatestRelease, latestReleaseApi } = require('./updates.cjs');
+const aiCli = require('./ai-cli.cjs');
+
+/** Peticiones de IA en curso (P-30 a P-34), por id: se pueden detener y se paran todas al cerrar la ventana. */
+const aiRuns = new Map();
 
 const SCHEME = 'pugide';
 const ORIGIN = `${SCHEME}://app`;
@@ -56,7 +60,7 @@ function createWindow(webRoot) {
     },
   });
   win.once('ready-to-show', () => win.show());
-  win.on('closed', () => { if (mainWindow === win) mainWindow = null; });
+  win.on('closed', () => { if (mainWindow === win) { mainWindow = null; for (const h of aiRuns.values()) h.cancel(); aiRuns.clear(); } });
   void win.loadURL(pendingLink ?? START_URL);
   pendingLink = null;
   return win;
@@ -244,6 +248,20 @@ function setupIpc() {
     },
     'upd:check': async () => { const r = await checkForUpdate(); return { ...updateState(), checked: r.ok, reason: r.ok ? null : r.reason }; },
     'upd:dismiss': () => { const u = store.state.updates; if (u.latest) { u.dismissed = u.latest.version; store.save(); } return updateState(); },
+    // Asistente de IA: lanza la CLI instalada (`claude` o `copilot`) sin herramientas; el texto lo ha visto la persona.
+    'ai:detect': () => aiCli.detect(),
+    'ai:run': ({ provider, model, prompt, maxOutputTokens }) => {
+      if (typeof prompt !== 'string' || prompt.length > 2_000_000) throw new Error('Petición no válida');
+      const runId = require('node:crypto').randomUUID();
+      const max = Number.isFinite(maxOutputTokens) ? Math.min(Math.max(256, maxOutputTokens), 128000) : 8000;
+      const handle = aiCli.run({ provider, model, prompt, maxOutputTokens: max }, (event) => {
+        sendEvent({ type: 'ai', runId, event });
+        if (event.type === 'done' || event.type === 'error') aiRuns.delete(runId);
+      });
+      aiRuns.set(runId, handle);
+      return { runId };
+    },
+    'ai:cancel': ({ runId }) => { aiRuns.get(runId)?.cancel(); return { ok: aiRuns.has(runId) }; },
     'upd:download': () => { const u = store.state.updates; if (u.latest && String(u.latest.url).startsWith(config.repoUrl)) void shell.openExternal(u.latest.url); return { ok: !!u.latest }; },
   };
   for (const [channel, fn] of Object.entries(handlers)) {

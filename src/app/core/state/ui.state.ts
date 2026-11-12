@@ -18,6 +18,12 @@ export interface LocaleImportRequest {
 }
 
 /** Estado de la interfaz compartido entre componentes (paneles flotantes y diálogos). */
+/** Petición al asistente de IA: proponer datos, o arreglar un error (con su mensaje y dónde está). */
+export interface AiDialogRequest {
+  task: 'data' | 'fix';
+  error?: { message: string; path?: string; line?: number; snippet?: string } | null;
+}
+
 /** Un archivo que se va a importar: su ruta relativa dentro de lo elegido y de dónde se leen sus bytes. */
 export interface ImportEntry {
   relPath: string;
@@ -56,6 +62,9 @@ export class UiState {
   readonly emailExportOpen = signal(false);
   /** «Exportar todas las plantillas» (P-24). */
   readonly exportAllOpen = signal(false);
+  /** Asistente de IA (P-30 a P-34, solo escritorio y local): sus ajustes y el diálogo de una petición. */
+  readonly aiSettingsOpen = signal(false);
+  readonly aiRequest = signal<AiDialogRequest | null>(null);
   /** «Mis proyectos» se abre con el menú «Importar proyecto…» desplegado (P-29). */
   readonly projectsImportMenu = signal(false);
   /** «Importar archivos» (P-28): destino y, si ya se eligieron o se soltaron, lo que se importa. `null` = cerrado. */
