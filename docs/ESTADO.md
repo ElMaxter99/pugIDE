@@ -9,7 +9,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **0.10.0**: publicada (PWA instalable y app de escritorio para Windows, macOS y Linux).
 - **0.10.2**: publicada (al cambiar de proyecto se pisaba el archivo del mismo nombre).
 - **0.11.0**: publicada, con los 7 instaladores adjuntos. Con ella se prueba el instalador de Windows (pendiente de la persona responsable).
-- **0.12.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.12.0.md`): importar archivos al proyecto abierto, importar proyecto desde «Mis proyectos» y logo nuevo. Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel. Con ella se comprueba que la app de escritorio 0.11.0 avisa de la versión nueva.
+- **0.12.0**: publicada y desplegada (importar archivos y proyecto, logo nuevo).
+- **0.13.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.13.0.md`): asistente de IA (solo escritorio y local), índices fijos en los datos y guía para probar en local. Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel. Con ella se comprueba que la app de escritorio 0.12.0 avisa de la versión nueva.
 - **0.10.1**: publicada. Antes: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.10.1.md`): ejemplos genéricos en las pruebas. Falta mergearla y lanzar `npm run release:deploy`; los instaladores se construyen y adjuntan solos.
 
 ## 0.11 (publicada)
@@ -17,14 +18,14 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **PR B** (solo escritorio): espacios de trabajo por cliente (P-26) y aviso de versión nueva (P-27). Mergeada.
 - El instalador de Windows se prueba con la 0.11 (decisión de la persona responsable).
 
-## En curso: 0.12
+## 0.12 (publicada)
 - **Importar archivos e importar proyecto** (P-28 y P-29): diseño aprobado, programado y mergeado (PR 71). «Importar archivos» añade al proyecto abierto; «Importar proyecto» está en «Mis proyectos» y crea uno nuevo.
 - **Logo nuevo**: propuesta D («Mensajero», el pug con la hoja en la boca; mesa L-01), mergeada (PR 72; SVG, favicon, iconos de la PWA, Apple, Android, Windows y escritorio; `npm run brand:icons`).
 
-## En curso: 0.13
-- **Índices fijos en los datos** (`productos[1].name`): PR 74, CI en verde; falta mergearla.
-- **Asistente de IA** (P-30 a P-34, solo escritorio y local con CLI `claude`/`copilot`): diseño aprobado, programado, en su PR (encima de la PR 74). Para probarlo a mano: [PROBAR-EN-LOCAL.md](PROBAR-EN-LOCAL.md).
-- **0.12.0**: publicada y desplegada.
+## 0.13 (preparada)
+- **Índices fijos en los datos** (`productos[1].name`): mergeado (PR 74).
+- **Asistente de IA** (P-30 a P-34, solo escritorio y local con las CLI `claude`/`copilot`): mergeado (PR 75). Para probarlo a mano: [PROBAR-EN-LOCAL.md](PROBAR-EN-LOCAL.md).
+- **`npm run start:desktop` / `test:desktop`** y la batería de pruebas en local: mergeado (PR 76).
 
 ## Propuesta en estudio
 - **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.
