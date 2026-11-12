@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, HostListener, computed, inject, sig
 import { DiagnosticsState } from '../../core/state/diagnostics.state';
 import { EditorState } from '../../core/state/editor.state';
 import { TerminalState } from '../../core/state/terminal.state';
+import { AiService } from '../../core/services/ai.service';
+import { UiState } from '../../core/state/ui.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { ProblemRow, SnippetLine, countProblems, snippetLines, stepRow } from '../../core/utils/diagnostics.util';
 
@@ -51,6 +53,9 @@ interface RowView extends ProblemRow {
                 <button type="button" class="act diag-go" (click)="goTo($event, r)">Ir al error<span class="sr"> · {{ r.file }}:{{ r.line }}</span></button>
               }
               <button type="button" class="act" (click)="copy($event, r)">{{ copiedId() === r.id ? 'Copiado' : 'Copiar mensaje' }}</button>
+              @if (ai.available && r.severity === 'error') {
+                <button type="button" class="act diag-ai" data-testid="pb-ai" (click)="askAi($event, r)"><span aria-hidden="true" class="material-symbols-outlined ai-icon">neurology</span>Proponer arreglo con IA…</button>
+              }
             </div>
           </div>
           @if (r.hint || r.snippet.length) {
@@ -109,6 +114,7 @@ interface RowView extends ProblemRow {
     .snip { flex: 0 1 440px; min-width: 0; max-width: 100%; display: flex; flex-direction: column; gap: 2px; }
     .expand-link { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--accent-color); font: inherit; font-size: 11px; cursor: pointer; text-decoration: underline; }
     .sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .ai-icon { font-size: 14px; vertical-align: -2px; margin-right: 4px; color: var(--accent-color); }
     .act { min-height: 24px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: 6px; background: transparent; color: var(--text-primary); font: inherit; font-size: 12px; cursor: pointer; }
     .act:hover { background: var(--bg-hover); }
     .act.primary { background: var(--accent-color); border-color: var(--accent-color); color: var(--on-accent, var(--bg-primary)); font-weight: 600; }
@@ -120,9 +126,18 @@ export class ProblemsPanelComponent {
   protected terminal = inject(TerminalState);
   private editorState = inject(EditorState);
   private orchestrator = inject(OrchestratorService);
+  protected ai = inject(AiService);
+  private ui = inject(UiState);
 
   protected severity = signal<Severity>('all');
   protected onlyOpen = signal(false);
+  /** «Proponer arreglo con IA…» (P-31): abre el asistente con este error (mensaje, archivo, línea y código cercano). */
+  protected askAi(event: Event, row: RowView): void {
+    event.stopPropagation();
+    const snippet = row.snippet.map((l) => `${l.marked ? '>' : ' '} ${l.n} | ${l.text}`).join('\n');
+    this.ui.aiRequest.set({ task: 'fix', error: { message: row.message, path: row.path, line: row.line, snippet: snippet || undefined } });
+  }
+
   protected copiedId = signal<string | null>(null);
   /** Problemas cuyo fragmento de código se ve entero (por defecto, la línea y una de contexto por arriba y otra por abajo). */
   private expandedSnippets = signal<ReadonlySet<string>>(new Set());

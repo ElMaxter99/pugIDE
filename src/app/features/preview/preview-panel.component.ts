@@ -26,6 +26,7 @@ import { InspectorState } from '../../core/state/inspector.state';
 import { DEVICE_PRESETS, findDevicePreset, ColorSchemeSim } from '../../core/utils/device-presets.util';
 import { EditorState } from '../../core/state/editor.state';
 import { TerminalState } from '../../core/state/terminal.state';
+import { AiService } from '../../core/services/ai.service';
 import { UiState } from '../../core/state/ui.state';
 import { findPugSource } from '../../core/utils/pug-source-map.util';
 import { PdfBarComponent } from './pdf-bar.component';
@@ -403,6 +404,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
   protected terminal = inject(TerminalState);
   protected layout = inject(LayoutService);
   private ui = inject(UiState);
+  protected ai = inject(AiService);
   protected readonly presets = DEVICE_PRESETS;
   /** Segmentado de la barra: lo que se cambia a cada rato; el resto de dispositivos vive en el menú «Vista». */
   protected readonly segments = [
@@ -666,6 +668,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
       { id: 'reload', label: 'Recargar', icon: 'refresh' },
       { id: 'newtab', label: 'Abrir en una pestaña nueva', icon: 'open_in_new' },
     );
+    if (this.ai.available) items.push({ id: 'ai', label: 'Asistente de IA…', icon: 'neurology', hint: 'Claude Code o Copilot, en local' });
     return items;
   });
 
@@ -679,6 +682,7 @@ export class PreviewPanelComponent implements AfterViewInit, OnDestroy {
     else if (id === 'png') void this.projectIo.exportPng();
     else if (id === 'reload') this.onReload();
     else if (id === 'newtab') this.onOpenNewTab();
+    else if (id === 'ai') this.ui.aiSettingsOpen.set(true);
   }
 
   cycleColorScheme(): void {

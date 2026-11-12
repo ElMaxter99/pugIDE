@@ -12,6 +12,7 @@
   "scripts": {
     "prestart": "node scripts/bundle-sass.mjs",
     "start": "ng serve",
+    "ia": "node scripts/ai-bridge.mjs",
     "build": "ng build",
     "prebuild:prod": "node scripts/bundle-sass.mjs && node scripts/validate-build.js",
     "build:prod": "ng build --configuration production",

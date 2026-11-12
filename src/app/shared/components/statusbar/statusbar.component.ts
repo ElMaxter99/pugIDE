@@ -11,6 +11,9 @@ import { ViewportState } from '../../../core/state/viewport.state';
 import { LayoutService } from '../../../core/services/layout.service';
 import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.component';
 import { LAYOUTS } from '../../../core/utils/layout.util';
+import { AiService } from '../../../core/services/ai.service';
+import { UiState } from '../../../core/state/ui.state';
+import { formatTokens } from '../../../core/utils/ai.util';
 
 @Component({
   selector: 'app-statusbar',
@@ -38,6 +41,12 @@ import { LAYOUTS } from '../../../core/utils/layout.util';
             <span aria-hidden="true" class="material-symbols-outlined info-icon">info</span>
             <span>Compilado en {{ previewState.compilationTime() | number:'1.0-0' }} ms</span>
           </div>
+        }
+        @if (ai.session().requests > 0) {
+          <button type="button" class="status-group" data-testid="status-ai" (click)="ui.aiSettingsOpen.set(true)" title="Lo gastado con el asistente de IA en esta sesión (según las CLI)">
+            <span aria-hidden="true" class="material-symbols-outlined info-icon">neurology</span>
+            <span>IA: {{ ai.session().requests }} {{ ai.session().requests === 1 ? 'petición' : 'peticiones' }} · {{ aiTokens() }} tokens</span>
+          </button>
         }
       </div>
       <div class="status-right">
@@ -203,6 +212,9 @@ import { LAYOUTS } from '../../../core/utils/layout.util';
 })
 export class StatusbarComponent {
   protected editorState = inject(EditorState);
+  protected ai = inject(AiService);
+  protected ui = inject(UiState);
+  protected aiTokens = computed(() => formatTokens(this.ai.session().input + this.ai.session().output));
   protected terminalState = inject(TerminalState);
   protected diagnostics = inject(DiagnosticsState);
   protected previewState = inject(PreviewState);

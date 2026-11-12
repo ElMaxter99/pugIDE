@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, DestroyRef, Injector, afterNextRender, computed, effect, inject, signal, ElementRef, viewChild } from '@angular/core';
 import { AnalyticsService } from '../../../core/services/analytics.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { AiService } from '../../../core/services/ai.service';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { ProjectIoService } from '../../../core/services/project-io.service';
 import { PreferencesState } from '../../../core/services/preferences.state';
@@ -113,6 +114,7 @@ type Draft = Omit<PaletteCommand, 'id'> & { id?: string };
 export class CommandPaletteComponent {
   protected ui = inject(UiState);
   private orchestrator = inject(OrchestratorService);
+  private ai = inject(AiService);
   private projectIo = inject(ProjectIoService);
   private analytics = inject(AnalyticsService);
   private workspace = inject(WorkspaceService);
@@ -164,6 +166,10 @@ export class CommandPaletteComponent {
         },
       },
       { group: 'Proyecto', title: 'Exportar proyecto (carpeta o .zip)', run: () => void this.projectIo.exportProject() },
+      ...(this.ai.available ? [
+        { group: 'IA', title: 'IA: proponer datos de ejemplo…', keywords: 'inteligencia artificial claude copilot generar mock datos', run: () => this.ui.aiRequest.set({ task: 'data' }) },
+        { group: 'IA', title: 'IA: ajustes del asistente…', keywords: 'inteligencia artificial claude copilot modelo cli', run: () => this.ui.aiSettingsOpen.set(true) },
+      ] : []),
       { group: 'Proyecto', title: 'Importar archivos al proyecto…', keywords: 'subir añadir carpeta imágenes fuentes estilos upload', run: () => this.ui.importFiles.set({ target: '/' }) },
       { group: 'Proyecto', title: 'Importar proyecto (carpeta o .zip)…', keywords: 'nuevo abrir zip carpeta crear', run: () => { this.ui.projectsImportMenu.set(true); this.ui.projectsOpen.set(true); } },
       { group: 'Proyecto', title: 'Descargar proyecto como .zip', run: () => this.projectIo.downloadZip() },
