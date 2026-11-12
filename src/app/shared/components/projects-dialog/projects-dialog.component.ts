@@ -201,13 +201,17 @@ export class ProjectsDialogComponent {
           void this.refresh();
           void this.userTemplateStore.refresh();
           this.tplMessage.set(null);
-          this.importMenu.set(this.ui.projectsImportMenu());
+          // Solo se despliega si se pidió; no se cierra aquí, para no pisar un clic hecho nada más abrirse el diálogo.
+          if (this.ui.projectsImportMenu()) this.importMenu.set(true);
           this.ui.projectsImportMenu.set(false);
           setTimeout(() => this.dialog()?.nativeElement.focus());
         });
-      } else if (this.restoreFocus) {
-        this.restoreFocus();
-        this.restoreFocus = null;
+      } else {
+        untracked(() => this.importMenu.set(false));
+        if (this.restoreFocus) {
+          this.restoreFocus();
+          this.restoreFocus = null;
+        }
       }
     });
   }
