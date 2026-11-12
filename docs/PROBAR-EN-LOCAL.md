@@ -65,12 +65,10 @@ Si algo falla, el diálogo enseña el mensaje de la propia CLI (por ejemplo, ses
 Es la forma más rápida de probar la app de escritorio de una rama:
 
 ```bash
-npm run desktop:install
-```
-
-```bash
 npm run start:desktop
 ```
+
+La primera vez (y cuando cambian) instala solo las dependencias de escritorio, que tarda un par de minutos.
 
 Abre la app con el código de la rama. Para el asistente de IA **no hace falta** `npm run ia`: lo lanza la propia app.
 
@@ -184,14 +182,10 @@ Abre la app con el código de la rama (compila la web y lanza Electron):
 npm run start:desktop
 ```
 
-Su prueba automática lanza Electron de verdad y comprueba el arranque, la seguridad (CSP y sandbox), que no sale a internet y que el service worker y la analítica están apagados. Necesita el build de producción y las dependencias de escritorio:
+Su prueba automática lanza Electron de verdad y comprueba el arranque, la seguridad (CSP y sandbox), que no sale a internet y que el service worker y la analítica están apagados. Necesita el build de producción (las dependencias de escritorio se instalan solas si faltan):
 
 ```bash
 npm run build:prod
-```
-
-```bash
-npm run desktop:install
 ```
 
 ```bash

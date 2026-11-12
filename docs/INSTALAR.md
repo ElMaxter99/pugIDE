@@ -75,8 +75,7 @@ Es la forma de no fiarte de ningún binario ajeno. Necesitas Node 22 y git:
 git clone https://github.com/ElMaxter99/pugIDE.git
 cd pugIDE
 npm ci
-npm run desktop:install
-npm run start:desktop        # abre la app de escritorio, sin instalar nada
+npm run start:desktop        # abre la app de escritorio (la primera vez instala sus dependencias)
 ```
 
 Para generar tu propio instalador: `npm run desktop:pack` (carpeta lista para ejecutar) o, dentro de `desktop/`, `npm run dist:linux`, `dist:win` o `dist:mac` (cada uno en su sistema operativo).
