@@ -29,7 +29,7 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **`npm run start:desktop` / `test:desktop`** y la batería de pruebas en local: mergeado (PR 76).
 
 ## En curso: 0.14
-- **Actualizar dentro de la app de escritorio** (P-35 y P-36): diseño en el lienzo, **pendiente de aprobación**. Guía reutilizable en [ACTUALIZAR-ESCRITORIO.md](ACTUALIZAR-ESCRITORIO.md).
+- **Actualizar dentro de la app de escritorio** (P-35 y P-36): diseño aprobado y programado, en su PR (encima de la PR 79). Probado de verdad con un AppImage local. Guía reutilizable en [ACTUALIZAR-ESCRITORIO.md](ACTUALIZAR-ESCRITORIO.md).
 - **Palabras prohibidas en el CI, icono de escritorio en los instaladores y versión 0.0.0 desde el código**: PR 79.
 
 ## Propuesta en estudio

@@ -10,6 +10,8 @@ const arg = (name) => {
 // Canales permitidos: espacios de trabajo (solo dentro de las carpetas que la persona eligió) y aviso de versión nueva.
 const CHANNELS = new Set(['ws:list', 'ws:pick-folder', 'ws:create', 'ws:relocate', 'ws:update', 'ws:remove', 'ws:open', 'ws:read-paths', 'ws:write', 'ws:close', 'ws:reveal',
   'upd:state', 'upd:answer', 'upd:check', 'upd:dismiss', 'upd:download',
+  // Actualizar dentro de la app (P-35/P-36): descargar, cancelar, instalar, abrir la release, ya visto «se ha actualizado».
+  'upd:update', 'upd:cancel', 'upd:install', 'upd:open-release', 'upd:ack-updated',
   // Asistente de IA (solo escritorio y local): detectar las CLI, lanzar una petición y detenerla.
   'ai:detect', 'ai:run', 'ai:cancel']);
 

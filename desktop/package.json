@@ -21,5 +21,8 @@
     "playwright-core": "^1.56.1"
   },
   "homepage": "https://github.com/ElMaxter99/pugIDE",
-  "desktopName": "pugide.desktop"
+  "desktopName": "pugide.desktop",
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  }
 }

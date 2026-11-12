@@ -115,14 +115,19 @@ npm run desktop:install
 
 La versión (`0.0.1`) es la que dirá la app instalada. Pon una **más baja** que la última publicada para probar el aviso de versión nueva.
 
-## 6. El aviso de versión nueva (de principio a fin)
+## 6. El aviso de versión nueva y «Actualizar» (de principio a fin)
 
-El aviso compara la versión instalada con la última release de GitHub. Para verlo como lo verá cualquiera:
+El aviso compara la versión instalada con la última release de GitHub. Desde la 0.14, en el instalador de Windows y en
+Linux (AppImage, .deb, .rpm) la barra ofrece **«Actualizar»**: descarga, comprueba e instala al reiniciar. En macOS y
+en el portable de Windows sigue siendo **«Descargar»** (detalle en [ACTUALIZAR-ESCRITORIO.md](ACTUALIZAR-ESCRITORIO.md)).
 
-1. Instala la versión **anterior** desde [Releases](https://github.com/ElMaxter99/pugIDE/releases) (por ejemplo la 0.12.0 cuando se publique la 0.13.0), o un instalador local con una versión más baja (apartado 5).
-2. Ábrela y **acepta** el aviso de versión nueva cuando te lo pregunte (o actívalo en **Ayuda → Buscar actualizaciones…**).
-3. Cuando haya una versión más nueva publicada, al abrir la app (o con **Buscar actualizaciones…**) sale la barra con **«Descargar»**, que abre la página de la release. La app no se actualiza sola: los instaladores no están firmados.
-4. Instala el nuevo encima del antiguo: conserva tus proyectos, espacios de trabajo y ajustes.
+1. Instala una versión **anterior** desde [Releases](https://github.com/ElMaxter99/pugIDE/releases) con su **instalador** (no el portable). «Actualizar» solo existe a partir de la 0.14: para probarlo hace falta tener instalada la 0.14 (o posterior) y que se publique una más nueva.
+2. Ábrela y **acepta** el aviso cuando te lo pregunte (o actívalo en **Ayuda → Buscar actualizaciones…**).
+3. Sale la barra: **«Ver novedades»** abre la release en el navegador; **«Actualizar»** descarga (barra de progreso, puedes seguir trabajando) y luego **«Reiniciar y actualizar»** o **«Al cerrar PugIDE»**.
+4. Al volver a abrir: aviso «PugIDE se ha actualizado a X», con tus proyectos, espacios y ajustes como estaban.
+
+Para probar «Actualizar» de verdad **sin publicar nada** (con un servidor local), ver el apartado 3 de
+[ACTUALIZAR-ESCRITORIO.md](ACTUALIZAR-ESCRITORIO.md).
 
 ## 7. La batería de pruebas (la misma que pasa el CI)
 

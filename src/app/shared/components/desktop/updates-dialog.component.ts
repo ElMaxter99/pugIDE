@@ -18,7 +18,7 @@ import { focusableElements, rememberFocus, trapTab } from '../../../core/utils/f
           <div class="header"><h2 class="title">¿Avisarte de las versiones nuevas?</h2></div>
           <div class="body">
             <p>PugIDE funciona sin conexión y no hace ninguna llamada de red por su cuenta. Si lo permites, una vez al día (y al abrir la app) consultará en <strong>github.com</strong> el número de la última versión. No se envía nada de tus proyectos.</p>
-            <p class="small">No instala nada: te avisa y tú decides descargarla. Se cambia cuando quieras en Ayuda → Buscar actualizaciones.</p>
+            <p class="small">No descarga ni instala nada por su cuenta: te avisa y tú decides si actualizar. Se cambia cuando quieras en Ayuda → Buscar actualizaciones.</p>
           </div>
           <div class="footer">
             <button type="button" class="btn secondary" data-testid="update-ask-no" (click)="updates.answer(false)">No, gracias</button>
@@ -39,7 +39,8 @@ import { focusableElements, rememberFocus, trapTab } from '../../../core/utils/f
                   <div><div class="strong">No se pudo consultar (¿sin conexión?)</div><div class="small">PugIDE sigue funcionando igual. Las versiones están en github.com/ElMaxter99/pugIDE/releases.</div></div>
                 } @else if (s.latest) {
                   <span aria-hidden="true" class="material-symbols-outlined">update</span>
-                  <div><div class="strong">Hay una versión nueva: {{ s.latest.version }}</div><div class="small">Tienes la {{ s.current }}. «Descargar» abre la página de la versión en el navegador.</div></div>
+                  <div><div class="strong">Hay una versión nueva: {{ s.latest.version }}</div><div class="small">Tienes la {{ s.current }}{{ when() ? ' · comprobado: ' + when() : '' }}.</div>
+                    <button type="button" class="btn link" data-testid="updates-notes" (click)="updates.openRelease()"><span aria-hidden="true" class="material-symbols-outlined">open_in_new</span>Ver novedades en GitHub</button></div>
                 } @else if (s.lastCheck) {
                   <span aria-hidden="true" class="material-symbols-outlined ok">check_circle</span>
                   <div><div class="strong">Tienes la última versión ({{ s.current }})</div><div class="small">Comprobado: {{ when() }}.</div></div>
@@ -53,8 +54,16 @@ import { focusableElements, rememberFocus, trapTab } from '../../../core/utils/f
           </div>
           <div class="footer">
             <button type="button" class="btn secondary" data-testid="updates-check" [disabled]="updates.checking()" (click)="updates.check()">{{ updates.checking() ? 'Buscando…' : 'Buscar ahora' }}</button>
-            @if (updates.state()?.latest) { <button type="button" class="btn secondary" (click)="updates.download()">Descargar</button> }
-            <button type="button" class="btn primary" (click)="close()">Cerrar</button>
+            @if (updates.state()?.latest) {
+              <button type="button" class="btn secondary" (click)="close()">Cerrar</button>
+              @if (updates.canUpdate()) {
+                <button type="button" class="btn primary" data-testid="updates-update" (click)="updateNow()">Actualizar</button>
+              } @else {
+                <button type="button" class="btn primary" data-testid="updates-download" (click)="updates.openRelease()">Descargar</button>
+              }
+            } @else {
+              <button type="button" class="btn primary" (click)="close()">Cerrar</button>
+            }
           </div>
         </div>
       </div>
@@ -80,6 +89,9 @@ import { focusableElements, rememberFocus, trapTab } from '../../../core/utils/f
     .btn.secondary { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); }
     .btn.primary { background: var(--accent-color); border: none; color: var(--text-on-primary); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.link { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 2px 0; background: none; border: 0; color: var(--accent-color); }
+    .btn.link:hover { text-decoration: underline; }
+    .line .btn.link .material-symbols-outlined { font-size: 16px; }
   `],
 })
 export class UpdatesDialogComponent {
@@ -91,6 +103,12 @@ export class UpdatesDialogComponent {
     const t = this.updates.state()?.lastCheck ?? 0;
     return t ? new Date(t).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
   });
+
+  /** Empieza la descarga y cierra: el progreso sigue en la barra (P-35, caso 2). */
+  protected updateNow(): void {
+    void this.updates.update();
+    this.close();
+  }
 
   private readonly dlg = viewChild<ElementRef<HTMLElement>>('dlg');
   private restoreFocus: (() => void) | null = null;

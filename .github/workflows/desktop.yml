@@ -117,7 +117,7 @@ jobs:
         working-directory: desktop
         timeout-minutes: 25
         shell: bash
-        run: ${{ matrix.build }} -- -c.extraMetadata.version="$VERSION"
+        run: ${{ matrix.build }} -- -c.extraMetadata.version="$VERSION" --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Prueba de humo sobre la app ya empaquetada
@@ -143,6 +143,8 @@ jobs:
             desktop/dist/*.AppImage
             desktop/dist/*.deb
             desktop/dist/*.rpm
+            desktop/dist/latest*.yml
+            desktop/dist/*.blockmap
 
   adjuntar:
     name: Adjuntar a la release

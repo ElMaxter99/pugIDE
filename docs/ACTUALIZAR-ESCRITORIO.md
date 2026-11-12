@@ -120,19 +120,45 @@ electron-updater elige el actualizador según el sistema (`process.platform`) y,
 5. Errores: corta la red a mitad de descarga (sigue la A, «Reintentar» funciona) y, en una release de prueba,
    cambia el SHA-512 del `.yml` (debe negarse a instalar).
 
-Sin publicar nada, desde el código: `forceDevUpdateConfig` y `dev-app-update.yml` (apartado 2.2), apuntando a una
-release de prueba.
+### 3.1 De verdad, sin publicar nada: un servidor local (como se probó en PugIDE)
+
+electron-updater también sabe leer de un servidor web normal (`provider: generic`). Se construye una versión «vieja»
+que apunta a `http://127.0.0.1:8099/` y se sirve la nueva desde ahí. En Linux (AppImage), desde `desktop/`:
+
+1. La **nueva** (la que se servirá), con la configuración normal:
+   `npx electron-builder --linux AppImage -c.extraMetadata.version=0.14.0 --publish never` → `dist/latest-linux.yml` y el `.AppImage`.
+2. Copia esos dos archivos a una carpeta `servidor/` y sírvela: `python3 -m http.server 8099 --bind 127.0.0.1` (dentro de `servidor/`).
+3. La **vieja**, con una copia de `electron-builder.yml` cuyo `publish` sea `{ provider: generic, url: http://127.0.0.1:8099/ }`
+   y otra carpeta de salida: `npx electron-builder --config eb-prueba.yml --linux AppImage -c.extraMetadata.version=0.13.9 --publish never`.
+4. Abre la vieja (`./PugIDE-0.13.9-linux-x86_64.AppImage`), acepta el aviso o ve a «Buscar actualizaciones», pulsa
+   «Actualizar» y «Reiniciar y actualizar». El archivo `.AppImage` pasa a ser el de la 0.14.0 (compruébalo con `sha512sum`).
+5. Para el caso de error, cambia un `sha512` en `servidor/latest-linux.yml`: debe decir que el archivo no coincide y
+   dejar la vieja intacta.
+
+En PugIDE se hizo así (con Playwright pulsando por IPC) y salió: 0.13.9 → descarga → lista → instalada la 0.14.0; y
+con la huella cambiada, error `checksum` y el archivo sin tocar. En Windows es igual con `--win nsis` y `latest.yml`.
+
+### 3.2 Desde el código
+
+`autoUpdater.forceDevUpdateConfig = true` y un `dev-app-update.yml` (apartado 2.2). En PugIDE, para ver la interfaz sin
+descargar nada: `PUGIDE_TEST_UPDATER=ok npm run start:desktop` (también `fail` y `checksum`) simula la descarga, y
+`PUGIDE_FAKE_VERSION=0.1.0` hace que la app se crea antigua para que salga el aviso.
 
 ## 4. En PugIDE
 
-| Pieza | Estado |
+| Pieza | Dónde |
 |---|---|
-| Aviso de versión nueva (opt-in, consulta a la API de releases de GitHub) | Hecho (P-27, 0.11) |
-| La app arrancada desde el código decía «tienes la 0.0.0» | Arreglado: usa la versión del proyecto; `PUGIDE_FAKE_VERSION=0.1.0 npm run start:desktop` para probar el aviso |
-| Diseño de «Actualizar» y «Ver novedades» (P-35 y P-36) | **Pendiente de aprobación** en el lienzo |
-| `publish: github` + subir `latest*.yml` y `*.blockmap` en `.github/workflows/desktop.yml` | Pendiente (tras aprobar el diseño; toca el workflow) |
-| `electron-updater` en `desktop/src/main.cjs` con los canales `upd:*` | Pendiente |
-| Portable y macOS: «Descargar» (como ahora) | Pendiente (se mantiene el comportamiento actual) |
+| Aviso de versión nueva (opt-in, API de releases de GitHub) | `desktop/src/main.cjs` (`checkForUpdate`), P-27 |
+| ¿Se puede actualizar sola esta instalación? | `desktop/src/updates.cjs` (`selfUpdateSupport`) |
+| Descargar, progreso, comprobar e instalar (electron-updater) | `desktop/src/self-update.cjs` (`createSelfUpdater`; `fakeUpdaterModule` para las pruebas) |
+| Canales `upd:update`, `upd:cancel`, `upd:install`, `upd:open-release`, `upd:ack-updated` | `desktop/src/main.cjs`, `desktop/src/preload.cjs` |
+| Interfaz (barra, progreso, lista, error, aviso «se ha actualizado», diálogo) | `desktop-bars.component.ts`, `updates-dialog.component.ts`, `desktop-update.service.ts` (P-35/P-36) |
+| Manifiestos y blockmaps en la release | `desktop/electron-builder.yml` (`publish`) y `.github/workflows/desktop.yml` (`--publish never` + subirlos) |
+| «Tienes la 0.0.0» desde el código | Arreglado: `APP_VERSION` usa la versión del proyecto |
+| Pruebas | `test/unit/self-update.test.mjs`, `ui-tests/scenarios/64-actualizar-escritorio.mjs`, y la prueba de 3.1 a mano |
+
+**Primera versión con «Actualizar»: la 0.14.0.** Quien tenga la 0.13 o anterior llega a la 0.14 con «Descargar» (su
+app no sabe actualizarse); de ahí en adelante, con «Actualizar».
 
 Las notas de cada versión están en [CHANGELOG.md](../CHANGELOG.md) y en la página de cada
 [release](https://github.com/ElMaxter99/pugIDE/releases), que es lo que abre «Ver novedades».
