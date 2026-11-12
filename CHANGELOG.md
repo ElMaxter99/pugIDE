@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Cambiado
+- `npm run start:desktop` abre la app de escritorio con el código actual y `npm run test:desktop` lanza su prueba automática (los nombres antiguos `desktop:start` y `desktop:test` siguen valiendo). La guía [docs/PROBAR-EN-LOCAL.md](docs/PROBAR-EN-LOCAL.md) explica la batería completa en Windows y Ubuntu, también en Firefox y WebKit.
+
 ### Añadido
 - **Asistente de IA, solo en la app de escritorio y en local** (diseño P-30 a P-34, aprobado). Propone **datos de ejemplo coherentes** con la plantilla (leyendo sus `include`, `mixin` y la forma de los datos) y **arreglos de errores** desde «Problemas». Usa la CLI que ya tienes instalada, con tu sesión: **Claude Code** (`claude`) o **GitHub Copilot** (`copilot`); eliges el proveedor y el **modelo por defecto** de cada una en «Vista → Asistente de IA…». No es un botón mágico: antes de enviar ves **qué se manda** (puedes quitar archivos), la **estimación de tokens** y la orden exacta; mientras trabaja ves los pasos y los **tokens consumidos**; y las propuestas se **prueban en la vista previa**, se **revierten** o se **aplican** (con deshacer). La CLI se lanza **sin herramientas**: no puede leer ni escribir archivos ni ejecutar órdenes. En la web publicada no aparece nada. Con `npm start` hace falta abrir el puente local con `npm run ia` (solo escucha en 127.0.0.1). El Registro apunta cada petición y la barra de estado suma la sesión.
 - **Guía para probar una rama en tu equipo** ([docs/PROBAR-EN-LOCAL.md](docs/PROBAR-EN-LOCAL.md)): Windows y Ubuntu, la web en local, el asistente, la app de escritorio desde el código, los instaladores de la PR o compilados por ti y cómo comprobar el aviso de versión nueva.

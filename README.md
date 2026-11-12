@@ -160,8 +160,8 @@ Abre <http://localhost:4200/ide?demo=true> para cargar un proyecto de ejemplo co
 | `npm run test:ui` | Pruebas de interfaz con Playwright sobre el build (`PUGIDE_BROWSER=firefox` o `webkit` para los otros navegadores) |
 | `npm run perf` | Mediciones de rendimiento del paginado y del preview |
 | `npm run screenshots` | Regenera las capturas de este README |
-| `npm run desktop:start` | Abre la app de escritorio (Electron) desde el código fuente |
-| `npm run desktop:test` | Prueba de humo de la app de escritorio |
+| `npm run start:desktop` (o `desktop:start`) | Abre la app de escritorio (Electron) desde el código fuente |
+| `npm run test:desktop` (o `desktop:test`) | Prueba de humo de la app de escritorio |
 | `npm run release:check` | Comprueba que la versión es coherente antes de etiquetar |
 
 ## Atajos útiles

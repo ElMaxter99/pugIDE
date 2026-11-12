@@ -76,7 +76,7 @@ git clone https://github.com/ElMaxter99/pugIDE.git
 cd pugIDE
 npm ci
 npm run desktop:install
-npm run desktop:start        # abre la app de escritorio, sin instalar nada
+npm run start:desktop        # abre la app de escritorio, sin instalar nada
 ```
 
 Para generar tu propio instalador: `npm run desktop:pack` (carpeta lista para ejecutar) o, dentro de `desktop/`, `npm run dist:linux`, `dist:win` o `dist:mac` (cada uno en su sistema operativo).
