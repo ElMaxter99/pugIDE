@@ -71,6 +71,7 @@ parser -> datos -> orquestador -> compilador -> preview. Ver `src/app/core/servi
 - Iconos: Material Symbols autoalojados (subconjunto en `src/fonts/`, sin CDN: también funcionan sin conexión); al añadir uno nuevo ejecuta `npm run fonts:icons` y usa su nombre **canónico** (no un alias antiguo como `screen_rotation` o `smartphone`: el lint lo rechaza).
 - Persistencia solo vía `PersistenceService` (localStorage) y `AssetStorageService` (IndexedDB), siempre con try/catch.
 - La licencia está en `LICENSE`: no modificarla.
+- Datos de ejemplo siempre inventados. `npm run lint` falla si aparece una palabra de `scripts/forbidden-words.json` (se guardan hashes; añade una con `node scripts/check-forbidden-words.mjs --hash palabra`).
 - Commits pequeños y descriptivos (estilo `feat(...)`, `fix(...)`, `docs: ...`).
 - No tocar `.github/workflows` sin coordinarlo.
 - `.serena/` está ignorado y no se versiona.
