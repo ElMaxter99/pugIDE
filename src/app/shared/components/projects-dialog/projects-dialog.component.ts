@@ -63,7 +63,7 @@ import { UserTemplateMeta, cleanTemplateName, packTemplate, unpackTemplate } fro
             <h3>Mis plantillas · {{ userTemplates().length }}</h3>
             <button class="btn" data-testid="template-import" (click)="file.click()">Importar plantilla (.zip)…</button>
             <button class="btn" data-testid="template-save-current" (click)="ui.saveTemplateOpen.set(true)">Guardar el proyecto abierto como plantilla…</button>
-            <input #file type="file" accept=".zip,application/zip" hidden (change)="importTemplate($any($event.target))" />
+            <input #file type="file" accept=".zip,application/zip" hidden data-testid="template-import-input" (change)="importTemplate($any($event.target))" />
           </div>
           <ul class="list tpl-list" data-testid="user-templates">
             @for (t of userTemplates(); track t.id) {
@@ -110,13 +110,15 @@ import { UserTemplateMeta, cleanTemplateName, packTemplate, unpackTemplate } fro
               </button>
               @if (importMenu()) {
                 <div class="import-menu" role="menu" aria-label="Importar proyecto" (keydown.escape)="$event.stopPropagation(); importMenu.set(false)">
-                  <button class="menu-item" role="menuitem" data-testid="import-project-folder" (click)="importProject('folder')">
+                  <button class="menu-item" role="menuitem" data-testid="import-project-folder" (click)="importMenu.set(false); projFolder.click()">
                     <span aria-hidden="true" class="material-symbols-outlined">folder_open</span>Desde una carpeta…</button>
-                  <button class="menu-item" role="menuitem" data-testid="import-project-zip" (click)="importProject('zip')">
+                  <button class="menu-item" role="menuitem" data-testid="import-project-zip" (click)="importMenu.set(false); projZip.click()">
                     <span aria-hidden="true" class="material-symbols-outlined">folder_zip</span>Desde un archivo .zip…</button>
                   <p class="menu-note">Crea un proyecto nuevo. «{{ currentName() }}» sigue guardado aquí.</p>
                 </div>
               }
+              <input #projFolder type="file" webkitdirectory hidden data-testid="import-project-folder-input" (change)="onProjectPicked($any($event.target), 'folder')" />
+              <input #projZip type="file" accept=".zip,application/zip" hidden data-testid="import-project-zip-input" (change)="onProjectPicked($any($event.target), 'zip')" />
             </span>
           </div>
         </div>
@@ -270,11 +272,17 @@ export class ProjectsDialogComponent {
     this.terminal.addEntry('info', 'Plantillas', `Plantilla «${t.name}» borrada.`);
   }
 
-  /** Crea un proyecto nuevo con una carpeta o un .zip; el abierto se queda guardado en la lista. */
-  protected importProject(kind: 'folder' | 'zip'): void {
-    this.importMenu.set(false);
+  /**
+   * Crea un proyecto nuevo con la carpeta o el .zip elegidos; el abierto se queda guardado en la lista. Las entradas son
+   * fijas (no se crean al vuelo) y el diálogo se cierra cuando ya se ha elegido algo: si se cancela el selector, sigue abierto.
+   */
+  protected async onProjectPicked(input: HTMLInputElement, kind: 'folder' | 'zip'): Promise<void> {
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (!files.length) return;
     this.closed.emit();
-    this.projectIo.pickProject(kind);
+    if (kind === 'zip') await this.projectIo.importFromZipFile(files[0]);
+    else await this.projectIo.importProjectFromFolder(files);
   }
 
   protected async importTemplate(input: HTMLInputElement): Promise<void> {

@@ -127,29 +127,9 @@ export class ProjectIoService {
   }
 
   /**
-   * «Importar proyecto» (P-29): abre el selector del navegador (una carpeta o un `.zip`) y crea un proyecto NUEVO con lo
-   * elegido. El proyecto abierto no se toca: queda guardado en «Mis proyectos». El selector de carpetas es el estándar
-   * (`webkitdirectory`), que funciona también en Firefox y Safari.
+   * «Importar proyecto» (P-29, desde «Mis proyectos»): crea un proyecto NUEVO con una carpeta (selector estándar
+   * `webkitdirectory`, válido en todos los navegadores) o con un `.zip` (`importFromZipFile`). El abierto no se toca.
    */
-  pickProject(kind: 'folder' | 'zip'): void {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.style.display = 'none';
-    input.dataset['testid'] = `import-project-${kind}`;
-    if (kind === 'folder') input.webkitdirectory = true;
-    else input.accept = '.zip,application/zip';
-    const done = (): void => input.remove();
-    input.addEventListener('cancel', done, { once: true });
-    input.addEventListener('change', () => {
-      const files = Array.from(input.files ?? []);
-      done();
-      if (!files.length) return;
-      void (kind === 'zip' ? this.importFromZipFile(files[0]) : this.importProjectFromFolder(files));
-    }, { once: true });
-    document.body.appendChild(input);
-    input.click();
-  }
-
   /** Crea un proyecto nuevo con los archivos de una carpeta elegida (cada `File` trae su ruta en `webkitRelativePath`). */
   async importProjectFromFolder(picked: File[]): Promise<void> {
     try {
