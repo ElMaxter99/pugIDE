@@ -38,6 +38,7 @@ import { DiagnosticsState } from '../core/state/diagnostics.state';
 import { ViewportState } from '../core/state/viewport.state';
 import { EmailExportDialogComponent } from '../shared/components/export-dialogs/email-export-dialog.component';
 import { ExportAllDialogComponent } from '../shared/components/export-dialogs/export-all-dialog.component';
+import { ImportFilesDialogComponent } from '../shared/components/import-files-dialog/import-files-dialog.component';
 import { SaveTemplateDialogComponent } from '../shared/components/templates-dialogs/save-template-dialog.component';
 import { DesktopBarsComponent } from '../shared/components/desktop/desktop-bars.component';
 import { WorkspacesDialogComponent } from '../shared/components/desktop/workspaces-dialog.component';
@@ -61,6 +62,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     EmailExportDialogComponent,
     ExportAllDialogComponent,
     SaveTemplateDialogComponent,
+    ImportFilesDialogComponent,
     DesktopBarsComponent,
     WorkspacesDialogComponent,
     UpdatesDialogComponent,
@@ -138,6 +140,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-email-export-dialog />
       <app-export-all-dialog />
       <app-save-template-dialog />
+      <app-import-files-dialog />
       <app-workspaces-dialog />
       <app-updates-dialog />
       <app-share-open-dialog />

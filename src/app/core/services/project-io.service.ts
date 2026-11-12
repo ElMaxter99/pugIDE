@@ -15,13 +15,14 @@ import {
 import { formatShareDate } from '../utils/share-options.util';
 import type { ShareOpenRequest } from '../state/ui.state';
 import { captureHtmlToPng } from '../utils/capture.util';
-import { collectDropped, DroppedFile, EntryLike, isZip } from '../utils/drop-import.util';
-import { isStylePath } from '../utils/style-refs.util';
-import { buildStandaloneHtml } from '../utils/export-html.util';
-import { planZipImport } from '../utils/zip-import.util';
-import { UiState } from '../state/ui.state';
-import { EmailOptions, EmailResult, toEmailHtml } from '../utils/email-export.util';
+import { MAX_IMPORT_FILES, collectDropped, EntryLike, isSkippedPath, isZip } from '../utils/drop-import.util';
+import { commonRootFolder } from '../utils/import-files.util';
 import { looksLikeTranslations } from '../utils/locales.util';
+import { buildStandaloneHtml } from '../utils/export-html.util';
+import { isZipJunk, planZipImport } from '../utils/zip-import.util';
+import { UiState } from '../state/ui.state';
+import type { ImportEntry } from '../state/ui.state';
+import { EmailOptions, EmailResult, toEmailHtml } from '../utils/email-export.util';
 import { DATASETS_PATH, parseDatasetsFile, serializeDatasets } from '../utils/datasets.util';
 
 
@@ -125,88 +126,92 @@ export class ProjectIoService {
     this.terminalState.addEntry('success', 'Exportar', `Exportados ${files.size + this.assetState.assets().size} archivo${files.size + this.assetState.assets().size === 1 ? '' : 's'} como ${fileName}.`);
   }
 
-  async importFromDirectory(): Promise<void> {
-    if (!this.supportsFileSystemAccess) return;
-    try {
-      const dirHandle: any = await (window as any).showDirectoryPicker({ mode: 'read' });
-      const files = new Map<string, string>();
-      const assets: AssetFile[] = [];
-      await this.readDirectoryRecursive(dirHandle, '', files, assets);
-      this.finishImport(files, dirHandle.name, assets);
-    } catch (err) {
-      if ((err as DOMException)?.name === 'AbortError') return;
-      this.terminalState.addEntry('error', 'Importar', `No se pudo importar: ${(err as Error).message ?? err}`);
-    }
+  /**
+   * «Importar proyecto» (P-29): abre el selector del navegador (una carpeta o un `.zip`) y crea un proyecto NUEVO con lo
+   * elegido. El proyecto abierto no se toca: queda guardado en «Mis proyectos». El selector de carpetas es el estándar
+   * (`webkitdirectory`), que funciona también en Firefox y Safari.
+   */
+  pickProject(kind: 'folder' | 'zip'): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.style.display = 'none';
+    input.dataset['testid'] = `import-project-${kind}`;
+    if (kind === 'folder') input.webkitdirectory = true;
+    else input.accept = '.zip,application/zip';
+    const done = (): void => input.remove();
+    input.addEventListener('cancel', done, { once: true });
+    input.addEventListener('change', () => {
+      const files = Array.from(input.files ?? []);
+      done();
+      if (!files.length) return;
+      void (kind === 'zip' ? this.importFromZipFile(files[0]) : this.importProjectFromFolder(files));
+    }, { once: true });
+    document.body.appendChild(input);
+    input.click();
   }
 
-  private async readDirectoryRecursive(dir: any, prefix: string, out: Map<string, string>, assets: AssetFile[]): Promise<void> {
-    for await (const [name, handle] of dir.entries()) {
-      const path = `${prefix}/${name}`;
-      if (handle.kind === 'directory') {
-        await this.readDirectoryRecursive(handle, path, out, assets);
-      } else if (TEXT_FILE_RE.test(name)) {
-        const file = await handle.getFile();
-        out.set(path, await file.text());
-      } else if (ASSET_EXT_RE.test(name)) {
-        const file = await handle.getFile();
-        assets.push({ path, mime: mimeForPath(path), data: new Uint8Array(await file.arrayBuffer()) });
+  /** Crea un proyecto nuevo con los archivos de una carpeta elegida (cada `File` trae su ruta en `webkitRelativePath`). */
+  async importProjectFromFolder(picked: File[]): Promise<void> {
+    try {
+      const rel = (f: File): string => f.webkitRelativePath || f.name;
+      const usable = picked.filter((f) => !isSkippedPath(rel(f)) && !isZipJunk(rel(f))).slice(0, MAX_IMPORT_FILES);
+      const root = commonRootFolder(usable.map(rel));
+      const files = new Map<string, string>();
+      const assets: AssetFile[] = [];
+      const ignored: string[] = [];
+      for (const file of usable) {
+        const parts = rel(file).split('/').filter(Boolean);
+        const path = '/' + (root ? parts.slice(1) : parts).join('/');
+        if (TEXT_FILE_RE.test(path)) files.set(path, await file.text());
+        else if (ASSET_EXT_RE.test(path)) assets.push({ path, mime: mimeForPath(path), data: new Uint8Array(await file.arrayBuffer()) });
+        else ignored.push(path);
       }
+      if (ignored.length) this.terminalState.addEntry('info', 'Importar', `Sin importar (tipo no soportado): ${ignored.slice(0, 8).join(', ')}${ignored.length > 8 ? '…' : ''}`);
+      await this.finishImport(files, root ?? '', assets);
+    } catch (err) {
+      this.terminalState.addEntry('error', 'Importar', `No se pudo importar la carpeta: ${(err as Error).message ?? err}`);
     }
   }
 
   /**
-   * Lo que se suelta sobre el árbol de archivos. Una sola carpeta o un `.zip` se abren como proyecto nuevo (el actual se
-   * guarda antes en «Mis proyectos»); varias cosas, o archivos sueltos, se añaden al proyecto actual sin sobrescribir.
-   * `entries` y `loose` deben leerse del evento de forma síncrona: el navegador los invalida tras el primer `await`.
+   * Lo que se suelta sobre el árbol de archivos (P-28): siempre se añade al proyecto abierto, pasando por el diálogo
+   * «Importar archivos» para ver antes qué entra y qué ya existe. Un único `.zip` pregunta si añadir su contenido o abrirlo
+   * como proyecto nuevo. `entries` y `loose` deben leerse del evento de forma síncrona: el navegador los invalida tras el primer `await`.
    */
-  async importDropped(entries: EntryLike[], loose: File[]): Promise<void> {
+  async importDropped(entries: EntryLike[], loose: File[], target = '/'): Promise<void> {
     try {
-      const dirs = entries.filter((e) => e.isDirectory);
-      if (dirs.length === 1 && entries.length === 1) {
-        const { files, assets, ignored } = await this.readDropped(await collectDropped(entries, { intoRoot: true }), true);
-        if (ignored.length) this.terminalState.addEntry('info', 'Importar', `Sin importar (tipo no soportado): ${ignored.slice(0, 8).join(', ')}${ignored.length > 8 ? '…' : ''}`);
-        this.finishImport(files, dirs[0].name, assets);
-        if (files.size) this.terminalState.addEntry('info', 'Importar', 'El proyecto anterior está en «Mis proyectos».');
+      const hasDir = entries.some((e) => e.isDirectory);
+      if (!hasDir && loose.length === 1 && isZip(loose[0].name)) {
+        this.ui.importFiles.set({ target, zip: loose[0] });
         return;
       }
-      if (dirs.length === 0 && loose.length === 1 && isZip(loose[0].name)) {
-        await this.importFromZipFile(loose[0]);
+      if (hasDir) {
+        const list = (await collectDropped(entries)).map(({ path, file }): ImportEntry => ({ relPath: path.slice(1), file }));
+        if (list.length) this.ui.importFiles.set({ target, entries: list });
         return;
       }
-      if (dirs.length) {
-        const { files, assets } = await this.readDropped(await collectDropped(entries), true);
-        this.orchestrator.addDroppedFiles(files, assets);
-        return;
-      }
-      // Archivos sueltos: los de texto del proyecto (Pug, JSON, JS…) se añaden tal cual; hojas de estilo, imágenes y fuentes siguen su camino de siempre.
-      const text = loose.filter((f) => TEXT_FILE_RE.test(f.name) && !isStylePath(f.name));
-      const rest = loose.filter((f) => !text.includes(f));
-      if (text.length) {
-        const { files } = await this.readDropped(text.map((file) => ({ path: '/' + file.name.replace(/\s+/g, '-'), file })), false);
-        // Un JSON que solo trae textos y se llama como un idioma (es-ES.json, translations.json…): se pregunta si es un idioma (P-14).
-        const asLocale = [...files].filter(([path, content]) => looksLikeTranslations(path, content));
-        if (asLocale.length) {
-          for (const [path] of asLocale) files.delete(path);
-          this.ui.localeImport.set({ source: 'drop', files: asLocale.map(([path, content]) => ({ name: path.slice(1), text: content })) });
+      // Un JSON suelto que solo trae textos y se llama como un idioma (es-ES.json, translations.json…): se pregunta si es un idioma (P-14).
+      const locales: { name: string; text: string }[] = [];
+      const list: ImportEntry[] = [];
+      for (const file of loose) {
+        const name = file.name.replace(/\s+/g, '-');
+        if (/\.json$/i.test(name)) {
+          const text = await file.text();
+          if (looksLikeTranslations('/' + name, text)) { locales.push({ name, text }); continue; }
         }
-        if (files.size) this.orchestrator.addDroppedFiles(files, []);
+        list.push({ relPath: file.name, file });
       }
-      if (rest.length) await this.orchestrator.addAssets(rest);
+      if (list.length) this.ui.importFiles.set({ target, entries: list });
+      if (locales.length) this.ui.localeImport.set({ source: 'drop', files: locales });
     } catch (err) {
-      this.terminalState.addEntry('error', 'Importar', `No se pudo importar lo soltado: ${(err as Error).message ?? err}`);
+      this.terminalState.addEntry('error', 'Importar', `No se pudo leer lo soltado: ${(err as Error).message ?? err}`);
     }
   }
 
-  private async readDropped(list: DroppedFile[], includeStyles: boolean): Promise<{ files: Map<string, string>; assets: AssetFile[]; ignored: string[] }> {
-    const files = new Map<string, string>();
-    const assets: AssetFile[] = [];
-    const ignored: string[] = [];
-    for (const { path, file } of list) {
-      if (TEXT_FILE_RE.test(path) && (includeStyles || !isStylePath(path))) files.set(path, await file.text());
-      else if (ASSET_EXT_RE.test(path)) assets.push({ path, mime: mimeForPath(path), data: new Uint8Array(await file.arrayBuffer()) });
-      else ignored.push(path);
-    }
-    return { files, assets, ignored };
+  /** El contenido de un `.zip` como archivos que «Importar archivos» puede añadir al proyecto abierto. */
+  async zipEntries(file: File): Promise<ImportEntry[]> {
+    const unzipped = unzipSync(new Uint8Array(await file.arrayBuffer()));
+    return planZipImport(Object.keys(unzipped)).entries.map(({ name, path }) => ({ relPath: path.slice(1), bytes: unzipped[name] }));
   }
 
   async importFromZipFile(file: File): Promise<void> {
@@ -225,13 +230,13 @@ export class ProjectIoService {
       if (plan.stripped) this.terminalState.addEntry('info', 'Importar', `Todo estaba dentro de la carpeta «${plan.stripped}»: se quita para que las rutas del proyecto (/partials/…) funcionen.`);
       if (skipped.length) this.terminalState.addEntry('info', 'Importar', `Sin importar (tipo no soportado): ${skipped.slice(0, 8).join(', ')}${skipped.length > 8 ? '…' : ''}`);
       if (plan.junk.length) this.terminalState.addEntry('info', 'Importar', `Ignorados ${plan.junk.length} archivos del sistema (__MACOSX, .DS_Store…).`);
-      this.finishImport(files, file.name.replace(/\.zip$/i, ''), assets);
+      await this.finishImport(files, file.name.replace(/\.zip$/i, ''), assets);
     } catch (err) {
       this.terminalState.addEntry('error', 'Importar', `No se pudo leer el .zip: ${(err as Error).message ?? err}`);
     }
   }
 
-  private finishImport(files: Map<string, string>, projectName: string, assets: AssetFile[] = []): void {
+  private async finishImport(files: Map<string, string>, projectName: string, assets: AssetFile[] = []): Promise<void> {
     const datasetsText = files.get(DATASETS_PATH);
     files.delete(DATASETS_PATH);
     const datasets = datasetsText === undefined ? null : parseDatasetsFile(datasetsText);
@@ -242,7 +247,10 @@ export class ProjectIoService {
       this.terminalState.addEntry('warning', 'Importar', 'No hay archivos compatibles que importar.');
       return;
     }
-    this.orchestrator.loadProject(files, projectName || 'Imported Project', assets, datasets);
+    const previous = this.orchestrator.projectName();
+    const name = await this.orchestrator.freeProjectName(projectName || 'Proyecto importado');
+    this.orchestrator.loadProject(files, name, assets, datasets);
+    this.terminalState.addEntry('info', 'Importar', `Proyecto «${name}» creado con lo importado. «${previous}» sigue en «Mis proyectos».`);
   }
 
   /**

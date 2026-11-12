@@ -8,6 +8,7 @@ import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
 import { UiState } from '../../../core/state/ui.state';
 import { TerminalState } from '../../../core/state/terminal.state';
 import { UserTemplateService } from '../../../core/services/user-template.service';
+import { ProjectIoService } from '../../../core/services/project-io.service';
 import { formatBytes } from '../../../core/utils/snapshot.util';
 import { UserTemplateMeta, cleanTemplateName, packTemplate, unpackTemplate } from '../../../core/utils/user-template.util';
 
@@ -103,6 +104,20 @@ import { UserTemplateMeta, cleanTemplateName, packTemplate, unpackTemplate } fro
               }
             </select>
             <button class="btn primary" (click)="create(tpl.value)">Nuevo proyecto</button>
+            <span class="import-wrap">
+              <button class="btn" data-testid="import-project" aria-haspopup="menu" [attr.aria-expanded]="importMenu()" (click)="importMenu.set(!importMenu())">
+                <span aria-hidden="true" class="material-symbols-outlined">drive_folder_upload</span>Importar proyecto…
+              </button>
+              @if (importMenu()) {
+                <div class="import-menu" role="menu" aria-label="Importar proyecto" (keydown.escape)="$event.stopPropagation(); importMenu.set(false)">
+                  <button class="menu-item" role="menuitem" data-testid="import-project-folder" (click)="importProject('folder')">
+                    <span aria-hidden="true" class="material-symbols-outlined">folder_open</span>Desde una carpeta…</button>
+                  <button class="menu-item" role="menuitem" data-testid="import-project-zip" (click)="importProject('zip')">
+                    <span aria-hidden="true" class="material-symbols-outlined">folder_zip</span>Desde un archivo .zip…</button>
+                  <p class="menu-note">Crea un proyecto nuevo. «{{ currentName() }}» sigue guardado aquí.</p>
+                </div>
+              }
+            </span>
           </div>
         </div>
       </div>
@@ -138,6 +153,13 @@ import { UserTemplateMeta, cleanTemplateName, packTemplate, unpackTemplate } fro
     .small-empty { padding: 10px 8px; text-align: left; }
     .msg { padding-top: 6px; }
     .footer-label { font-size: 12px; color: var(--text-secondary); }
+    .import-wrap { position: relative; margin-left: 4px; }
+    .import-wrap .btn { display: inline-flex; align-items: center; gap: 6px; }
+    .import-wrap .material-symbols-outlined { font-size: 16px; }
+    .import-menu { position: absolute; bottom: calc(100% + 6px); right: 0; width: 280px; padding: 6px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); z-index: 2; }
+    .menu-item { display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: 4px; background: transparent; color: var(--text-primary); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+    .menu-item:hover, .menu-item:focus-visible { background: var(--bg-surface-container-high); outline: none; }
+    .menu-note { margin: 6px 10px 4px; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
     .footer { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 12px 20px 16px; }
   `],
 })
@@ -152,6 +174,9 @@ export class ProjectsDialogComponent {
   protected readonly ui = inject(UiState);
   private userTemplateStore = inject(UserTemplateService);
   private terminal = inject(TerminalState);
+  private projectIo = inject(ProjectIoService);
+  /** Menú «Importar proyecto…» (P-29): desde una carpeta o desde un .zip. */
+  protected readonly importMenu = signal(false);
   protected templates = PROJECT_TEMPLATES;
   protected userTemplates = this.userTemplateStore.items;
   protected renamingTplId = signal<string | null>(null);
@@ -176,6 +201,8 @@ export class ProjectsDialogComponent {
           void this.refresh();
           void this.userTemplateStore.refresh();
           this.tplMessage.set(null);
+          this.importMenu.set(this.ui.projectsImportMenu());
+          this.ui.projectsImportMenu.set(false);
           setTimeout(() => this.dialog()?.nativeElement.focus());
         });
       } else if (this.restoreFocus) {
@@ -237,6 +264,13 @@ export class ProjectsDialogComponent {
     this.confirmDeleteTplId.set(null);
     await this.userTemplateStore.remove(t.id);
     this.terminal.addEntry('info', 'Plantillas', `Plantilla «${t.name}» borrada.`);
+  }
+
+  /** Crea un proyecto nuevo con una carpeta o un .zip; el abierto se queda guardado en la lista. */
+  protected importProject(kind: 'folder' | 'zip'): void {
+    this.importMenu.set(false);
+    this.closed.emit();
+    this.projectIo.pickProject(kind);
   }
 
   protected async importTemplate(input: HTMLInputElement): Promise<void> {

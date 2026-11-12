@@ -1,5 +1,5 @@
 import { strToU8 } from 'fflate';
-import { check, openApp, previewText, waitUntil } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, confirmImport } from '../lib.mjs';
 
 const PUG = "doctype html\nhtml\n  body\n    h1= t('HOME.TITLE')\n    p= t('HOME.INTRO')\n";
 const session = (files) => ({ projectName: 'Idiomas', files, openTabPaths: ['/main.pug'], activeTabPath: '/main.pug' });
@@ -59,6 +59,7 @@ export default async function (env) {
 
   // 3. «Es un dato más»: se añade como archivo normal
   await drop(page, [file('textos.json', '{ "a": "b" }'), file('lista-es.json', '{ "A": "b" }')]);
+  await confirmImport(page);
   await drop(page, [file('translations.json', '{ "HOME": { "TITLE": "x" } }')]);
   await dlg.waitFor({ timeout: 5000 });
   await page.locator('app-import-locale-dialog .btn.secondary').click();

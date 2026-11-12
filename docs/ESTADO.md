@@ -16,6 +16,10 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **PR B** (solo escritorio): espacios de trabajo por cliente (P-26) y aviso de versión nueva (P-27). Mergeada.
 - El instalador de Windows se prueba con la 0.11 (decisión de la persona responsable).
 
+## En curso: 0.12
+- **Importar archivos e importar proyecto** (P-28 y P-29): diseño aprobado y programado en una PR. «Importar archivos» añade al proyecto abierto; «Importar proyecto» está en «Mis proyectos» y crea uno nuevo.
+- **Logo nuevo**: elegida la propuesta D («Mensajero», el pug con la hoja en la boca; mesa L-01). Pendiente de aplicar en una PR aparte (SVG, favicon, iconos de la PWA y de escritorio).
+
 ## Propuesta en estudio
 - **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.
 

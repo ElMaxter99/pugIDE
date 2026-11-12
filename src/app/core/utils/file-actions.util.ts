@@ -85,17 +85,6 @@ export function deleteFolderDialog(path: string, summary: FolderSummary): Dialog
   };
 }
 
-export function importDialog(supportsFolders: boolean): DialogConfig {
-  return {
-    title: 'Importar proyecto',
-    message: `Elige ${supportsFolders ? 'una carpeta' : 'un archivo .zip'} para importar. Esto reemplaza todos los archivos abiertos en el editor.`,
-    confirmText: 'Continuar',
-    cancelText: 'Cancelar',
-    showInput: false,
-    type: 'warning',
-  };
-}
-
 /** Entradas del menú contextual de un nodo del árbol. */
 /** Lo que el menú de un archivo necesita saber de la vista previa para ofrecer «Previsualizar este archivo». */
 export interface PreviewMenuContext {
@@ -111,6 +100,7 @@ export function contextMenuFor(node: { type: 'file' | 'directory'; isAsset?: boo
   if (node.type === 'directory') {
     return [
       { label: 'Nuevo archivo', icon: 'note_add', action: 'newFile' },
+      { label: 'Importar archivos aquí…', icon: 'upload', action: 'importHere' },
       { label: 'Renombrar', icon: 'edit', action: 'rename' },
       { label: '', action: '', separator: true },
       { label: 'Borrar carpeta', icon: 'delete', action: 'delete' },

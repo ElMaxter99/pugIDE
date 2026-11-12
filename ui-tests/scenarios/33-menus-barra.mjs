@@ -105,12 +105,11 @@ export default async function (env) {
   await page.keyboard.press('Escape');
   await waitUntil(async () => !(await page.locator('app-project-search input').first().isVisible().catch(() => false)));
   await chooseMenu(page, 'proyecto', 'import');
-  check('33 Importar carpeta o .zip… abre el diálogo de importación', !!(await waitUntil(async () => (await dialogs()) > 0)));
-  await closeDialog(page);
-  const chooser = page.waitForEvent('filechooser', { timeout: 4000 }).catch(() => null);
-  await chooseMenu(page, 'proyecto', 'assets');
-  const fc = await chooser;
-  check('33 Subir imágenes, fuentes o estilos… abre el selector de archivos (varios)', !!fc && fc.isMultiple());
+  check('33 Importar archivos… abre su diálogo', !!(await waitUntil(async () => (await page.locator('[data-testid="import-files"]').count()) > 0)));
+  await closeDialog(page, '[data-testid="import-files"]');
+  await chooseMenu(page, 'proyecto', 'import-project');
+  check('33 Importar proyecto… abre «Mis proyectos» con el menú de importar desplegado', !!(await waitUntil(async () => (await page.locator('[data-testid="import-project-folder"]').count()) > 0)));
+  await closeDialog(page, '[role="dialog"][aria-label="Mis proyectos"]');
 
   // --- Cada acción de «Exportar» ---
   const downloadFrom = async (id) => {

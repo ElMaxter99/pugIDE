@@ -110,7 +110,7 @@ The command palette gathers actions, starter templates, preview devices and quic
 
 - **Guided first run:** a welcome with one-click starter templates (report, invoice, email, empty) and a 4-step tour, only the first time.
 - A project library in your browser: open, create from a template, rename, duplicate and delete.
-- **Import** a folder or a `.zip` (also by **dragging** them onto the file tree) and **export** to a folder, a `.zip` or a self-contained HTML file.
+- **Import files** into the open project: loose files or a whole folder (also by **dragging** them onto the file tree), choosing the destination folder and seeing first what is new and what already exists. **Import project** (folder or `.zip`) from “My projects” creates a new one without touching the open one. **Export** to a folder, a `.zip` or a self-contained HTML file.
 - **Export for email**: inlined CSS, no scripts, weight against Gmail's limit, and compatibility warnings (Outlook, web fonts, images without `alt`).
 - **Export every template** in a project to a `.zip` of `.html` files.
 - **Your own templates**: save a project as a starting point and reuse it; export and import them as `.zip`.
@@ -189,7 +189,7 @@ The full list is in the palette → "Atajos de teclado" (Keyboard shortcuts). On
 - The PDF preview **emulates** Chromium's pagination; the final result may vary by browser when printing. Chromium does not print `string()`, `string-set`, `element()` or `running()`, so PugIDE does not emulate them: it warns instead.
 - Pug filters that need Node packages (`:scss`, `:stylus`…) do not exist in the browser; `:markdown` is a subset.
 - PNG capture does not run the page's JavaScript.
-- Importing and exporting to a folder uses the File System Access API (Chrome/Edge); Firefox and Safari use `.zip`.
+- Exporting to a folder uses the File System Access API (Chrome/Edge); Firefox and Safari export a `.zip`. Importing folders works in all of them.
 
 ## Documentation and roadmap
 

@@ -164,6 +164,8 @@ export class CommandPaletteComponent {
         },
       },
       { group: 'Proyecto', title: 'Exportar proyecto (carpeta o .zip)', run: () => void this.projectIo.exportProject() },
+      { group: 'Proyecto', title: 'Importar archivos al proyecto…', keywords: 'subir añadir carpeta imágenes fuentes estilos upload', run: () => this.ui.importFiles.set({ target: '/' }) },
+      { group: 'Proyecto', title: 'Importar proyecto (carpeta o .zip)…', keywords: 'nuevo abrir zip carpeta crear', run: () => { this.ui.projectsImportMenu.set(true); this.ui.projectsOpen.set(true); } },
       { group: 'Proyecto', title: 'Descargar proyecto como .zip', run: () => this.projectIo.downloadZip() },
       { group: 'Proyecto', title: 'Exportar captura PNG del preview', keywords: 'imagen screenshot foto', run: () => void this.projectIo.exportPng() },
       { group: 'Proyecto', title: 'Exportar HTML renderizado', run: () => this.projectIo.exportHtml() },

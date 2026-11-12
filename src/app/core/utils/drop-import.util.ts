@@ -65,4 +65,12 @@ export async function collectDropped(entries: EntryLike[], opts: { prefix?: stri
   return out;
 }
 
+/** Una ruta que pasa por una carpeta de dependencias o de control de versiones (`node_modules/…`, `.git/…`). */
+export function isSkippedPath(relPath: string): boolean {
+  return relPath.replace(/\\/g, '/').split('/').slice(0, -1).some((part) => SKIPPED_DIRS.has(part));
+}
+
+/** Tope de archivos que se leen de una carpeta elegida o soltada. */
+export const MAX_IMPORT_FILES = MAX_FILES;
+
 export const isZip = (name: string): boolean => /\.zip$/i.test(name);

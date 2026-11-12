@@ -53,7 +53,7 @@ import { WELCOME_TEMPLATE_ORDER, templateBadge } from '../../../core/utils/tour.
               </button>
             }
             <button type="button" class="link" data-testid="welcome-import" (click)="importProject()">
-              <span aria-hidden="true" class="material-symbols-outlined">upload</span>Importar carpeta o .zip…
+              <span aria-hidden="true" class="material-symbols-outlined">upload</span>Importar proyecto (carpeta o .zip)…
             </button>
             <button type="button" class="link tour" data-testid="welcome-tour" (click)="startTour()">
               <span aria-hidden="true" class="material-symbols-outlined">arrow_forward</span>Ver el recorrido · 1 minuto
@@ -156,7 +156,8 @@ export class WelcomeDialogComponent {
 
   protected importProject(): void {
     this.dismiss();
-    this.ui.requestPanel('import-project');
+    this.ui.projectsImportMenu.set(true);
+    this.ui.projectsOpen.set(true);
   }
 
   protected startTour(): void {
