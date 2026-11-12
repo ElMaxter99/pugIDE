@@ -60,6 +60,7 @@ parser -> datos -> orquestador -> compilador -> preview. Ver `src/app/core/servi
 - `npm run test:ui` pruebas de interfaz con Playwright sobre el build de producción (`ui-tests/`; ejecuta antes `npm run build:prod`)
 - `npm run start:desktop` app de escritorio con el código actual; `npm run test:desktop` su prueba automática (tras `npm run build:prod`; ambas instalan solas las dependencias de `desktop/` si faltan o cambian)
 - `npm run ia` puente local del asistente de IA (solo con `npm start`)
+- Cómo se actualiza una app de escritorio (Electron, reutilizable en otros proyectos): [docs/ACTUALIZAR-ESCRITORIO.md](docs/ACTUALIZAR-ESCRITORIO.md)
 - Probar una rama a mano en Windows o Ubuntu (web, IA, escritorio, instaladores, aviso de versión): [docs/PROBAR-EN-LOCAL.md](docs/PROBAR-EN-LOCAL.md)
 
 ## Convenciones

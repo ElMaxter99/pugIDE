@@ -28,6 +28,10 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **Asistente de IA** (P-30 a P-34, solo escritorio y local con las CLI `claude`/`copilot`): mergeado (PR 75). Para probarlo a mano: [PROBAR-EN-LOCAL.md](PROBAR-EN-LOCAL.md).
 - **`npm run start:desktop` / `test:desktop`** y la batería de pruebas en local: mergeado (PR 76).
 
+## En curso: 0.14
+- **Actualizar dentro de la app de escritorio** (P-35 y P-36): diseño en el lienzo, **pendiente de aprobación**. Guía reutilizable en [ACTUALIZAR-ESCRITORIO.md](ACTUALIZAR-ESCRITORIO.md).
+- **Palabras prohibidas en el CI, icono de escritorio en los instaladores y versión 0.0.0 desde el código**: PR 79.
+
 ## Propuesta en estudio
 - **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.
 
