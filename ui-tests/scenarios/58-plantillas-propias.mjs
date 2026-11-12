@@ -59,9 +59,9 @@ export default async function (env) {
   await list.locator('li.row').first().locator('button', { hasText: 'Borrar' }).click();
   await list.locator('li.row').first().locator('button', { hasText: 'Confirmar' }).click();
   check('58 borrar pide confirmación y la quita', !!(await waitUntil(async () => /Aún no tienes plantillas propias/.test(await list.innerText()), 4000)), await list.innerText());
-  await dlg.locator('input[type="file"]').setInputFiles({ name: 'Factura corporativa-plantilla.zip', mimeType: 'application/zip', buffer: readFileSync(zipPath) });
+  await dlg.locator('[data-testid="template-import-input"]').setInputFiles({ name: 'Factura corporativa-plantilla.zip', mimeType: 'application/zip', buffer: readFileSync(zipPath) });
   check('58 importar la devuelve con su nombre', !!(await waitUntil(async () => /Factura corporativa/.test(await list.innerText()), 6000)), await list.innerText());
-  await dlg.locator('input[type="file"]').setInputFiles({ name: 'roto.zip', mimeType: 'application/zip', buffer: Buffer.from('no es un zip') });
+  await dlg.locator('[data-testid="template-import-input"]').setInputFiles({ name: 'roto.zip', mimeType: 'application/zip', buffer: Buffer.from('no es un zip') });
   check('58 un .zip que no vale se rechaza con su motivo', !!(await waitUntil(async () => /no es un \.zip válido/.test(await dlg.innerText()), 4000)), await dlg.innerText());
   await page.reload();
   await page.waitForTimeout(2500);

@@ -63,7 +63,7 @@ import { UserTemplateMeta, cleanTemplateName, packTemplate, unpackTemplate } fro
             <h3>Mis plantillas · {{ userTemplates().length }}</h3>
             <button class="btn" data-testid="template-import" (click)="file.click()">Importar plantilla (.zip)…</button>
             <button class="btn" data-testid="template-save-current" (click)="ui.saveTemplateOpen.set(true)">Guardar el proyecto abierto como plantilla…</button>
-            <input #file type="file" accept=".zip,application/zip" hidden (change)="importTemplate($any($event.target))" />
+            <input #file type="file" accept=".zip,application/zip" hidden data-testid="template-import-input" (change)="importTemplate($any($event.target))" />
           </div>
           <ul class="list tpl-list" data-testid="user-templates">
             @for (t of userTemplates(); track t.id) {
