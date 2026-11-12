@@ -44,3 +44,4 @@ export * from '../../src/app/core/utils/desktop.util';
 export * from '../../src/app/core/utils/email-export.util';
 export * from '../../src/app/core/utils/user-template.util';
 export * from '../../src/app/core/utils/workspace.util';
+export * from '../../src/app/core/utils/import-files.util';

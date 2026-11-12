@@ -427,6 +427,17 @@ export class OrchestratorService {
     return name;
   }
 
+  /** Nombre del proyecto abierto. */
+  projectName(): string {
+    return this.projectState.projectName();
+  }
+
+  /** Un nombre de proyecto que no choca con los de «Mis proyectos»: «Informe», «Informe (2)»… */
+  async freeProjectName(name: string): Promise<string> {
+    await this.saveToLibrary();
+    return uniqueProjectName(name.trim() || DEFAULT_PROJECT_NAME, (await this.library.list()).map((p) => p.name));
+  }
+
   /** Crea un proyecto nuevo, vacío o desde una plantilla de inicio (guardando antes el actual). */
   async createProject(name?: string, templateId?: string): Promise<void> {
     await this.saveToLibrary();
@@ -1035,6 +1046,69 @@ export class OrchestratorService {
   }
 
   /** Añade al proyecto actual archivos soltados (carpetas incluidas) sin sobrescribir los que ya existen. */
+  /**
+   * «Importar archivos» (P-28): escribe en el proyecto abierto lo que el diálogo ha decidido. Lo que ya existía y se
+   * sustituye queda en el historial del archivo, y toda la importación se deshace de una vez. Devuelve cuántos se escribieron.
+   */
+  importFiles(items: ImportedFile[], info: { skipped?: number; folder?: string } = {}): number {
+    const files = this.editorState.files();
+    const pid = this.projectState.projectId();
+    const added: string[] = [];
+    const replacedFiles: { path: string; content: string }[] = [];
+    const replacedAssets: AssetFile[] = [];
+    let assetsChanged = false;
+    for (const item of items) {
+      if (item.data) {
+        const before = this.assetState.assets().get(item.path);
+        if (before) replacedAssets.push({ path: before.path, mime: before.mime, data: before.data });
+        else added.push(item.path);
+        this.assetState.add(item.path, item.data, mimeForPath(item.path));
+        assetsChanged = true;
+        continue;
+      }
+      const content = item.content ?? '';
+      if (files.has(item.path)) {
+        const before = this.currentContent(item.path);
+        replacedFiles.push({ path: item.path, content: before });
+        if (pid) void this.history.record(pid, item.path, before, 'antes de importar', { previous: this.seen.get(this.historyKey(pid, item.path)) });
+      } else {
+        added.push(item.path);
+      }
+      files.set(item.path, content);
+    }
+    const written = added.length + replacedFiles.length + replacedAssets.length;
+    if (!written) {
+      if (info.skipped) this.terminalState.addEntry('info', 'Importar', `No se ha importado nada: ${info.skipped} archivo(s) ya existían y no se han tocado.`);
+      return 0;
+    }
+    this.editorState.files.set(files);
+    const active = this.editorState.activeTab();
+    const replacedActive = active && replacedFiles.some((x) => x.path === active.path);
+    if (active && replacedActive) this.editorState.updateContent(files.get(active.path) ?? '');
+    if (replacedFiles.length) this.editorState.notifyFileSync(replacedFiles.map((x) => x.path));
+    this.projectState.setProject(this.projectState.projectName(), files);
+    this.refreshTree();
+    if (!this.editorState.activeTab()) {
+      const firstPug = added.find((p) => isPugFile(p) && files.has(p));
+      if (firstPug) this.editorState.openFile(firstPug, firstPug.split('/').pop() ?? firstPug, getFileType(firstPug), files.get(firstPug) ?? '');
+    }
+    this.pushFileOp({ kind: 'import', added, replacedFiles, replacedAssets });
+    const replaced = replacedFiles.length + replacedAssets.length;
+    const parts = [`Añadido${added.length === 1 ? '' : 's'} ${added.length} archivo${added.length === 1 ? '' : 's'}${info.folder ? ` en ${info.folder}` : ''}`];
+    if (replaced) parts.push(`${replaced} sustituido${replaced === 1 ? '' : 's'} (la versión anterior de los de texto está en «Historial del archivo»)`);
+    if (info.skipped) parts.push(`${info.skipped} ya existía${info.skipped === 1 ? '' : 'n'} y no se ha${info.skipped === 1 ? '' : 'n'} tocado`);
+    this.terminalState.addEntry('success', 'Importar', parts.join('. ') + '.');
+    // Varias plantillas importadas: la vista previa no salta a ninguna sola; se avisa de cómo elegir.
+    const entry = findEntryPath(files, this.editorState.activeTab()?.path, this.previewState.pinnedEntry());
+    if (entry && !this.previewState.pinnedEntry() && added.some((p) => isPugFile(p) && p !== entry)) {
+      this.terminalState.addEntry('info', 'Vista previa', `Se previsualiza ${entry}. Para ver otra plantilla, usa «Previsualizar este archivo» en el árbol de archivos o en la paleta.`);
+    }
+    this.saveSession();
+    if (assetsChanged) void this.saveAssets();
+    void this.manualCompile();
+    return written;
+  }
+
   addDroppedFiles(files: Map<string, string>, assets: AssetFile[]): void {
     const current = this.editorState.files();
     const added: string[] = [];
@@ -1093,6 +1167,27 @@ export class OrchestratorService {
     }
     if (op.kind === 'renameFolder') {
       this.renameFolder(op.to, op.from, false);
+      return;
+    }
+    if (op.kind === 'import') {
+      const touched: string[] = [];
+      this.editorState.files.update((f) => {
+        for (const path of op.added) if (f.delete(path)) this.editorState.closeTabByPath(path);
+        for (const x of op.replacedFiles) { f.set(x.path, x.content); touched.push(x.path); }
+        return f;
+      });
+      for (const path of op.added) if (this.assetState.has(path)) this.assetState.remove(path);
+      for (const a of op.replacedAssets) this.assetState.add(a.path, a.data, a.mime);
+      const active = this.editorState.activeTab();
+      const back = active && op.replacedFiles.find((x) => x.path === active.path);
+      if (back) this.editorState.updateContent(back.content);
+      if (touched.length) this.editorState.notifyFileSync(touched);
+      this.projectState.setProject(this.projectState.projectName(), this.editorState.files());
+      this.refreshTree();
+      this.terminalState.addEntry('info', 'Importar', `Importación deshecha: ${op.added.length} archivo(s) quitados${touched.length + op.replacedAssets.length ? ` y ${touched.length + op.replacedAssets.length} devueltos a como estaban` : ''}.`);
+      this.saveSession();
+      void this.saveAssets();
+      void this.manualCompile();
       return;
     }
     if (op.kind === 'deleteFolder') {
@@ -1545,9 +1640,20 @@ type FileOp =
   | { kind: 'delete'; path: string; content?: string; asset?: AssetFile }
   | { kind: 'rename'; from: string; to: string }
   | { kind: 'deleteFolder'; path: string; files: { path: string; content: string }[]; assets: AssetFile[] }
-  | { kind: 'renameFolder'; from: string; to: string };
+  | { kind: 'renameFolder'; from: string; to: string }
+  | { kind: 'import'; added: string[]; replacedFiles: { path: string; content: string }[]; replacedAssets: AssetFile[] };
+
+/** Un archivo que «Importar archivos» escribe en el proyecto abierto (P-28). */
+export interface ImportedFile {
+  path: string;
+  /** Texto del archivo, si es de texto. */
+  content?: string;
+  /** Bytes, si es una imagen o una fuente. */
+  data?: Uint8Array;
+}
 
 function describeFileOp(op: FileOp): string {
+  if (op.kind === 'import') return `Deshacer la importación de ${op.added.length + op.replacedFiles.length + op.replacedAssets.length} archivo(s)`;
   if (op.kind === 'deleteFolder') return `Deshacer borrado de la carpeta ${op.path}`;
   if (op.kind === 'renameFolder') return `Deshacer renombrar la carpeta ${op.from} → ${op.to}`;
   return op.kind === 'delete' ? `Deshacer borrar ${op.path}` : `Deshacer renombrar ${op.from} → ${op.to}`;

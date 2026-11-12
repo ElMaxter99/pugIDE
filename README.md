@@ -108,7 +108,7 @@ La paleta de comandos reúne las acciones, las plantillas de inicio, los disposi
 
 - **Primer uso guiado:** una bienvenida con plantillas de un clic (Informe, Factura, Correo, vacío) y un recorrido de 4 pasos, solo la primera vez.
 - Biblioteca de proyectos en tu navegador: abrir, crear desde plantilla, renombrar, duplicar y borrar.
-- **Importar** una carpeta o un `.zip` (también **arrastrándolos** al árbol de archivos) y **exportar** a carpeta, `.zip` o HTML autocontenido.
+- **Importar archivos** al proyecto abierto: archivos sueltos o una carpeta entera (también **arrastrándolos** al árbol), eligiendo la carpeta de destino y viendo antes qué es nuevo y qué ya existe. **Importar proyecto** (carpeta o `.zip`) desde «Mis proyectos» crea uno nuevo sin tocar el abierto. **Exportar** a carpeta, `.zip` o HTML autocontenido.
 - **Exportar para correo**: CSS en línea, sin scripts, peso contra el límite de Gmail y avisos de compatibilidad (Outlook, fuentes web, imágenes sin `alt`).
 - **Exportar todas las plantillas** de un proyecto a un `.zip` de `.html`.
 - **Plantillas propias**: guarda un proyecto como punto de partida y reutilízalo; se exportan e importan como `.zip`.
@@ -189,7 +189,7 @@ La lista completa está en la paleta → «Atajos de teclado». En Mac, `Ctrl` e
 - El preview PDF **emula** la paginación de Chromium; el resultado final puede variar según el navegador al imprimir. `string()`, `string-set`, `element()` y `running()` no los imprime Chromium, así que PugIDE no los emula: avisa.
 - Los filtros de Pug que necesitan paquetes de Node (`:scss`, `:stylus`…) no existen en el navegador; `:markdown` es un subconjunto.
 - La captura PNG no ejecuta el JavaScript de la página.
-- Importar y exportar a carpeta usa la File System Access API (Chrome/Edge); en Firefox y Safari se usa `.zip`.
+- Exportar a una carpeta usa la File System Access API (Chrome/Edge); en Firefox y Safari se exporta como `.zip`. Importar carpetas funciona en todos.
 
 ## Documentación y hoja de ruta
 
