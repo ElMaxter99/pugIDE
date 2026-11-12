@@ -17,7 +17,7 @@ PugIDE se puede usar de **tres formas**. Todas son la misma aplicación y todas 
 - **Safari (macOS Sonoma o posterior):** **Archivo → Añadir al Dock**.
 - **Firefox de escritorio:** no admite instalar PWA. Usa Chrome o Edge, o el instalador de escritorio.
 - **Se actualiza sola:** cuando hay una versión nueva en la web, la app te lo dice y recargas (como en el navegador).
-- **Límites:** depende del navegador que la instaló; las carpetas del disco (importar/exportar proyecto como carpeta) solo van en navegadores de la familia Chromium.
+- **Límites:** depende del navegador que la instaló; exportar el proyecto a una carpeta del disco solo va en navegadores de la familia Chromium (importar carpetas va en todos).
 
 ## 3. Aplicación de escritorio
 
@@ -61,7 +61,7 @@ Un **espacio de trabajo** es una carpeta de tu equipo: la de las plantillas de u
 
 ## Tus proyectos y tu privacidad
 - La app de escritorio **no hace ninguna llamada de red por su cuenta** (salvo, si lo aceptas, la consulta de versión nueva a github.com) y **no lleva analítica**. Funciona con el cable desenchufado. (Los enlaces `https` que abras desde ella se abren en tu navegador.)
-- Los proyectos se guardan en **el perfil de cada app**: la web, la PWA y la app de escritorio **no comparten** proyectos entre sí. Para llevarte uno: **Proyecto → Exportar** (`.zip`) y en la otra, **Proyecto → Importar**.
+- Los proyectos se guardan en **el perfil de cada app**: la web, la PWA y la app de escritorio **no comparten** proyectos entre sí. Para llevarte uno: **Proyecto → Exportar** (`.zip`) y en la otra, **Proyecto → Importar proyecto (carpeta o .zip)…**.
 - Los enlaces de **compartir** funcionan igual en las tres. Desde la app de escritorio apuntan a la versión web (`https://pug-ide.vercel.app`, configurable en `desktop/src/config.json`, clave `webUrl`), así que se abren en cualquier navegador. Si se vaciara esa clave, saldrían como `pugide://app/…`, que solo abre quien tenga la app de escritorio instalada.
 
 ## Desinstalar

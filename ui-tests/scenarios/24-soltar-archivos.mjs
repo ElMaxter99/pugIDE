@@ -1,5 +1,5 @@
 import { zipSync, strToU8 } from 'fflate';
-import { check, openApp, previewText, waitUntil, openLogTab } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, openLogTab, confirmImport } from '../lib.mjs';
 
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
@@ -21,7 +21,8 @@ const text = (name, content) => ({ name, type: 'text/plain', b64: b64(strToU8(co
 const paths = (page) => page.evaluate(() => [...document.querySelectorAll('.file-tree [data-path]')].map((e) => e.getAttribute('data-path')));
 const terminal = async (page) => { await openLogTab(page); return page.evaluate(() => document.querySelector('app-terminal-panel')?.textContent ?? ''); };
 
-// Soltar archivos sobre el árbol: un .zip abre un proyecto, los archivos sueltos se añaden sin sobrescribir
+// Soltar sobre el árbol (P-28): todo pasa por «Importar archivos» y se añade al proyecto abierto sin sobrescribir;
+// un .zip pregunta si añadir su contenido o abrirlo como proyecto nuevo.
 export default async function (env) {
   const app = await openApp(env, {
     path: '/ide',
@@ -32,24 +33,30 @@ export default async function (env) {
 
   // 1. Archivos de texto sueltos: se añaden al proyecto
   await drop(page, [text('extra.pug', 'h2 Extra\n'), text('notas.md', '# notas\n')]);
+  await confirmImport(page);
   const added = await waitUntil(async () => (await paths(page)).includes('/extra.pug') && (await paths(page)).includes('/notas.md'), 5000);
   check('24 los archivos de texto soltados se añaden al proyecto', !!added, (await paths(page)).join(','));
   check('24 la terminal lo cuenta', /Añadidos 2 archivos/.test(await terminal(page)), await terminal(page));
 
   // 2. Sin sobrescribir lo que ya existe
   await drop(page, [text('extra.pug', 'h2 OTRO\n')]);
-  await waitUntil(async () => /no se sobrescriben/.test(await terminal(page)), 5000);
-  check('24 un archivo que ya existe no se sobrescribe y se avisa', /Ya existían y no se sobrescriben: \/extra\.pug/.test(await terminal(page)), await terminal(page));
+  const again = page.locator('[data-testid="import-files"]');
+  await again.locator('[data-testid="import-rows"]').waitFor({ timeout: 6000 });
+  check('24 un archivo que ya existe se marca y por defecto no se sobrescribe', /\/extra\.pug\s+ya existe/.test(await again.locator('[data-testid="import-rows"]').innerText()) && (await again.locator('[data-testid="import-go"]').isDisabled()), await again.innerText());
+  await page.keyboard.press('Escape');
+  await again.waitFor({ state: 'detached', timeout: 6000 }).catch(() => {});
   const kept = await page.evaluate(() => (window.monaco.editor.getModels().find((m) => m.uri.path === '/extra.pug')?.getValue()) ?? 'cerrado');
   check('24 su contenido sigue siendo el original', kept === 'cerrado' || kept === 'h2 Extra\n', kept);
 
-  // 3. Imagen: sigue yendo a assets
+  // 3. Imagen: entra como asset
   await drop(page, [{ name: 'logo.png', type: 'image/png', b64: PNG }]);
-  check('24 una imagen soltada sigue entrando como asset', !!(await waitUntil(async () => (await paths(page)).includes('/assets/logo.png'), 5000)), (await paths(page)).join(','));
+  await confirmImport(page);
+  check('24 una imagen soltada entra como asset en el destino', !!(await waitUntil(async () => (await paths(page)).includes('/logo.png'), 5000)), (await paths(page)).join(','));
 
   // 4. Un .zip abre un proyecto nuevo con su estructura y deja el anterior en «Mis proyectos»
   const zip = zipSync({ 'main.pug': strToU8('html\n  body\n    include ./partials/hola\n'), 'partials/hola.pug': strToU8('h1 Hola desde el zip\n') });
   await drop(page, [{ name: 'Informe-trimestral.zip', type: 'application/zip', b64: b64(zip) }]);
+  await confirmImport(page, { zip: 'project' });
   const loaded = await waitUntil(async () => (await paths(page)).includes('/partials/hola.pug'), 8000);
   check('24 el .zip abre un proyecto con su estructura', !!loaded, (await paths(page)).join(','));
   check('24 el proyecto toma el nombre del zip', (await page.locator('.workspace-name').innerText()).trim() === 'Informe-trimestral', await page.locator('.workspace-name').innerText());
@@ -79,6 +86,7 @@ export default async function (env) {
     '__MACOSX/Mi Proyecto/._main.pug': strToU8('x'),
   });
   await drop(page, [{ name: 'Mi-Proyecto.zip', type: 'application/zip', b64: b64(zip2) }]);
+  await confirmImport(page, { zip: 'project' });
   const flat = await waitUntil(async () => (await paths(page)).includes('/partials/hola.pug'), 8000);
   const flatPaths = (await paths(page)).join(',');
   check('24 el .zip con una carpeta raíz única se aplana', !!flat && !flatPaths.includes('Mi Proyecto') && !flatPaths.includes('__MACOSX') && !flatPaths.includes('.DS_Store'), flatPaths);

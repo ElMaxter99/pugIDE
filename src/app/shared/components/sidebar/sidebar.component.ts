@@ -3,8 +3,6 @@ import {
   ChangeDetectionStrategy,
   inject,
   signal,
-  effect,
-  untracked,
   computed,
   ViewChild,
   ElementRef,
@@ -16,7 +14,7 @@ import { getFileType } from '../../../core/models/tab.model';
 import { OrchestratorService } from '../../../core/services/orchestrator.service';
 import { ProjectIoService } from '../../../core/services/project-io.service';
 import { summarizeFolder } from '../../../core/utils/folder-ops.util';
-import { contextMenuFor, defaultNewFileDir, deleteDialog, deleteFolderDialog, renameFolderDialog, importDialog, newFileDialog, renameDialog, toProjectPath } from '../../../core/utils/file-actions.util';
+import { contextMenuFor, defaultNewFileDir, deleteDialog, deleteFolderDialog, renameFolderDialog, newFileDialog, renameDialog, toProjectPath } from '../../../core/utils/file-actions.util';
 import { FileTreeComponent } from './file-tree.component';
 import { DialogComponent, DialogConfig } from '../dialogs/dialog.component';
 import { ContextMenuComponent } from '../context-menu/context-menu.component';
@@ -35,7 +33,7 @@ type PendingAction =
   | { type: 'delete'; path: string }
   | { type: 'renameFolder'; path: string }
   | { type: 'deleteFolder'; path: string }
-  | { type: 'importProject' };
+;
 
 @Component({
   selector: 'app-sidebar',
@@ -100,14 +98,11 @@ type PendingAction =
         <div class="workspace-header">
           <div class="workspace-label-row">
             <div class="workspace-actions">
-              <button class="add-btn" (click)="onImportClick()" title="Importar proyecto (carpeta o .zip)" aria-label="Importar proyecto (carpeta o .zip)">
+              <button class="add-btn" data-testid="import-files-btn" (click)="onImportClick()" title="Importar archivos al proyecto…" aria-label="Importar archivos al proyecto">
                 <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">upload</span>
               </button>
               <button class="add-btn" (click)="onExportClick()" title="Exportar proyecto (carpeta o .zip)" aria-label="Exportar proyecto (carpeta o .zip)">
                 <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">download</span>
-              </button>
-              <button class="add-btn" (click)="pickAssets()" title="Subir imágenes, fuentes o estilos (.css, .scss, .less)" aria-label="Subir imágenes, fuentes o estilos">
-                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">add_photo_alternate</span>
               </button>
               @if (orchestrator.fileUndoLabel(); as undoLabel) {
                 <button class="add-btn" (click)="orchestrator.undoFileOp()" [title]="undoLabel" [attr.aria-label]="undoLabel">
@@ -119,12 +114,6 @@ type PendingAction =
               </button>
             </div>
           </div>
-          <input
-            #zipInput
-            type="file"
-            accept=".zip"
-            style="display: none"
-            (change)="onZipFileSelected($event)" />
           <input
             #assetInput
             type="file"
@@ -353,7 +342,6 @@ export class SidebarComponent {
   private ui = inject(UiState);
   private assetTarget: string | undefined;
 
-  @ViewChild('zipInput') private zipInput!: ElementRef<HTMLInputElement>;
   @ViewChild('assetInput') private assetInput!: ElementRef<HTMLInputElement>;
 
   protected dialogOpen = signal(false);
@@ -365,18 +353,6 @@ export class SidebarComponent {
   protected contextMenuY = signal(0);
   protected contextMenuItems = signal<ContextMenuAction[]>([]);
   private contextMenuTarget: FileNode | null = null;
-
-  constructor() {
-    // Órdenes de los menús de la barra superior (Importar…, Subir imágenes…).
-    effect(() => {
-      const req = this.ui.panelRequest();
-      if (!req) return;
-      untracked(() => {
-        if (req.id === 'import-project') this.onImportClick();
-        else if (req.id === 'upload-assets') this.pickAssets();
-      });
-    });
-  }
 
   protected selectTab(tab: 'archivos' | 'datos'): void {
     this.preferences.update({ sidebarTab: tab });
@@ -424,18 +400,9 @@ export class SidebarComponent {
     this.projectIo.exportProject();
   }
 
-  onImportClick(): void {
-    this.pendingAction = { type: 'importProject' };
-    this.dialogConfig.set(importDialog(this.projectIo.supportsFileSystemAccess));
-    this.dialogOpen.set(true);
-  }
-
-  async onZipFileSelected(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
-    input.value = '';
-    if (!file) return;
-    await this.projectIo.importFromZipFile(file);
+  /** «Importar archivos» (P-28): añade al proyecto abierto; `target` es la carpeta de destino. */
+  onImportClick(target = '/'): void {
+    this.ui.importFiles.set({ target });
   }
 
   private showRenameFolderDialog(path: string): void {
@@ -483,12 +450,6 @@ export class SidebarComponent {
       this.orchestrator.renameFolder(action.path, value);
     } else if (action.type === 'deleteFolder') {
       this.orchestrator.deleteFolder(action.path);
-    } else if (action.type === 'importProject') {
-      if (this.projectIo.supportsFileSystemAccess) {
-        this.projectIo.importFromDirectory();
-      } else {
-        this.zipInput.nativeElement.click();
-      }
     }
   }
 
@@ -520,6 +481,9 @@ export class SidebarComponent {
     if (!node || !action) return;
 
     switch (action) {
+      case 'importHere':
+        this.onImportClick(node.path);
+        break;
       case 'newFile':
         this.showNewFileDialog(node.path + '/');
         break;

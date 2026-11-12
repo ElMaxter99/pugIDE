@@ -50,7 +50,7 @@ Estado «fiel a la 0.5»: generada de la app de este repositorio (0.4.1 más los
 | V-17 Añadir idioma | Diálogo con campo | [`V-17-Anadir-idioma.dc.html`](canvas/V-17-Anadir-idioma.dc.html) | `main-layout` + `dialog` | Fiel a la 0.5 |
 | V-18 Nuevo archivo | Diálogo con campo | [`V-18-Nuevo-archivo.dc.html`](canvas/V-18-Nuevo-archivo.dc.html) | `sidebar` + `dialog` | Fiel a la 0.5 |
 | V-19 Borrar archivo | Diálogo de aviso | [`V-19-Borrar-archivo.dc.html`](canvas/V-19-Borrar-archivo.dc.html) | `sidebar` + `dialog` | Fiel a la 0.5 |
-| V-20 Importar | Diálogo de importar proyecto | [`V-20-Importar.dc.html`](canvas/V-20-Importar.dc.html) | `sidebar` + `dialog` | Fiel a la 0.5 |
+| V-20 Importar | Diálogo de importar (en la 0.5, «Importar proyecto»; desde la 0.12 es «Importar archivos», P-28) | [`V-20-Importar.dc.html`](canvas/V-20-Importar.dc.html) | `sidebar` + `dialog` | Fiel a la 0.5 |
 | V-21 Menú contextual | Menú del árbol de archivos | [`V-21-Menu-contextual.dc.html`](canvas/V-21-Menu-contextual.dc.html) | `context-menu` | Fiel a la 0.5 |
 | V-22 Privacidad | Aviso de analítica opcional | [`V-22-Privacidad.dc.html`](canvas/V-22-Privacidad.dc.html) | `consent-banner` | Fiel a la 0.5 |
 | V-23 Compartir | Aviso tras pulsar Compartir | [`V-23-Compartir.dc.html`](canvas/V-23-Compartir.dc.html) | `topbar` (`.share-notice`) | Fiel a la 0.5 |
@@ -90,8 +90,12 @@ Estado «fiel a la 0.5»: generada de la app de este repositorio (0.4.1 más los
 | P-23 Exportar para correo | Menú, diálogo con opciones, medidor de peso (102 KB de Gmail) y avisos de compatibilidad | [`P-23-P-25-Correo-paginas-plantillas.dc.html`](canvas/P-23-P-25-Correo-paginas-plantillas.dc.html) | `export-dialogs/email-export-dialog`, `email-export.util` | Diseño 0.11 aprobado y programado; dibujado a mano |
 | P-24 Varias páginas | Navegador de páginas del modo PDF y «Páginas»; «Exportar todas las plantillas»; enlaces entre plantillas | mismo archivo | `pdf-bar`, `export-dialogs/export-all-dialog`, `pug-vfs.util` | Diseño 0.11 aprobado y programado; dibujado a mano |
 | P-25 Plantillas propias | «Guardar como plantilla», «Mis plantillas» con sus acciones, importar y exportar | mismo archivo | `templates-dialogs/save-template-dialog`, `projects-dialog`, `user-template.service` | Diseño 0.11 aprobado y programado; dibujado a mano |
-| P-26 Espacios de trabajo | Solo escritorio: lista de espacios, nuevo espacio, espacio en la barra, cambios en disco | [`P-26-P-27-Escritorio-espacios-y-avisos.dc.html`](canvas/P-26-P-27-Escritorio-espacios-y-avisos.dc.html) | `desktop/` | Diseño 0.11 aprobado; pendiente de programar |
-| P-27 Aviso de versión nueva | Solo escritorio: pregunta opcional, barra «Descargar», «Buscar actualizaciones» | mismo archivo | `desktop/` | Diseño 0.11 aprobado; pendiente de programar |
+| P-26 Espacios de trabajo | Solo escritorio: lista de espacios, nuevo espacio, espacio en la barra, cambios en disco | [`P-26-P-27-Escritorio-espacios-y-avisos.dc.html`](canvas/P-26-P-27-Escritorio-espacios-y-avisos.dc.html) | `desktop/` | Diseño 0.11 aprobado y programado |
+| P-27 Aviso de versión nueva | Solo escritorio: pregunta opcional, barra «Descargar», «Buscar actualizaciones» | mismo archivo | `desktop/` | Diseño 0.11 aprobado y programado |
+| P-28 Importar archivos | Botón del panel, menú Proyecto, «Importar archivos aquí…», diálogo (elegir y resumen), conflictos, deshacer, soltar sobre el árbol | [`P-28-P-29-Importar-archivos-y-proyecto.dc.html`](canvas/P-28-P-29-Importar-archivos-y-proyecto.dc.html) | `import-files-dialog`, `sidebar`, `file-tree`, `import-files.util` | Diseño 0.12 aprobado y programado |
+| P-29 Importar proyecto | «Mis proyectos» con «Importar proyecto…» (carpeta o .zip), resultado y nombre libre | mismo archivo | `projects-dialog`, `project-io.service` | Diseño 0.12 aprobado y programado |
+| L-01 Logo | Cuatro propuestas de logo (A «Dog-ear», B, C, D «Mensajero») | [`L-01-Logo-propuestas.dc.html`](canvas/L-01-Logo-propuestas.dc.html) | `scripts/brand-icons.mjs` | Elegida la D y aplicada (0.12) |
+| L-02 Logo, segunda ronda | Seis variaciones de las familias A y D | [`L-02-Logo-segunda-ronda.dc.html`](canvas/L-02-Logo-segunda-ronda.dc.html) | (marca) | Descartadas en favor de la D original |
 
 Las mesas `P-NN` son la propuesta 0.7 de mejoras funcionales (ver [`propuestas/0.7-mejoras-funcionales.md`](propuestas/0.7-mejoras-funcionales.md)): no están programadas y se generan con `node design/propuestas/build-mesas-0.7.mjs` (ver la cabecera del script). Los `V-NN` no se han tocado; V-01 y V-05 siguen sin el botón de cámara de la 0.6 y se regenerarán al implementar.
 

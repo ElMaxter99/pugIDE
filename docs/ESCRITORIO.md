@@ -31,7 +31,7 @@ Tener PugIDE como aplicación instalable, como Postman, y no solo en la web: una
 ## Lo que ya juega a nuestro favor
 - **Es 100 % cliente.** Pug, Sass y Less se compilan en el navegador (paquetes JavaScript, sin binarios nativos); no hay backend que empaquetar. Esto hace que envolver la app sea barato.
 - **Ya es una PWA** (`manifest.webmanifest` y service worker de Angular): se puede instalar hoy desde Chrome o Edge (y «Añadir al Dock» en Safari de macOS) en Windows, macOS y Linux, con ventana propia, sin hacer nada.
-- **Ya usa la API de carpetas del navegador** (`showDirectoryPicker`) para importar y exportar proyectos, así que la idea de «proyecto = carpeta del disco» ya existe en pequeño.
+- **Ya usa la API de carpetas del navegador** (`showDirectoryPicker`) para exportar proyectos, así que la idea de «proyecto = carpeta del disco» ya existe en pequeño.
 
 ## Lo que hay que respetar (condiciona el diseño técnico)
 - **CSP estricta y marcos aislados.** `vercel.json` define una CSP por ruta y los marcos del preview (`preview-frame.html`, `render-frame.html`) llevan `sandbox`. El contenedor tiene que servir la app con **las mismas cabeceras**; si no, las pruebas de interfaz (que aplican las cabeceras de producción) dejarían de ser representativas.

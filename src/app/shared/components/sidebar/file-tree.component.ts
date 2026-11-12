@@ -240,7 +240,11 @@ export class FileTreeComponent {
       .filter((e): e is EntryLike => !!e);
     const files = Array.from(dt?.files ?? []);
     if (files.length === 0 && entries.length === 0) return;
-    await this.projectIo.importDropped(entries, files);
+    // Soltado sobre una carpeta (o un archivo dentro de ella): esa carpeta es el destino.
+    const row = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-path]');
+    const path = row?.dataset['path'] ?? '';
+    const target = row?.classList.contains('directory-row') ? path : path.slice(0, path.lastIndexOf('/')) || '/';
+    await this.projectIo.importDropped(entries, files, target);
   }
 
   protected fileIcon(node: FileNode): string {

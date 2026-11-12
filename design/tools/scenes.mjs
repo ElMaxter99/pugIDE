@@ -150,7 +150,7 @@ export const scenes = [
     },
     hrefs: closeToIde,
   },
-  { id: 'V-20', file: 'V-20-Importar.dc.html', title: 'V-20 Importar proyecto', theme: 'dark', ...ide, run: async (c) => { await withLogo(c); await c.page.locator('button[title^="Importar proyecto"]').click(); await sleep(500); }, hrefs: closeToIde },
+  { id: 'V-20', file: 'V-20-Importar.dc.html', title: 'V-20 Importar archivos', theme: 'dark', ...ide, run: async (c) => { await withLogo(c); await c.page.locator('button[title^="Importar archivos"]').click(); await sleep(500); }, hrefs: closeToIde },
   {
     id: 'V-21', file: 'V-21-Menu-contextual.dc.html', title: 'V-21 Menú contextual del árbol de archivos', theme: 'dark', ...ide,
     run: async (c) => { await withLogo(c); await c.page.getByText('cabecera.pug', { exact: true }).first().click({ button: 'right' }); await sleep(400); },

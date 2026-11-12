@@ -1,5 +1,5 @@
 import { strToU8 } from 'fflate';
-import { check, openApp, previewText, waitUntil, openLogTab, waitStored } from '../lib.mjs';
+import { check, openApp, previewText, waitUntil, openLogTab, waitStored, confirmImport } from '../lib.mjs';
 
 const session = {
   projectName: 'Plantillas',
@@ -47,6 +47,7 @@ export default async function (env) {
     file('informe.pug', 'doctype html\nhtml\n  body\n    h1 Informe trimestral\n'),
     file('resumen.jade', 'doctype html\nhtml\n  body\n    h1 Resumen ejecutivo\n'),
   ]);
+  await confirmImport(page);
   await row(page, 'resumen.jade').waitFor({ timeout: 6000 });
   check('34 importar varias plantillas no cambia la vista previa', (await previewText(page)).includes('Portada principal'), await previewText(page));
   check('34 el Registro avisa de cómo elegir otra', !!(await waitUntil(async () => /Se previsualiza \/main\.pug\. Para ver otra plantilla/.test(await log(page)))), await log(page));

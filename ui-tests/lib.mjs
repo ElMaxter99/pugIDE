@@ -222,3 +222,20 @@ export const libraryNames = (page) => page.evaluate(() => new Promise((resolve) 
     } catch { resolve([]); }
   };
 }));
+
+/**
+ * «Importar archivos» (P-28): espera el diálogo (lo abre el botón, el menú o soltar sobre el árbol), marca una opción si
+ * se pide (`import-replace`, `import-keep-both`) y pulsa «Importar N archivos». `zip`: `add` o `project` si lo soltado es un .zip.
+ */
+export async function confirmImport(page, { option, zip } = {}) {
+  const dlg = page.locator('[data-testid="import-files"]');
+  await dlg.waitFor({ timeout: 6000 });
+  if (zip) {
+    await dlg.locator(`[data-testid="import-zip-${zip}"]`).click();
+    if (zip === 'project') { await dlg.waitFor({ state: 'detached', timeout: 8000 }); return; }
+  }
+  await dlg.locator('[data-testid="import-go"]').waitFor({ timeout: 6000 });
+  if (option) await dlg.locator(`[data-testid="${option}"]`).check();
+  await dlg.locator('[data-testid="import-go"]').click();
+  await dlg.waitFor({ state: 'detached', timeout: 8000 });
+}

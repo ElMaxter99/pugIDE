@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toProjectPath, defaultNewFileDir, newFileDialog, renameDialog, deleteDialog, importDialog, contextMenuFor } from './.build/units.mjs';
+import { toProjectPath, defaultNewFileDir, newFileDialog, renameDialog, deleteDialog, contextMenuFor } from './.build/units.mjs';
 
 test('toProjectPath normaliza lo escrito y rechaza vacío', () => {
   assert.equal(toProjectPath('components/card.pug'), '/components/card.pug');
@@ -23,12 +23,10 @@ test('diálogos: textos en español y con campo de texto donde toca', () => {
   assert.deepEqual([r.inputValue, r.showInput, r.confirmText], ['/a.pug', true, 'Renombrar']);
   const d = deleteDialog('/a.pug');
   assert.ok(!d.showInput && d.type === 'warning' && d.message.includes('/a.pug'));
-  assert.match(importDialog(true).message, /una carpeta/);
-  assert.match(importDialog(false).message, /archivo \.zip/);
 });
 
 test('contextMenuFor según el tipo de nodo', () => {
-  assert.deepEqual(contextMenuFor({ type: 'directory' }).map((i) => i.action), ['newFile', 'rename', '', 'delete']);
+  assert.deepEqual(contextMenuFor({ type: 'directory' }).map((i) => i.action), ['newFile', 'importHere', 'rename', '', 'delete']);
   assert.deepEqual(contextMenuFor({ type: 'file', isAsset: true }).map((i) => i.action), ['rename', 'delete']);
   assert.deepEqual(contextMenuFor({ type: 'file' }).map((i) => i.action), ['rename', 'duplicate', '', 'delete']);
 });
