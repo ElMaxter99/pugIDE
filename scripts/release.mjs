@@ -21,7 +21,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { releaseNotes } from './release-notes.mjs';
+import { releaseBody } from './release-notes.mjs';
 
 export function parseArgs(argv) {
   const out = { version: '', yes: false, dryRun: false, noProd: false, sha: '', remote: 'origin', error: '' };
@@ -115,7 +115,7 @@ export async function main(argv, env = process.env) {
   // La guía no es imprescindible para publicar (las versiones anteriores a la regla no la tienen): solo se avisa.
   if (git(['cat-file', '-e', `${sha}:docs/releases/${tag}.md`], { allowFail: true }).status !== 0) log(`    ⚠ ese commit no lleva docs/releases/${tag}.md (la guía de la versión)`);
   if (checks.some(([, ok]) => !ok)) throw new Error('La versión no cuadra en ese commit: corrige el PR de la versión antes de publicar.');
-  const notes = releaseNotes(version, changelog);
+  const notes = releaseBody(version, changelog);
   if (!notes) throw new Error(`No hay notas de ${version} en el CHANGELOG.`);
 
   // 3. Tag

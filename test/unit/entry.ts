@@ -38,7 +38,7 @@ export * from '../../src/app/core/utils/json-view.util';
 export { literalStrings, resolveKeyArgument } from '../../src/app/parser/pug-parser.service';
 export * from '../../src/app/core/state/viewport.state';
 export * from '../../src/app/core/utils/folder-ops.util';
-export { releaseNotes } from '../../scripts/release-notes.mjs';
+export { releaseNotes, releaseBody, previousVersion } from '../../scripts/release-notes.mjs';
 export * from '../../src/app/core/utils/regions.util';
 export * from '../../src/app/core/utils/desktop.util';
 export * from '../../src/app/core/utils/email-export.util';
