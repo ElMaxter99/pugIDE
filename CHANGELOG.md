@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Cambiado
+- Las notas de cada release terminan con **«Cambios completos»**: el enlace al CHANGELOG de esa versión y a todos los cambios desde la anterior en GitHub (`releaseBody` en `scripts/release-notes.mjs`, que usa `npm run release:deploy`).
+
 ## [0.14.0] - 2026-11-12
 
 ### Añadido

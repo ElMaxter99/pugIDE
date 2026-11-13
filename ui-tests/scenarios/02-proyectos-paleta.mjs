@@ -39,6 +39,11 @@ export default async function (env) {
   const created = await waitUntil(async () => (await projectName(page)) === 'Informe', 10000);
   check('02 ejecutar el comando crea el proyecto "Informe" y cierra la paleta', !!created && (await palette.count()) === 0, await projectName(page));
 
+  // Como en el 59: antes de recargar se espera al guardado automático y a que acaben las cargas (el worker del editor,
+  // la vista previa). Recargar a media carga la cancela y WebKit lo anota como error de página («Load failed»), sin
+  // que sea un fallo de la app.
+  await page.waitForTimeout(1500);
+  await page.waitForLoadState('networkidle');
   await page.reload();
   const kept = await waitUntil(async () => (await projectName(page).catch(() => '')) === 'Informe', 10000);
   check('02 el proyecto activo se conserva al recargar', !!kept, await projectName(page));
