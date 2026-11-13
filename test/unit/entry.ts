@@ -47,3 +47,4 @@ export * from '../../src/app/core/utils/workspace.util';
 export * from '../../src/app/core/utils/import-files.util';
 export * from '../../src/app/core/utils/data-skeleton.util';
 export * from '../../src/app/core/utils/ai.util';
+export { sideBySideDiff } from '../../src/app/core/utils/text-diff.util';

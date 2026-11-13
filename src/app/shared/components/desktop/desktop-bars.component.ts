@@ -71,6 +71,7 @@ import { UiState } from '../../../core/state/ui.state';
       <div class="bar conflict" role="alert" data-testid="workspace-conflict">
         <span aria-hidden="true" class="material-symbols-outlined">sync_problem</span>
         <span class="text"><strong>{{ c.path.slice(1) }}</strong> {{ c.disk === null ? 'se ha borrado en el disco' : 'ha cambiado en el disco' }} y aquí tiene cambios sin guardar.</span>
+        <button type="button" class="btn link" data-testid="conflict-diff" (click)="ui.conflictDiffPath.set(c.path)"><span aria-hidden="true" class="material-symbols-outlined">swap_horiz</span>Ver diferencias</button>
         <button type="button" class="btn" data-testid="conflict-mine" (click)="workspace.resolveConflict(c.path, 'mine')">Quedarme con lo mío</button>
         <button type="button" class="btn primary" data-testid="conflict-disk" (click)="workspace.resolveConflict(c.path, 'disk')">{{ c.disk === null ? 'Borrarlo aquí también' : 'Cargar el del disco' }}</button>
       </div>
@@ -81,7 +82,7 @@ import { UiState } from '../../../core/state/ui.state';
     .bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 16px; font-size: 13px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); background: var(--bg-active); }
     .bar.conflict { border-bottom-color: var(--warning-color); }
     .bar .material-symbols-outlined { font-size: 20px; color: var(--accent-color); }
-    .bar.conflict .material-symbols-outlined { color: var(--warning-color); }
+    .bar.conflict > .material-symbols-outlined { color: var(--warning-color); }
     .text { flex: 1; min-width: 200px; overflow-wrap: anywhere; }
     .btn { padding: 5px 12px; border-radius: 4px; font-size: 12px; font-weight: 500; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-primary); }
     .btn:hover { background: var(--bg-hover); }

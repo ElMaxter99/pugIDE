@@ -433,6 +433,13 @@
    "w": 1440,
    "h": 2350,
    "title": "P-35 a P-36 Actualizar dentro de la app (escritorio, 0.14)"
+  },
+  "P-37-Conflictos-diferencias.dc.html": {
+   "x": 0,
+   "y": 47050,
+   "w": 1440,
+   "h": 1700,
+   "title": "P-37 Ver diferencias en un conflicto (escritorio, 0.15)"
   }
  },
  "order": [
@@ -492,7 +499,8 @@
   "L-01-Logo-propuestas.dc.html",
   "L-02-Logo-segunda-ronda.dc.html",
   "P-30-P-34-Asistente-IA.dc.html",
-  "P-35-P-36-Actualizar-escritorio.dc.html"
+  "P-35-P-36-Actualizar-escritorio.dc.html",
+  "P-37-Conflictos-diferencias.dc.html"
  ],
  "notes": {
   "fila-ref": {

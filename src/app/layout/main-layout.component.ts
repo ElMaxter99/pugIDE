@@ -46,6 +46,7 @@ import { SaveTemplateDialogComponent } from '../shared/components/templates-dial
 import { DesktopBarsComponent } from '../shared/components/desktop/desktop-bars.component';
 import { WorkspacesDialogComponent } from '../shared/components/desktop/workspaces-dialog.component';
 import { UpdatesDialogComponent } from '../shared/components/desktop/updates-dialog.component';
+import { ConflictDiffDialogComponent } from '../shared/components/desktop/conflict-diff-dialog.component';
 import { WorkspaceService } from '../core/services/workspace.service';
 import { DesktopUpdateService } from '../core/services/desktop-update.service';
 import { LocalesDialogComponent } from '../shared/components/locales-dialog/locales-dialog.component';
@@ -71,6 +72,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     DesktopBarsComponent,
     WorkspacesDialogComponent,
     UpdatesDialogComponent,
+    ConflictDiffDialogComponent,
     ShareOpenDialogComponent,
     AnnouncerComponent,
     ImportLocaleDialogComponent,
@@ -152,6 +154,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       }
       <app-workspaces-dialog />
       <app-updates-dialog />
+      <app-conflict-diff-dialog />
       <app-share-open-dialog />
     </div>
   `,
