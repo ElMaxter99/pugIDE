@@ -7,6 +7,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ### Cambiado
 - Las notas de cada release terminan con **«Cambios completos»**: el enlace al CHANGELOG de esa versión y a todos los cambios desde la anterior en GitHub (`releaseBody` en `scripts/release-notes.mjs`, que usa `npm run release:deploy`).
 
+### Corregido
+- **Escribir ya no da tirones en proyectos con muchas imágenes o fuentes.** Cada autoguardado (un segundo después de dejar de escribir) volvía a escribir en la biblioteca del navegador el proyecto entero, **incluidas todas las imágenes y fuentes**, con la pantalla congelada mientras tanto: medido en Chromium, unos 1,85 ms por MB (49 ms con 25 MB, 92 ms con 50 MB, 185 ms con 100 MB). Ahora la biblioteca guarda las imágenes y fuentes de cada proyecto **aparte** del texto y solo las reescribe cuando cambian (añadir, quitar o sustituir); el autoguardado escribe solo el texto y los datos (menos de 1 ms). Los proyectos guardados con versiones anteriores se siguen abriendo con sus imágenes y pasan al formato nuevo la primera vez que se guardan. Escenario `65-biblioteca-assets` (IndexedDB de verdad, también el formato anterior) y pruebas de la biblioteca.
+
 ## [0.14.0] - 2026-11-12
 
 ### Añadido

@@ -140,6 +140,10 @@ Como tiene el origen de la app no ejecuta nada del usuario: su único script es 
 
 Chromium, esta máquina, tiempo desde editar el archivo hasta ver el cambio en el preview (incluye los 300 ms de debounce), mediana de 10–12 ediciones, comparando la versión anterior al aislamiento con la actual: proyecto normal 335 → 343 ms; 723 KB de datos 344 → 380 ms (los datos se copian al Worker en cada compilación); un asset de 3 MB 333 → 485 ms (el preview recibe los assets como `data:` en cada documento: el coste crece con el tamaño de los assets). Arranque hasta ver el preview: 796 → 784 ms.
 
+### Biblioteca de proyectos y autoguardado
+
+`ProjectLibraryService` (IndexedDB `pug-ide-projects`, versión 2) guarda cada proyecto en tres almacenes: `meta` (resumen para la lista), `data` (sesión: archivos, datos, pestañas) y `assets` (imágenes y fuentes). `save(id, { session, assets? })` sin `assets` conserva los guardados: `OrchestratorService.saveToLibrary` solo los envía cuando el mapa de `AssetState` (inmutable) ha cambiado o es otro proyecto, porque copiar los bytes en `put()` bloquea el hilo principal ≈1,85 ms/MB (medido en Chromium) y el autoguardado corre un segundo después de cada pausa al escribir. Los proyectos de la versión 1 (assets dentro de `data`) se leen igual y pasan a `assets` al guardarse con ellos.
+
 ### Tablas grandes en PDF y assets pesados
 
 `npm run build:prod && npm run perf` (`scripts/perf.mjs`, Chromium, no corre en el CI) repite las medidas siguientes sobre el build actual e imprime una tabla con la mediana y el rango; `--runs N`, `--rows 500,2000`, `--only tablas|assets` y `--dist <carpeta>` (otro build, para comparar versiones) ajustan la ejecución. Las medidas viven en `ui-tests/perf-lib.mjs`, que comparte con el escenario `27-rendimiento.mjs`.
