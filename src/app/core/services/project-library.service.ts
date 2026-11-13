@@ -5,6 +5,8 @@ import type { ProjectSessionState } from './persistence.service';
 const DB_NAME = 'pug-ide-projects';
 const META = 'meta';
 const DATA = 'data';
+/** Desde la versión 2: las imágenes y fuentes de cada proyecto, aparte del texto (ver `put`). */
+const ASSETS = 'assets';
 
 /** Datos ligeros de un proyecto guardado, para listarlo sin cargar sus archivos. */
 export interface ProjectSummary {
@@ -21,9 +23,18 @@ export interface ProjectSnapshot {
   assets: AssetFile[];
 }
 
+/**
+ * Lo que se guarda. Sin `assets`, las imágenes y fuentes guardadas del proyecto se conservan como estaban: así el
+ * autoguardado (cada vez que se deja de escribir) solo escribe el texto y los datos, no decenas de MB de imágenes.
+ */
+export interface ProjectSave {
+  session: ProjectSessionState;
+  assets?: AssetFile[];
+}
+
 /** Almacenamiento subyacente (IndexedDB en el navegador; en memoria en las pruebas). */
 export interface LibraryBackend {
-  put(meta: ProjectSummary, data: ProjectSnapshot): Promise<void>;
+  put(meta: ProjectSummary, data: ProjectSave): Promise<void>;
   getAllMeta(): Promise<ProjectSummary[]>;
   getData(id: string): Promise<ProjectSnapshot | null>;
   remove(id: string): Promise<void>;
@@ -32,10 +43,14 @@ export interface LibraryBackend {
 class IndexedDbBackend implements LibraryBackend {
   private open(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
+      // Versión 2: almacén `assets` aparte. Los proyectos guardados con la 1 llevan los assets dentro de `data`;
+      // se siguen leyendo (getData) y pasan a `assets` la primera vez que se guardan con ellos.
+      const req = indexedDB.open(DB_NAME, 2);
       req.onupgradeneeded = () => {
-        req.result.createObjectStore(META, { keyPath: 'id' });
-        req.result.createObjectStore(DATA, { keyPath: 'id' });
+        const db = req.result;
+        if (!db.objectStoreNames.contains(META)) db.createObjectStore(META, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(DATA)) db.createObjectStore(DATA, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(ASSETS)) db.createObjectStore(ASSETS, { keyPath: 'id' });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -56,10 +71,21 @@ class IndexedDbBackend implements LibraryBackend {
     }
   }
 
-  async put(meta: ProjectSummary, data: ProjectSnapshot): Promise<void> {
-    await this.tx<void>([META, DATA], 'readwrite', (tx) => {
+  async put(meta: ProjectSummary, data: ProjectSave): Promise<void> {
+    await this.tx<void>([META, DATA, ASSETS], 'readwrite', (tx) => {
       tx.objectStore(META).put(meta);
-      tx.objectStore(DATA).put({ id: meta.id, ...data });
+      if (data.assets) {
+        tx.objectStore(DATA).put({ id: meta.id, session: data.session });
+        tx.objectStore(ASSETS).put({ id: meta.id, assets: data.assets });
+        return null;
+      }
+      // Sin assets: se conserva lo guardado. Un proyecto de la versión 1 los tiene dentro de `data`: se mantienen ahí.
+      const store = tx.objectStore(DATA);
+      const old = store.get(meta.id);
+      old.onsuccess = () => {
+        const legacy = (old.result as { assets?: AssetFile[] } | undefined)?.assets;
+        store.put(legacy ? { id: meta.id, session: data.session, assets: legacy } : { id: meta.id, session: data.session });
+      };
       return null;
     });
   }
@@ -69,14 +95,20 @@ class IndexedDbBackend implements LibraryBackend {
   }
 
   async getData(id: string): Promise<ProjectSnapshot | null> {
-    const row = await this.tx<(ProjectSnapshot & { id: string }) | undefined>([DATA], 'readonly', (tx) => tx.objectStore(DATA).get(id));
-    return row ? { session: row.session, assets: row.assets } : null;
+    let assetsRow: { assets: AssetFile[] } | undefined;
+    const row = await this.tx<{ session: ProjectSessionState; assets?: AssetFile[] } | undefined>([DATA, ASSETS], 'readonly', (tx) => {
+      const a = tx.objectStore(ASSETS).get(id);
+      a.onsuccess = () => { assetsRow = a.result as { assets: AssetFile[] } | undefined; };
+      return tx.objectStore(DATA).get(id);
+    });
+    return row ? { session: row.session, assets: assetsRow?.assets ?? row.assets ?? [] } : null;
   }
 
   async remove(id: string): Promise<void> {
-    await this.tx<void>([META, DATA], 'readwrite', (tx) => {
+    await this.tx<void>([META, DATA, ASSETS], 'readwrite', (tx) => {
       tx.objectStore(META).delete(id);
       tx.objectStore(DATA).delete(id);
+      tx.objectStore(ASSETS).delete(id);
       return null;
     });
   }
@@ -87,9 +119,14 @@ export class MemoryLibraryBackend implements LibraryBackend {
   private metas = new Map<string, ProjectSummary>();
   private datas = new Map<string, ProjectSnapshot>();
 
-  async put(meta: ProjectSummary, data: ProjectSnapshot): Promise<void> {
+  /** Cuántas veces se han escrito assets (para las pruebas del autoguardado). */
+  assetWrites = 0;
+
+  async put(meta: ProjectSummary, data: ProjectSave): Promise<void> {
     this.metas.set(meta.id, { ...meta });
-    this.datas.set(meta.id, structuredClone(data));
+    if (data.assets) this.assetWrites++;
+    const assets = data.assets ?? this.datas.get(meta.id)?.assets ?? [];
+    this.datas.set(meta.id, structuredClone({ session: data.session, assets }));
   }
   async getAllMeta(): Promise<ProjectSummary[]> {
     return [...this.metas.values()].map((m) => ({ ...m }));
@@ -128,14 +165,17 @@ export class ProjectLibraryService {
     }
   }
 
-  /** Guarda (o actualiza) un proyecto. Devuelve false si no se pudo escribir (cuota, modo privado…). */
-  async save(id: string, snapshot: ProjectSnapshot): Promise<boolean> {
+  /**
+   * Guarda (o actualiza) un proyecto. Devuelve false si no se pudo escribir (cuota, modo privado…). Sin
+   * `snapshot.assets` se conservan los assets guardados (pasa `assetCount` para el resumen).
+   */
+  async save(id: string, snapshot: ProjectSave, assetCount = snapshot.assets?.length ?? 0): Promise<boolean> {
     const meta: ProjectSummary = {
       id,
       name: snapshot.session.projectName,
       updatedAt: Date.now(),
       fileCount: Object.keys(snapshot.session.files).length,
-      assetCount: snapshot.assets.length,
+      assetCount: snapshot.assets?.length ?? assetCount,
     };
     try {
       await this.backend.put(meta, snapshot);
