@@ -6,6 +6,7 @@ import {
   signal,
   HostListener,
   ViewChild,
+  OnDestroy,
   ElementRef,
   viewChild,
   input,
@@ -304,7 +305,7 @@ function countMatches(text: string, query: string): number {
     }
   `],
 })
-export class SmartDataEditorComponent {
+export class SmartDataEditorComponent implements OnDestroy {
   protected layout = inject(LayoutService);
   /** Dentro de la pestaña «Datos» del panel lateral (sin cabecera ni borde); si no, es la columna de «Editor + datos + vista previa». */
   readonly embedded = input(false);
@@ -371,10 +372,32 @@ export class SmartDataEditorComponent {
     this.jsonMatchAt = hit.start;
     area.setSelectionRange(hit.start, hit.end);
     const at = hit.start;
-    // Lleva la coincidencia a la vista sin quitar el foco del filtro mientras se escribe.
-    const line = area.value.slice(0, at).split('\n').length - 1;
-    area.scrollTop = Math.max(0, line * 20 - area.clientHeight / 2);
+    // Lleva la coincidencia a la vista. Las líneas largas se parten en varias filas, así que se mide la altura real
+    // del texto hasta la coincidencia en una copia invisible del área (mismo ancho y tipografía).
+    area.scrollTop = Math.max(0, this.textHeightUpTo(area, at) - area.clientHeight / 2);
     if (focus) area.focus();
+  }
+
+  private measurer: HTMLTextAreaElement | null = null;
+
+  ngOnDestroy(): void {
+    this.measurer?.remove();
+  }
+
+  /** Altura que ocupa el texto de `area` hasta `index`, con las líneas partidas como en pantalla. */
+  private textHeightUpTo(area: HTMLTextAreaElement, index: number): number {
+    const m = this.measurer ??= document.createElement('textarea');
+    const cs = getComputedStyle(area);
+    m.setAttribute('aria-hidden', 'true');
+    m.tabIndex = -1;
+    Object.assign(m.style, {
+      position: 'absolute', visibility: 'hidden', left: '-9999px', top: '0', height: '0', overflow: 'hidden',
+      width: `${area.clientWidth}px`, padding: cs.padding, border: '0', boxSizing: 'border-box',
+      font: cs.font, lineHeight: cs.lineHeight, letterSpacing: cs.letterSpacing, tabSize: cs.tabSize, whiteSpace: cs.whiteSpace, wordBreak: cs.wordBreak, overflowWrap: cs.overflowWrap,
+    });
+    if (!m.isConnected) document.body.appendChild(m);
+    m.value = area.value.slice(0, index);
+    return m.scrollHeight;
   }
 
   /** Segmentado «Árbol | JSON»: cambia solo si el modo pedido no es el actual. */

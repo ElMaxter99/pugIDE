@@ -5,6 +5,7 @@ import { check, openApp, previewText, waitUntil } from '../lib.mjs';
 const data = {
   cliente: { nombre: 'Clínica Aurora', email: 'facturas@aurora.example', dirección: 'Calle Mayor 3, Valencia' },
   factura: { numero: 'F-2026-0042', pagada: false, total: 45 },
+  condiciones: 'El pago se realizará por transferencia bancaria en un plazo máximo de quince días naturales desde la fecha de emisión. '.repeat(12),
   lineas: [{ concepto: 'Consulta de fisioterapia', importe: 45 }, { concepto: 'Revisión', importe: 0 }],
   antiguo: 'ya no se usa',
 };
@@ -27,7 +28,7 @@ export default async function (env) {
   const row = (path) => table.locator(`.tree-row[data-path="${path}"]`);
 
   check('67 la tabla enseña cada grupo con cuántos elementos tiene', /cliente\s*\{3\}/.test(await row('cliente').innerText()) && /lineas\s*\[2\]/.test(await row('lineas').innerText()), await table.innerText());
-  check('67 la clave que la plantilla no lee lleva su punto «sin usar» y la tira lo cuenta', !!(await waitUntil(async () => (await row('antiguo').locator('.unused').count()) === 1 && /1 sin usar/.test(await summary()), 6000)), await summary());
+  check('67 las claves que la plantilla no lee llevan su punto «sin usar» y la tira las cuenta', !!(await waitUntil(async () => (await row('antiguo').locator('.unused').count()) === 1 && /2 sin usar/.test(await summary()) && (await row('condiciones').locator('.unused').count()) === 1, 6000)), await summary());
   check('67 las que sí se usan no lo llevan', (await row('cliente').locator('.unused').count()) === 0);
 
   // Expandir y contraer todo.
@@ -76,6 +77,13 @@ export default async function (env) {
   await filter.press('Enter');
   const sel = await panel.locator('textarea.json-textarea').evaluate((t) => ({ s: t.selectionStart, e: t.selectionEnd, txt: t.value.slice(t.selectionStart, t.selectionEnd), len: t.value.length, act: document.activeElement?.tagName }));
   check('67 Intro selecciona la coincidencia en el texto', /importe/i.test(sel.txt), JSON.stringify(sel));
+  const visible = await panel.locator('textarea.json-textarea').evaluate((t) => {
+    const m = document.createElement('textarea'); const cs = getComputedStyle(t);
+    Object.assign(m.style, { position: 'absolute', visibility: 'hidden', height: '0', width: t.clientWidth + 'px', padding: cs.padding, border: '0', boxSizing: 'border-box', font: cs.font, lineHeight: cs.lineHeight, whiteSpace: cs.whiteSpace, overflowWrap: cs.overflowWrap });
+    document.body.appendChild(m); m.value = t.value.slice(0, t.selectionStart); const y = m.scrollHeight; m.remove();
+    return y >= t.scrollTop && y <= t.scrollTop + t.clientHeight + 4;
+  });
+  check('67 la coincidencia queda a la vista aunque antes haya líneas largas partidas', visible);
   check('67 y buscar no cambia el JSON (Intro no escribe en él)', (await panel.locator('textarea.json-textarea').inputValue()) === before);
   await filter.press('Enter');
   check('67 otro Intro pasa a la coincidencia siguiente', (await panel.locator('textarea.json-textarea').evaluate((t) => t.selectionStart)) !== sel.s && (await panel.locator('textarea.json-textarea').inputValue()) === before);
