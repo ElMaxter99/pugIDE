@@ -32,6 +32,12 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **Actualizar dentro de la app de escritorio** (P-35 y P-36): mergeado (PR 80). Probado de verdad con un AppImage local. Guía reutilizable en [ACTUALIZAR-ESCRITORIO.md](ACTUALIZAR-ESCRITORIO.md).
 - **Palabras prohibidas en el CI, icono de escritorio en los instaladores y versión 0.0.0 desde el código**: mergeado (PR 79). Arreglos de Windows (CRLF, dependencias de escritorio): PR 78.
 
+## En curso: 0.15
+- **«Cambios completos» en las notas de cada release**: mergeado (PR 82).
+- **El autoguardado ya no reescribe las imágenes** (biblioteca con assets aparte): mergeado (PR 83).
+- **Ver diferencias en un conflicto** (P-37): diseño aprobado y programado, en su PR. Incluye el arreglo de «Cargar el del disco» en el archivo abierto.
+- **0.14.0**: publicada con sus instaladores y los archivos de actualización.
+
 ## Propuesta en estudio
 - **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.
 

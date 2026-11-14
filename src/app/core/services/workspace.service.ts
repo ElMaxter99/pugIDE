@@ -256,6 +256,12 @@ export class WorkspaceService {
     const k = this.conflicts().find((c) => c.path === path);
     if (!k) return;
     this.conflicts.update((list) => list.filter((c) => c.path !== path));
+    // La versión que no se elige no se pierde: queda en «Historial del archivo» (P-37).
+    const mine = this.editorState.allFileContents().get(path) ?? null;
+    const discarded = keep === 'disk' ? mine : k.disk;
+    if (discarded !== null && discarded !== (keep === 'disk' ? k.disk : mine)) {
+      this.orchestrator.keepInHistory(path, discarded, keep === 'disk' ? 'descartado en un conflicto (lo de PugIDE)' : 'descartado en un conflicto (lo del disco)');
+    }
     if (keep === 'disk') {
       if (k.disk !== null) this.synced.texts.set(path, k.disk); else this.synced.texts.delete(path);
       this.orchestrator.applyExternalChanges({ [path]: k.disk });

@@ -574,6 +574,10 @@ export class OrchestratorService {
     }
     this.editorState.files.set(new Map(files));
     this.projectState.setAssetPaths(this.assetState.paths(), this.editorState.files());
+    // Si cambia el archivo que está abierto, también cambia «lo que hay en el editor»: la recompilación parte de
+    // ese texto y, si se quedara con el antiguo, lo volvería a escribir encima de lo que acaba de llegar del disco.
+    const activePath = this.editorState.activeTab()?.path;
+    if (activePath && changed.includes(activePath)) this.editorState.editorContent.set(texts[activePath] as string);
     if (changed.length) this.editorState.notifyFileSync(changed);
     void this.manualCompile();
   }
@@ -651,6 +655,12 @@ export class OrchestratorService {
     const pid = this.projectState.projectId();
     if (!pid) return;
     for (const path of paths) void this.history.record(pid, path, this.currentContent(path), reason, { previous: this.seen.get(this.historyKey(pid, path)) });
+  }
+
+  /** Guarda en el historial del archivo un contenido que no es el actual (p. ej. la versión que se descarta en un conflicto). */
+  keepInHistory(path: string, content: string, reason: string): void {
+    const pid = this.projectState.projectId();
+    if (pid) void this.history.record(pid, path, content, reason, { previous: this.seen.get(this.historyKey(pid, path)) });
   }
 
   /** Vuelve el archivo a una versión guardada; antes guarda su estado actual para poder deshacerlo. */

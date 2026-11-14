@@ -75,6 +75,8 @@ export class UiState {
   readonly workspacesOpen = signal(false);
   /** Escritorio: «Buscar actualizaciones» (P-27). */
   readonly updatesOpen = signal(false);
+  /** Diálogo «Diferencias» de un archivo en conflicto (P-37): su ruta, o null. */
+  readonly conflictDiffPath = signal<string | null>(null);
   /** Enlace compartido que se está abriendo (P-16). */
   readonly shareOpen = signal<ShareOpenRequest | null>(null);
   /** Diálogo con el historial de versiones del archivo activo. */
