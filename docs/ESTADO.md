@@ -35,7 +35,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 ## En curso: 0.15
 - **«Cambios completos» en las notas de cada release**: mergeado (PR 82).
 - **El autoguardado ya no reescribe las imágenes** (biblioteca con assets aparte): mergeado (PR 83).
-- **Ver diferencias en un conflicto** (P-37): diseño aprobado y programado, en su PR. Incluye el arreglo de «Cargar el del disco» en el archivo abierto.
+- **Ver diferencias en un conflicto** (P-37): mergeado (PR 84), con el arreglo de «Cargar el del disco» en el archivo abierto.
+- **La zona de Datos como tabla CLAVE / VALOR** (P-38): diseño aprobado y programado, en su PR.
 - **0.14.0**: publicada con sus instaladores y los archivos de actualización.
 
 ## Propuesta en estudio

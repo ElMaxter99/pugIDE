@@ -440,6 +440,13 @@
    "w": 1440,
    "h": 1700,
    "title": "P-37 Ver diferencias en un conflicto (escritorio, 0.15)"
+  },
+  "P-38-Datos-como-traducciones.dc.html": {
+   "x": 1520,
+   "y": 47050,
+   "w": 1440,
+   "h": 1380,
+   "title": "P-38 La zona de Datos, como la de traducciones (0.15)"
   }
  },
  "order": [
@@ -500,7 +507,8 @@
   "L-02-Logo-segunda-ronda.dc.html",
   "P-30-P-34-Asistente-IA.dc.html",
   "P-35-P-36-Actualizar-escritorio.dc.html",
-  "P-37-Conflictos-diferencias.dc.html"
+  "P-37-Conflictos-diferencias.dc.html",
+  "P-38-Datos-como-traducciones.dc.html"
  ],
  "notes": {
   "fila-ref": {

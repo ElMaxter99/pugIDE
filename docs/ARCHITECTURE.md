@@ -26,7 +26,7 @@ Para que los componentes no acumulen lógica, cada uno delega en utilidades pura
 
 | Componente | Hijos | Utilidades |
 |---|---|---|
-| `SmartDataEditorComponent` (modo JSON, cabecera) | `DataTreeComponent` (árbol editable; sigue vivo, oculto, en modo JSON para conservar los nodos abiertos), `DatasetBarComponent` (juegos de datos; avisa con `beforeChange` / `changed`) | `data-tree.util` (`flattenTree`, `parseDataJson`) |
+| `SmartDataEditorComponent` (modo JSON, cabecera) | `DataTreeComponent` (tabla CLAVE / VALOR editable con filtro, P-38; sigue viva, oculta, en modo JSON para conservar los nodos abiertos), `DatasetBarComponent` (juegos de datos; avisa con `beforeChange` / `changed`) | `data-tree.util` (`dataTable`, `findFolded`, `parseDataJson`) |
 | `PreviewPanelComponent` | `PdfBarComponent` | `preview-layout.util` (`fitScale`, `buildPageChrome`, `a11yReport`…), `paginate.util`, `page-rules.util` |
 | `EditorPanelComponent` (Monaco, modelos, marcadores) | `ProjectSearchComponent` (no toca Monaco: emite `openMatch` / `replaced`), `pug-language.ts` (completado, hover, símbolos y formato) | `pug-editor.util` |
 | `SidebarComponent` (diálogos y menú contextual) | `FileTreeComponent` | `file-actions.util` (textos de diálogos, rutas, menú) |
