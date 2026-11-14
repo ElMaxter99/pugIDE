@@ -86,7 +86,7 @@ import { sideBySideDiff } from '../../../core/utils/text-diff.util';
     .head { display: flex; flex-direction: column; padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 8px 8px 0 0; background: var(--bg-input); font-size: 13px; color: var(--text-primary); }
     .panes { overflow: auto; max-height: min(56vh, 560px); border: 1px solid var(--border-color); border-radius: 0 0 8px 8px; background: var(--bg-primary); font-family: var(--font-mono); font-size: 12px; line-height: 20px; }
     .panes:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-width: 760px; }
+    .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; min-width: 760px; }
     .cell { display: flex; min-width: 0; color: var(--text-secondary); border-left: 3px solid transparent; }
     .cell.removed { background: color-mix(in srgb, var(--error-color) 14%, transparent); color: var(--text-primary); }
     .cell.added { background: color-mix(in srgb, var(--success-color) 14%, transparent); color: var(--text-primary); }
@@ -96,7 +96,8 @@ import { sideBySideDiff } from '../../../core/utils/text-diff.util';
     .sign { width: 14px; flex-shrink: 0; font-weight: 700; user-select: none; }
     .removed .sign { color: var(--error-color); }
     .added .sign { color: var(--success-color); }
-    .text { white-space: pre; }
+    /* Las líneas largas se parten dentro de su columna: no pisan la otra versión ni obligan a desplazarse a lo ancho. */
+    .text { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .line { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--text-primary); }
     .line .warn { color: var(--warning-color); font-size: 20px; }
