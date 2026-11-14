@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   inject,
   signal,
   HostListener,
@@ -18,7 +19,17 @@ import { PreferencesState } from '../../core/services/preferences.state';
 import { ParserState } from '../../core/state/parser.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
 import { TerminalState } from '../../core/state/terminal.state';
-import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/data-tree.util';
+import { findFolded, foldText, insertIndent, parseDataJson, stringifyData } from '../../core/utils/data-tree.util';
+
+/** Cuántas veces aparece `query` en `text` (sin distinguir mayúsculas ni tildes). */
+function countMatches(text: string, query: string): number {
+  const q = foldText(query);
+  if (!q) return 0;
+  const t = foldText(text);
+  let n = 0;
+  for (let i = t.indexOf(q); i >= 0; i = t.indexOf(q, i + q.length)) n++;
+  return n;
+}
 
 @Component({
   selector: 'app-smart-data-editor',
@@ -45,23 +56,39 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
         </div>
       }
 
+      <app-dataset-bar (beforeChange)="applyJsonIfDirty()" (changed)="refreshAfterDatasetChange()" (copyJson)="copyJsonToClipboard()" (clearData)="clearData()" />
+
       <div class="data-tools">
+        <label class="filter">
+          <span aria-hidden="true" class="material-symbols-outlined">search</span>
+          <input #filterInput type="search" class="filter-input" data-testid="data-filter" [placeholder]="jsonRawMode() ? 'Buscar en el JSON' : 'Filtrar datos'" [attr.aria-label]="jsonRawMode() ? 'Buscar en el JSON' : 'Filtrar datos'"
+            [value]="filter()" (input)="onFilter($any($event.target).value)" (keydown.escape)="clearFilter($event)" (keydown.enter)="$event.preventDefault(); findNextInJson()" />
+        </label>
         <div class="mode-group" role="group" aria-label="Modo del editor de datos" title="Cambiar entre árbol y JSON (Ctrl+Shift+J)">
           <button type="button" class="mode-seg" data-testid="data-mode-tree" [class.active]="!jsonRawMode()" [attr.aria-pressed]="!jsonRawMode()" (click)="setMode(false)">Árbol</button>
           <button type="button" class="mode-seg" data-testid="data-mode-json" [class.active]="jsonRawMode()" [attr.aria-pressed]="jsonRawMode()" (click)="setMode(true)">JSON</button>
         </div>
-        <span class="tools-spacer"></span>
+      </div>
+
+      <div class="data-strip" role="toolbar" aria-label="Acciones sobre los datos">
+        <span class="summary" data-testid="data-summary" aria-live="polite">{{ summary() }}@if (!jsonRawMode() && !filter().trim() && tree.unusedCount()) { · <span class="unused-dot" aria-hidden="true"></span> {{ tree.unusedCount() }} sin usar}</span>
         <button class="icon-btn" [disabled]="!dataState.canUndo()" (click)="undo()" title="Deshacer" aria-label="Deshacer">
           <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">undo</span>
         </button>
         <button class="icon-btn" [disabled]="!dataState.canRedo()" (click)="redo()" title="Rehacer" aria-label="Rehacer">
           <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">redo</span>
         </button>
+        @if (!jsonRawMode()) {
+          <button class="icon-btn" data-testid="data-collapse-all" [disabled]="!!filter().trim()" (click)="tree.collapseAll()" title="Contraer todo" aria-label="Contraer todo">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span>
+          </button>
+          <button class="icon-btn" data-testid="data-expand-all" [disabled]="!!filter().trim()" (click)="tree.expandAll()" title="Expandir todo" aria-label="Expandir todo">
+            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">keyboard_arrow_down</span>
+          </button>
+        }
       </div>
 
-      <app-dataset-bar (beforeChange)="applyJsonIfDirty()" (changed)="refreshAfterDatasetChange()" (copyJson)="copyJsonToClipboard()" (clearData)="clearData()" />
-
-      <app-data-tree #tree [class.hidden]="jsonRawMode()" />
+      <app-data-tree #tree [filter]="jsonRawMode() ? '' : filter()" [class.hidden]="jsonRawMode()" />
 
       <div class="json-editor-area" [class.hidden]="!jsonRawMode()">
         @if (jsonError()) {
@@ -162,17 +189,48 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
     .data-tools {
       display: flex;
       align-items: center;
-      gap: 4px;
-      padding: 6px 12px;
+      gap: 6px;
+      padding: 3px 8px 8px;
       border-bottom: 1px solid var(--border-color);
       background: var(--bg-surface-container-low);
       flex-shrink: 0;
     }
 
+    .filter {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 30px;
+      padding: 0 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+    }
+    .filter:focus-within { border-color: var(--accent-color); }
+    .filter .material-symbols-outlined { font-size: 16px; color: var(--text-tertiary); }
+    .filter-input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--text-primary); font-family: inherit; font-size: 12px; }
+
+    .data-strip {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      min-height: 30px;
+      padding: 0 4px 0 10px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-surface-container);
+      flex-shrink: 0;
+    }
+    .summary { flex: 1; min-width: 0; font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .unused-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warning-color); }
+    .data-strip .icon-btn { width: 28px; height: 28px; }
+
     .tools-spacer { flex: 1; }
 
     .mode-group {
       display: inline-flex;
+      flex-shrink: 0;
       border: 1px solid var(--border-color);
       border-radius: var(--radius);
       overflow: hidden;
@@ -180,9 +238,9 @@ import { insertIndent, parseDataJson, stringifyData } from '../../core/utils/dat
 
     .mode-seg {
       min-height: 30px;
-      padding: 0 14px;
+      padding: 0 10px;
       font-family: inherit;
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-secondary);
       background: transparent;
     }
@@ -259,6 +317,23 @@ export class SmartDataEditorComponent {
   @ViewChild('jsonArea') jsonArea!: ElementRef<HTMLTextAreaElement>;
   private tree = viewChild.required<DataTreeComponent>('tree');
 
+  /** Texto del filtro: en «Árbol» filtra la tabla; en «JSON» busca en el texto. */
+  protected readonly filter = signal('');
+  private jsonMatchAt = -1;
+
+  /** Resumen de la tira: cuántas claves hay o cuántas coinciden. */
+  protected readonly summary = computed(() => {
+    const q = this.filter().trim();
+    if (this.jsonRawMode()) {
+      if (!q) return 'JSON';
+      const n = countMatches(this.rawJsonContent(), q);
+      return n === 1 ? '1 coincidencia' : `${n} coincidencias`;
+    }
+    const t = this.tree().table();
+    const claves = (n: number): string => (n === 1 ? '1 clave' : `${n} claves`);
+    return q ? `${t.matches} de ${claves(t.total)}` : claves(t.total);
+  });
+
   jsonRawMode = signal(false);
   jsonError = signal<string | null>(null);
   rawJsonContent = signal('');
@@ -271,6 +346,35 @@ export class SmartDataEditorComponent {
       if (this.embedded() && (this.preferences.sidebarCollapsed() || this.preferences.sidebarTab() !== 'datos')) this.layout.openSidebar('datos');
       this.toggleMode();
     }
+  }
+
+  protected onFilter(value: string): void {
+    this.filter.set(value);
+    this.jsonMatchAt = -1;
+    if (this.jsonRawMode()) this.findNextInJson(false);
+  }
+
+  protected clearFilter(event: Event): void {
+    if (!this.filter()) return;
+    event.stopPropagation();
+    this.filter.set('');
+    (event.target as HTMLInputElement).value = '';
+  }
+
+  /** En «JSON»: selecciona la coincidencia siguiente en el texto (Intro en el filtro pasa a la siguiente). */
+  protected findNextInJson(focus = true): void {
+    const q = this.filter().trim();
+    const area = this.jsonArea?.nativeElement;
+    if (!this.jsonRawMode() || !q || !area) return;
+    const hit = findFolded(area.value, q, this.jsonMatchAt + 1);
+    if (!hit) return;
+    this.jsonMatchAt = hit.start;
+    area.setSelectionRange(hit.start, hit.end);
+    const at = hit.start;
+    // Lleva la coincidencia a la vista sin quitar el foco del filtro mientras se escribe.
+    const line = area.value.slice(0, at).split('\n').length - 1;
+    area.scrollTop = Math.max(0, line * 20 - area.clientHeight / 2);
+    if (focus) area.focus();
   }
 
   /** Segmentado «Árbol | JSON»: cambia solo si el modo pedido no es el actual. */
@@ -354,7 +458,7 @@ export class SmartDataEditorComponent {
     this.dataState.setData(emptyData);
     this.orchestrator.onDataChange();
     if (this.jsonRawMode()) this.showJson(stringifyData(emptyData));
-    this.tree().expand(['']);
+    this.tree().expand([]);
   }
 
   /** Tras cambiar los datos por otra vía, el modo JSON y los nodos abiertos deben reflejar el estado actual. */
@@ -365,7 +469,7 @@ export class SmartDataEditorComponent {
 
   protected refreshAfterDatasetChange(): void {
     if (this.jsonRawMode() && this.jsonArea) this.showJson(stringifyData(this.dataState.data()));
-    this.tree().expand(['', ...Object.keys(this.dataState.data())]);
+    this.tree().expand(Object.keys(this.dataState.data()));
   }
 
   undo(): void {

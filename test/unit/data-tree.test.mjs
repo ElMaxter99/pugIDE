@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { flattenTree, getValueType, parseDataJson, stringifyData, insertIndent } from './.build/units.mjs';
+import { getValueType, parseDataJson, stringifyData, insertIndent } from './.build/units.mjs';
 
 const kinds = (rows) => rows.map((r) => `${r.kind}:${r.path || '·'}@${r.depth}`);
 
@@ -8,29 +8,8 @@ test('getValueType', () => {
   assert.deepEqual([null, true, 3, 'x', undefined].map(getValueType), ['null', 'boolean', 'number', 'string', 'string']);
 });
 
-test('flattenTree: hojas, objetos plegados y abiertos', () => {
-  const data = { title: 'Hola', user: { name: 'Ana', age: 3 } };
-  assert.deepEqual(kinds(flattenTree(data, new Set())), ['leaf:title@0', 'object-open:user@0']);
-  assert.deepEqual(kinds(flattenTree(data, new Set(['user']))), ['leaf:title@0', 'object-open:user@0', 'leaf:user.name@1', 'leaf:user.age@1', 'object-close:user@0']);
-  const leaf = flattenTree(data, new Set(['user']))[2];
-  assert.deepEqual([leaf.value, leaf.valueType], ['Ana', 'string']);
-});
 
-test('flattenTree: arrays de primitivos en una fila y arrays de objetos expandibles', () => {
-  const data = { tags: ['a', null, 3], items: [{ id: 1 }, { id: 2 }] };
-  const rows = flattenTree(data, new Set());
-  assert.deepEqual(rows[0].inlineItems, ['a', 'null', '3']);
-  assert.equal(rows[1].kind, 'array-open');
-  assert.equal(rows[1].itemCount, 2);
-  const open = flattenTree(data, new Set(['items', 'items.1']));
-  assert.deepEqual(kinds(open).slice(1), [
-    'array-open:items@0', 'object-open:items.0@1', 'object-open:items.1@1', 'leaf:items.1.id@2', 'object-close:items.1@1', 'array-close:items@0',
-  ]);
-});
 
-test('flattenTree: entradas que no son objetos no dan filas', () => {
-  for (const v of [null, undefined, 3, 'x']) assert.deepEqual(flattenTree(v, new Set()), []);
-});
 
 test('parseDataJson exige un objeto en la raíz', () => {
   assert.deepEqual(parseDataJson('{"a":1}'), { ok: true, value: { a: 1 } });
@@ -62,3 +41,63 @@ test('el esqueleto rellena hasta los elementos que pide la plantilla (padArray)'
   assert.equal(nested.pedidos[0].lineas.length, 2);
   assert.equal(nested.pedidos[1].lineas.length, 0, 'un array vacío se deja (no hay forma que copiar)');
 });
+
+// ---- Tabla CLAVE / VALOR (P-38) ----
+{
+  const { dataTable, foldText, findFolded } = await import('./.build/units.mjs');
+  const data = {
+    nombre: 'Carlos', email: 'carlos@email.com', edad: 28, activo: true, nulo: null,
+    hobbies: ['Programar', 'Leer'],
+    usuarios: [{ nombre: 'Ana', email: 'ana@norte.example' }, { nombre: 'Luis', email: 'luis@sur.example' }],
+    noticia: { titulo: 'Nueva sede en Valencia', dirección: 'Calle Mayor 3' },
+  };
+  const line = (r) => `${'  '.repeat(r.depth)}${r.key}${r.kind === 'group' ? ` ${r.count}${r.open ? '' : ' ›'}` : `=${r.value}`}${r.hit ? ' *' : ''}${r.unused ? ' !' : ''}`;
+
+  test('dataTable: grupos con su tamaño, cerrados salvo los de `expanded`', () => {
+    const t = dataTable(data, new Set(['hobbies']));
+    assert.deepEqual(t.rows.map(line), ['nombre=Carlos', 'email=carlos@email.com', 'edad=28', 'activo=true', 'nulo=null', 'hobbies [2]', '  0=Programar', '  1=Leer', 'usuarios [2] ›', 'noticia {2} ›']);
+    assert.deepEqual([t.total, t.matches], [13, 13]);
+    assert.deepEqual(t.groups, ['hobbies', 'usuarios', 'usuarios.0', 'usuarios.1', 'noticia']);
+    assert.equal(t.rows.find((r) => r.key === 'edad').valueType, 'number');
+  });
+
+  test('dataTable: los elementos de una lista se pueden editar por su ruta', () => {
+    const t = dataTable(data, new Set(['usuarios', 'usuarios.1']));
+    assert.equal(t.rows.find((r) => r.path === 'usuarios.1.email').value, 'luis@sur.example');
+  });
+
+  test('dataTable: el filtro busca en claves y valores y abre los grupos con coincidencias', () => {
+    const t = dataTable(data, new Set(), 'mail');
+    assert.deepEqual(t.rows.map(line), ['email=carlos@email.com *', 'usuarios [2]', '  0 {2}', '    email=ana@norte.example *', '  1 {2}', '    email=luis@sur.example *']);
+    assert.deepEqual([t.total, t.matches], [13, 3]);
+  });
+
+  test('dataTable: sin tildes ni mayúsculas; un grupo cuya clave coincide enseña todo lo suyo', () => {
+    assert.deepEqual(dataTable(data, new Set(), 'DIRECCION').rows.map(line), ['noticia {2}', '  dirección=Calle Mayor 3 *']);
+    assert.deepEqual(dataTable(data, new Set(), 'notic').rows.map(line), ['noticia {2} *', '  titulo=Nueva sede en Valencia', '  dirección=Calle Mayor 3']);
+    assert.deepEqual(dataTable(data, new Set(), 'no hay nada así').rows, []);
+    assert.equal(foldText('Dirección'), 'direccion');
+  });
+
+  test('dataTable: marca las claves de primer nivel que la plantilla no usa', () => {
+    const t = dataTable(data, new Set(), '', ['nulo', 'noticia']);
+    assert.deepEqual(t.rows.filter((r) => r.unused).map((r) => r.key), ['nulo', 'noticia']);
+  });
+
+  test('dataTable: datos vacíos o que no son un objeto', () => {
+    assert.deepEqual(dataTable({}, new Set()).rows, []);
+    assert.deepEqual(dataTable(null, new Set()).total, 0);
+  });
+
+  test('findFolded: posiciones del texto original aunque antes haya tildes', () => {
+    const text = '{ "nombre": "Clínica Aurora", "dirección": "Calle Mayor", "importe": 45, "IMPORTE2": 1 }';
+    const a = findFolded(text, 'importe');
+    assert.equal(text.slice(a.start, a.end), 'importe');
+    const b = findFolded(text, 'importe', a.start + 1);
+    assert.equal(text.slice(b.start, b.end), 'IMPORTE');
+    const c = findFolded(text, 'direccion');
+    assert.equal(text.slice(c.start, c.end), 'dirección');
+    assert.equal(findFolded(text, 'importe', b.start + 1).start, a.start);
+    assert.equal(findFolded(text, 'no está'), null);
+  });
+}

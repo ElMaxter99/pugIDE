@@ -1,299 +1,141 @@
-import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, input, signal } from '@angular/core';
 import { DataState } from '../../core/state/data.state';
 import { OrchestratorService } from '../../core/services/orchestrator.service';
-import { flattenTree } from '../../core/utils/data-tree.util';
+import { ParserState } from '../../core/state/parser.state';
+import { dataTable } from '../../core/utils/data-tree.util';
+import { unusedDataKeys } from '../../core/utils/quality-hints.util';
 
-/** Árbol editable de los datos: desplegar nodos, editar textos y números, y alternar booleanos. */
+/**
+ * Tabla editable de los datos (P-38), como la de los archivos de traducciones: CLAVE y VALOR en dos columnas, cuántos
+ * elementos tiene cada grupo y los valores largos en una línea. Se edita en el sitio: textos, números e interruptores.
+ */
 @Component({
   selector: 'app-data-tree',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-      <div class="tree-view">
-        <div class="tree-content font-mono">
-          @for (row of flatRows(); track row.path + row.kind) {
-            @switch (row.kind) {
-              @case ('object-open') {
-                <div class="tree-row expandable" role="button" tabindex="0" [attr.aria-expanded]="isNodeExpanded(row.path)" [attr.aria-label]="(isNodeExpanded(row.path) ? 'Plegar ' : 'Desplegar ') + row.key" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)" (keydown.enter)="toggleNode(row.path)" (keydown.space)="$event.preventDefault(); toggleNode(row.path)">
-                  <span aria-hidden="true" class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
+      <div class="tree-view" role="table" aria-label="Datos" data-testid="data-table">
+        <div class="tree-head" role="row">
+          <span class="cell key" role="columnheader">Clave</span>
+          <span class="cell value" role="columnheader">Valor</span>
+        </div>
+        <div class="tree-content font-mono" role="rowgroup">
+          @for (row of table().rows; track row.path) {
+            @if (row.kind === 'group') {
+              <div class="tree-row expandable" [class.hit]="row.hit" role="row" [attr.data-path]="row.path">
+                <button type="button" class="cell key group" role="cell" [attr.aria-expanded]="row.open" [disabled]="filtering()"
+                  [attr.aria-label]="(row.open ? 'Plegar ' : 'Desplegar ') + row.key + ', ' + groupSize(row.count!)"
+                  [style.padding-left.px]="6 + row.depth * 14" (click)="toggleNode(row.path)">
+                  <span aria-hidden="true" class="material-symbols-outlined tree-arrow" [class.rotated]="row.open">keyboard_arrow_down</span>
                   <span class="json-key">{{ row.key }}</span>
-                  <span class="json-colon">:</span>
-                  @if (!row.isExpanded) {
-                    <span class="json-bracket">{{ openCurly }}{{ closeCurly }}</span>
-                  } @else {
-                    <span class="json-bracket">{{ openCurly }}</span>
-                  }
-                </div>
-              }
-              @case ('array-open') {
-                <div class="tree-row expandable" role="button" tabindex="0" [attr.aria-expanded]="isNodeExpanded(row.path)" [attr.aria-label]="(isNodeExpanded(row.path) ? 'Plegar ' : 'Desplegar ') + row.key" [style.padding-left.px]="row.depth * 20" (click)="toggleNode(row.path)" (keydown.enter)="toggleNode(row.path)" (keydown.space)="$event.preventDefault(); toggleNode(row.path)">
-                  <span aria-hidden="true" class="material-symbols-outlined tree-arrow" [class.rotated]="isNodeExpanded(row.path)">keyboard_arrow_down</span>
+                  <span class="json-count">{{ row.count }}</span>
+                  @if (row.unused) { <span class="unused" role="img" aria-label="La plantilla no lo usa" title="La plantilla no lo usa"></span> }
+                </button>
+                <span class="cell value" role="cell"></span>
+              </div>
+            } @else {
+              <div class="tree-row leaf" [class.hit]="row.hit" role="row" [attr.data-path]="row.path">
+                <span class="cell key" role="cell" [style.padding-left.px]="22 + row.depth * 14" [title]="row.path">
                   <span class="json-key">{{ row.key }}</span>
-                  <span class="json-colon">:</span>
-                  @if (!row.isExpanded) {
-                    <span class="json-bracket">{{ openBracket }}</span>
-                    <span class="json-count">{{ row.itemCount }} items</span>
-                    <span class="json-bracket">{{ closeBracket }}</span>
-                  } @else {
-                    <span class="json-bracket">{{ openBracket }}</span>
-                  }
-                </div>
-              }
-              @case ('object-close') {
-                <div class="tree-row closing" [style.padding-left.px]="row.depth * 20 + 20">
-                  <span class="json-bracket">{{ closeCurly }}</span>
-                </div>
-              }
-              @case ('array-close') {
-                <div class="tree-row closing" [style.padding-left.px]="row.depth * 20 + 20">
-                  <span class="json-bracket">{{ closeBracket }}</span>
-                </div>
-              }
-              @case ('leaf') {
-                <div class="tree-row leaf" [style.padding-left.px]="row.depth * 20 + 20">
-                  <span class="json-key">{{ row.key }}</span>
-                  <span class="json-colon">:</span>
+                  @if (row.unused) { <span class="unused" role="img" aria-label="La plantilla no lo usa" title="La plantilla no lo usa"></span> }
+                </span>
+                <span class="cell value" role="cell">
                   @if (row.valueType === 'string') {
-                    <input
-                      class="json-input string-input"
-                        [attr.aria-label]="'Valor de ' + row.path"
-                      [value]="row.value"
-                      (change)="updateValue(row.path, $any($event.target).value)" />
+                    <input class="json-input string-input" [attr.aria-label]="'Valor de ' + row.path" [title]="$any(row.value)"
+                      [value]="row.value" (change)="updateValue(row.path, $any($event.target).value)" (keydown.escape)="cancel($event, row.value)" />
                   } @else if (row.valueType === 'number') {
-                    <input
-                      class="json-input number-input"
-                        [attr.aria-label]="'Valor de ' + row.path"
-                      type="number"
-                      [value]="row.value"
-                      (change)="updateValue(row.path, +$any($event.target).value)" />
+                    <input class="json-input number-input" type="number" [attr.aria-label]="'Valor de ' + row.path"
+                      [value]="row.value" (change)="updateValue(row.path, +$any($event.target).value)" (keydown.escape)="cancel($event, row.value)" />
                   } @else if (row.valueType === 'boolean') {
-                    <div
-                      class="json-toggle"
-                      role="switch"
-                      tabindex="0"
-                      [attr.aria-checked]="!!row.value"
-                      [attr.aria-label]="'Valor de ' + row.path"
-                      [class.on]="row.value"
-                      (click)="toggleBoolean(row.path, row.value)"
-                      (keydown.enter)="toggleBoolean(row.path, row.value)"
-                      (keydown.space)="$event.preventDefault(); toggleBoolean(row.path, row.value)">
-                      <div class="toggle-thumb"></div>
-                    </div>
+                    <button type="button" class="json-toggle" role="switch" [attr.aria-checked]="!!row.value" [attr.aria-label]="'Valor de ' + row.path"
+                      [class.on]="row.value" (click)="toggleBoolean(row.path, row.value)"><span class="toggle-thumb"></span></button>
                     <span class="json-boolean">{{ row.value }}</span>
-                  } @else if (row.valueType === 'null') {
-                    <span class="json-null">null</span>
                   } @else {
-                    <span class="json-string">{{ row.value }}</span>
+                    <span class="json-null">null</span>
                   }
-                </div>
-              }
-              @case ('inline-array') {
-                <div class="tree-row leaf" [style.padding-left.px]="row.depth * 20 + 20">
-                  <span class="json-key">{{ row.key }}</span>
-                  <span class="json-colon">:</span>
-                  <span class="json-bracket">{{ openBracket }}</span>
-                  <span class="inline-array-content">
-                    @for (item of row.inlineItems; track $index; let last = $last) {
-                      <span class="json-string">{{ item }}</span>@if (!last) {<span class="json-comma">, </span>}
-                    }
-                  </span>
-                  <span class="json-bracket">{{ closeBracket }}</span>
-                </div>
-              }
+                </span>
+              </div>
             }
+          } @empty {
+            <p class="empty" data-testid="data-empty">{{ filtering() ? 'Nada coincide con el filtro.' : 'No hay datos todavía. Escribe una variable en la plantilla o pulsa el dado para generar un ejemplo.' }}</p>
           }
         </div>
       </div>
   `,
   styles: [`
-    :host {
-      display: block;
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-    }
-
-    :host(.hidden) {
-      display: none;
-    }
-
-    .font-mono {
-      font-family: var(--font-mono);
-    }
-
-    .tree-view {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-    }
-
-    .tree-content {
-      font-size: 13px;
-      line-height: 20px;
-    }
-
-    .tree-row.expandable:focus-visible,
-    .json-toggle:focus-visible {
-      outline: 2px solid var(--accent-color);
-      outline-offset: 2px;
-    }
-
-    .tree-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 2px 0;
-      min-height: 24px;
-    }
-
-    .tree-row.expandable {
-      cursor: pointer;
-      border-radius: var(--radius);
-    }
-
-    .tree-row.expandable:hover {
-      background: rgba(255, 255, 255, 0.03);
-    }
-
-    .tree-row.closing {
-      color: var(--text-tertiary);
-    }
-
-    .tree-arrow {
-      font-size: 16px;
-      color: var(--text-tertiary);
-      transition: transform 0.15s;
-      flex-shrink: 0;
-      transform: rotate(-90deg);
-    }
-
-    .tree-arrow.rotated {
-      transform: rotate(0deg);
-    }
-
-    .json-key {
-      color: var(--syn-key);
-    }
-
-    .json-colon {
-      color: var(--text-tertiary);
-    }
-
-    .json-bracket {
-      color: var(--text-tertiary);
-    }
-
-    .json-count {
-      color: var(--text-tertiary);
-      font-size: 11px;
-    }
-
-    .json-string {
-      color: var(--syn-string);
-    }
-
-    .json-boolean {
-      color: var(--syn-keyword);
-    }
-
-    .json-null {
-      color: var(--syn-keyword);
-      font-style: italic;
-    }
-
-    .json-comma {
-      color: var(--text-tertiary);
-    }
-
-    .inline-array-content {
-      display: inline-flex;
-      align-items: center;
-      gap: 0;
-      flex-wrap: wrap;
-    }
-
-    .json-input {
-      background: transparent;
-      border: none;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      line-height: 20px;
-      color: var(--text-primary);
-      padding: 0;
-      min-width: 0;
-      flex: 1;
-    }
-
-    .string-input {
-      color: var(--syn-string);
-    }
-
-    .number-input {
-      color: var(--syn-number);
-    }
-
-    .number-input:focus {
-      outline: 1px solid var(--accent-color);
-      border-radius: 2px;
-    }
-
-    .number-input::-webkit-inner-spin-button,
-    .number-input::-webkit-outer-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-
-    .json-toggle {
-      width: 32px;
-      height: 18px;
-      border-radius: 9px;
-      background: var(--text-tertiary);
-      position: relative;
-      cursor: pointer;
-      transition: background 0.2s;
-      flex-shrink: 0;
-    }
-
-    .json-toggle.on {
-      background: var(--accent-color);
-    }
-
-    .toggle-thumb {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--text-on-primary);
-      transition: transform 0.2s;
-    }
-
-    .json-toggle.on .toggle-thumb {
-      transform: translateX(14px);
-    }
+    :host { display: block; flex: 1; min-height: 0; overflow-y: auto; }
+    :host(.hidden) { display: none; }
+    .font-mono { font-family: var(--font-mono); }
+    .tree-view { min-width: 0; }
+    .tree-head { position: sticky; top: 0; z-index: 1; display: flex; height: 26px; background: var(--bg-surface-container); border-bottom: 1px solid var(--border-color); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-tertiary); }
+    .tree-head .key { padding-left: 22px; }
+    .tree-content { font-size: 12px; line-height: 20px; }
+    .tree-row { display: flex; min-height: 28px; border-bottom: 1px solid var(--border-color); }
+    .tree-row:hover { background: rgba(255, 255, 255, 0.03); }
+    .tree-row.hit { background: rgba(221, 183, 255, 0.10); }
+    .cell { display: flex; align-items: center; min-width: 0; }
+    .cell.key { width: 44%; flex-shrink: 0; gap: 2px; padding-right: 4px; border-right: 1px solid var(--border-color); color: var(--text-primary); }
+    .cell.value { flex: 1; gap: 6px; padding: 0 8px; }
+    button.cell.key { font: inherit; text-align: left; background: transparent; cursor: pointer; border-top: 0; border-bottom: 0; border-left: 0; }
+    button.cell.key:disabled { cursor: default; }
+    button.cell.key:focus-visible, .json-toggle:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
+    .tree-arrow { font-size: 16px; color: var(--text-tertiary); transition: transform 0.15s; flex-shrink: 0; transform: rotate(-90deg); }
+    .tree-arrow.rotated { transform: rotate(0deg); }
+    .json-key { color: var(--syn-key); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .json-count { margin-left: 4px; color: var(--text-tertiary); font-size: 11px; flex-shrink: 0; }
+    .unused { margin-left: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--warning-color); flex-shrink: 0; }
+    .json-boolean { color: var(--syn-keyword); }
+    .json-null { color: var(--text-tertiary); font-style: italic; }
+    .json-input { flex: 1; min-width: 0; height: 24px; padding: 0 4px; margin: 0 -4px; background: transparent; border: 1px solid transparent; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); text-overflow: ellipsis; }
+    .json-input:hover { border-color: var(--border-color); }
+    .json-input:focus { outline: none; border-color: var(--accent-color); background: var(--bg-input); text-overflow: clip; }
+    .string-input { color: var(--syn-string); }
+    .number-input { color: var(--syn-number); }
+    .number-input::-webkit-inner-spin-button, .number-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .json-toggle { width: 32px; height: 24px; padding: 0; background: transparent; position: relative; cursor: pointer; flex-shrink: 0; border-radius: 12px; }
+    .json-toggle::before { content: ''; position: absolute; left: 0; top: 4px; width: 32px; height: 16px; border-radius: 8px; background: var(--text-tertiary); transition: background 0.2s; }
+    .json-toggle.on::before { background: var(--accent-color); }
+    .toggle-thumb { position: absolute; top: 6px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--text-on-primary); transition: transform 0.2s; }
+    .json-toggle.on .toggle-thumb { transform: translateX(16px); }
+    .empty { margin: 0; padding: 16px; font-family: var(--font-family, system-ui, sans-serif); font-size: 13px; line-height: 20px; color: var(--text-secondary); }
   `],
 })
 export class DataTreeComponent {
   private dataState = inject(DataState);
+  private parserState = inject(ParserState);
   private orchestrator = inject(OrchestratorService);
 
-  protected readonly openCurly = '{';
-  protected readonly closeCurly = '}';
-  protected readonly openBracket = '[';
-  protected readonly closeBracket = ']';
+  /** Texto del filtro (claves y valores). */
+  readonly filter = input('');
+  protected readonly filtering = computed(() => this.filter().trim().length > 0);
 
-  private expandedPaths = signal<Set<string>>(new Set(['', 'usuario']));
+  private expandedPaths = signal<Set<string>>(new Set(['usuario']));
+  /** Claves de primer nivel que la plantilla no lee (si aún no se ha leído ninguna variable, no se marca nada). */
+  private readonly unused = computed(() => {
+    const roots = this.parserState.variables().map((v) => v.path.split('.')[0].replace(/\[\]$/, ''));
+    return roots.length ? unusedDataKeys(this.dataState.data(), roots) : [];
+  });
 
-  protected flatRows = computed(() => flattenTree(this.dataState.data(), this.expandedPaths()));
+  readonly table = computed(() => dataTable(this.dataState.data(), this.expandedPaths(), this.filter(), this.unused()));
+  /** Cuántas claves de primer nivel no usa la plantilla (para el resumen). */
+  readonly unusedCount = computed(() => this.unused().length);
 
-  /** Deja desplegados exactamente estos nodos (la raíz es la ruta vacía). */
+  /** Deja desplegados exactamente estos nodos. */
   expand(paths: string[]): void {
     this.expandedPaths.set(new Set(paths));
   }
 
-  protected isNodeExpanded(path: string): boolean {
-    return this.expandedPaths().has(path);
+  expandAll(): void {
+    this.expandedPaths.set(new Set(this.table().groups));
+  }
+
+  collapseAll(): void {
+    this.expandedPaths.set(new Set());
+  }
+
+  protected groupSize(count: string): string {
+    const n = Number(count.slice(1, -1));
+    return `${n} ${n === 1 ? 'elemento' : 'elementos'}`;
   }
 
   protected toggleNode(path: string): void {
@@ -312,5 +154,13 @@ export class DataTreeComponent {
 
   protected toggleBoolean(path: string, currentValue: unknown): void {
     this.updateValue(path, !currentValue);
+  }
+
+  /** Esc deshace lo escrito en el campo sin guardarlo. */
+  protected cancel(event: Event, original: unknown): void {
+    const el = event.target as HTMLInputElement;
+    el.value = String(original ?? '');
+    event.stopPropagation();
+    el.blur();
   }
 }

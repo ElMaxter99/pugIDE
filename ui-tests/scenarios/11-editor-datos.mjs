@@ -26,7 +26,7 @@ export default async function (env) {
   await titleInput.dispatchEvent('change');
   check('11 editar una hoja del árbol actualiza el preview', !!(await waitUntil(async () => (await previewText(page)).includes('Adiós'))), await previewText(page));
   // Desplegar el objeto anidado
-  await tree.locator('.tree-row.expandable', { hasText: 'user' }).click();
+  await tree.locator('.tree-row.expandable', { hasText: 'user' }).locator('button').click();
   check('11 desplegar un objeto muestra sus campos', !!(await waitUntil(async () => (await tree.locator('input.string-input').count()) >= 2)));
 
   // Modo JSON: Ctrl+Shift+J, editar y aplicar al salir
