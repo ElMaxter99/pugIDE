@@ -383,8 +383,14 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     this.persistence.ensureFirstUse();
     void this.persistence.requestPersistentStorage();
     setTimeout(() => this.remindBackup(), 2500);
+    void this.restoreFromStorage();
+  }
 
-    const saved = this.persistence.loadProjectState();
+  /** Arranque normal: la sesión guardada (localStorage o, si no cabía, IndexedDB), un enlace compartido o un proyecto nuevo. */
+  private async restoreFromStorage(): Promise<void> {
+    this.restoringSession = true; // que el autoguardado no escriba nada mientras se lee
+    let saved: ProjectSessionState | null;
+    try { saved = await this.persistence.loadProjectState(); } finally { this.restoringSession = false; }
     const hasSaved = !!saved && Object.keys(saved.files).length > 0;
     const bad = this.persistence.sessionProblem;
     if (bad) {

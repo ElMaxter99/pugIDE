@@ -535,7 +535,7 @@ export class OrchestratorService {
     };
   }
 
-  /** Si la sesión no cabe en el almacenamiento del navegador, se pierde al recargar: la barra de estado lo marca y aquí se explica. */
+  /** Si la sesión no se puede guardar ni en localStorage ni en IndexedDB, se pierde al recargar: la barra de estado lo marca y aquí se explica. */
   private reportSessionSave(): void {
     if (!this.persistence.lastWriteFailed()) {
       this.sessionSaveWarned = false;
@@ -546,7 +546,7 @@ export class OrchestratorService {
     this.terminalState.addEntry(
       'warning',
       'Sesión',
-      'No se pudo guardar la sesión en este navegador (almacenamiento lleno o bloqueado; los datos importados de unos 5 MB en adelante no caben): si recargas la página perderás los cambios y los datos de esta sesión. Exporta el proyecto (menú «Exportar») para no perderlos.',
+      'No se pudo guardar la sesión en este navegador (almacenamiento lleno o bloqueado): si recargas la página perderás los cambios y los datos de esta sesión. Exporta el proyecto (menú «Exportar») para no perderlos.',
     );
   }
 
@@ -590,7 +590,8 @@ export class OrchestratorService {
     if (!session) return;
     this.sessionSaves.update((n) => n + 1);
     this.persistence.saveProjectState(session);
-    this.reportSessionSave();
+    // Si no cabe en localStorage va a IndexedDB: el resultado se sabe al terminar esa escritura.
+    void this.persistence.flushSession().then(() => this.reportSessionSave());
     void this.saveToLibrary();
     this.trackHistory();
   }
