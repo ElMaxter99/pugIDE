@@ -54,7 +54,8 @@ export default async function (env) {
   const download = page.waitForEvent('download');
   await list.locator('li.row').first().locator('button', { hasText: 'Exportar' }).click();
   const file = await download;
-  check('58 exporta la plantilla como .zip', file.suggestedFilename() === 'Factura corporativa-plantilla.zip', file.suggestedFilename());
+  // WebKit 27 cambia los espacios del nombre por «_» al descargar (lo hace el navegador, no la app).
+  check('58 exporta la plantilla como .zip', file.suggestedFilename().replace(/_/g, ' ') === 'Factura corporativa-plantilla.zip', file.suggestedFilename());
   const zipPath = await file.path();
   await list.locator('li.row').first().locator('button', { hasText: 'Borrar' }).click();
   await list.locator('li.row').first().locator('button', { hasText: 'Confirmar' }).click();

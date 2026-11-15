@@ -21,6 +21,9 @@ import type { DatasetKind } from '../../core/utils/datasets.util';
           <option [value]="d.id" [selected]="d.id === dataState.activeId()">{{ d.name }}</option>
         }
       </select>
+      <button type="button" class="regen-btn" data-testid="data-regenerate" (click)="regenerate()" aria-label="Regenerar datos de ejemplo" title="Regenerar datos de ejemplo (se puede deshacer)">
+        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 18px;">casino</span>
+      </button>
       <app-dropdown-menu
         label="Más acciones de datos"
         ariaLabel="Más acciones de datos"
@@ -31,10 +34,6 @@ import type { DatasetKind } from '../../core/utils/datasets.util';
         testId="data-more-menu"
         [items]="menuItems()"
         (chosen)="onMenu($event)" />
-      <button type="button" class="regen-btn" (click)="regenerate()" title="Rellenar con datos de ejemplo nuevos (se puede deshacer)">
-        <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">casino</span>
-        <span>Regenerar</span>
-      </button>
       <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
     </div>
   `,
@@ -47,9 +46,8 @@ import type { DatasetKind } from '../../core/utils/datasets.util';
     .dataset-bar {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      border-bottom: 1px solid var(--border-color);
+      gap: 4px;
+      padding: 8px 8px 3px;
       background: var(--bg-surface-container-low);
       flex-shrink: 0;
     }
@@ -70,16 +68,12 @@ import type { DatasetKind } from '../../core/utils/datasets.util';
     .regen-btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      min-height: 32px;
-      padding: 0 12px;
-      white-space: nowrap;
-      background: rgba(221, 183, 255, 0.12);
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
       border-radius: var(--radius);
       color: var(--accent-color);
-      font-family: inherit;
-      font-size: 13px;
-      font-weight: 500;
       transition: background 0.15s;
     }
 

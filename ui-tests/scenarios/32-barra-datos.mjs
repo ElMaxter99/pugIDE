@@ -8,7 +8,7 @@ const session = {
   datasets: { version: 1, activeId: 'ds-1', locale: 'es', datasets: [{ id: 'ds-1', name: 'Por defecto', data: { title: 'Hola', user: { name: 'Ana' } } }] },
 };
 
-// Barra de datos (P-05): 7 controles en 2 filas, menú «⋯» con role=menu y teclado, y cada acción del menú funciona
+// Barra de datos (P-05, ordenada en P-38): 10 controles en 3 filas, menú «⋯» con role=menu y teclado, y cada acción del menú funciona
 export default async function (env) {
   const app = await openApp(env, { path: '/ide', session });
   const { page } = app;
@@ -19,21 +19,25 @@ export default async function (env) {
   await panel.locator('.tree-view').waitFor({ timeout: 6000 });
   await waitUntil(async () => (await previewText(page)).includes('Hola'));
 
-  // --- Qué se ve de entrada ---
-  const bars = panel.locator('.data-tools, app-dataset-bar .dataset-bar');
+  // --- Qué se ve de entrada (P-38): juego de datos arriba, filtro y modo debajo, y una tira con el resumen ---
+  const bars = panel.locator('app-dataset-bar .dataset-bar, .data-tools, .data-strip');
   // Una sola lectura dentro del navegador (preguntar `isVisible()` y leer luego el atributo del mismo botón se puede cruzar con
   // un repintado) y sobre el estado asentado de la barra.
-  const names = await stable(() => panel.evaluate((root) => [...root.querySelectorAll('.data-tools button, app-dataset-bar select, app-dataset-bar button')]
+  const names = await stable(() => panel.evaluate((root) => [...root.querySelectorAll('app-dataset-bar select, app-dataset-bar button, .data-tools input, .data-tools button, .data-strip button')]
     .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden'; })
     .map((e) => (e.getAttribute('aria-label') || e.innerText || e.getAttribute('title') || '').trim())));
-  check('32 la barra tiene 7 controles a la vista', names.length === 7, JSON.stringify(names));
-  check('32 la barra ocupa 2 filas', (await bars.count()) === 2);
+  const wantedControls = ['Juego de datos activo', 'Regenerar datos de ejemplo', 'Más acciones de datos', 'Filtrar datos', 'Árbol', 'JSON', 'Deshacer', 'Rehacer', 'Contraer todo', 'Expandir todo'];
+  check('32 la cabecera tiene sus 10 controles, cada uno con nombre', names.length === 10 && wantedControls.every((w) => names.includes(w)), JSON.stringify(names));
+  check('32 la cabecera ocupa 3 filas', (await bars.count()) === 3);
   const tops = await bars.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
-  check('32 las dos filas están una bajo otra, sin envolver', tops[1] > tops[0], JSON.stringify(tops));
+  check('32 las filas están una bajo otra, sin envolver', tops[1] > tops[0] && tops[2] > tops[1], JSON.stringify(tops));
+  check('32 el juego de datos se lee entero (no se corta «Por defecto»)', await panel.locator('app-dataset-bar select').evaluate((s) => s.scrollWidth <= s.clientWidth + 1 && s.getBoundingClientRect().width >= 140));
   check('32 «Árbol» y «JSON» son texto visible y el modo activo está marcado', (await panel.locator('[data-testid="data-mode-tree"]').getAttribute('aria-pressed')) === 'true' && (await panel.locator('[data-testid="data-mode-json"]').innerText()).trim() === 'JSON');
-  check('32 «Regenerar» está en frase normal (sin mayúsculas)', (await panel.locator('.regen-btn').evaluate((b) => getComputedStyle(b).textTransform)) === 'none');
-  const small = await panel.locator('.data-tools button, app-dataset-bar button, app-dataset-bar select').evaluateAll((els) => els.filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.width < 24 || r.height < 24); }).length);
+  check('32 el dado de «Regenerar» dice lo que hace', (await panel.locator('[data-testid="data-regenerate"]').getAttribute('title')).startsWith('Regenerar datos de ejemplo'));
+  const small = await panel.locator('app-dataset-bar button, app-dataset-bar select, .data-tools button, .data-strip button').evaluateAll((els) => els.filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.width < 24 || r.height < 24); }).length);
   check('32 todos los controles miden al menos 24 px', small === 0, String(small));
+  check('32 la tabla tiene columnas CLAVE y VALOR', (await panel.locator('.tree-head').innerText()).toUpperCase().replace(/\s+/g, ' ').includes('CLAVE VALOR'));
+  check('32 la tira resume cuántas claves hay', /^\d+ claves?/.test(await panel.locator('[data-testid="data-summary"]').innerText()), await panel.locator('[data-testid="data-summary"]').innerText());
 
   // --- Segmentado ---
   await panel.locator('[data-testid="data-mode-json"]').click();

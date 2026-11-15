@@ -131,7 +131,7 @@ Para probar «Actualizar» de verdad **sin publicar nada** (con un servidor loca
 
 ## 7. La batería de pruebas (la misma que pasa el CI)
 
-Desde la carpeta del proyecto, con la rama que quieras probar (o `master`). La primera vez instala los navegadores de prueba:
+Desde la carpeta del proyecto, con la rama que quieras probar (o `master`). La primera vez (y cada vez que cambie la versión de `playwright-core` en `package.json`, tras `npm install`) instala los navegadores de prueba:
 
 ```bash
 npx playwright-core install chromium firefox webkit
