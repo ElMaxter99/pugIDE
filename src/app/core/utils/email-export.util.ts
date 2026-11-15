@@ -171,7 +171,7 @@ export function toEmailHtml(doc: Document, options: EmailOptions, serialize: (d:
   if (options.inlineCss) {
     const matched = new Map<Element, CssRule[]>();
     for (const rule of parsed.rules) {
-      let els: Element[] = [];
+      let els: Element[];
       try { els = Array.from(doc.querySelectorAll(rule.selector)); } catch { continue; } // selector que el navegador no entiende
       if (els.length) inlinedRules++;
       for (const el of els) { const list = matched.get(el); if (list) list.push(rule); else matched.set(el, [rule]); }

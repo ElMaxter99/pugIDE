@@ -87,7 +87,7 @@ export class PersistenceService {
   sessionProblem: { reason: string; copied: boolean } | null = null;
 
   loadProjectState(): ProjectSessionState | null {
-    let raw: string | null = null;
+    let raw: string | null;
     try { raw = localStorage.getItem(PROJECT_KEY); } catch { return null; }
     const reading = readSession(raw);
     if (reading.problem) {

@@ -26,7 +26,7 @@ export class UserTemplateService {
   }
 
   async refresh(): Promise<UserTemplateMeta[]> {
-    let list: UserTemplateMeta[] = [];
+    let list: UserTemplateMeta[];
     try { list = sortNewestFirst(await this.backend.listMeta(USER_TEMPLATES_KEY)) as UserTemplateMeta[]; } catch { list = []; }
     this.items.set(list.map((m) => ({ ...m, description: m.description ?? '' })));
     return this.items();

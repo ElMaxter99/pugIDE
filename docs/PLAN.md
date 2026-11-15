@@ -14,7 +14,7 @@ Actualizado el 2026-11-15. El análisis inicial (v0.3.1) se hizo el 2026-11-03; 
 | `PUGIDE_BROWSER=firefox` / `webkit` | 331 y 326 comprobaciones (los escenarios 03, 05, 21, 23, 25, 27 y 28 solo valen en Chromium, o en Chromium y Firefox y se muestran como `SKIP` con el motivo). Corren también en el CI (`ui-firefox`, `ui-webkit`) |
 | Accesibilidad (axe-core) | 0 incumplimientos en 12 pantallas y diálogos, tema oscuro y claro, más recorrido por teclado |
 | `npm audit --omit=dev` | 0 vulnerabilidades en dependencias de producción |
-| `npm audit` (todo) | 18 moderados, 0 altos y 0 bajos (antes 43: 4 altos y 7 bajos). Todos de herramientas de desarrollo (ver sección 3) |
+| `npm audit` (todo) | 0 vulnerabilidades desde la 0.15.1 (ESLint 10 y `overrides` de DOMPurify y `minimatch`) |
 
 Sin verificar: lector de pantalla real, Safari real y un Mac real (WebKit de Playwright se identifica como Macintosh pero no es Safari), pantallas táctiles y móvil (fuera de alcance: PugIDE es una herramienta de escritorio).
 
@@ -36,7 +36,7 @@ Prioridad: **A** = afecta al uso diario, **B** = mejora clara, **C** = deseable.
 
 - **A. Lector de pantalla real.** La accesibilidad está auditada con herramientas automáticas y teclado, no con NVDA/VoiceOver/Orca. Lo debe probar una persona.
 - **B. Endurecimiento de seguridad pendiente.** Hay CSP en el hosting, pero `script-src` necesita `'unsafe-inline'` y `'unsafe-eval'` porque el preview y el render la heredan; endurecerla exige moverlos a documentos propios con CSP por cabecera. Un bucle infinito en un `<script>` del HTML renderizado solo está contenido en navegadores que aíslan los iframes `sandbox` en otro proceso (Chromium); el render de Pug sí va siempre en un Worker.
-- **B. Dependencias de desarrollo.** Quedan 18 avisos moderados de `npm audit`, todos con una sola causa: `minimatch <11.0.1` (ReDoS con patrones glob manipulados) dentro de `eslint`. Los patrones salen de la configuración del propio repositorio y nada de esto llega al bundle. Cerrarlo exige una versión de `eslint` que ya use `minimatch` 11.
+- **B. Dependencias de desarrollo.** `npm audit` está a cero en la app desde la 0.15.1. En `desktop/` quedan avisos moderados de `minimatch` dentro de `electron-builder`, que solo corre al empaquetar; se cierran cuando `electron-builder` lo suba.
 - **B. `ng test` sin ningún `*.spec.ts`.** Los componentes se cubren con Playwright; los trozos de lógica, con pruebas de utilidades puras.
 - **C. Límites conocidos** (no son fallos): la paginación PDF es una emulación (sin huérfanas/viudas, `string()`/`element()`); los filtros de Pug que necesitan Node (`:scss`, `:stylus`…) no existen y el error lo explica; `:markdown` es un subconjunto; la plantilla no ve `window` ni `document`; la captura PNG no ejecuta JavaScript; el historial guarda 30 versiones por archivo y hasta 512 K caracteres.
 - **Fuera de alcance:** móvil, traducción de la propia interfaz, sincronización y colaboración.
@@ -137,7 +137,7 @@ Detalle, evidencia y qué está verificado en `design/propuestas/0.8-plan.md`.
 
 Orden recomendado; lo que se ve se diseña antes en el lienzo (mesas P-39 en adelante). Mac sigue aparcado.
 
-- ⏳ **19.1 0.15.1 · mantenimiento (sin diseño):** `eslint` 10 (cierra los avisos de `npm audit`, 13.1), parches de Angular 22.2, Monaco 0.57, `sass` y Electron 45.3; limpiar `ESTADO.md`. Batería completa en los tres navegadores y prueba de escritorio.
+- 🔄 **19.1 0.15.1 · mantenimiento (sin diseño):** `eslint` 10 (cierra los avisos de `npm audit`, 13.1), parches de Angular 22.2, Monaco 0.57, `sass` y Electron 45.3; limpiar `ESTADO.md`. Batería completa en los tres navegadores y prueba de escritorio.
 - ⏳ **19.2 0.16 · proyectos grandes (sin diseño, salvo un aviso):** la sesión pasa de `localStorage` (5 MB, hoy se avisa y se pierde al recargar) a IndexedDB, con migración automática y sin perder nada si falla; medir y mejorar la paginación PDF con tablas de miles de filas (objetivo: que el preview no se congele).
 - ⏳ **19.3 0.16 · escritorio (con diseño):** **P-39 PDF con el motor nativo** (en la app de escritorio, «Exportar PDF» genera un PDF real con Chromium: texto seleccionable, saltos de página reales, sin diálogo de imprimir); **P-40 abrir `.pug` y carpetas con PugIDE** (doble clic o «Abrir con», arrastrar a la ventana); **P-41 mover a una carpeta un proyecto de «Mis proyectos»** (pasa a ser un espacio de trabajo en disco).
 - ⏳ **19.4 0.17 · exportar en lote y datos desde una API (con diseño):** **P-42 un PDF por plantilla** (o por juego de datos) en un `.zip`; **P-43 datos de ejemplo desde un endpoint de OpenAPI** (elegir la operación y su respuesta, en vez del primer esquema).
@@ -145,7 +145,7 @@ Orden recomendado; lo que se ve se diseña antes en el lienzo (mesas P-39 en ade
 
 ### Fase 13. Mantenimiento (parcial)
 
-- ⏳ **13.1** Los 12 avisos moderados de `npm audit` (`minimatch` dentro de `eslint`): `eslint` 10 ya usa `minimatch` 11; se sube en la 0.15.1 (fase 19).
+- ✅ **13.1** `npm audit` a cero en la app: ESLint 10 (`minimatch` 11) y `overrides` para DOMPurify y `typescript-eslint` (0.15.1). En `desktop/` quedan avisos de `minimatch` dentro de `electron-builder` (solo al empaquetar).
 - ⏳ **13.2** Revisión de dependencias cada mes y subida de Angular en cuanto salga cada versión mayor.
 - ✅ **13.3** `npm run release:check` comprueba la coherencia de la versión antes de etiquetar (ver `docs/RELEASE.md`).
 
