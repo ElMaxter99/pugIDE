@@ -45,7 +45,7 @@ export default async function (env) {
   const closeNames = await page.locator('.tab-close').evaluateAll((els) => els.map((e) => ({ name: e.getAttribute('aria-label'), w: e.getBoundingClientRect().width, h: e.getBoundingClientRect().height })));
   check('44 «Cerrar pestaña» tiene un nombre distinto por pestaña', new Set(closeNames.map((c) => c.name)).size === closeNames.length && closeNames.every((c) => /^Cerrar /.test(c.name)), JSON.stringify(closeNames));
   check('44 y mide al menos 24×24', closeNames.every((c) => c.w >= 24 && c.h >= 24), JSON.stringify(closeNames));
-  check('44 el editor se llama «Editor de código»', (await page.locator('.monaco-editor textarea.inputarea').first().getAttribute('aria-label')) === 'Editor de código' || /Editor de código/.test((await page.locator('.monaco-editor').first().getAttribute('aria-label')) ?? ''), String(await page.locator('.monaco-editor textarea.inputarea').first().getAttribute('aria-label')));
+  check('44 el editor se llama «Editor de código»', (await page.locator('.monaco-editor :is(textarea.inputarea, .native-edit-context)').first().getAttribute('aria-label')) === 'Editor de código' || /Editor de código/.test((await page.locator('.monaco-editor').first().getAttribute('aria-label')) ?? ''), String(await page.locator('.monaco-editor :is(textarea.inputarea, .native-edit-context)').first().getAttribute('aria-label')));
 
   // --- Anuncios: disposición y dispositivo ---
   const said = () => page.locator('[data-testid="announcer"]').innerText();

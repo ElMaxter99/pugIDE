@@ -121,7 +121,7 @@ async function teclado(env) {
       const clone = el.cloneNode(true);
       clone.querySelectorAll?.('[aria-hidden="true"]').forEach((n) => n.remove());
       const name = el.getAttribute('aria-label') || clone.textContent?.trim() || el.getAttribute('title') || el.getAttribute('placeholder') || '';
-      return { tag: el.tagName.toLowerCase(), cls: el.className?.toString().slice(0, 30), name: name.slice(0, 40), visible: r.width > 0 && r.height > 0, monaco: el.classList.contains('inputarea') };
+      return { tag: el.tagName.toLowerCase(), cls: el.className?.toString().slice(0, 30), name: name.slice(0, 40), visible: r.width > 0 && r.height > 0, monaco: el.classList.contains('inputarea') || el.classList.contains('native-edit-context') };
     });
     if (!stop) continue;
     stops.push(stop);
@@ -129,7 +129,7 @@ async function teclado(env) {
   }
   check('16 teclado: los tres primeros enlaces son los de salto y después viene el logo (enlace al inicio)', stops.slice(0, 3).every((s) => s?.tag === 'a' && /^Saltar a/.test(s.name)) && stops[3]?.tag === 'a' && stops[3]?.name === 'PugIDE', JSON.stringify(stops.slice(0, 4)));
   check('16 teclado: la barra superior, el Workspace y el árbol de archivos se pueden recorrer con Tab', stops.length >= 8, JSON.stringify(stops.map((s) => s.name)));
-  // El textarea interno de Monaco (su campo de entrada) mide 0×0 en Firefox: se exige que tenga nombre, no que se vea.
+  // El campo de entrada de Monaco (textarea.inputarea; en Chromium, desde Monaco 0.57, div.native-edit-context con EditContext) mide 0×0 en Firefox: se exige que tenga nombre, no que se vea.
   check('16 teclado: todos los elementos enfocados son visibles y tienen nombre', stops.every((s) => (s.visible || s.monaco) && s.name), JSON.stringify(stops.filter((s) => !(s.visible || s.monaco) || !s.name)));
   check('16 teclado: el árbol de archivos y las pestañas son paradas de Tab', stops.some((s) => s.name === 'main.pug') && stops.filter((s) => s.cls?.includes('tab-main')).length === 1, JSON.stringify(stops.map((s) => s.name)));
   check('16 teclado: se llega hasta el editor', stops.at(-1)?.monaco === true, JSON.stringify(stops.at(-1)));
@@ -137,7 +137,7 @@ async function teclado(env) {
   // En Mac (el WebKit de Playwright se identifica como Macintosh) Monaco usa Ctrl+Mayús+M para esto.
   await page.keyboard.press(process.env.PUGIDE_BROWSER === 'webkit' ? 'Control+Shift+m' : 'Control+m');
   await page.keyboard.press('Tab');
-  const out = await page.evaluate(() => !document.activeElement?.classList.contains('inputarea'));
+  const out = await page.evaluate(() => !document.activeElement?.matches('.inputarea, .native-edit-context'));
   check('16 teclado: Ctrl+M + Tab saca el foco del editor (no hay trampa de teclado)', out);
   check('16 sin errores no controlados', app.errors.length === 0, app.errors.join(' | '));
   await app.close();
