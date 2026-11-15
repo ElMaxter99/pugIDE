@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.15.0] - 2026-11-15
+
 ### Añadido
 - **Ver diferencias antes de elegir en un conflicto** (espacios de trabajo, app de escritorio; diseño P-37, aprobado). Cuando un archivo cambia en el disco mientras aquí tiene cambios sin guardar, la barra de conflicto ofrece **«Ver diferencias»**: las dos versiones lado a lado («Aquí (sin guardar)» y «En el disco»), con lo que cambia resaltado con signo y color, el número de cambios y de líneas, y saltos al cambio anterior y siguiente (Alt+↑ / Alt+↓). Se decide ahí mismo o en la barra. **La versión que no se elige queda en «Historial del archivo»**, así que elegir mal ya no pierde trabajo. Si el archivo se borró en el disco, lo dice y ofrece conservarlo o borrarlo aquí. Escenario `66-conflictos-diferencias` y pruebas unitarias de `sideBySideDiff`.
 

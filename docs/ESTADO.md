@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa a la persona responsable»). Última revisión: 2026-11-12.
+Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa a la persona responsable»). Última revisión: 2026-11-15.
 
 ## Versiones
 - **0.8.0**: publicada (tag `v0.8.0` y release de GitHub hechos). La rama `release` ya contiene la 0.8.0 y, por un merge manual, trabajo de la 0.9 hasta la PR 57. Falta, si no se ha hecho, **desplegar `release` en Vercel a mano**.
@@ -11,7 +11,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **0.11.0**: publicada, con los 7 instaladores adjuntos. Con ella se prueba el instalador de Windows (pendiente de la persona responsable).
 - **0.12.0**: publicada y desplegada (importar archivos y proyecto, logo nuevo).
 - **0.13.0**: publicada y desplegada, con los 7 instaladores (asistente de IA, índices fijos en los datos, guía para probar en local).
-- **0.14.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.14.0.md`): actualizar dentro de la app de escritorio, palabras prohibidas en el CI, icono en los instaladores y arreglos de `start:desktop` en Windows. Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel. Es la primera que se actualiza sola; desde la 0.13 se llega con «Descargar».
+- **0.14.0**: publicada y desplegada, con sus instaladores y los archivos de actualización. Es la primera que se actualiza sola; desde la 0.13 se llega con «Descargar».
+- **0.15.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.15.0.md`): diferencias en conflictos, Datos como tabla, autoguardado sin reescribir imágenes, fuentes sin conexión y «Cambios completos». Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel. Es la primera que se instala con «Actualizar» desde la 0.14.0.
 - **0.10.1**: publicada. Antes: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.10.1.md`): ejemplos genéricos en las pruebas. Falta mergearla y lanzar `npm run release:deploy`; los instaladores se construyen y adjuntan solos.
 
 ## 0.11 (publicada)
@@ -28,19 +29,21 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **Asistente de IA** (P-30 a P-34, solo escritorio y local con las CLI `claude`/`copilot`): mergeado (PR 75). Para probarlo a mano: [PROBAR-EN-LOCAL.md](PROBAR-EN-LOCAL.md).
 - **`npm run start:desktop` / `test:desktop`** y la batería de pruebas en local: mergeado (PR 76).
 
-## 0.14 (preparada)
+## 0.14 (publicada)
 - **Actualizar dentro de la app de escritorio** (P-35 y P-36): mergeado (PR 80). Probado de verdad con un AppImage local. Guía reutilizable en [ACTUALIZAR-ESCRITORIO.md](ACTUALIZAR-ESCRITORIO.md).
 - **Palabras prohibidas en el CI, icono de escritorio en los instaladores y versión 0.0.0 desde el código**: mergeado (PR 79). Arreglos de Windows (CRLF, dependencias de escritorio): PR 78.
 
-## En curso: 0.15
+## 0.15 (preparada)
 - **«Cambios completos» en las notas de cada release**: mergeado (PR 82).
 - **El autoguardado ya no reescribe las imágenes** (biblioteca con assets aparte): mergeado (PR 83).
 - **Ver diferencias en un conflicto** (P-37): mergeado (PR 84), con el arreglo de «Cargar el del disco» en el archivo abierto.
-- **La zona de Datos como tabla CLAVE / VALOR** (P-38): diseño aprobado y programado, en su PR.
-- **0.14.0**: publicada con sus instaladores y los archivos de actualización.
+- **La zona de Datos como tabla CLAVE / VALOR** (P-38): mergeado (PR 85), con `playwright-core` 1.65.1 (el CI pasó a Ubuntu 26.04) y las fuentes guardadas por el service worker para que se vean sin conexión.
 
-## Propuesta en estudio
-- **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.
+## Siguiente (propuesta, pendiente de aprobar)
+Plan completo en [PLAN.md](PLAN.md), fase 19:
+- **0.15.1** mantenimiento: `eslint` 10 (cierra `npm audit`), parches de Angular, Monaco, Electron.
+- **0.16** proyectos grandes (sesión en IndexedDB, PDF con tablas enormes) y escritorio con diseño: PDF nativo (P-39), abrir `.pug` con PugIDE (P-40), mover un proyecto a una carpeta (P-41).
+- **0.17** un PDF por plantilla (P-42) y datos desde un endpoint de OpenAPI (P-43).
 
 ## Plan 0.9
 | Pieza | Estado |
@@ -54,9 +57,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 | `npm run release:deploy` (un solo comando) | ✅ en master (arreglo de «release ya adelantada»: PR 59, mergeada) |
 | P-21 tema Automático/Oscuro/Claro, enlaces de salto, F6 | ✅ en master (PR 60) |
 | P-22 idioma por defecto y de reserva (sin plurales automáticos) | ✅ en master (PR 60) |
-| Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | 🔄 en su PR |
+| Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | ✅ publicada |
 
 ## Pendiente de la persona responsable
-- Mergear la PR de la 0.10.1.
-- Después, desde la carpeta del proyecto: `npm run release:deploy`, comprobar que el flujo «Escritorio» adjunta los instaladores, y desplegar `release` en Vercel a mano.
-- Probar el instalador de Windows (y, si hay quien tenga Mac, el de macOS).
+- Mergear la PR de la 0.15.0, lanzar `npm run release:deploy`, desplegar `release` en Vercel y probar «Actualizar» desde la 0.14.0.
+- Aprobar el plan de la fase 19.
