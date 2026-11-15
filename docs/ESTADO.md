@@ -39,8 +39,11 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **Ver diferencias en un conflicto** (P-37): mergeado (PR 84), con el arreglo de «Cargar el del disco» en el archivo abierto.
 - **La zona de Datos como tabla CLAVE / VALOR** (P-38): mergeado (PR 85), con `playwright-core` 1.65.1 (el CI pasó a Ubuntu 26.04) y las fuentes guardadas por el service worker para que se vean sin conexión.
 
-## Propuesta en estudio
-- **PugIDE de escritorio** (Windows, macOS, Linux): fases 0–2 hechas en la PR que lo trae (PWA instalable, Electron, empaquetado y CI; sin firma, gratis). Guía para instalar en [INSTALAR.md](INSTALAR.md), detalle en [ESCRITORIO.md](ESCRITORIO.md). Siguiente: aviso de versión nueva (diseño primero) y espacios por cliente.
+## Siguiente (propuesta, pendiente de aprobar)
+Plan completo en [PLAN.md](PLAN.md), fase 19:
+- **0.15.1** mantenimiento: `eslint` 10 (cierra `npm audit`), parches de Angular, Monaco, Electron.
+- **0.16** proyectos grandes (sesión en IndexedDB, PDF con tablas enormes) y escritorio con diseño: PDF nativo (P-39), abrir `.pug` con PugIDE (P-40), mover un proyecto a una carpeta (P-41).
+- **0.17** un PDF por plantilla (P-42) y datos desde un endpoint de OpenAPI (P-43).
 
 ## Plan 0.9
 | Pieza | Estado |
@@ -54,9 +57,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 | `npm run release:deploy` (un solo comando) | ✅ en master (arreglo de «release ya adelantada»: PR 59, mergeada) |
 | P-21 tema Automático/Oscuro/Claro, enlaces de salto, F6 | ✅ en master (PR 60) |
 | P-22 idioma por defecto y de reserva (sin plurales automáticos) | ✅ en master (PR 60) |
-| Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | 🔄 en su PR |
+| Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | ✅ publicada |
 
 ## Pendiente de la persona responsable
-- Mergear la PR de la 0.10.1.
-- Después, desde la carpeta del proyecto: `npm run release:deploy`, comprobar que el flujo «Escritorio» adjunta los instaladores, y desplegar `release` en Vercel a mano.
-- Probar el instalador de Windows (y, si hay quien tenga Mac, el de macOS).
+- Mergear la PR de la 0.15.0, lanzar `npm run release:deploy`, desplegar `release` en Vercel y probar «Actualizar» desde la 0.14.0.
+- Aprobar el plan de la fase 19.

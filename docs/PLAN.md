@@ -1,6 +1,6 @@
 # Estado y plan de PugIDE (v0.15.0)
 
-Actualizado el 2026-11-04. El análisis inicial (v0.3.1) se hizo el 2026-11-03; las seis fases que salieron de él están hechas y resumidas en la sección 4.
+Actualizado el 2026-11-15. El análisis inicial (v0.3.1) se hizo el 2026-11-03; las seis fases que salieron de él están hechas y resumidas en la sección 4.
 
 ## 1. Qué se ha verificado (ejecutado)
 
@@ -130,11 +130,22 @@ Detalle, evidencia y qué está verificado en `design/propuestas/0.8-plan.md`.
 - ✅ **18.0 PWA instalable**, **18.1 contenedor Electron** (`desktop/`), **18.2 empaquetado y CI** (Windows, macOS, Linux; sin firmar, gratis). Ver [ESCRITORIO.md](ESCRITORIO.md) e [INSTALAR.md](INSTALAR.md).
 - ❌ **18.3 firma y notarización:** descartada (el proyecto no usa certificados de pago).
 - ✅ **18.4 aviso de versión nueva** opt-in con «Descargar» (P-27) y **18.5 espacios de trabajo por cliente** (P-26): carpeta en disco, guardado en archivos, recarga de cambios hechos fuera.
-- ⏳ Más adelante: ver diferencias en un conflicto, exportar PDF con el motor nativo, asociar `.pug` a la app, mover a una carpeta un proyecto guardado en la app.
+- ✅ **18.6 actualizar dentro de la app** (P-35, P-36; 0.14) y **18.7 ver diferencias en un conflicto** (P-37; 0.15).
+- ➡️ Exportar PDF con el motor nativo, asociar `.pug` a la app y mover a una carpeta un proyecto guardado: pasan a la fase 19.
+
+### Fase 19. Plan 0.15.1 a 0.17 (propuesta del 2026-11-15)
+
+Orden recomendado; lo que se ve se diseña antes en el lienzo (mesas P-39 en adelante). Mac sigue aparcado.
+
+- ⏳ **19.1 0.15.1 · mantenimiento (sin diseño):** `eslint` 10 (cierra los avisos de `npm audit`, 13.1), parches de Angular 22.2, Monaco 0.57, `sass` y Electron 45.3; limpiar `ESTADO.md`. Batería completa en los tres navegadores y prueba de escritorio.
+- ⏳ **19.2 0.16 · proyectos grandes (sin diseño, salvo un aviso):** la sesión pasa de `localStorage` (5 MB, hoy se avisa y se pierde al recargar) a IndexedDB, con migración automática y sin perder nada si falla; medir y mejorar la paginación PDF con tablas de miles de filas (objetivo: que el preview no se congele).
+- ⏳ **19.3 0.16 · escritorio (con diseño):** **P-39 PDF con el motor nativo** (en la app de escritorio, «Exportar PDF» genera un PDF real con Chromium: texto seleccionable, saltos de página reales, sin diálogo de imprimir); **P-40 abrir `.pug` y carpetas con PugIDE** (doble clic o «Abrir con», arrastrar a la ventana); **P-41 mover a una carpeta un proyecto de «Mis proyectos»** (pasa a ser un espacio de trabajo en disco).
+- ⏳ **19.4 0.17 · exportar en lote y datos desde una API (con diseño):** **P-42 un PDF por plantilla** (o por juego de datos) en un `.zip`; **P-43 datos de ejemplo desde un endpoint de OpenAPI** (elegir la operación y su respuesta, en vez del primer esquema).
+- 👤 **Pendiente de la persona:** protección de ramas (11.2), lector de pantalla real (12.1), Mac (12.2, aparcado).
 
 ### Fase 13. Mantenimiento (parcial)
 
-- ⏳ **13.1** Los 18 avisos moderados de `npm audit` (`minimatch` dentro de `eslint`): subir `eslint` cuando salga una versión con `minimatch` 11.
+- ⏳ **13.1** Los 12 avisos moderados de `npm audit` (`minimatch` dentro de `eslint`): `eslint` 10 ya usa `minimatch` 11; se sube en la 0.15.1 (fase 19).
 - ⏳ **13.2** Revisión de dependencias cada mes y subida de Angular en cuanto salga cada versión mayor.
 - ✅ **13.3** `npm run release:check` comprueba la coherencia de la versión antes de etiquetar (ver `docs/RELEASE.md`).
 
