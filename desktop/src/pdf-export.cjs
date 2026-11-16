@@ -65,6 +65,14 @@ function pdfFileName(entryPath) {
   return `${clean}.pdf`;
 }
 
+/** Lo único que puede cargar la ventana del PDF: su propio archivo (por nombre), `data:` y `blob:`. Nada de red. */
+function isAllowedPdfUrl(url, fileName) {
+  if (typeof url !== 'string') return false;
+  if (url.startsWith('data:') || url.startsWith('blob:')) return true;
+  if (!url.startsWith('file:')) return false;
+  try { return decodeURIComponent(new URL(url).pathname).endsWith('/' + fileName); } catch { return false; }
+}
+
 /** Valida la petición que llega de la interfaz. Devuelve un mensaje de error o null. */
 function validateRequest(req) {
   if (!req || typeof req !== 'object') return 'Petición no válida';
@@ -83,13 +91,13 @@ async function renderPdf(electron, req, { timeoutMs = 60000 } = {}) {
   const os = require('node:os');
   const path = require('node:path');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pugide-pdf-'));
-  const file = path.join(dir, 'documento.html');
+  // Nombre único: la única página que la ventana puede cargar. Se compara por el nombre, no por la ruta entera, porque
+  // el sistema la reescribe (macOS: /var → /private/var; Windows: nombres cortos como RUNNER~1).
+  const name = `documento-${require('node:crypto').randomUUID()}.html`;
+  const file = path.join(dir, name);
   fs.writeFileSync(file, req.html, 'utf8');
   const ses = session.fromPartition('pugide-pdf-export');
-  ses.webRequest.onBeforeRequest((details, cb) => {
-    const ok = details.url.startsWith('data:') || details.url.startsWith('blob:') || details.url === require('node:url').pathToFileURL(file).href;
-    cb({ cancel: !ok });
-  });
+  ses.webRequest.onBeforeRequest((details, cb) => cb({ cancel: !isAllowedPdfUrl(details.url, name) }));
   const win = new BrowserWindow({
     show: false,
     width: 1200,
@@ -109,4 +117,4 @@ async function renderPdf(electron, req, { timeoutMs = 60000 } = {}) {
   }
 }
 
-module.exports = { pdfOptions, countPdfPages, pdfFileName, validateRequest, renderPdf, PAPERS };
+module.exports = { pdfOptions, countPdfPages, pdfFileName, validateRequest, isAllowedPdfUrl, renderPdf, PAPERS };

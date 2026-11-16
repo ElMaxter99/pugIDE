@@ -44,7 +44,13 @@ async function desktop(env, cfg = {}, extra = {}) {
 }
 
 const calls = (page, channel) => page.evaluate((c) => window.__calls.filter(([ch]) => ch === c).map(([, p]) => p), channel);
-const menuItems = async (page) => { await page.locator('[data-testid="menu-exportar"]').click(); const t = await page.locator('[role="menuitem"]').allInnerTexts(); return t.join(' | '); };
+// Se espera a que el menú esté abierto: con la batería entera, leerlo justo tras el clic lo encontraba vacío.
+const menuItems = async (page) => {
+  await page.locator('[data-testid="menu-exportar"]').click();
+  await page.locator('[role="menuitem"]').first().waitFor({ timeout: 5000 });
+  const t = await page.locator('[role="menuitem"]').allInnerTexts();
+  return t.join(' | ');
+};
 
 export default async function (env) {
   // Web: sin cambios.

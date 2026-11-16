@@ -3,7 +3,17 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { pdfOptions, countPdfPages, pdfFileName, validateRequest } = require('../../desktop/src/pdf-export.cjs');
+const { pdfOptions, countPdfPages, pdfFileName, validateRequest, isAllowedPdfUrl } = require('../../desktop/src/pdf-export.cjs');
+
+test('la ventana del PDF solo carga su archivo (aunque el sistema reescriba la ruta), data: y blob:; nada de red', () => {
+  const n = 'documento-1234.html';
+  assert.equal(isAllowedPdfUrl('file:///private/var/folders/x/T/pugide-pdf-a/documento-1234.html', n), true);
+  assert.equal(isAllowedPdfUrl('file:///C:/Users/runneradmin/AppData/Local/Temp/pugide-pdf-a/documento-1234.html', n), true);
+  assert.equal(isAllowedPdfUrl('data:image/png;base64,AA', n), true);
+  assert.equal(isAllowedPdfUrl('https://clinica-aurora.example/logo.png', n), false);
+  assert.equal(isAllowedPdfUrl('file:///etc/passwd', n), false);
+  assert.equal(isAllowedPdfUrl('file:///tmp/otro-documento-1234.html', n), false);
+});
 
 test('el tamaño del documento pasa de px a pulgadas, en vertical y con la orientación aparte', () => {
   const a4h = pdfOptions({ widthPx: 1123, heightPx: 794 });
