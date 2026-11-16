@@ -9,6 +9,11 @@ import { DEFAULT_LAYOUT, isLayoutId, sanitizeDeviceMemory, sanitizePanelSizes } 
 const STORAGE_KEY = 'pug-ide-preferences';
 const PROJECT_KEY = 'pug-ide-project';
 const CORRUPT_KEY = 'pug-ide-project-corrupt';
+/** Marca en localStorage: la sesión no cabía (5 MB) y la guardada es la de IndexedDB. */
+const SESSION_IN_IDB_KEY = 'pug-ide-project-idb';
+const SESSION_DB = 'pug-ide-session';
+const SESSION_STORE = 'kv';
+const SESSION_RECORD = 'project';
 const CURRENT_ID_KEY = 'pug-ide-current-project';
 const ANALYTICS_CONSENT_KEY = 'pug-ide-analytics-consent';
 const LAST_BACKUP_KEY = 'pug-ide-last-backup';
@@ -32,9 +37,66 @@ export interface ProjectSessionState {
   previewEntry?: string;
 }
 
+/** Dónde va la sesión cuando no cabe en localStorage (IndexedDB en el navegador; en memoria en las pruebas). */
+export interface SessionBackend {
+  get(): Promise<string | null>;
+  put(raw: string): Promise<void>;
+  clear(): Promise<void>;
+}
+
+class IndexedDbSessionBackend implements SessionBackend {
+  private open(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(SESSION_DB, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(SESSION_STORE);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  private async run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest): Promise<T> {
+    const db = await this.open();
+    try {
+      return await new Promise<T>((resolve, reject) => {
+        const tx = db.transaction(SESSION_STORE, mode);
+        const req = fn(tx.objectStore(SESSION_STORE));
+        tx.oncomplete = () => resolve(req.result as T);
+        tx.onerror = tx.onabort = () => reject(tx.error);
+      });
+    } finally {
+      db.close();
+    }
+  }
+
+  async get(): Promise<string | null> {
+    const v = await this.run<unknown>('readonly', (s) => s.get(SESSION_RECORD));
+    return typeof v === 'string' ? v : null;
+  }
+
+  async put(raw: string): Promise<void> {
+    await this.run('readwrite', (s) => s.put(raw, SESSION_RECORD));
+  }
+
+  async clear(): Promise<void> {
+    await this.run('readwrite', (s) => s.delete(SESSION_RECORD));
+  }
+}
+
+export class MemorySessionBackend implements SessionBackend {
+  private raw: string | null = null;
+  async get(): Promise<string | null> { return this.raw; }
+  async put(raw: string): Promise<void> { this.raw = raw; }
+  async clear(): Promise<void> { this.raw = null; }
+}
+
 @Injectable({ providedIn: 'root' })
 export class PersistenceService {
-  /** True when the last write to localStorage failed (quota exceeded, private browsing, disabled storage, ...). */
+  /** Sesiones que no caben en localStorage. Reemplazable en las pruebas. */
+  sessionBackend: SessionBackend = typeof indexedDB === 'undefined' ? new MemorySessionBackend() : new IndexedDbSessionBackend();
+  /** Las escrituras en IndexedDB van en fila: la última que se pide es la que queda. */
+  private sessionQueue: Promise<void> = Promise.resolve();
+
+  /** True si la última sesión no se pudo guardar en ningún sitio (ni localStorage ni IndexedDB), o falló otra escritura. */
   readonly lastWriteFailed = signal(false);
 
   private defaults: AppPreferences = {
@@ -88,9 +150,32 @@ export class PersistenceService {
   /** Qué pasó con la última sesión leída si no estaba bien (null: nada). La lee el arranque para avisar en el Registro. */
   sessionProblem: { reason: string; copied: boolean } | null = null;
 
-  loadProjectState(): ProjectSessionState | null {
-    let raw: string | null;
-    try { raw = localStorage.getItem(PROJECT_KEY); } catch { return null; }
+  /** ¿Hay una sesión guardada? (sin leerla: la de IndexedDB solo se sabe por su marca). */
+  hasSavedSession(): boolean {
+    try {
+      if (localStorage.getItem(SESSION_IN_IDB_KEY) !== null) return true;
+      return Object.keys(readSession(localStorage.getItem(PROJECT_KEY)).state?.files ?? {}).length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Lee la sesión guardada: de localStorage o, si no cabía (proyectos de más de ~5 MB), de IndexedDB.
+   * Si no se puede leer entera, deja el motivo en `sessionProblem`.
+   */
+  async loadProjectState(): Promise<ProjectSessionState | null> {
+    let raw: string | null = null;
+    let inIdb: boolean;
+    try {
+      inIdb = localStorage.getItem(SESSION_IN_IDB_KEY) !== null;
+      if (!inIdb) raw = localStorage.getItem(PROJECT_KEY);
+    } catch {
+      inIdb = true; // sin localStorage: se prueba IndexedDB
+    }
+    if (inIdb) {
+      try { raw = await this.sessionBackend.get(); } catch { raw = null; }
+    }
     const reading = readSession(raw);
     if (reading.problem) {
       // Antes de que el autoguardado la pise con el proyecto por defecto, se guarda una copia del texto original.
@@ -101,13 +186,42 @@ export class PersistenceService {
     return reading.state as ProjectSessionState | null;
   }
 
+  /**
+   * Guarda la sesión. Va a localStorage mientras quepa (lectura inmediata al arrancar); si no cabe, a IndexedDB,
+   * y solo cuando IndexedDB confirma se quita la copia anterior de localStorage: si algo falla, queda la última buena.
+   */
   saveProjectState(state: ProjectSessionState): void {
+    const raw = JSON.stringify(state);
     try {
-      localStorage.setItem(PROJECT_KEY, JSON.stringify(state));
+      localStorage.setItem(PROJECT_KEY, raw);
+      if (localStorage.getItem(SESSION_IN_IDB_KEY) !== null) {
+        localStorage.removeItem(SESSION_IN_IDB_KEY);
+        this.enqueue(() => this.sessionBackend.clear());
+      }
       this.lastWriteFailed.set(false);
-    } catch {
-      this.lastWriteFailed.set(true);
-    }
+      return;
+    } catch { /* no cabe o no hay localStorage: IndexedDB */ }
+    this.enqueue(async () => {
+      try {
+        await this.sessionBackend.put(raw);
+        try {
+          localStorage.removeItem(PROJECT_KEY);
+          localStorage.setItem(SESSION_IN_IDB_KEY, String(Date.now()));
+        } catch { /* sin localStorage: al arrancar se prueba IndexedDB igualmente */ }
+        this.lastWriteFailed.set(false);
+      } catch {
+        this.lastWriteFailed.set(true);
+      }
+    });
+  }
+
+  /** Espera a que terminen las escrituras pendientes en IndexedDB (pruebas y antes de cambiar de proyecto). */
+  flushSession(): Promise<void> {
+    return this.sessionQueue;
+  }
+
+  private enqueue(task: () => Promise<void>): void {
+    this.sessionQueue = this.sessionQueue.then(task, task).catch(() => undefined);
   }
 
   /** Opciones del último «Exportar PDF» (P-39). */
@@ -227,12 +341,16 @@ export class PersistenceService {
 
   clearAll(): void {
     try { localStorage.removeItem(CURRENT_ID_KEY); } catch { /* ignore */ }
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(PROJECT_KEY);
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    this.clearProjectState();
   }
 
   clearProjectState(): void {
-    localStorage.removeItem(PROJECT_KEY);
+    try {
+      localStorage.removeItem(PROJECT_KEY);
+      localStorage.removeItem(SESSION_IN_IDB_KEY);
+    } catch { /* ignore */ }
     try { localStorage.removeItem(CURRENT_ID_KEY); } catch { /* ignore */ }
+    this.enqueue(() => this.sessionBackend.clear());
   }
 }
