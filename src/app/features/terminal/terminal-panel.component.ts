@@ -399,7 +399,7 @@ export class TerminalPanelComponent {
   protected onTabKey(e: KeyboardEvent): void {
     const order: ('problems' | 'log')[] = ['problems', 'log'];
     const at = order.indexOf(this.terminalState.activeTab());
-    let next = at;
+    let next: number;
     if (e.key === 'ArrowRight') next = (at + 1) % order.length;
     else if (e.key === 'ArrowLeft') next = (at - 1 + order.length) % order.length;
     else if (e.key === 'Home') next = 0;

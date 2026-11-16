@@ -167,7 +167,7 @@ export class ContextMenuComponent {
     const list = this.items_();
     if (!list.length) return;
     const at = list.indexOf(document.activeElement as HTMLButtonElement);
-    let to: number | null = null;
+    let to: number;
     switch (event.key) {
       case 'ArrowDown': to = (at + 1) % list.length; break;
       case 'ArrowUp': to = (at - 1 + list.length) % list.length; break;
