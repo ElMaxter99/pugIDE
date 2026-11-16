@@ -1,4 +1,4 @@
-# Estado y plan de PugIDE (v0.15.0)
+# Estado y plan de PugIDE (v0.16.0)
 
 Actualizado el 2026-11-15. El análisis inicial (v0.3.1) se hizo el 2026-11-03; las seis fases que salieron de él están hechas y resumidas en la sección 4.
 
