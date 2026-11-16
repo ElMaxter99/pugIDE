@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa a la persona responsable»). Última revisión: 2026-11-15.
+Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa a la persona responsable»). Última revisión: 2026-11-16.
 
 ## Versiones
 - **0.8.0**: publicada (tag `v0.8.0` y release de GitHub hechos). La rama `release` ya contiene la 0.8.0 y, por un merge manual, trabajo de la 0.9 hasta la PR 57. Falta, si no se ha hecho, **desplegar `release` en Vercel a mano**.
@@ -12,7 +12,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **0.12.0**: publicada y desplegada (importar archivos y proyecto, logo nuevo).
 - **0.13.0**: publicada y desplegada, con los 7 instaladores (asistente de IA, índices fijos en los datos, guía para probar en local).
 - **0.14.0**: publicada y desplegada, con sus instaladores y los archivos de actualización. Es la primera que se actualiza sola; desde la 0.13 se llega con «Descargar».
-- **0.15.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.15.0.md`): diferencias en conflictos, Datos como tabla, autoguardado sin reescribir imágenes, fuentes sin conexión y «Cambios completos». Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel. Es la primera que se instala con «Actualizar» desde la 0.14.0.
+- **0.15.0**: publicada y desplegada, con sus 13 archivos (instaladores y actualización) y «Cambios completos» en las notas.
+- **0.16.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.16.0.md`): PDF con el motor nativo (P-39), abrir `.pug` y carpetas con PugIDE (P-40), pasar un proyecto a una carpeta (P-41), sesión grande en IndexedDB, tablas de miles de filas en la vista PDF y dependencias al día. Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel.
 - **0.10.1**: publicada. Antes: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.10.1.md`): ejemplos genéricos en las pruebas. Falta mergearla y lanzar `npm run release:deploy`; los instaladores se construyen y adjuntan solos.
 
 ## 0.11 (publicada)
@@ -33,18 +34,21 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **Actualizar dentro de la app de escritorio** (P-35 y P-36): mergeado (PR 80). Probado de verdad con un AppImage local. Guía reutilizable en [ACTUALIZAR-ESCRITORIO.md](ACTUALIZAR-ESCRITORIO.md).
 - **Palabras prohibidas en el CI, icono de escritorio en los instaladores y versión 0.0.0 desde el código**: mergeado (PR 79). Arreglos de Windows (CRLF, dependencias de escritorio): PR 78.
 
-## 0.15 (preparada)
+## 0.15 (publicada)
 - **«Cambios completos» en las notas de cada release**: mergeado (PR 82).
 - **El autoguardado ya no reescribe las imágenes** (biblioteca con assets aparte): mergeado (PR 83).
 - **Ver diferencias en un conflicto** (P-37): mergeado (PR 84), con el arreglo de «Cargar el del disco» en el archivo abierto.
 - **La zona de Datos como tabla CLAVE / VALOR** (P-38): mergeado (PR 85), con `playwright-core` 1.65.1 (el CI pasó a Ubuntu 26.04) y las fuentes guardadas por el service worker para que se vean sin conexión.
 
-## En curso: fase 19 (plan aprobado)
-- **0.15.1** mantenimiento: mergeado (PR 87).
-- **Sesión en IndexedDB** (19.2): en su PR (88).
-- **P-39 PDF nativo** (diseño P-39 a P-41 aprobado): PR 89, CI en verde en los tres sistemas.
-- **P-40 abrir `.pug` y carpetas con PugIDE**: PR 90 (encima de la 89).
-- **P-41 pasar un proyecto a una carpeta**: en su PR (encima de la 90).
+## 0.16 (preparada)
+- **0.15.1** mantenimiento (dependencias, `npm audit` a cero): mergeado (PR 87); sale dentro de la 0.16.0.
+- **Sesión en IndexedDB** (19.2): mergeado (PR 88).
+- **P-39 PDF nativo**, **P-40 abrir `.pug` y carpetas con PugIDE** y **P-41 pasar un proyecto a una carpeta** (diseño aprobado): mergeados (PR 89, 90 y 91). La 91 incluye el arreglo de la bienvenida que tapaba «Abrir con» en el primer arranque.
+- **`release:deploy` desde una copia sin actualizar**: mergeado (PR 92).
+- **Tablas de miles de filas en la vista PDF** (19.2): en la PR de la 0.16.0.
+
+## Siguiente: 0.17 (fase 19.4, necesita diseño)
+- **P-42 un PDF por plantilla** (o por juego de datos) en un `.zip` y **P-43 datos de ejemplo desde un endpoint de OpenAPI**. Primero se diseñan en el lienzo y se aprueban.
 
 ## Plan de la fase 19
 Plan completo en [PLAN.md](PLAN.md), fase 19:
@@ -67,5 +71,4 @@ Plan completo en [PLAN.md](PLAN.md), fase 19:
 | Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | ✅ publicada |
 
 ## Pendiente de la persona responsable
-- Mergear la PR de la 0.15.0, lanzar `npm run release:deploy`, desplegar `release` en Vercel y probar «Actualizar» desde la 0.14.0.
-- Aprobar el plan de la fase 19.
+- Mergear la PR de la 0.16.0, lanzar `npm run release:deploy`, desplegar `release` en Vercel y probar en la app de escritorio «Actualizar» desde la 0.15.0, «PDF…», doble clic en un `.pug` y «Pasar a una carpeta…».

@@ -167,7 +167,23 @@ Los assets enviados una sola vez ya eran correctos: 3 MB cuestan unos 35 ms por 
 - Tras empujar una fila se leían su posición y la de la tabla solo para decidir algo que ya se sabía (una fila empujada empieza hoja). Ahora esas lecturas solo se hacen si la fila no se empujó.
 - El HTML paginado es el mismo, byte a byte, en tablas de prueba con y sin márgenes, con una o dos filas de cabecera, sin cabecera y con filas altas (salvo, en estas últimas, unas centésimas de píxel en el ancho en línea que se copia a la cabecera); el número de páginas y el alto no cambian, y los escenarios 03, 15, 19 y 23 (comparan con `page.pdf()`) siguen pasando.
 
-Queda una maquetación completa de la tabla por hoja, así que el coste sigue creciendo más que lineal (5000 filas ≈ 2,5 s). Quitarla exigiría predecir las posiciones sin leer el DOM, un cambio de algoritmo que no compensa con tablas de hasta ~2000 filas (≈ 0,4 s); queda como siguiente paso si alguien necesita tablas de miles de filas.
+Quedaba una maquetación completa de la tabla por hoja, así que el coste seguía creciendo más que lineal (5000 filas ≈ 2,5 s con el preview congelado). En la 0.16 se quitó:
+
+| Medida (mediana [rango], ms) | 0.15 | 0.16 |
+|---|---|---|
+| Paginado, 500 filas (14 págs.) | 53 [51–75] | 51 [48–53] |
+| Paginado, 2000 filas (55 págs.) | 396 [347–488] | 175 [158–193] |
+| Paginado, 5000 filas (136 págs.) | 2496 [2179–3559] | 638 [546–810] |
+| Paginado, 10000 filas (272 págs.) | sin medir | 1497 [1402–1904] |
+| Cambio de código, 2000 filas | 1206 [1151–1249] | 741 [712–756] |
+| Cambio de código, 5000 filas | 5719 [5325–6998] | 1722 [1564–1955] |
+
+- **Las posiciones de las filas se calculan, no se releen.** Al llegar a la primera fila de una tabla se miden todas de una vez (`TableState` en `paginate.util.ts`). Cada fila de relleno o copia de la cabecera baja las filas siguientes una cantidad conocida (su alto, en las unidades en que lo guarda el motor, más un resto fijo de la tabla: `border-spacing`, alto de la copia de la cabecera), que se mide una sola vez en la fila siguiente a la tocada (la tocada no sirve: con bordes fundidos se queda medio borde más abajo). Desde ahí solo se suma.
+- **Comprobación periódica.** Tras 2 hojas, y luego cada el doble hasta 32, la tabla se vuelve a medir; si lo calculado se ha separado de lo real, el desvío por hoja se incorpora al cálculo y la siguiente comprobación se adelanta. También se vuelve a medir al cambiar de sección (`thead`/`tbody`/`tfoot`) y cuando algo ajeno a la tabla mueve el documento (un margen empujado, un párrafo partido, otra tabla).
+- **La cabecera se decide una vez por tabla** (antes se medía en cada fila, y esa lectura forzaba maquetar tras cada hoja) y **lo de dentro de una fila que cabe entera en su hoja no se mide**: ahí no hay nada que partir ni que bajar, salvo un salto forzado, que sigue el camino normal.
+- Las tablas hechas con CSS (`display: table-row` sin `<table>`) siguen midiéndose fila a fila.
+
+Comprobado comparando el HTML paginado de antes y de ahora en 12 tablas (bordes fundidos y separados, con y sin márgenes, una o dos filas de cabecera, sin cabecera, filas altas con párrafos, `tfoot` y dos `tbody`, dos tablas, anidadas, hechas con CSS) de hasta 6000 filas: **idéntico, byte a byte, en Chromium y WebKit**. En Firefox difiere en centésimas de píxel (hasta 2,4 px en una tabla sin cabecera con bordes fundidos y márgenes, donde Firefox reparte los bordes según la posición de cada fila), con las mismas hojas y las mismas filas en cada una; a cambio, donde el paginado anterior tardaba unos 9 s con 1500 filas de bordes fundidos, ahora tarda entre 1 y 1,5 s. El escenario `72-tabla-grande.mjs` comprueba en los tres motores que ninguna fila queda cortada ni en los márgenes y que cada cabecera repetida empieza justo al principio de su hoja.
 
 Presupuesto del escenario `27-rendimiento.mjs` (solo Chromium, unas 10 veces lo medido para no ser intermitente): paginar 2000 filas con cabecera < 5 s y un cambio de código con un asset de 3 MB < 3 s. Solo detecta regresiones graves (volver a reenviar los assets en cada compilación, o a forzar una maquetación por fila); para comparar de verdad usa `npm run perf`.
 

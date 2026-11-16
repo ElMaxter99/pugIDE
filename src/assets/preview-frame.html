@@ -7,7 +7,7 @@
 <body>
 <!-- Generado por scripts/bundle-runtime.mjs (no editar): documento propio del preview, con su Content-Security-Policy por cabecera (vercel.json). -->
 <script>
-// pugide-runtime source-hash: 62afea64eb86509a
+// pugide-runtime source-hash: 30a67c1a803a572b
 "use strict";
 (() => {
   // src/app/core/utils/page-rules.util.ts
@@ -50,6 +50,8 @@
   var HTML_MARK = "data-pg-html";
   var EPS = 0.5;
   var MAX_REPEATED_HEADER = 0.25;
+  var TABLE_REMEASURE_PAGES = 32;
+  var TABLE_DRIFT_LIMIT = 0.75;
   var FORCED = /* @__PURE__ */ new Set(["page", "always", "left", "right", "recto", "verso"]);
   var ATOMIC_TAGS = /* @__PURE__ */ new Set(["IMG", "SVG", "FIGURE", "CANVAS", "VIDEO", "PRE", "BLOCKQUOTE"]);
   function pageGeometry(pageHeight, margin) {
@@ -131,6 +133,7 @@
     if (!(el.textContent ?? "").trim()) return false;
     return Array.from(el.children).every((c) => c.tagName === "BR" || win.getComputedStyle(c).display.startsWith("inline"));
   }
+  var layoutEdits = 0;
   function collectText(el) {
     const doc = el.ownerDocument;
     const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
@@ -165,6 +168,7 @@
     while (r > 0 && runs[r].start > index) r--;
     const { node, start } = runs[r];
     const off = index - start;
+    layoutEdits++;
     const spacer = doc.createElement("span");
     spacer.setAttribute(SPACER, "");
     spacer.style.cssText = `display:block;height:${height}px;margin:0;padding:0;border:0;`;
@@ -301,6 +305,19 @@
       row.parentNode?.insertBefore(template.cloneNode(true), row);
     }
   }
+  function lengthSnap(doc) {
+    const probe = doc.createElement("div");
+    probe.setAttribute(SPACER, "");
+    probe.style.cssText = "position:absolute;visibility:hidden;width:1px;height:10.4px;margin:0;padding:0;border:0;";
+    doc.body.appendChild(probe);
+    const h = probe.getBoundingClientRect().height;
+    probe.remove();
+    const floor64 = (px) => Math.floor(px * 64) / 64;
+    const round60 = (px) => Math.round(px * 60) / 60;
+    if (Math.abs(h - floor64(10.4)) < 1e-4) return floor64;
+    if (Math.abs(h - round60(10.4)) < 1e-4) return round60;
+    return (px) => px;
+  }
   function paginateDocument(doc, geometry2) {
     const g = typeof geometry2 === "number" ? pageGeometry(geometry2) : geometry2;
     const win = doc.defaultView;
@@ -312,7 +329,47 @@
     const forcedAfter = /* @__PURE__ */ new Set();
     const headerTemplates = /* @__PURE__ */ new Map();
     const top = (el) => el.getBoundingClientRect().top + win.scrollY;
+    const tables = /* @__PURE__ */ new Map();
+    let snap = null;
+    const settledRows = /* @__PURE__ */ new Set();
+    const headers = /* @__PURE__ */ new Map();
+    const measureTable = (table, st, from) => {
+      st.tableTop = top(table);
+      for (let i = from; i < st.rows.length; i++) {
+        const r = st.rows[i].getBoundingClientRect();
+        st.tops[i] = r.top + win.scrollY;
+        st.heights[i] = r.height;
+      }
+      st.shift = 0;
+      st.pages = 0;
+      st.edits = layoutEdits;
+    };
+    const tableOf = (row) => {
+      const table = row.closest("table");
+      if (!table) return null;
+      let st = tables.get(table);
+      if (!st) {
+        const rows = Array.from(table.rows);
+        st = { rows, index: new Map(rows.map((r, i2) => [r, i2])), tops: [], heights: [], tableTop: 0, shift: 0, edits: -1, pages: 0, interval: 2, section: null, spacerExtra: null, headerHeight: null };
+        tables.set(table, st);
+      }
+      const i = st.index.get(row);
+      if (i === void 0) return null;
+      if (st.edits !== layoutEdits || st.section !== row.parentElement) {
+        st.section = row.parentElement;
+        measureTable(table, st, i);
+      } else if (st.pages >= st.interval) {
+        const predicted = st.tops[i] + st.shift;
+        const pages = st.pages;
+        measureTable(table, st, i);
+        const drift = st.tops[i] - predicted;
+        if (st.spacerExtra !== null) st.spacerExtra += drift / pages;
+        st.interval = Math.abs(drift) > TABLE_DRIFT_LIMIT ? Math.max(2, st.interval >> 1) : Math.min(TABLE_REMEASURE_PAGES, st.interval * 2);
+      }
+      return { st, i };
+    };
     const pushTo = (el, target) => {
+      layoutEdits++;
       const cs = win.getComputedStyle(el);
       if (!el.hasAttribute(MARK)) el.setAttribute(MARK, el.style.getPropertyValue("margin-top"));
       let margin = (parseFloat(cs.marginTop) || 0) + (target - top(el));
@@ -323,36 +380,99 @@
         margin += diff;
       }
     };
+    const paginateLooseRow = (el, header) => {
+      layoutEdits++;
+      let pushed = false;
+      const r = el.getBoundingClientRect();
+      const target = pushTarget(g, r.top + win.scrollY, r.height);
+      if (target !== null) {
+        pushTableRow(doc, el, target - (r.top + win.scrollY));
+        pushed = true;
+      }
+      if (!header) return;
+      let startsPage = pushed;
+      if (!startsPage) {
+        const y = el.getBoundingClientRect().top + win.scrollY;
+        const k = pageOf(g, y);
+        const tableTop = header.table.getBoundingClientRect().top + win.scrollY;
+        startsPage = k > pageOf(g, tableTop) && Math.abs(y - pageTop(g, k)) < 1.5;
+      }
+      if (startsPage) {
+        insertHeaderCopy(win, el, header.rows, headerTemplates);
+        const r2 = el.getBoundingClientRect();
+        const t2 = pushTarget(g, r2.top + win.scrollY, r2.height);
+        if (t2 !== null) pushTableRow(doc, el, t2 - (r2.top + win.scrollY));
+      }
+    };
     for (const el of Array.from(body.querySelectorAll("*"))) {
       if (el.hasAttribute(SPACER) || el.closest(`[${SPACER}]`)) continue;
       const cs = win.getComputedStyle(el);
       if (cs.display === "none" || cs.position === "absolute" || cs.position === "fixed") continue;
-      if (cs.display === "table-row") {
-        const header = repeatingHeader(win, el, g);
-        let pushed = false;
-        if (gap || header) {
-          const r = el.getBoundingClientRect();
-          const target = pushTarget(g, r.top + win.scrollY, r.height);
-          if (target !== null) {
-            pushTableRow(doc, el, target - (r.top + win.scrollY));
-            pushed = true;
+      if (settledRows.size) {
+        const row = el.parentElement?.closest("tr");
+        if (row && settledRows.has(row)) {
+          if (FORCED.has(cs.breakAfter) || FORCED.has(cs.getPropertyValue("page-break-after")) || FORCED.has(cs.breakBefore) || FORCED.has(cs.getPropertyValue("page-break-before")) || forcedAfter.has(el)) settledRows.delete(row);
+          else {
+            if (cs.display === "table-row") settledRows.add(el);
+            continue;
           }
+        }
+      }
+      if (cs.display === "table-row") {
+        const owner = el.closest("table");
+        let header = null;
+        const section = el.parentElement;
+        if (owner && section && section.tagName !== "THEAD" && section.tagName !== "TFOOT") {
+          if (!headers.has(owner)) headers.set(owner, repeatingHeader(win, el, g));
+          header = headers.get(owner) ?? null;
+        }
+        if (!gap && !header) continue;
+        const known = tableOf(el);
+        if (!known) {
+          paginateLooseRow(el, header);
+          continue;
+        }
+        const { st, i } = known;
+        const height = st.heights[i];
+        const y2 = () => st.tops[i] + st.shift;
+        const settle = (key, nominal) => {
+          const next = st.rows[i + 1];
+          if (st[key] !== null) st.shift += nominal + st[key];
+          else if (next && next.parentElement === el.parentElement) {
+            const actual = top(next);
+            st[key] = actual - (st.tops[i + 1] + st.shift) - nominal;
+            st.shift = actual - st.tops[i + 1];
+          } else st.shift = top(el) - st.tops[i];
+          st.edits = ++layoutEdits;
+        };
+        const pushDown = (amount) => {
+          pushTableRow(doc, el, amount);
+          snap ?? (snap = lengthSnap(doc));
+          settle("spacerExtra", snap(amount));
+          st.pages++;
+        };
+        let pushed = false;
+        const target = pushTarget(g, y2(), height);
+        if (target !== null) {
+          pushDown(target - y2());
+          pushed = true;
         }
         if (header) {
           let startsPage = pushed;
           if (!startsPage) {
-            const y2 = el.getBoundingClientRect().top + win.scrollY;
-            const k = pageOf(g, y2);
-            const tableTop = header.table.getBoundingClientRect().top + win.scrollY;
-            startsPage = k > pageOf(g, tableTop) && Math.abs(y2 - pageTop(g, k)) < 1.5;
+            const k2 = pageOf(g, y2());
+            startsPage = k2 > pageOf(g, st.tableTop) && Math.abs(y2() - pageTop(g, k2)) < 1.5;
           }
           if (startsPage) {
             insertHeaderCopy(win, el, header.rows, headerTemplates);
-            const r = el.getBoundingClientRect();
-            const target = pushTarget(g, r.top + win.scrollY, r.height);
-            if (target !== null) pushTableRow(doc, el, target - (r.top + win.scrollY));
+            settle("headerHeight", 0);
+            if (!pushed) st.pages++;
+            const again = pushTarget(g, y2(), height);
+            if (again !== null) pushDown(again - y2());
           }
         }
+        const k = pageOf(g, y2());
+        if (y2() >= pageTop(g, k) - EPS && y2() + height <= pageBottom(g, k) + EPS) settledRows.add(el);
         continue;
       }
       if (cs.display.startsWith("table") || cs.display === "inline") continue;

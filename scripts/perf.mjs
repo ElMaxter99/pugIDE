@@ -68,7 +68,7 @@ if (only.includes('tablas')) {
     for (let i = 0; i < runs; i++) {
       const app = await openPdfProject(env, tablePug(n));
       pag.push(await repaginate(app.page));
-      pages = Number((await app.page.locator('.pdf-bar').innerText()).match(/(\d+) página/)?.[1]);
+      pages = Number((await app.page.locator('.pdf-bar').innerText()).match(/Página\s+de\s+(\d+)/)?.[1]);
       change.push(await changeAndWait(app.page, tablePug(n, `Informe ${i}`), `Informe ${i}`, { layout: true }));
       if (app.errors.length) console.log('  errores de página:', app.errors.join(' | '));
       await app.context.close();
