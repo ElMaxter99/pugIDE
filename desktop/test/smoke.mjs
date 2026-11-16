@@ -189,6 +189,23 @@ try {
   await page.locator('[role="menuitem"]', { hasText: 'Cerrar el espacio' }).click();
   check('cerrar el espacio vuelve a los proyectos de la app y no borra nada del disco', !!(await wait(async () => (await page.locator('[data-testid="workspaces-open"]').count()) === 1, 10000)) && /Editado en PugIDE/.test(onDisk()) && existsSync(join(folder, 'nuevo.pug')));
 
+  // Pasar un proyecto de «Mis proyectos» a una carpeta (P-41). La carpeta elegida (la del espacio de antes) ya tiene un
+  // main.pug: no se toca y el del proyecto se guarda como «main (2).pug».
+  step('pasar un proyecto a una carpeta');
+  const mainBefore = onDisk();
+  await page.locator('[data-testid="menu-proyecto"]').click();
+  await page.locator('[role="menuitem"]', { hasText: 'Mis proyectos…' }).click();
+  await page.locator('[aria-label="Mis proyectos"] [data-testid="move-to-folder"]').first().click();
+  const mv = page.locator('[data-testid="move-to-folder-dialog"]');
+  check('«Pasar a una carpeta…» abre su diálogo con lo que se va a escribir', !!(await wait(async () => (await mv.count()) === 1, 5000)) && /Se escriben \d+ archivo/.test(await mv.innerText()), await mv.innerText().catch(() => ''));
+  await page.locator('[data-testid="move-pick"]').click();
+  const conflicts = page.locator('[data-testid="move-conflicts"]');
+  check('si la carpeta ya tiene un archivo con el mismo nombre, lo dice y que no se sobrescribe', !!(await wait(async () => (await conflicts.count()) === 1, 8000)) && /No se sobrescribe nada/.test(await conflicts.innerText()) && /main\.pug/.test(await conflicts.innerText()), await conflicts.innerText().catch(() => ''));
+  await page.locator('[data-testid="move-go"]').click();
+  const moved = page.locator('[data-testid="move-done"]');
+  check('«Pasar y abrir» lo escribe y lo abre como espacio de trabajo', !!(await wait(async () => (await moved.count()) === 1, 20000)) && /está ahora en el disco/.test(await moved.innerText()) && (await page.locator('[data-testid="menu-espacio"]').count()) === 1, await moved.innerText().catch(() => ''));
+  check('el main.pug que ya había en la carpeta sigue intacto y el del proyecto está como «main (2).pug»', onDisk() === mainBefore && existsSync(join(folder, 'main (2).pug')), String(existsSync(join(folder, 'main (2).pug'))));
+
   await new Promise((r) => setTimeout(r, 1500));
   check('sin violaciones de la CSP', violations.length === 0, violations.slice(0, 3).join(' | '));
   check('sin peticiones a internet (funciona sin conexión)', external.length === 0, external.slice(0, 3).join(' | '));

@@ -67,6 +67,10 @@ Con la app instalada, un archivo `.pug` o `.jade` se abre con PugIDE con **doble
 - **macOS**: PugIDE aparece en «Abrir con» sin quitar tu programa por defecto.
 - **Linux**: los paquetes `.deb` y `.rpm` registran los tipos `text/x-pug` y `text/x-jade` y PugIDE aparece en «Abrir con». El AppImage no puede registrar tipos de archivo (puedes arrastrar los archivos a la ventana).
 
+### Llevar al disco un proyecto de «Mis proyectos»
+
+En «Proyecto → Mis proyectos…», **«Pasar a una carpeta…»** escribe el proyecto (archivos, imágenes, fuentes y datos) en la carpeta que elijas y la abre como espacio de trabajo. No sobrescribe nada de esa carpeta: si un nombre coincide, el del proyecto se guarda como «main (2).pug».
+
 ## Tus proyectos y tu privacidad
 - La app de escritorio **no hace ninguna llamada de red por su cuenta** (salvo, si lo aceptas, la consulta de versión nueva a github.com) y **no lleva analítica**. Funciona con el cable desenchufado. (Los enlaces `https` que abras desde ella se abren en tu navegador.)
 - Los proyectos se guardan en **el perfil de cada app**: la web, la PWA y la app de escritorio **no comparten** proyectos entre sí. Para llevarte uno: **Proyecto → Exportar** (`.zip`) y en la otra, **Proyecto → Importar proyecto (carpeta o .zip)…**.

@@ -106,6 +106,30 @@ function locate() {
 let mainWindow = null;
 let pendingLink = null;
 
+/** Ruta absoluta de una ruta del proyecto (`/estilos/a.css`) dentro de `root`; null si se saldría. */
+function insidePath(root, appPath) {
+  if (typeof appPath !== 'string' || !appPath.startsWith('/') || appPath.includes('\0')) return null;
+  const base = path.resolve(root);
+  const abs = path.resolve(base, '.' + appPath);
+  return abs !== base && abs.startsWith(base + path.sep) ? abs : null;
+}
+
+/** Archivos de una carpeta (sin entrar en las ocultas ni en node_modules), hasta `max`. */
+function countFiles(dir, max) {
+  let n = 0;
+  const walk = (d) => {
+    let entries = [];
+    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (n >= max) return;
+      if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+      if (e.isDirectory()) walk(path.join(d, e.name)); else n++;
+    }
+  };
+  walk(dir);
+  return n;
+}
+
 function isDir(p) {
   try { return fs.statSync(p).isDirectory(); } catch { return false; }
 }
@@ -324,6 +348,14 @@ function setupIpc() {
       if (!dir) return null;
       const ws = store.create(name, color, dir);
       return { id: ws.id };
+    },
+    // Pasar un proyecto a una carpeta (P-41): qué hay ya en la carpeta elegida y qué nombres del proyecto coinciden.
+    'ws:folder-check': ({ token, paths }) => {
+      const dir = pickedFolders.get(token);
+      if (!dir) return null;
+      const list = Array.isArray(paths) ? paths.filter((p) => typeof p === 'string').slice(0, 5000) : [];
+      const conflicts = list.filter((p) => { const abs = insidePath(dir, p); return !!abs && fs.existsSync(abs); });
+      return { path: dir, fileCount: countFiles(dir, 2000), conflicts };
     },
     'ws:relocate': ({ id, token }) => {
       const dir = pickedFolders.get(token);
