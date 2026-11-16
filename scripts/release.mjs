@@ -17,9 +17,9 @@
 //      (Deployments), se despliega la rama `release` a mano.
 // Necesita git con permiso de push de tags y de `release`, y `gh` con sesión iniciada. Es de Node: sin awk ni sed.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { releaseBody } from './release-notes.mjs';
 
@@ -55,6 +55,38 @@ export function pickVersionCommit(commits, version) {
 const log = (m = '') => console.log(m);
 const step = (n, m) => log(`\n[${n}] ${m}`);
 
+/**
+ * Notas de una release que ya existe, con la línea «Cambios completos» de `notes` (la de `releaseBody`) añadida antes de
+ * la sección de instaladores (o al final). `null` si ya la lleva o no hay línea que añadir.
+ */
+export function addFullChanges(body, notes) {
+  const text = String(body ?? '').replace(/\r\n/g, '\n');
+  if (/\*\*Cambios completos:\*\*/.test(text)) return null;
+  const line = String(notes ?? '').split('\n').find((l) => l.startsWith('**Cambios completos:**'));
+  if (!line) return null;
+  const marker = '<!-- instaladores-escritorio -->';
+  const at = text.indexOf(marker);
+  if (at === -1) return `${text.replace(/\s*$/, '')}\n\n${line}\n`;
+  return `${text.slice(0, at).replace(/\s*$/, '')}\n\n${line}\n\n${text.slice(at)}`;
+}
+
+/**
+ * Los scripts de publicación de `ref` (normalmente origin/master) si son distintos de los que se están ejecutando;
+ * `null` si son iguales o `ref` no los tiene. Así una copia de trabajo antigua no publica con reglas viejas.
+ */
+export function newerScripts(root, ref, running) {
+  const read = (p) => spawnSync('git', ['show', `${ref}:${p}`], { cwd: root, encoding: 'utf8' });
+  const files = {};
+  for (const name of ['release.mjs', 'release-notes.mjs']) {
+    const r = read(`scripts/${name}`);
+    if (r.status !== 0) return null;
+    files[name] = r.stdout;
+  }
+  const local = (name) => { try { return readFileSync(join(running, name), 'utf8').replace(/\r\n/g, '\n'); } catch { return ''; } };
+  const same = Object.entries(files).every(([name, text]) => local(name) === text.replace(/\r\n/g, '\n'));
+  return same ? null : files;
+}
+
 function run(cmd, args, { cwd, input, allowFail = false } = {}) {
   const r = spawnSync(cmd, args, { cwd, input, encoding: 'utf8' });
   if (r.error) throw new Error(`No se pudo ejecutar «${cmd}»: ${r.error.message}`);
@@ -78,6 +110,21 @@ export async function main(argv, env = process.env) {
   // 1. Commit de la versión
   step(1, `Ponerse en master, traer ${remote}/master, ${remote}/release y los tags`);
   git(['fetch', remote, 'master', 'release', '--tags', '--force']);
+  // Siempre con el script de master: si el de esta copia es otro (una copia sin actualizar), se ejecuta el de master.
+  if (!env.PUGIDE_RELEASE_FROM_MASTER) {
+    const files = newerScripts(root, `${remote}/master`, dirname(fileURLToPath(import.meta.url)));
+    if (files) {
+      log(`    ⚠ el script de publicación de tu copia no es el de ${remote}/master (¿copia sin actualizar?): se usa el de master`);
+      const dir = mkdtempSync(join(tmpdir(), 'pugide-release-script-'));
+      try {
+        for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
+        const r = spawnSync(process.execPath, [join(dir, 'release.mjs'), ...argv], { cwd: root, stdio: 'inherit', env: { ...env, PUGIDE_RELEASE_FROM_MASTER: '1' } });
+        return r.status ?? 1;
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  }
   if (!dry) {
     if (git(['status', '--porcelain']).out) log('    hay cambios sin guardar en tu copia: no se cambia de rama (no hace falta para publicar)');
     else {
@@ -136,8 +183,25 @@ export async function main(argv, env = process.env) {
   // 4. Release de GitHub
   step(4, 'Release de GitHub');
   const view = run(GH, ['release', 'view', tag], { cwd: root, allowFail: true });
-  if (view.status === 0) log('    ya existe: se deja');
-  else if (dry) log(`    (simulacro) crearía la release «PugIDE ${version}» con las notas del CHANGELOG`);
+  if (view.status === 0) {
+    // Una release creada con una versión antigua del script puede no llevar «Cambios completos»: se completa, sin tocar
+    // lo demás (los instaladores que añade el flujo de escritorio se quedan como están).
+    const body = run(GH, ['release', 'view', tag, '--json', 'body', '--jq', '.body'], { cwd: root, allowFail: true });
+    const fixed = body.status === 0 ? addFullChanges(body.out, notes) : null;
+    if (!fixed) log('    ya existe: se deja');
+    else if (dry) log('    (simulacro) ya existe; le añadiría la línea «Cambios completos» a las notas');
+    else {
+      const dir = mkdtempSync(join(tmpdir(), 'pugide-release-'));
+      const file = join(dir, 'notas.md');
+      writeFileSync(file, fixed);
+      try {
+        run(GH, ['release', 'edit', tag, '--notes-file', file], { cwd: root });
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+      log('    ya existía: ✓ se le ha añadido «Cambios completos» a las notas (lo demás, igual)');
+    }
+  } else if (dry) log(`    (simulacro) crearía la release «PugIDE ${version}» con las notas del CHANGELOG`);
   else {
     const dir = mkdtempSync(join(tmpdir(), 'pugide-release-'));
     const file = join(dir, 'notas.md');
