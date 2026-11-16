@@ -81,7 +81,7 @@ import { formatTokens } from '../../../core/utils/ai.util';
           [class.failed]="persistence.lastWriteFailed()"
           [class.pending]="!persistence.lastWriteFailed() && editorState.hasUnsavedChanges()"
           [class.live]="!persistence.lastWriteFailed() && !editorState.hasUnsavedChanges()"
-          [title]="persistence.lastWriteFailed() ? 'Local storage save failed — your work may not survive a reload. Export the project to be safe.' : ''">
+          [title]="persistence.lastWriteFailed() ? 'No se pudo guardar en este navegador: si recargas, puedes perder los últimos cambios. Exporta el proyecto para tenerlo a salvo.' : ''">
           <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">
             {{ persistence.lastWriteFailed() ? 'cloud_off' : (editorState.hasUnsavedChanges() ? 'edit' : 'cloud_done') }}
           </span>
