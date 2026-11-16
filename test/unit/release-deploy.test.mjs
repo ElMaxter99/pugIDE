@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, readFileSync, existsSync, chmodSync, mkdirS
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { main, parseArgs, pickVersionCommit } from '../../scripts/release.mjs';
+import { main, parseArgs, pickVersionCommit, addFullChanges, newerScripts } from '../../scripts/release.mjs';
 
 const git = (cwd, ...args) => {
   const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -46,8 +46,13 @@ function fixture() {
   writeFileSync(gh, `#!/usr/bin/env node
 const fs = require('fs'); const d = ${JSON.stringify(tmp)};
 const a = process.argv.slice(2); fs.appendFileSync(d + '/gh.log', a.join(' ') + '\\n');
-if (a[0] === 'release' && a[1] === 'view') process.exit(fs.existsSync(d + '/created') ? 0 : 1);
+if (a[0] === 'release' && a[1] === 'view') {
+  if (!fs.existsSync(d + '/created')) process.exit(1);
+  if (a.includes('--json')) process.stdout.write(fs.readFileSync(d + '/notas.copy', 'utf8'));
+  process.exit(0);
+}
 if (a[0] === 'release' && a[1] === 'create') { fs.writeFileSync(d + '/created', '1'); fs.copyFileSync(a[a.indexOf('--notes-file') + 1], d + '/notas.copy'); process.exit(0); }
+if (a[0] === 'release' && a[1] === 'edit') { fs.copyFileSync(a[a.indexOf('--notes-file') + 1], d + '/notas.copy'); process.exit(0); }
 process.exit(2);
 `);
   chmodSync(gh, 0o755);
@@ -188,4 +193,48 @@ test('con cambios sin guardar no cambia de rama pero publica igual', async () =>
   assert.match(r.out, /cambios sin guardar/);
   assert.equal(git(fx.work, 'rev-parse', '--abbrev-ref', 'HEAD'), 'mi-rama');
   assert.equal(remoteRef(fx, 'refs/heads/release'), fx.merge);
+});
+
+test('addFullChanges añade «Cambios completos» antes de los instaladores, sin tocar lo demás, y solo si falta', () => {
+  const notes = 'Notas.\n**Cambios completos:** [CHANGELOG](x) · [todos los cambios desde la 0.14.0](y)\n';
+  const old = 'Notas.\r\n\r\n<!-- instaladores-escritorio -->\r\n### Instaladores\r\nSin firmar.';
+  const fixed = addFullChanges(old, notes);
+  assert.equal(fixed, 'Notas.\n\n**Cambios completos:** [CHANGELOG](x) · [todos los cambios desde la 0.14.0](y)\n\n<!-- instaladores-escritorio -->\n### Instaladores\nSin firmar.');
+  assert.equal(addFullChanges('Notas sin instaladores.', notes), 'Notas sin instaladores.\n\n**Cambios completos:** [CHANGELOG](x) · [todos los cambios desde la 0.14.0](y)\n');
+  assert.equal(addFullChanges(fixed, notes), null, 'si ya la lleva, no se toca');
+  assert.equal(addFullChanges('Notas.', 'sin línea'), null);
+});
+
+test('una release creada sin «Cambios completos» (script antiguo) se completa al repetir; si ya la lleva, no se edita', async () => {
+  const fx = fixture();
+  // La release ya existe con notas de un script antiguo y la sección de instaladores del flujo de escritorio.
+  writeFileSync(join(fx.tmp, 'created'), '1');
+  writeFileSync(join(fx.tmp, 'notas.copy'), 'Notas 0.8.0 con **negrita**.\n\n<!-- instaladores-escritorio -->\n### Instaladores de escritorio\nSin firmar.\n');
+  const r = await run(fx, ['0.8.0']);
+  assert.equal(r.error, null, r.out);
+  assert.match(r.out, /se le ha añadido «Cambios completos»/);
+  const notes = readFileSync(join(fx.tmp, 'notas.copy'), 'utf8');
+  assert.match(notes, /\*\*Cambios completos:\*\* \[CHANGELOG\]\(https:\/\/github\.com\/ElMaxter99\/pugIDE\/blob\/v0\.8\.0\/CHANGELOG\.md\) · \[todos los cambios desde la 0\.7\.0\]/);
+  assert.ok(notes.indexOf('Cambios completos') < notes.indexOf('<!-- instaladores-escritorio -->'), 'antes de los instaladores');
+  assert.match(notes, /Sin firmar\./, 'lo demás se queda');
+  const again = await run(fx, ['0.8.0']);
+  assert.match(again.out, /ya existe: se deja/);
+  assert.equal((readFileSync(join(fx.tmp, 'gh.log'), 'utf8').match(/release edit/g) ?? []).length, 1);
+});
+
+test('newerScripts: con los scripts de master distintos de los que corren, los devuelve; iguales o sin ellos, null', () => {
+  const fx = fixture();
+  assert.equal(newerScripts(fx.work, 'origin/master', join(fx.tmp, 'nada')), null, 'master sin scripts de publicación');
+  mkdirSync(join(fx.work, 'scripts'), { recursive: true });
+  writeFileSync(join(fx.work, 'scripts', 'release.mjs'), '// nuevo\n');
+  writeFileSync(join(fx.work, 'scripts', 'release-notes.mjs'), '// notas\n');
+  git(fx.work, 'add', '-A'); git(fx.work, 'commit', '-m', 'scripts'); git(fx.work, 'push', 'origin', 'master:master');
+  git(fx.work, 'fetch', 'origin');
+  const old = join(fx.tmp, 'viejos');
+  mkdirSync(old);
+  writeFileSync(join(old, 'release.mjs'), '// viejo\n');
+  writeFileSync(join(old, 'release-notes.mjs'), '// notas\n');
+  const files = newerScripts(fx.work, 'origin/master', old);
+  assert.equal(files?.['release.mjs'], '// nuevo\n');
+  assert.equal(newerScripts(fx.work, 'origin/master', join(fx.work, 'scripts')), null, 'si son iguales, no se cambia nada');
 });
