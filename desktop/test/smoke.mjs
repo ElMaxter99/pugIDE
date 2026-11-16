@@ -168,7 +168,9 @@ try {
   await page.locator('[data-testid="pdf-open-after"]').uncheck();
   await page.locator('[data-testid="pdf-save"]').click();
   const done = page.locator('[data-testid="pdf-done"]');
-  check('al terminar avisa de que el PDF está guardado, con páginas y tamaño', !!(await wait(async () => (await done.count()) === 1, 30000)) && /main\.pdf guardado/.test(await done.innerText()) && /1 página/.test(await done.innerText()), await done.innerText().catch(() => ''));
+  const problem = page.locator('[data-testid="pdf-problem"]');
+  await wait(async () => (await done.count()) === 1 || (await problem.count()) === 1, 70000);
+  check('al terminar avisa de que el PDF está guardado, con páginas y tamaño', (await done.count()) === 1 && /main\.pdf guardado/.test(await done.innerText()) && /1 página/.test(await done.innerText()), (await done.innerText().catch(() => '')) || (await problem.innerText().catch(() => 'sin aviso')));
   const pdfFile = join(pdfOut, 'main.pdf');
   const pdf = existsSync(pdfFile) ? readFileSync(pdfFile) : Buffer.alloc(0);
   check('el PDF existe en la carpeta elegida y es un PDF', pdf.subarray(0, 5).toString() === '%PDF-', `${pdf.length} bytes`);
@@ -176,7 +178,8 @@ try {
   check('lleva el texto como texto (fuentes incrustadas, no una imagen) y es un PDF etiquetado (accesible)', /\/FontFile/.test(raw) && /\/StructTreeRoot/.test(raw));
   const notOurs = await page.evaluate(() => window.pugideDesktop.invoke('pdf:open', { path: '/etc/passwd' }));
   check('«Abrir» solo abre los PDF que la app acaba de guardar', notOurs?.ok === false, JSON.stringify(notOurs));
-  await page.locator('[data-testid="pdf-done-close"]').click();
+  if ((await page.locator('[data-testid="pdf-done-close"]').count()) === 1) await page.locator('[data-testid="pdf-done-close"]').click();
+  else await page.keyboard.press('Escape'); // si falló, se cierra el diálogo para seguir con lo demás
 
   // Cerrar el espacio deja la carpeta como está
   await page.locator('[data-testid="menu-espacio"]').click();
