@@ -159,6 +159,7 @@ try {
 
   // Exportar PDF con el motor nativo (P-39): sin diálogo de imprimir, un PDF de verdad.
   await page.locator('[data-testid="menu-exportar"]').click();
+  await page.locator('[role="menuitem"]', { hasText: 'PDF…' }).waitFor({ timeout: 5000 }).catch(() => undefined); // que el menú esté abierto
   const items = await page.locator('[role="menuitem"]').allInnerTexts();
   check('en escritorio, Exportar ofrece «PDF…» e «Imprimir…» por separado', items.some((t) => /PDF…/.test(t)) && items.some((t) => /Imprimir…/.test(t)) && !items.some((t) => /guardar como PDF/.test(t)), items.join(' | '));
   await page.locator('[role="menuitem"]', { hasText: 'PDF…' }).click();
