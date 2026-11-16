@@ -24,8 +24,11 @@ function fakeDesktop(cfg) {
       if (channel === 'upd:update') {
         push({ phase: 'downloading', version: '0.15.0', percent: 0, error: null });
         const total = 112 * 1024 * 1024;
-        [25, 50, 75].forEach((p, i) => setTimeout(() => push({ percent: p, transferred: (total * p) / 100, total }), 120 * (i + 1)));
-        setTimeout(() => push(cfg.end === 'offline' ? { phase: 'error', error: 'offline' } : { phase: 'ready', percent: 100 }), 600);
+        // Se queda en el 50 % hasta que la prueba lo mira y llama a __finishDownload (con el CI cargado, un 50 % de
+        // 120 ms se perdía y la prueba ya veía «lista»).
+        [25, 50].forEach((p, i) => setTimeout(() => push({ percent: p, transferred: (total * p) / 100, total }), 120 * (i + 1)));
+        window.__finishDownload = () => push(cfg.end === 'offline' ? { phase: 'error', error: 'offline' } : { phase: 'ready', percent: 100 });
+        if (cfg.end === 'offline' || cfg.auto) setTimeout(window.__finishDownload, 600);
         return { ok: true };
       }
       if (channel === 'upd:cancel') { push({ phase: 'idle', percent: 0 }); return { ok: true }; }
@@ -65,6 +68,7 @@ export default async function (env) {
   check('64 mientras descarga se puede seguir trabajando (el editor sigue ahí)', (await page.locator('.monaco-editor').count()) > 0 && (await page.locator('.overlay').count()) === 0);
 
   // 3 · Lista para instalar.
+  await page.evaluate(() => window.__finishDownload());
   check('64 al terminar: «PugIDE 0.15.0 está lista» con sus dos opciones', !!(await waitUntil(async () => (await bar.getAttribute('data-phase')) === 'ready', 3000)) && /0\.15\.0.*está lista/.test(await bar.innerText()) && (await bar.locator('[data-testid="update-on-quit"]').count()) === 1);
   check('64 dice que tus proyectos se guardan antes', /se guardan antes/.test(await bar.innerText()));
   await bar.locator('[data-testid="update-restart"]').click();

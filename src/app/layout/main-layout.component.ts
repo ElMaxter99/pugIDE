@@ -38,6 +38,9 @@ import { DiagnosticsState } from '../core/state/diagnostics.state';
 import { ViewportState } from '../core/state/viewport.state';
 import { EmailExportDialogComponent } from '../shared/components/export-dialogs/email-export-dialog.component';
 import { ExportAllDialogComponent } from '../shared/components/export-dialogs/export-all-dialog.component';
+import { OpenWithComponent } from '../shared/components/desktop/open-with.component';
+import { OpenWithService } from '../core/services/open-with.service';
+import { PdfExportDialogComponent } from '../shared/components/export-dialogs/pdf-export-dialog.component';
 import { AiService } from '../core/services/ai.service';
 import { AiDialogComponent } from '../shared/components/ai/ai-dialog.component';
 import { AiSettingsDialogComponent } from '../shared/components/ai/ai-settings-dialog.component';
@@ -64,7 +67,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     ShareCreateDialogComponent,
     LocalesDialogComponent,
     EmailExportDialogComponent,
-    ExportAllDialogComponent,
+    ExportAllDialogComponent, PdfExportDialogComponent, OpenWithComponent,
     SaveTemplateDialogComponent,
     ImportFilesDialogComponent,
     AiDialogComponent,
@@ -146,6 +149,8 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-locales-dialog />
       <app-email-export-dialog />
       <app-export-all-dialog />
+      <app-pdf-export-dialog />
+      <app-open-with />
       <app-save-template-dialog />
       <app-import-files-dialog />
       @if (ai.available) {
@@ -286,6 +291,7 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   protected layout = inject(LayoutService);
   private analytics = inject(AnalyticsService);
   private workspace = inject(WorkspaceService);
+  private openWith = inject(OpenWithService);
   /** Se crea aquí para que escuche los menús nativos de la app de escritorio desde el arranque. */
   protected desktopUpdates = inject(DesktopUpdateService);
   private injector = inject(Injector);
@@ -407,11 +413,12 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     if (share) this.pendingShareOpen = share; // se decide en el diálogo; mientras tanto se restaura la sesión
 
+    // Lo que llegue del sistema (doble clic en un .pug, «Abrir con», P-40) se abre cuando ya está todo en su sitio.
     if (saved && hasSaved) {
       this.restoreSession(saved);
-      void this.resumeWorkspace();
+      void this.resumeWorkspace().finally(() => this.openWith.start());
     } else {
-      void this.startFresh();
+      void this.startFresh().finally(() => this.openWith.start());
       this.openPendingShare();
     }
   }

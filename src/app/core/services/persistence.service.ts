@@ -1,4 +1,5 @@
 import { DEFAULT_JSON_VIEW, sanitizeJsonView } from '../utils/json-view.util';
+import { PdfChoices, sanitizePdfChoices } from '../utils/pdf-export.util';
 import { readSession } from '../utils/session-validate.util';
 import { Injectable, signal } from '@angular/core';
 import { AppPreferences } from '../models/index';
@@ -20,6 +21,8 @@ const FIRST_USE_KEY = 'pug-ide-first-use';
 const RECENT_COMMANDS_KEY = 'pug-ide-recent-commands';
 const WELCOME_KEY = 'pug-ide-welcome';
 const TOUR_KEY = 'pug-ide-tour';
+const PDF_CHOICES_KEY = 'pug-ide-pdf-export';
+const OPEN_FILE_CHOICE_KEY = 'pug-ide-open-file-choice';
 
 /** Decisión del usuario sobre la analítica anónima de visitas (null: aún no ha decidido). */
 export type AnalyticsConsent = 'granted' | 'denied';
@@ -220,6 +223,24 @@ export class PersistenceService {
 
   private enqueue(task: () => Promise<void>): void {
     this.sessionQueue = this.sessionQueue.then(task, task).catch(() => undefined);
+  }
+
+  /** Opciones del último «Exportar PDF» (P-39). */
+  loadPdfChoices(): PdfChoices {
+    try { return sanitizePdfChoices(JSON.parse(localStorage.getItem(PDF_CHOICES_KEY) ?? 'null')); } catch { return sanitizePdfChoices(null); }
+  }
+
+  savePdfChoices(choices: PdfChoices): void {
+    try { localStorage.setItem(PDF_CHOICES_KEY, JSON.stringify(choices)); } catch { /* solo se pierden las opciones recordadas */ }
+  }
+
+  /** P-40: qué hacer siempre al abrir una plantilla suelta («Hacer siempre esto»); null = preguntar. */
+  loadOpenFileChoice(): 'folder' | 'file' | null {
+    try { const v = localStorage.getItem(OPEN_FILE_CHOICE_KEY); return v === 'folder' || v === 'file' ? v : null; } catch { return null; }
+  }
+
+  saveOpenFileChoice(choice: 'folder' | 'file' | null): void {
+    try { if (choice) localStorage.setItem(OPEN_FILE_CHOICE_KEY, choice); else localStorage.removeItem(OPEN_FILE_CHOICE_KEY); } catch { /* se volverá a preguntar */ }
   }
 
   /** Comandos de la paleta usados hace poco (identificadores, el más reciente primero). */

@@ -1,6 +1,6 @@
 'use strict';
 // Preload (con `sandbox` y `contextIsolation`): solo expone datos de solo lectura. Sin Node en la página.
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const arg = (name) => {
   const hit = process.argv.find((a) => a.startsWith(`--pugide-${name}=`));
@@ -13,12 +13,18 @@ const CHANNELS = new Set(['ws:list', 'ws:pick-folder', 'ws:create', 'ws:relocate
   // Actualizar dentro de la app (P-35/P-36): descargar, cancelar, instalar, abrir la release, ya visto «se ha actualizado».
   'upd:update', 'upd:cancel', 'upd:install', 'upd:open-release', 'upd:ack-updated',
   // Asistente de IA (solo escritorio y local): detectar las CLI, lanzar una petición y detenerla.
-  'ai:detect', 'ai:run', 'ai:cancel']);
+  'ai:detect', 'ai:run', 'ai:cancel',
+  // Exportar PDF con el motor nativo (P-39): generar y guardar, cancelar, abrir o mostrar el PDF recién guardado.
+  'pdf:export', 'pdf:cancel', 'pdf:open', 'pdf:reveal',
+  // Abrir con PugIDE (P-40): lo que llega del sistema, una carpeta soltada en la ventana y leer la plantilla abierta.
+  'open:pending', 'open:path', 'open:read-file']);
 
 contextBridge.exposeInMainWorld('pugideDesktop', Object.freeze({
   platform: process.platform,
   version: arg('version'),
   webUrl: arg('web-url'),
+  /** Ruta en disco de un archivo o carpeta que la persona ha soltado en la ventana (P-40); null si no tiene. */
+  pathForFile: (file) => { try { return webUtils.getPathForFile(file) || null; } catch { return null; } },
   invoke: (channel, payload) => (CHANNELS.has(channel) ? ipcRenderer.invoke(channel, payload) : Promise.reject(new Error('Canal no permitido'))),
   /** Avisos del sistema (un archivo cambió en disco, hay versión nueva, un menú pide abrir un diálogo). Devuelve cómo dejar de escuchar. */
   onEvent: (callback) => {

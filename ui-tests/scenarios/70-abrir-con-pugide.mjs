@@ -1,0 +1,92 @@
+import { check, openApp, waitUntil } from '../lib.mjs';
+
+// Abrir archivos .pug y carpetas con PugIDE (P-40, solo escritorio). Se simula la app (window.pugideDesktop); el
+// recorrido de verdad (argv, segunda instancia, crear el espacio) lo prueba desktop/test/smoke.mjs con Electron.
+const session = { projectName: 'Norte', files: { '/main.pug': 'doctype html\nhtml\n  body\n    h1 Proyecto Norte\n' }, openTabPaths: ['/main.pug'], activeTabPath: '/main.pug' };
+const factura = { kind: 'file', path: '/trabajo/aurora/factura.pug', name: 'factura.pug', folder: '/trabajo/aurora', folderName: 'aurora', workspaceId: null, entry: '/factura.pug', token: 't-1' };
+
+function fakeDesktop(cfg) {
+  const listeners = new Set();
+  window.__calls = [];
+  window.__pending = cfg.pending ?? [];
+  window.__emit = (p) => listeners.forEach((cb) => cb(p));
+  window.pugideDesktop = Object.freeze({
+    platform: 'linux', version: '0.16.0', webUrl: 'https://pug-ide.vercel.app',
+    onEvent: (cb) => { listeners.add(cb); return () => listeners.delete(cb); },
+    pathForFile: () => null,
+    invoke: async (channel, payload) => {
+      window.__calls.push([channel, payload ?? null]);
+      if (channel === 'ws:list') return { workspaces: [], lastId: null, colors: ['#ddb7ff'] };
+      if (channel === 'upd:state') return { current: '0.16.0', asked: true, enabled: false, lastCheck: 0, latest: null, dismissed: false, self: { phase: 'idle', canUpdate: true }, justUpdated: null };
+      if (channel === 'open:pending') return window.__pending.splice(0);
+      if (channel === 'open:read-file') return payload?.token === 't-1' ? { name: 'factura.pug', text: 'doctype html\nhtml\n  body\n    h1 Factura de Clínica Aurora\n' } : { name: 'presupuesto.pug', text: 'p Presupuesto 2026\n' };
+      return null;
+    },
+  });
+}
+
+async function desktop(env, cfg, storage = {}) {
+  const app = await openApp(env, { path: '/ide', session, storage: { 'pug-ide-workspaces-intro': '1', ...storage } });
+  await app.page.addInitScript(fakeDesktop, cfg);
+  await app.page.reload();
+  await app.page.locator('.monaco-editor').first().waitFor({ timeout: 20000 });
+  return app;
+}
+
+const previewHas = async (page, re) => {
+  for (const f of page.frames()) { const t = await f.evaluate(() => document.body?.innerText ?? '').catch(() => ''); if (re.test(t)) return true; }
+  return false;
+};
+
+export default async function (env) {
+  // 1 · Una plantilla suelta llega al arrancar: se pregunta.
+  let app = await desktop(env, { pending: [factura] });
+  let page = app.page;
+  const dlg = page.locator('[data-testid="open-with"]');
+  check('70 al abrir un .pug suelto pregunta qué hacer', !!(await waitUntil(async () => (await dlg.count()) === 1, 8000)) && /Abrir factura\.pug/.test(await dlg.innerText()) && /\/trabajo\/aurora/.test(await dlg.innerText()));
+  check('70 por defecto, abrir la carpeta como espacio (recomendado)', await page.locator('[data-testid="open-with-folder"]').isChecked() && /Recomendado/.test(await dlg.innerText()));
+  await page.locator('[data-testid="open-with-file"]').check();
+  await page.locator('[data-testid="open-with-remember"]').check();
+  await page.locator('[data-testid="open-with-go"]').click();
+  const toast = page.locator('[data-testid="open-toast"]');
+  check('70 «Solo este archivo» lo abre como proyecto nuevo y lo dice', !!(await waitUntil(async () => /factura\.pug abierto como proyecto nuevo/.test(await toast.innerText().catch(() => '')), 8000)) && /no se guardan en el disco/.test(await toast.innerText()));
+  check('70 y la vista previa enseña la plantilla abierta', !!(await waitUntil(() => previewHas(page, /Factura de Clínica Aurora/), 10000)));
+  check('70 lee el archivo con su permiso (token), no por ruta', (await page.evaluate(() => window.__calls.filter(([c]) => c === 'open:read-file').map(([, p]) => p?.token))).join() === 't-1');
+  check('70 «Hacer siempre esto» se recuerda', (await page.evaluate(() => localStorage.getItem('pug-ide-open-file-choice'))) === 'file');
+
+  // 2 · Con la elección recordada, otro archivo que llega con la app abierta no pregunta.
+  await page.locator('[data-testid="open-toast-close"]').click();
+  await page.evaluate(() => { window.__pending.push({ kind: 'file', path: '/trabajo/presupuesto.pug', name: 'presupuesto.pug', folder: '/trabajo', folderName: 'trabajo', workspaceId: null, entry: '/presupuesto.pug', token: 't-2' }); window.__emit({ type: 'open-pending' }); });
+  check('70 con la elección recordada, el siguiente se abre sin preguntar', !!(await waitUntil(async () => /presupuesto\.pug abierto como proyecto nuevo/.test(await toast.innerText().catch(() => '')), 8000)) && (await dlg.count()) === 0);
+
+  // 3 · Algo que no es una plantilla: aviso de error, sin tocar nada.
+  await page.evaluate(() => { window.__pending.push({ kind: 'unsupported', path: '/trabajo/informe.docx', name: 'informe.docx' }); window.__emit({ type: 'open-pending' }); });
+  check('70 un archivo que no es una plantilla: «No se puede abrir informe.docx» y qué se puede abrir', !!(await waitUntil(async () => /No se puede abrir informe\.docx/.test(await toast.innerText().catch(() => '')), 8000)) && /\.pug, \.jade, carpetas/.test(await toast.innerText()));
+  check('70 sin errores no controlados', app.errors.length === 0, app.errors.join(' | '));
+  await app.close();
+
+  // 4 · Arrastrar archivos sobre la ventana: la zona «Suelta para abrir» y, al soltar, «Importar archivos».
+  app = await desktop(env, {});
+  page = app.page;
+  const dt = await page.evaluateHandle(() => { const d = new DataTransfer(); d.items.add(new File(['p Condiciones generales\n'], 'condiciones.pug', { type: 'text/plain' })); return d; });
+  await page.dispatchEvent('body', 'dragenter', { dataTransfer: dt });
+  const drop = page.locator('[data-testid="open-drop"]');
+  check('70 al arrastrar archivos sobre la ventana sale «Suelta para abrir»', !!(await waitUntil(async () => (await drop.count()) === 1, 3000)) && /Una carpeta.*espacio de trabajo/s.test(await drop.innerText()) && /se añaden al proyecto abierto/.test(await drop.innerText()));
+  await page.dispatchEvent('body', 'dragleave', { dataTransfer: dt });
+  check('70 y desaparece al salir', !!(await waitUntil(async () => (await drop.count()) === 0, 3000)));
+  await page.dispatchEvent('body', 'dragenter', { dataTransfer: dt });
+  await page.dispatchEvent('body', 'drop', { dataTransfer: dt });
+  check('70 soltar archivos los lleva a «Importar archivos» (como en el árbol)', !!(await waitUntil(async () => /condiciones\.pug/.test(await page.locator('body').innerText()) && (await drop.count()) === 0, 5000)));
+  check('70 sin errores no controlados (arrastrar)', app.errors.length === 0, app.errors.join(' | '));
+  await app.close();
+
+  // 5 · En la web no hay nada de esto.
+  app = await openApp(env, { path: '/ide', session });
+  page = app.page;
+  await page.locator('.monaco-editor').first().waitFor({ timeout: 20000 });
+  const dt2 = await page.evaluateHandle(() => { const d = new DataTransfer(); d.items.add(new File(['x'], 'a.pug')); return d; });
+  await page.dispatchEvent('body', 'dragenter', { dataTransfer: dt2 });
+  await page.waitForTimeout(300);
+  check('70 en la web no sale la zona de soltar de escritorio', (await page.locator('[data-testid="open-drop"]').count()) === 0);
+  await app.close();
+}

@@ -59,6 +59,14 @@ Un **espacio de trabajo** es una carpeta de tu equipo: la de las plantillas de u
 - PugIDE solo lee plantillas, estilos, JSON, imágenes y fuentes; lo demás (`.git`, `node_modules`, otros tipos de archivo) **no se toca**. Elige la carpeta de las plantillas, no la de un proyecto entero: el límite es de 2000 archivos y 60 MB.
 - «Quitar de la lista» no borra nada del disco. El historial por archivo y las instantáneas se guardan en el perfil de la app, no en la carpeta.
 
+## Abrir archivos .pug con PugIDE (solo en la app de escritorio)
+
+Con la app instalada, un archivo `.pug` o `.jade` se abre con PugIDE con **doble clic** o **clic derecho → Abrir con → PugIDE**, y se puede **arrastrar un archivo o una carpeta a la ventana**. Al abrir una plantilla suelta, PugIDE pregunta si abrir su carpeta como espacio de trabajo (recomendado: así funcionan `include`, `extends`, estilos e imágenes) o solo ese archivo, en una copia dentro de la app.
+
+- **Windows** (instalador): PugIDE aparece en «Abrir con», pero no cambia el programa que ya tengas por defecto. Para que el doble clic abra PugIDE: clic derecho → Abrir con → Elegir otra aplicación → PugIDE → «Usar siempre». El portable no registra nada.
+- **macOS**: PugIDE aparece en «Abrir con» sin quitar tu programa por defecto.
+- **Linux**: los paquetes `.deb` y `.rpm` registran los tipos `text/x-pug` y `text/x-jade` y PugIDE aparece en «Abrir con». El AppImage no puede registrar tipos de archivo (puedes arrastrar los archivos a la ventana).
+
 ## Tus proyectos y tu privacidad
 - La app de escritorio **no hace ninguna llamada de red por su cuenta** (salvo, si lo aceptas, la consulta de versión nueva a github.com) y **no lleva analítica**. Funciona con el cable desenchufado. (Los enlaces `https` que abras desde ella se abren en tu navegador.)
 - Los proyectos se guardan en **el perfil de cada app**: la web, la PWA y la app de escritorio **no comparten** proyectos entre sí. Para llevarte uno: **Proyecto → Exportar** (`.zip`) y en la otra, **Proyecto → Importar proyecto (carpeta o .zip)…**.

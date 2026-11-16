@@ -16,6 +16,7 @@ import { ProjectState } from '../../../core/state/project.state';
 import { ProjectsDialogComponent } from '../projects-dialog/projects-dialog.component';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { shortPath } from '../../../core/utils/workspace.util';
+import { desktopHasSystem } from '../../../core/utils/desktop.util';
 import { DropdownMenuComponent, MenuItem } from '../dropdown-menu/dropdown-menu.component';
 
 @Component({
@@ -277,7 +278,10 @@ export class TopbarComponent {
     { id: 'email', icon: 'mail', label: 'HTML para correo…' },
     { id: 'all', icon: 'library_books', label: 'Todas las plantillas (.zip)…' },
     { id: 'png', icon: 'photo_camera', label: 'Captura PNG del preview' },
-    { id: 'print', icon: 'picture_as_pdf', label: 'Imprimir o guardar como PDF' },
+    // Escritorio (P-39): «PDF…» con el motor nativo, e «Imprimir…» aparte. La web sigue con «Imprimir o guardar como PDF».
+    ...(desktopHasSystem()
+      ? [{ id: 'pdf', icon: 'picture_as_pdf', label: 'PDF…' }, { id: 'print', icon: 'print', label: 'Imprimir…' }]
+      : [{ id: 'print', icon: 'picture_as_pdf', label: 'Imprimir o guardar como PDF' }]),
     { separator: true },
     { id: 'project', icon: 'download', label: 'Proyecto en carpeta o .zip' },
   ]);
@@ -303,6 +307,7 @@ export class TopbarComponent {
       case 'html': this.onExportHtml(); break;
       case 'email': this.ui.emailExportOpen.set(true); break;
       case 'all': this.ui.exportAllOpen.set(true); break;
+      case 'pdf': this.ui.pdfExportOpen.set(true); break;
       case 'png': void this.projectIo.exportPng(); break;
       case 'print': this.ui.requestPanel('print'); break;
       case 'project': void this.projectIo.exportProject(); break;

@@ -62,6 +62,8 @@ export class UiState {
   readonly emailExportOpen = signal(false);
   /** «Exportar todas las plantillas» (P-24). */
   readonly exportAllOpen = signal(false);
+  /** «Exportar PDF» con el motor nativo (P-39, solo escritorio). */
+  readonly pdfExportOpen = signal(false);
   /** Asistente de IA (P-30 a P-34, solo escritorio y local): sus ajustes y el diálogo de una petición. */
   readonly aiSettingsOpen = signal(false);
   readonly aiRequest = signal<AiDialogRequest | null>(null);

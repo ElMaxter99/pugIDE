@@ -42,6 +42,8 @@ win:
     - target: portable
       arch: [x64]
 nsis:
+  # Abrir con PugIDE (P-40): .pug y .jade en «Abrir con», sin tocar el programa por defecto (build/installer.nsh).
+  include: build/installer.nsh
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
@@ -56,6 +58,12 @@ mac:
     - target: dmg
       arch: [x64, arm64]
   identity: null
+  # Abrir con PugIDE (P-40): «Alternate» la ofrece en «Abrir con» sin quitar el programa por defecto.
+  fileAssociations:
+    - ext: [pug, jade]
+      name: Plantilla Pug
+      role: Editor
+      rank: Alternate
   hardenedRuntime: false
   gatekeeperAssess: false
 dmg:
@@ -74,6 +82,16 @@ linux:
     - target: rpm
       arch: [x64]
   executableName: pugide
+  # Abrir con PugIDE (P-40): .deb y .rpm instalan el tipo text/x-pug y la app aparece en «Abrir con». El AppImage no
+  # puede registrar tipos de archivo.
+  # Una entrada por extensión: con las dos juntas electron-builder escribe el patrón «*.pug,jade», que no vale.
+  fileAssociations:
+    - ext: pug
+      name: Plantilla Pug
+      mimeType: text/x-pug
+    - ext: jade
+      name: Plantilla Jade
+      mimeType: text/x-jade
   syncDesktopName: true
   desktop:
     entry:

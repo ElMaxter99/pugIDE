@@ -86,6 +86,9 @@ export default async function (env) {
   await menu.waitFor({ timeout: 4000 });
   const labels = (await menu.locator('[role="menuitem"]').allInnerTexts()).map((t) => t.trim());
   check('47 el menú ofrece copiar ruta, valor, editar y ver en la plantilla', labels.length === 4 && /Copiar ruta \(HOME\.TITLE\)/.test(labels[0]) && /Ver en la plantilla \(main\.pug:4\)/.test(labels[3]), JSON.stringify(labels));
+  // El menú lleva el foco a su primera opción un instante después de abrirse: con el CI cargado, un Intro inmediato
+  // caía fuera del menú.
+  await waitUntil(() => page.evaluate(() => document.activeElement?.getAttribute('role') === 'menuitem'), 4000);
   await page.keyboard.press('Enter');
   const said = await waitUntil(async () => /Ruta copiada|No se pudo copiar/.test(await page.locator('app-json-viewer .sr-live').innerText()), 4000);
   check('47 «Copiar ruta» lo anuncia', !!said, await page.locator('app-json-viewer .sr-live').innerText());
