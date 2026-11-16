@@ -39,6 +39,7 @@ import { ViewportState } from '../core/state/viewport.state';
 import { EmailExportDialogComponent } from '../shared/components/export-dialogs/email-export-dialog.component';
 import { ExportAllDialogComponent } from '../shared/components/export-dialogs/export-all-dialog.component';
 import { OpenWithComponent } from '../shared/components/desktop/open-with.component';
+import { MoveToFolderDialogComponent } from '../shared/components/desktop/move-to-folder-dialog.component';
 import { OpenWithService } from '../core/services/open-with.service';
 import { PdfExportDialogComponent } from '../shared/components/export-dialogs/pdf-export-dialog.component';
 import { AiService } from '../core/services/ai.service';
@@ -67,7 +68,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     ShareCreateDialogComponent,
     LocalesDialogComponent,
     EmailExportDialogComponent,
-    ExportAllDialogComponent, PdfExportDialogComponent, OpenWithComponent,
+    ExportAllDialogComponent, PdfExportDialogComponent, OpenWithComponent, MoveToFolderDialogComponent,
     SaveTemplateDialogComponent,
     ImportFilesDialogComponent,
     AiDialogComponent,
@@ -151,6 +152,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-export-all-dialog />
       <app-pdf-export-dialog />
       <app-open-with />
+      <app-move-to-folder-dialog />
       <app-save-template-dialog />
       <app-import-files-dialog />
       @if (ai.available) {
@@ -334,6 +336,8 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
     effect(() => {
       if (!this.welcomePending() || this.analytics.consent() === null) return;
+      // Si la app se abrió con un archivo o una carpeta, la bienvenida no se pone encima: queda para el próximo arranque.
+      if (this.openWith.received()) { untracked(() => this.welcomePending.set(false)); return; }
       untracked(() => {
         this.welcomePending.set(false);
         this.ui.welcomeOpen.set(true);

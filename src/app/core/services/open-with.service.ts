@@ -49,6 +49,8 @@ export class OpenWithService {
   /** Plantilla suelta a la espera de que la persona elija (diálogo «Abrir factura.pug»). */
   readonly request = signal<OpenDescriptor | null>(null);
   readonly toast = signal<OpenToast | null>(null);
+  /** Ya ha llegado algo del sistema en este arranque: la bienvenida no debe taparlo (se deja para otro día). */
+  readonly received = signal(false);
   private started = false;
   private queue: Promise<void> = Promise.resolve();
 
@@ -89,6 +91,9 @@ export class OpenWithService {
   }
 
   private async handle(d: OpenDescriptor): Promise<void> {
+    // Primer uso abriendo un archivo: la bienvenida taparía la pregunta. Se cierra sin darla por vista (saldrá otro día).
+    this.received.set(true);
+    this.ui.welcomeOpen.set(false);
     if (d.kind === 'missing') { this.fail(`No se encuentra ${d.name || d.path}`, 'Puede que se haya movido o borrado.'); return; }
     if (d.kind === 'unsupported') { this.fail(`No se puede abrir ${d.name}`, 'PugIDE abre .pug, .jade, carpetas y los archivos de un proyecto (estilos, datos, imágenes).'); return; }
     if (d.kind === 'folder') { await this.openFolder(d); return; }

@@ -17,7 +17,9 @@ const CHANNELS = new Set(['ws:list', 'ws:pick-folder', 'ws:create', 'ws:relocate
   // Exportar PDF con el motor nativo (P-39): generar y guardar, cancelar, abrir o mostrar el PDF recién guardado.
   'pdf:export', 'pdf:cancel', 'pdf:open', 'pdf:reveal',
   // Abrir con PugIDE (P-40): lo que llega del sistema, una carpeta soltada en la ventana y leer la plantilla abierta.
-  'open:pending', 'open:path', 'open:read-file']);
+  'open:pending', 'open:path', 'open:read-file',
+  // Pasar un proyecto de «Mis proyectos» a una carpeta (P-41): comprobar la carpeta elegida antes de escribir.
+  'ws:folder-check']);
 
 contextBridge.exposeInMainWorld('pugideDesktop', Object.freeze({
   platform: process.platform,

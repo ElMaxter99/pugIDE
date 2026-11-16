@@ -25,9 +25,11 @@ function fakeDesktop(cfg) {
   });
 }
 
-async function desktop(env, cfg, storage = {}) {
-  const app = await openApp(env, { path: '/ide', session, storage: { 'pug-ide-workspaces-intro': '1', ...storage } });
+async function desktop(env, cfg, storage = {}, opts = { session }) {
+  const app = await openApp(env, { path: '/ide', ...opts, storage: { 'pug-ide-workspaces-intro': '1', ...storage } });
   await app.page.addInitScript(fakeDesktop, cfg);
+  // Primer uso: se borra lo que dejó la primera carga (la web guarda la sesión enseguida) para arrancar de cero como escritorio.
+  if (opts.welcome) await app.page.evaluate(async () => { localStorage.clear(); for (const d of await indexedDB.databases()) if (d.name) indexedDB.deleteDatabase(d.name); });
   await app.page.reload();
   await app.page.locator('.monaco-editor').first().waitFor({ timeout: 20000 });
   return app;
@@ -63,6 +65,17 @@ export default async function (env) {
   await page.evaluate(() => { window.__pending.push({ kind: 'unsupported', path: '/trabajo/informe.docx', name: 'informe.docx' }); window.__emit({ type: 'open-pending' }); });
   check('70 un archivo que no es una plantilla: «No se puede abrir informe.docx» y qué se puede abrir', !!(await waitUntil(async () => /No se puede abrir informe\.docx/.test(await toast.innerText().catch(() => '')), 8000)) && /\.pug, \.jade, carpetas/.test(await toast.innerText()));
   check('70 sin errores no controlados', app.errors.length === 0, app.errors.join(' | '));
+  await app.close();
+
+  // 3b · Primer uso de la app (sin sesión ni bienvenida vista) abriendo un .pug: la bienvenida no tapa la pregunta.
+  app = await desktop(env, { pending: [factura] }, {}, { welcome: true });
+  page = app.page;
+  const first = page.locator('[data-testid="open-with"]');
+  check('70 en el primer uso, abrir un .pug pregunta y la bienvenida no lo tapa', !!(await waitUntil(async () => (await first.count()) === 1, 8000)) && (await page.locator('app-welcome-dialog .card').count()) === 0);
+  await page.locator('[data-testid="open-with-file"]').check();
+  await page.locator('[data-testid="open-with-go"]').click({ timeout: 5000 });
+  check('70 y la bienvenida queda para otro día (no se da por vista)', !!(await waitUntil(async () => /factura\.pug abierto como proyecto nuevo/.test(await page.locator('[data-testid="open-toast"]').innerText().catch(() => '')), 8000)) && (await page.evaluate(() => localStorage.getItem('pug-ide-welcome'))) === null);
+  check('70 sin errores no controlados (primer uso)', app.errors.length === 0, app.errors.join(' | '));
   await app.close();
 
   // 4 · Arrastrar archivos sobre la ventana: la zona «Suelta para abrir» y, al soltar, «Importar archivos».

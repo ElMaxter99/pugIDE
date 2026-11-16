@@ -6,6 +6,7 @@ import { ProjectState } from '../../../core/state/project.state';
 import { rememberFocus, trapTab } from '../../../core/utils/focus-trap.util';
 import { PROJECT_TEMPLATES } from '../../../core/utils/templates.util';
 import { UiState } from '../../../core/state/ui.state';
+import { desktopHasSystem } from '../../../core/utils/desktop.util';
 import { TerminalState } from '../../../core/state/terminal.state';
 import { UserTemplateService } from '../../../core/services/user-template.service';
 import { ProjectIoService } from '../../../core/services/project-io.service';
@@ -48,6 +49,9 @@ import { UserTemplateMeta, cleanTemplateName, packTemplate, unpackTemplate } fro
                   }
                   <button class="btn" (click)="renamingId.set(p.id)">Renombrar</button>
                   <button class="btn" (click)="duplicate(p)">Duplicar</button>
+                  @if (desktop) {
+                    <button class="btn" data-testid="move-to-folder" (click)="moveToFolder(p)">Pasar a una carpeta…</button>
+                  }
                   @if (confirmDeleteId() === p.id) {
                     <button class="btn danger" (click)="remove(p)">Confirmar</button>
                   } @else {
@@ -185,6 +189,8 @@ export class ProjectsDialogComponent {
   protected confirmDeleteTplId = signal<string | null>(null);
   protected tplMessage = signal<string | null>(null);
   protected size = formatBytes;
+  /** Escritorio: «Pasar a una carpeta…» en cada proyecto (P-41). */
+  protected readonly desktop = desktopHasSystem();
   protected projects = signal<ProjectSummary[]>([]);
   protected loading = signal(false);
   protected renamingId = signal<string | null>(null);
@@ -303,6 +309,12 @@ export class ProjectsDialogComponent {
       await this.orchestrator.renameProject(p.id, value);
       await this.refresh();
     }
+  }
+
+  /** P-41: se cierra «Mis proyectos» y se abre el diálogo «Pasar … a una carpeta». */
+  protected moveToFolder(p: ProjectSummary): void {
+    this.ui.moveToFolder.set({ id: p.id, name: p.id === this.currentId() ? this.currentName() : p.name });
+    this.closed.emit();
   }
 
   protected async duplicate(p: ProjectSummary): Promise<void> {
