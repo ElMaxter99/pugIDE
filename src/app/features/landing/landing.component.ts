@@ -21,8 +21,7 @@ export class LandingComponent {
 
   constructor() {
     effect(() => document.documentElement.classList.toggle('light-mode', this.prefs.resolvedTheme() === 'light'));
-    const saved = this.persistence.loadProjectState();
-    this.hasSavedSession = !!saved && Object.keys(saved.files).length > 0;
+    this.hasSavedSession = this.persistence.hasSavedSession();
   }
 
   get isDark(): boolean {
