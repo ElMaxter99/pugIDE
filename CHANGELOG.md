@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Corregido
+- **`npm run release:deploy` desde una copia sin actualizar publicaba con el script antiguo.** La 0.15.0 se publicó desde una copia en la 0.13 y sus notas salieron sin «Cambios completos». Ahora el script siempre usa el de `origin/master` (si el de tu copia es otro, lo dice y ejecuta el de master) y, si una release ya creada no lleva «Cambios completos», se lo añade antes de la sección de instaladores sin tocar lo demás. Pruebas en `release-deploy.test.mjs`.
+
 ### Cambiado
 - **Dependencias al día y `npm audit` a cero.** Angular 22.2.6, Monaco 0.57, `sass` 1.108.2, Electron 45.3 (app de escritorio) y **ESLint 10**, que trae `minimatch` 11 y cierra los avisos moderados que arrastrábamos (fase 13.1). Monaco 0.57 traía un DOMPurify con un aviso crítico (`<= 3.4.16`): se fuerza la 3.4.18 con `overrides`, igual que `minimatch` 11 para `typescript-eslint`. Los iconos siguen en `material-symbols` 0.48.3 porque la 0.49 quita `crop_landscape` (el botón «Horizontal» del PDF). En `desktop/` quedan avisos moderados de `minimatch` dentro de `electron-builder`, que solo se usa al empaquetar y no llega a la app.
 
