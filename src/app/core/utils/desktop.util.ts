@@ -10,6 +10,8 @@ interface DesktopInfo {
   /** Llamadas al sistema (espacios de trabajo y aviso de versión nueva). Solo existe en la app de escritorio. */
   invoke?: (channel: string, payload?: unknown) => Promise<unknown>;
   onEvent?: (callback: (payload: unknown) => void) => () => void;
+  /** Ruta en disco de un archivo o carpeta soltado en la ventana (P-40). */
+  pathForFile?: (file: File) => string | null;
 }
 
 function info(): DesktopInfo | null {
@@ -36,6 +38,11 @@ export function desktopInvoke<T>(channel: string, payload?: unknown): Promise<T>
 export function onDesktopEvent(callback: (payload: { type?: string; [k: string]: unknown }) => void): () => void {
   const on = info()?.onEvent;
   return on ? on((p) => { if (p && typeof p === 'object') callback(p as { type?: string }); }) : () => undefined;
+}
+
+/** Ruta en disco de algo que la persona ha soltado en la ventana (solo escritorio; null en la web). */
+export function desktopPathForFile(file: File): string | null {
+  try { return info()?.pathForFile?.(file) ?? null; } catch { return null; }
 }
 
 /** ¿Se está ejecutando dentro de la aplicación de escritorio? */

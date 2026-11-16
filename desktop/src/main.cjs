@@ -13,11 +13,39 @@ const { compareVersions, parseLatestRelease, latestReleaseApi, selfUpdateSupport
 const { createSelfUpdater, fakeUpdaterModule } = require('./self-update.cjs');
 const aiCli = require('./ai-cli.cjs');
 const pdfExport = require('./pdf-export.cjs');
+const openPath = require('./open-path.cjs');
 
 /** Peticiones de IA en curso (P-30 a P-34), por id: se pueden detener y se paran todas al cerrar la ventana. */
 const aiRuns = new Map();
 /** PDF (P-39): la exportación en curso (para «Cancelar»), la última carpeta elegida y los PDF que se han escrito
  *  en esta sesión (solo esos se pueden abrir o mostrar en la carpeta desde la interfaz). */
+/** Abrir con PugIDE (P-40): rutas que llegan del sistema (doble clic, «Abrir con», macOS) a la espera de la interfaz,
+ *  y las plantillas sueltas que se pueden leer (por token) si se elige «Solo este archivo». */
+const pendingOpens = [];
+const openFileTokens = new Map();
+
+function describeOpen(p) {
+  const d = openPath.classifyPath(p, { stat: fs.statSync, workspaces: store ? store.list() : [] });
+  if (d.kind === 'folder' || d.kind === 'file') {
+    const token = require('node:crypto').randomUUID();
+    pickedFolders.set(token, d.kind === 'folder' ? d.path : d.folder);
+    if (d.kind === 'file') openFileTokens.set(token, d.path);
+    return { ...d, token };
+  }
+  return d;
+}
+
+/** Una ruta abierta desde fuera: se encola y se avisa a la interfaz, que la recoge con `open:pending`. */
+function requestOpen(p) {
+  if (typeof p !== 'string' || !p) return;
+  pendingOpens.push(p);
+  if (mainWindow) {
+    sendEvent({ type: 'open-pending' });
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+}
+
 let pdfJob = null;
 let lastPdfDir = null;
 const writtenPdfs = new Set();
@@ -77,6 +105,10 @@ function locate() {
 
 let mainWindow = null;
 let pendingLink = null;
+
+function isDir(p) {
+  try { return fs.statSync(p).isDirectory(); } catch { return false; }
+}
 
 function isOurs(url) {
   // `URL.origin` vale 'null' para los esquemas propios: se comparan el esquema y el nombre.
@@ -351,6 +383,17 @@ function setupIpc() {
       return { runId };
     },
     'ai:cancel': ({ runId }) => { aiRuns.get(runId)?.cancel(); return { ok: aiRuns.has(runId) }; },
+    // Abrir con PugIDE (P-40).
+    'open:pending': () => pendingOpens.splice(0).map(describeOpen),
+    'open:path': ({ path: p }) => (typeof p === 'string' && path.isAbsolute(p) ? describeOpen(p) : { kind: 'missing', path: String(p ?? ''), name: '' }),
+    'open:read-file': ({ token }) => {
+      const p = openFileTokens.get(token);
+      if (!p) return null;
+      try {
+        if (fs.statSync(p).size > 2 * 1024 * 1024) return { name: path.basename(p), text: null, tooBig: true };
+        return { name: path.basename(p), text: fs.readFileSync(p, 'utf8') };
+      } catch { return null; }
+    },
     // PDF con el motor nativo (P-39).
     'pdf:export': (req) => exportPdf(req),
     'pdf:cancel': () => { if (pdfJob) pdfJob.canceled = true; return { ok: true }; },
@@ -404,11 +447,15 @@ if (process.platform === 'win32') app.setAppUserModelId('com.elmaxter99.pugide')
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', (_event, argv) => {
+  app.on('second-instance', (_event, argv, workingDirectory) => {
     const link = argv.find((a) => a.startsWith(`${SCHEME}://`));
+    const paths = openPath.pathsFromArgv(argv, { isDirectory: isDir, appPath: app.getAppPath(), cwd: workingDirectory });
     if (link) openLink(link);
+    else if (paths.length) paths.forEach(requestOpen);
     else if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); }
   });
+  // macOS: doble clic en un .pug o soltarlo en el icono del Dock (puede llegar antes de que la app esté lista).
+  app.on('open-file', (event, p) => { event.preventDefault(); requestOpen(p); });
   app.on('open-url', (event, url) => { event.preventDefault(); openLink(url); }); // macOS
 
   app.on('web-contents-created', (_event, contents) => hardenWebContents(contents));
@@ -433,6 +480,7 @@ if (!app.requestSingleInstanceLock()) {
     setupPermissions();
     installMenu();
     app.setAsDefaultProtocolClient(SCHEME);
+    openPath.pathsFromArgv(process.argv, { isDirectory: isDir, appPath: app.getAppPath(), cwd: process.cwd() }).forEach(requestOpen);
     const initial = process.argv.find((a) => a.startsWith(`${SCHEME}://`));
     if (initial && isOurs(initial)) pendingLink = initial;
     mainWindow = createWindow(webRoot);

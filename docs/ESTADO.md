@@ -42,7 +42,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 ## En curso: fase 19 (plan aprobado)
 - **0.15.1** mantenimiento: mergeado (PR 87).
 - **Sesión en IndexedDB** (19.2): en su PR (88).
-- **P-39 PDF nativo** (diseño P-39 a P-41 aprobado): programado, en su PR. P-40 y P-41, después.
+- **P-39 PDF nativo** (diseño P-39 a P-41 aprobado): PR 89, CI en verde en los tres sistemas.
+- **P-40 abrir `.pug` y carpetas con PugIDE**: en su PR (encima de la 89). P-41, después.
 
 ## Plan de la fase 19
 Plan completo en [PLAN.md](PLAN.md), fase 19:

@@ -14,7 +14,7 @@ const desktopDir = resolve(here, '..');
 let failed = 0;
 const step = (m) => console.log(`... ${m}`); // trazas: si algo se cuelga en el CI, el log dice dónde
 // Perro guardián: si la prueba no termina, falla con un mensaje en vez de colgar el flujo hasta su límite de tiempo.
-const watchdog = setTimeout(() => { console.log('FAIL la prueba de humo no terminó en 4 minutos (¿Electron colgado al arrancar?)'); process.exit(1); }, 4 * 60 * 1000);
+const watchdog = setTimeout(() => { console.log('FAIL la prueba de humo no terminó en 6 minutos (¿Electron colgado al arrancar?)'); process.exit(1); }, 6 * 60 * 1000);
 watchdog.unref?.();
 const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok || !detail ? '' : `  -> ${detail}`}`); if (!ok) failed++; };
 const wait = async (fn, ms = 30000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch { /* sigue */ } await new Promise((r) => setTimeout(r, 250)); } return null; };
@@ -62,7 +62,9 @@ try {
   }
   check('y la dirección web para los enlaces de compartir', info?.webUrl === 'https://pug-ide.vercel.app', String(info?.webUrl));
   const shape = await page.evaluate(() => Object.fromEntries(Object.entries(window.pugideDesktop).map(([k, v]) => [k, typeof v])));
-  check('y solo dos funciones acotadas (invoke con lista de canales y onEvent)', JSON.stringify(Object.keys(shape).sort()) === '["invoke","onEvent","platform","version","webUrl"]' && shape.invoke === 'function' && shape.onEvent === 'function', JSON.stringify(shape));
+  check('y solo tres funciones acotadas (invoke con lista de canales, onEvent y pathForFile)', JSON.stringify(Object.keys(shape).sort()) === '["invoke","onEvent","pathForFile","platform","version","webUrl"]' && shape.invoke === 'function' && shape.onEvent === 'function' && shape.pathForFile === 'function', JSON.stringify(shape));
+  const notAFile = await page.evaluate(() => window.pugideDesktop.pathForFile('/etc/passwd'));
+  check('pathForFile solo da la ruta de un archivo soltado de verdad (no de un texto)', notAFile === null, String(notAFile));
   const denied = await page.evaluate(async () => { try { await window.pugideDesktop.invoke('fs:read', { path: '/etc/passwd' }); return 'permitido'; } catch (e) { return String(e.message); } });
   check('un canal que no está en la lista se rechaza', /no permitido/i.test(denied), denied);
   const noToken = await page.evaluate(() => window.pugideDesktop.invoke('ws:create', { name: 'x', color: '#ddb7ff', token: 'inventado' }));
@@ -191,5 +193,49 @@ try {
   await Promise.race([app.close(), new Promise((r) => setTimeout(r, 15000))]).catch(() => undefined);
   for (const d of [profile, folder, pdfOut]) { try { rmSync(d, { recursive: true, force: true }); } catch { /* temporal */ } }
 }
+// ---- Abrir con PugIDE (P-40): la app arranca con un .pug (doble clic o «Abrir con») y recibe otro ya abierta ----
+{
+  const profile2 = mkdtempSync(join(tmpdir(), 'pugide-perfil-'));
+  const client = mkdtempSync(join(tmpdir(), 'pugide-abrir-'));
+  mkdirSync(join(client, 'partials'));
+  writeFileSync(join(client, 'factura.pug'), 'doctype html\nhtml\n  body\n    include partials/cabecera.pug\n    h1 Factura de Clínica Aurora\n');
+  writeFileSync(join(client, 'partials', 'cabecera.pug'), 'header Cabecera común\n');
+  writeFileSync(join(client, 'presupuesto.pug'), 'p Presupuesto 2026\n');
+  writeFileSync(join(client, 'informe.docx'), 'binario');
+  const exe = packaged || createRequire(import.meta.url)('electron');
+  const baseArgs = [...(packaged ? [] : ['.']), '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', `--user-data-dir=${profile2}`];
+  step('lanzando Electron con un .pug');
+  const app2 = await electron.launch({ timeout: 90000, executablePath: exe, args: [...baseArgs, join(client, 'factura.pug')], cwd: desktopDir, env: { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' } });
+  try {
+    const page = await app2.firstWindow();
+    await page.waitForURL(/^pugide:\/\/app\//, { timeout: 60000 });
+    await page.evaluate(() => { localStorage.setItem('pug-ide-welcome', '1'); localStorage.setItem('pug-ide-workspaces-intro', '1'); });
+    const dlg = page.locator('[data-testid="open-with"]');
+    check('abrir un .pug suelto pregunta: su carpeta como espacio (recomendado) o solo el archivo', !!(await wait(async () => (await dlg.count()) === 1, 30000)) && /Abrir factura\.pug/.test(await dlg.innerText()) && await page.locator('[data-testid="open-with-folder"]').isChecked(), await dlg.innerText().catch(() => ''));
+    // Primer arranque: la pregunta de avisos de versión nueva sale encima; se contesta antes, como haría la persona.
+    await page.locator('[data-testid="update-ask-no"]').click({ timeout: 8000 }).catch(() => undefined);
+    await page.locator('[data-testid="open-with-go"]').click();
+    const toast = page.locator('[data-testid="open-toast"]');
+    check('«Abrir» crea el espacio con la carpeta y lo dice', !!(await wait(async () => /Espacio «.+» abierto/.test(await toast.innerText().catch(() => '')), 20000)), await toast.innerText().catch(() => ''));
+    const tree = async () => page.locator('app-file-tree .file-row[data-path]').evaluateAll((els) => els.map((e) => e.getAttribute('data-path')));
+    check('el espacio trae la carpeta entera (con los parciales), no solo el archivo', !!(await wait(async () => { const t = await tree(); return t.includes('/factura.pug') && t.includes('/partials/cabecera.pug') && t.includes('/presupuesto.pug'); }, 15000)), (await tree()).join());
+    const previewText = async () => { for (const f of page.frames()) { const t = await f.evaluate(() => document.body?.innerText ?? '').catch(() => ''); if (/Factura de Clínica Aurora/.test(t)) return t; } return ''; };
+    check('y deja factura.pug en la vista previa, con su include funcionando', !!(await wait(async () => /Cabecera común/.test(await previewText()), 15000)), await previewText());
+
+    // Con la app abierta, el sistema lanza otra instancia con otro archivo: llega a la misma ventana.
+    step('segunda instancia con otro archivo');
+    const { spawn } = await import('node:child_process');
+    const second = spawn(exe, [...baseArgs, join(client, 'presupuesto.pug')], { cwd: desktopDir, env: { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1' }, stdio: 'ignore' });
+    await new Promise((r) => second.on('exit', r));
+    check('con la app abierta, otro .pug del mismo espacio se abre en la misma ventana sin preguntar', !!(await wait(async () => /presupuesto\.pug en la vista previa/.test(await toast.innerText().catch(() => '')), 20000)) && (await dlg.count()) === 0, await toast.innerText().catch(() => ''));
+    check('y sigue habiendo una sola ventana', app2.windows().length === 1, String(app2.windows().length));
+    const other = await page.evaluate((p) => window.pugideDesktop.invoke('open:path', { path: p }), join(client, 'informe.docx'));
+    check('lo que no es una plantilla ni una carpeta se rechaza', other?.kind === 'unsupported', JSON.stringify(other));
+  } finally {
+    await Promise.race([app2.close(), new Promise((r) => setTimeout(r, 15000))]).catch(() => undefined);
+    for (const d of [profile2, client]) { try { rmSync(d, { recursive: true, force: true }); } catch { /* temporal */ } }
+  }
+}
+
 console.log(failed ? `\n${failed} FAILED` : '\nall passed');
 process.exit(failed ? 1 : 0);
