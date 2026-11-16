@@ -1,4 +1,5 @@
 import { DEFAULT_JSON_VIEW, sanitizeJsonView } from '../utils/json-view.util';
+import { PdfChoices, sanitizePdfChoices } from '../utils/pdf-export.util';
 import { readSession } from '../utils/session-validate.util';
 import { Injectable, signal } from '@angular/core';
 import { AppPreferences } from '../models/index';
@@ -15,6 +16,7 @@ const FIRST_USE_KEY = 'pug-ide-first-use';
 const RECENT_COMMANDS_KEY = 'pug-ide-recent-commands';
 const WELCOME_KEY = 'pug-ide-welcome';
 const TOUR_KEY = 'pug-ide-tour';
+const PDF_CHOICES_KEY = 'pug-ide-pdf-export';
 
 /** Decisión del usuario sobre la analítica anónima de visitas (null: aún no ha decidido). */
 export type AnalyticsConsent = 'granted' | 'denied';
@@ -106,6 +108,15 @@ export class PersistenceService {
     } catch {
       this.lastWriteFailed.set(true);
     }
+  }
+
+  /** Opciones del último «Exportar PDF» (P-39). */
+  loadPdfChoices(): PdfChoices {
+    try { return sanitizePdfChoices(JSON.parse(localStorage.getItem(PDF_CHOICES_KEY) ?? 'null')); } catch { return sanitizePdfChoices(null); }
+  }
+
+  savePdfChoices(choices: PdfChoices): void {
+    try { localStorage.setItem(PDF_CHOICES_KEY, JSON.stringify(choices)); } catch { /* solo se pierden las opciones recordadas */ }
   }
 
   /** Comandos de la paleta usados hace poco (identificadores, el más reciente primero). */

@@ -12,9 +12,52 @@ const { WorkspaceStore, readWorkspace, readPaths, writeWorkspace, watchedPath, C
 const { compareVersions, parseLatestRelease, latestReleaseApi, selfUpdateSupport } = require('./updates.cjs');
 const { createSelfUpdater, fakeUpdaterModule } = require('./self-update.cjs');
 const aiCli = require('./ai-cli.cjs');
+const pdfExport = require('./pdf-export.cjs');
 
 /** Peticiones de IA en curso (P-30 a P-34), por id: se pueden detener y se paran todas al cerrar la ventana. */
 const aiRuns = new Map();
+/** PDF (P-39): la exportación en curso (para «Cancelar»), la última carpeta elegida y los PDF que se han escrito
+ *  en esta sesión (solo esos se pueden abrir o mostrar en la carpeta desde la interfaz). */
+let pdfJob = null;
+let lastPdfDir = null;
+const writtenPdfs = new Set();
+
+async function exportPdf(req) {
+  const invalid = pdfExport.validateRequest(req);
+  if (invalid) return { ok: false, reason: 'invalid', message: invalid };
+  const job = { canceled: false };
+  pdfJob = job;
+  try {
+    let pdf;
+    try {
+      pdf = await pdfExport.renderPdf({ BrowserWindow, session }, req);
+    } catch (err) {
+      return { ok: false, reason: 'error', message: String(err?.message ?? err) };
+    }
+    if (job.canceled) return { ok: false, reason: 'canceled' };
+    const name = pdfExport.pdfFileName(req.entry);
+    const ws = typeof req.workspaceId === 'string' ? store.get(req.workspaceId) : null;
+    const startDir = lastPdfDir || ws?.path || app.getPath('downloads');
+    // Para las pruebas automáticas: sin diálogo del sistema.
+    let target = process.env.PUGIDE_TEST_SAVE_PDF ? path.join(process.env.PUGIDE_TEST_SAVE_PDF, name) : null;
+    if (!target) {
+      const r = await dialog.showSaveDialog(mainWindow ?? undefined, { title: 'Guardar PDF', defaultPath: path.join(startDir, name), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+      if (r.canceled || !r.filePath) return { ok: false, reason: 'canceled' };
+      target = /\.pdf$/i.test(r.filePath) ? r.filePath : `${r.filePath}.pdf`;
+    }
+    try {
+      fs.writeFileSync(target, pdf);
+    } catch (err) {
+      return { ok: false, reason: 'write', message: String(err?.code ?? err?.message ?? err), path: target };
+    }
+    lastPdfDir = path.dirname(target);
+    writtenPdfs.add(target);
+    if (req.openAfter === true && !process.env.PUGIDE_TEST_SAVE_PDF) void shell.openPath(target);
+    return { ok: true, path: target, dir: path.dirname(target), name: path.basename(target), pages: pdfExport.countPdfPages(pdf), bytes: pdf.length };
+  } finally {
+    if (pdfJob === job) pdfJob = null;
+  }
+}
 
 const SCHEME = 'pugide';
 const ORIGIN = `${SCHEME}://app`;
@@ -308,6 +351,11 @@ function setupIpc() {
       return { runId };
     },
     'ai:cancel': ({ runId }) => { aiRuns.get(runId)?.cancel(); return { ok: aiRuns.has(runId) }; },
+    // PDF con el motor nativo (P-39).
+    'pdf:export': (req) => exportPdf(req),
+    'pdf:cancel': () => { if (pdfJob) pdfJob.canceled = true; return { ok: true }; },
+    'pdf:open': ({ path: p }) => { if (!writtenPdfs.has(p)) return { ok: false }; void shell.openPath(p); return { ok: true }; },
+    'pdf:reveal': ({ path: p }) => { if (!writtenPdfs.has(p)) return { ok: false }; shell.showItemInFolder(p); return { ok: true }; },
     // «Ver novedades» y «Descargar» (macOS, portable): la página de la versión en el navegador. upd:download es el nombre antiguo.
     'upd:open-release': () => openRelease(),
     'upd:download': () => openRelease(),

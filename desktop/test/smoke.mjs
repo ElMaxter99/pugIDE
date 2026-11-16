@@ -25,6 +25,7 @@ const packaged = process.env.PUGIDE_EXECUTABLE;
 // Perfil y carpeta de trabajo de usar y tirar: la prueba no toca los de la persona.
 const profile = mkdtempSync(join(tmpdir(), 'pugide-perfil-'));
 const folder = mkdtempSync(join(tmpdir(), 'pugide-cliente-'));
+const pdfOut = mkdtempSync(join(tmpdir(), 'pugide-pdf-salida-'));
 mkdirSync(join(folder, 'styles'));
 mkdirSync(join(folder, '.git'));
 writeFileSync(join(folder, 'main.pug'), 'doctype html\nhtml\n  head\n    link(rel="stylesheet" href="styles/a.css")\n  body\n    h1 Desde el disco\n');
@@ -32,7 +33,7 @@ writeFileSync(join(folder, 'styles', 'a.css'), 'h1 { color: #333 }\n');
 writeFileSync(join(folder, '.git', 'config.txt'), 'no se toca');
 writeFileSync(join(folder, 'notas.pdf'), 'binario');
 step('lanzando Electron');
-const app = await electron.launch({ timeout: 90000, executablePath: packaged || createRequire(import.meta.url)('electron'), args: [...(packaged ? [] : ['.']), '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', `--user-data-dir=${profile}`], cwd: desktopDir, env: { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1', PUGIDE_TEST_PICK_FOLDER: folder } });
+const app = await electron.launch({ timeout: 90000, executablePath: packaged || createRequire(import.meta.url)('electron'), args: [...(packaged ? [] : ['.']), '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', `--user-data-dir=${profile}`], cwd: desktopDir, env: { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: '1', PUGIDE_TEST_PICK_FOLDER: folder, PUGIDE_TEST_SAVE_PDF: pdfOut } });
 const violations = [];
 const external = [];
 try {
@@ -156,6 +157,27 @@ try {
   const escape = await page.evaluate(async () => { const id = (await window.pugideDesktop.invoke('ws:list')).lastId; return window.pugideDesktop.invoke('ws:write', { id, change: { files: { '/../fuera.txt': 'x' }, assets: [], deleted: ['/../../otro.txt'] } }); });
   check('no se puede escribir ni borrar fuera de la carpeta del espacio', escape.written.length === 0 && escape.failed.includes('/../fuera.txt') && !existsSync(join(folder, '..', 'fuera.txt')), JSON.stringify(escape));
 
+  // Exportar PDF con el motor nativo (P-39): sin diálogo de imprimir, un PDF de verdad.
+  await page.locator('[data-testid="menu-exportar"]').click();
+  const items = await page.locator('[role="menuitem"]').allInnerTexts();
+  check('en escritorio, Exportar ofrece «PDF…» e «Imprimir…» por separado', items.some((t) => /PDF…/.test(t)) && items.some((t) => /Imprimir…/.test(t)) && !items.some((t) => /guardar como PDF/.test(t)), items.join(' | '));
+  await page.locator('[role="menuitem"]', { hasText: 'PDF…' }).click();
+  const pdfDlg = page.locator('[data-testid="pdf-export"]');
+  check('«PDF…» abre el diálogo con la plantilla de la vista previa', !!(await wait(async () => (await pdfDlg.count()) === 1, 5000)) && /main\.pdf/.test(await pdfDlg.innerText()), await pdfDlg.innerText().catch(() => ''));
+  await wait(async () => !(await page.locator('[data-testid="pdf-save"]').isDisabled()), 8000);
+  await page.locator('[data-testid="pdf-open-after"]').uncheck();
+  await page.locator('[data-testid="pdf-save"]').click();
+  const done = page.locator('[data-testid="pdf-done"]');
+  check('al terminar avisa de que el PDF está guardado, con páginas y tamaño', !!(await wait(async () => (await done.count()) === 1, 30000)) && /main\.pdf guardado/.test(await done.innerText()) && /1 página/.test(await done.innerText()), await done.innerText().catch(() => ''));
+  const pdfFile = join(pdfOut, 'main.pdf');
+  const pdf = existsSync(pdfFile) ? readFileSync(pdfFile) : Buffer.alloc(0);
+  check('el PDF existe en la carpeta elegida y es un PDF', pdf.subarray(0, 5).toString() === '%PDF-', `${pdf.length} bytes`);
+  const raw = pdf.toString('latin1');
+  check('lleva el texto como texto (fuentes incrustadas, no una imagen) y es un PDF etiquetado (accesible)', /\/FontFile/.test(raw) && /\/StructTreeRoot/.test(raw));
+  const notOurs = await page.evaluate(() => window.pugideDesktop.invoke('pdf:open', { path: '/etc/passwd' }));
+  check('«Abrir» solo abre los PDF que la app acaba de guardar', notOurs?.ok === false, JSON.stringify(notOurs));
+  await page.locator('[data-testid="pdf-done-close"]').click();
+
   // Cerrar el espacio deja la carpeta como está
   await page.locator('[data-testid="menu-espacio"]').click();
   await page.locator('[role="menuitem"]', { hasText: 'Cerrar el espacio' }).click();
@@ -167,7 +189,7 @@ try {
 } finally {
   step('cerrando');
   await Promise.race([app.close(), new Promise((r) => setTimeout(r, 15000))]).catch(() => undefined);
-  for (const d of [profile, folder]) { try { rmSync(d, { recursive: true, force: true }); } catch { /* temporal */ } }
+  for (const d of [profile, folder, pdfOut]) { try { rmSync(d, { recursive: true, force: true }); } catch { /* temporal */ } }
 }
 console.log(failed ? `\n${failed} FAILED` : '\nall passed');
 process.exit(failed ? 1 : 0);

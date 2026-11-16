@@ -13,7 +13,9 @@ const CHANNELS = new Set(['ws:list', 'ws:pick-folder', 'ws:create', 'ws:relocate
   // Actualizar dentro de la app (P-35/P-36): descargar, cancelar, instalar, abrir la release, ya visto «se ha actualizado».
   'upd:update', 'upd:cancel', 'upd:install', 'upd:open-release', 'upd:ack-updated',
   // Asistente de IA (solo escritorio y local): detectar las CLI, lanzar una petición y detenerla.
-  'ai:detect', 'ai:run', 'ai:cancel']);
+  'ai:detect', 'ai:run', 'ai:cancel',
+  // Exportar PDF con el motor nativo (P-39): generar y guardar, cancelar, abrir o mostrar el PDF recién guardado.
+  'pdf:export', 'pdf:cancel', 'pdf:open', 'pdf:reveal']);
 
 contextBridge.exposeInMainWorld('pugideDesktop', Object.freeze({
   platform: process.platform,

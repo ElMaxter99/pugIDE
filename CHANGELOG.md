@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Añadido
+- **Exportar PDF con el motor nativo** (app de escritorio; diseño P-39, aprobado). En el menú «Exportar», «Imprimir o guardar como PDF» se divide en **«PDF…»** (nuevo) e **«Imprimir…»**. «PDF…» genera el PDF directamente con el Chromium de la app, sin el diálogo de imprimir: con el tamaño y los márgenes del documento (`@page`), fondos y colores, **texto seleccionable, enlaces que funcionan y PDF etiquetado** (accesible), y se elige la plantilla, el papel (el del documento, A4, A5 o Carta), la orientación, los márgenes, el número de página abajo («3 de 12») y si abrirlo al terminar. Se guarda con el diálogo del sistema, empezando en la carpeta del espacio de trabajo (o en Descargas) y recordando la última carpeta y las opciones. Al terminar, un aviso con páginas, tamaño y carpeta, y los botones «Abrir» y «Mostrar en la carpeta». Si la plantilla no compila no se genera nada y se ofrece «Ver en Problemas»; si faltan imágenes se avisa antes. El PDF se genera en una ventana oculta sin JavaScript, sin Node y sin red. En la web no cambia nada. Escenario `69-pdf-nativo`, pruebas unitarias y la prueba de escritorio con Electron (comprueba que el archivo es un PDF con fuentes incrustadas y etiquetado).
+
 ### Cambiado
 - **Dependencias al día y `npm audit` a cero.** Angular 22.2.6, Monaco 0.57, `sass` 1.108.2, Electron 45.3 (app de escritorio) y **ESLint 10**, que trae `minimatch` 11 y cierra los avisos moderados que arrastrábamos (fase 13.1). Monaco 0.57 traía un DOMPurify con un aviso crítico (`<= 3.4.16`): se fuerza la 3.4.18 con `overrides`, igual que `minimatch` 11 para `typescript-eslint`. Los iconos siguen en `material-symbols` 0.48.3 porque la 0.49 quita `crop_landscape` (el botón «Horizontal» del PDF). En `desktop/` quedan avisos moderados de `minimatch` dentro de `electron-builder`, que solo se usa al empaquetar y no llega a la app.
 

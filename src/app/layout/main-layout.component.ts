@@ -38,6 +38,7 @@ import { DiagnosticsState } from '../core/state/diagnostics.state';
 import { ViewportState } from '../core/state/viewport.state';
 import { EmailExportDialogComponent } from '../shared/components/export-dialogs/email-export-dialog.component';
 import { ExportAllDialogComponent } from '../shared/components/export-dialogs/export-all-dialog.component';
+import { PdfExportDialogComponent } from '../shared/components/export-dialogs/pdf-export-dialog.component';
 import { AiService } from '../core/services/ai.service';
 import { AiDialogComponent } from '../shared/components/ai/ai-dialog.component';
 import { AiSettingsDialogComponent } from '../shared/components/ai/ai-settings-dialog.component';
@@ -64,7 +65,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     ShareCreateDialogComponent,
     LocalesDialogComponent,
     EmailExportDialogComponent,
-    ExportAllDialogComponent,
+    ExportAllDialogComponent, PdfExportDialogComponent,
     SaveTemplateDialogComponent,
     ImportFilesDialogComponent,
     AiDialogComponent,
@@ -146,6 +147,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-locales-dialog />
       <app-email-export-dialog />
       <app-export-all-dialog />
+      <app-pdf-export-dialog />
       <app-save-template-dialog />
       <app-import-files-dialog />
       @if (ai.available) {

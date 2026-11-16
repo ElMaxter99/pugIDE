@@ -39,7 +39,12 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **Ver diferencias en un conflicto** (P-37): mergeado (PR 84), con el arreglo de «Cargar el del disco» en el archivo abierto.
 - **La zona de Datos como tabla CLAVE / VALOR** (P-38): mergeado (PR 85), con `playwright-core` 1.65.1 (el CI pasó a Ubuntu 26.04) y las fuentes guardadas por el service worker para que se vean sin conexión.
 
-## Siguiente (propuesta, pendiente de aprobar)
+## En curso: fase 19 (plan aprobado)
+- **0.15.1** mantenimiento: mergeado (PR 87).
+- **Sesión en IndexedDB** (19.2): en su PR (88).
+- **P-39 PDF nativo** (diseño P-39 a P-41 aprobado): programado, en su PR. P-40 y P-41, después.
+
+## Plan de la fase 19
 Plan completo en [PLAN.md](PLAN.md), fase 19:
 - **0.15.1** mantenimiento: `eslint` 10 (cierra `npm audit`), parches de Angular, Monaco, Electron.
 - **0.16** proyectos grandes (sesión en IndexedDB, PDF con tablas enormes) y escritorio con diseño: PDF nativo (P-39), abrir `.pug` con PugIDE (P-40), mover un proyecto a una carpeta (P-41).
