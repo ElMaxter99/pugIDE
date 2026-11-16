@@ -224,7 +224,10 @@ try {
     const tree = async () => page.locator('app-file-tree .file-row[data-path]').evaluateAll((els) => els.map((e) => e.getAttribute('data-path')));
     check('el espacio trae la carpeta entera (con los parciales), no solo el archivo', !!(await wait(async () => { const t = await tree(); return t.includes('/factura.pug') && t.includes('/partials/cabecera.pug') && t.includes('/presupuesto.pug'); }, 15000)), (await tree()).join());
     const previewText = async () => { for (const f of page.frames()) { const t = await f.evaluate(() => document.body?.innerText ?? '').catch(() => ''); if (/Factura de Clínica Aurora/.test(t)) return t; } return ''; };
-    check('y deja factura.pug en la vista previa, con su include funcionando', !!(await wait(async () => /Cabecera común/.test(await previewText()), 15000)), await previewText());
+    // 30 s: el primer arranque de la app empaquetada en macOS es lento (en el CI, 15 s no siempre bastaban).
+    const shown = !!(await wait(async () => /Cabecera común/.test(await previewText()), 30000));
+    const tabs = await page.locator('app-tabs').innerText().catch(() => '');
+    check('y deja factura.pug en la vista previa, con su include funcionando', shown, `${await previewText() || 'sin vista previa de factura'} · pestañas: ${tabs.replace(/\s+/g, ' ').slice(0, 120)}`);
 
     // Con la app abierta, el sistema lanza otra instancia con otro archivo: llega a la misma ventana.
     step('segunda instancia con otro archivo');
