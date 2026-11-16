@@ -20,6 +20,11 @@ const EPS = 0.5;
 /** Fracción máxima del área de contenido que puede ocupar una cabecera de tabla para que se repita en cada hoja. */
 const MAX_REPEATED_HEADER = 0.25;
 
+/** Máximo de hojas de una tabla que se colocan con posiciones calculadas antes de volver a medirla (acota el error acumulado). */
+const TABLE_REMEASURE_PAGES = 32;
+/** Desvío (px) entre lo calculado y lo medido a partir del cual la siguiente comprobación se adelanta en vez de espaciarse. */
+const TABLE_DRIFT_LIMIT = 0.75;
+
 const FORCED = new Set(['page', 'always', 'left', 'right', 'recto', 'verso']);
 const ATOMIC_TAGS = new Set(['IMG', 'SVG', 'FIGURE', 'CANVAS', 'VIDEO', 'PRE', 'BLOCKQUOTE']);
 
@@ -135,6 +140,9 @@ function isLeafTextBlock(el: HTMLElement, win: Window, cs: CSSStyleDeclaration):
   return Array.from(el.children).every((c) => c.tagName === 'BR' || win.getComputedStyle(c).display.startsWith('inline'));
 }
 
+/** Cambios de maquetación hechos fuera de las filas de tabla (márgenes, espaciadores de texto): invalidan las posiciones calculadas. */
+let layoutEdits = 0;
+
 interface TextRun {
   node: Text;
   start: number;
@@ -177,6 +185,7 @@ function insertSpacer(doc: Document, runs: TextRun[], index: number, height: num
   while (r > 0 && runs[r].start > index) r--;
   const { node, start } = runs[r];
   const off = index - start;
+  layoutEdits++;
   const spacer = doc.createElement('span');
   spacer.setAttribute(SPACER, '');
   spacer.style.cssText = `display:block;height:${height}px;margin:0;padding:0;border:0;`;
@@ -384,6 +393,48 @@ function insertHeaderCopy(win: Window, row: HTMLElement, header: HTMLElement[], 
   }
 }
 
+/**
+ * Cómo guarda el motor un alto en px: Chromium y WebKit en 64.as de píxel (hacia abajo), Firefox en 60.as (al más
+ * cercano). Se averigua con un elemento de prueba, para calcular cuánto baja de verdad una fila de relleno.
+ */
+function lengthSnap(doc: Document): (px: number) => number {
+  const probe = doc.createElement('div');
+  probe.setAttribute(SPACER, '');
+  probe.style.cssText = 'position:absolute;visibility:hidden;width:1px;height:10.4px;margin:0;padding:0;border:0;';
+  doc.body.appendChild(probe);
+  const h = probe.getBoundingClientRect().height;
+  probe.remove();
+  const floor64 = (px: number) => Math.floor(px * 64) / 64;
+  const round60 = (px: number) => Math.round(px * 60) / 60;
+  if (Math.abs(h - floor64(10.4)) < 1e-4) return floor64;
+  if (Math.abs(h - round60(10.4)) < 1e-4) return round60;
+  return (px) => px;
+}
+
+/**
+ * Posiciones de las filas de una tabla, medidas de una vez. Cada fila de relleno o copia de la cabecera que se inserta
+ * baja las filas siguientes una cantidad conocida, así que sus posiciones se calculan (`shift`) en vez de volver a
+ * leerlas: cada lectura tras tocar el DOM obliga a maquetar la tabla entera, y hacerlo en cada hoja era lo que
+ * congelaba el preview con miles de filas. Se vuelve a medir cada pocas hojas (como mucho `TABLE_REMEASURE_PAGES`), al cambiar de sección
+ * (`thead`/`tbody`/`tfoot`) y cuando algo ajeno a la tabla ha movido el documento.
+ */
+interface TableState {
+  rows: HTMLElement[];
+  index: Map<HTMLElement, number>;
+  tops: number[];
+  heights: number[];
+  tableTop: number;
+  shift: number;
+  edits: number;
+  pages: number;
+  /** Hojas que se colocan antes de la siguiente comprobación: empieza en 2 y se duplica hasta `TABLE_REMEASURE_PAGES` mientras lo calculado coincida. */
+  interval: number;
+  section: Element | null;
+  /** Lo que baja de más una fila de relleno respecto a su alto (`border-spacing`, bordes) y lo que ocupa la copia de la cabecera; se miden la primera vez. */
+  spacerExtra: number | null;
+  headerHeight: number | null;
+}
+
 export function paginateDocument(doc: Document, geometry: PageGeometry | number): void {
   const g = typeof geometry === 'number' ? pageGeometry(geometry) : geometry;
   const win = doc.defaultView;
@@ -397,7 +448,53 @@ export function paginateDocument(doc: Document, geometry: PageGeometry | number)
   const headerTemplates = new Map<HTMLElement, HTMLElement>();
   const top = (el: Element) => el.getBoundingClientRect().top + win.scrollY;
 
+  const tables = new Map<HTMLElement, TableState>();
+  let snap: ((px: number) => number) | null = null;
+  /** Filas que caben enteras en el contenido de una hoja: dentro de ellas no hay nada que mover (salvo un salto forzado). */
+  const settledRows = new Set<Element>();
+  const headers = new Map<HTMLElement, ReturnType<typeof repeatingHeader>>();
+  const measureTable = (table: HTMLElement, st: TableState, from: number) => {
+    st.tableTop = top(table);
+    for (let i = from; i < st.rows.length; i++) {
+      const r = st.rows[i].getBoundingClientRect();
+      st.tops[i] = r.top + win.scrollY;
+      st.heights[i] = r.height;
+    }
+    st.shift = 0;
+    st.pages = 0;
+    st.edits = layoutEdits;
+  };
+  /** Estado de la tabla de `row` con sus posiciones al día, o null si la fila no es de un `<table>` (se mide directamente). */
+  const tableOf = (row: HTMLElement): { st: TableState; i: number } | null => {
+    const table = row.closest('table');
+    if (!table) return null;
+    let st = tables.get(table);
+    if (!st) {
+      const rows = Array.from(table.rows) as HTMLElement[];
+      st = { rows, index: new Map(rows.map((r, i) => [r, i])), tops: [], heights: [], tableTop: 0, shift: 0, edits: -1, pages: 0, interval: 2, section: null, spacerExtra: null, headerHeight: null };
+      tables.set(table, st);
+    }
+    const i = st.index.get(row);
+    if (i === undefined) return null;
+    if (st.edits !== layoutEdits || st.section !== row.parentElement) {
+      st.section = row.parentElement;
+      measureTable(table, st, i);
+    } else if (st.pages >= st.interval) {
+      // Comprobación periódica. En Chromium y WebKit lo calculado coincide con lo medido y cada vez se espera el doble.
+      // Firefox reparte los bordes fundidos según la posición de cada fila y se va separando unas décimas por hoja:
+      // el desvío por hoja se suma al resto de la fila de relleno y, si ya es apreciable, se comprueba más a menudo.
+      const predicted = st.tops[i] + st.shift;
+      const pages = st.pages;
+      measureTable(table, st, i);
+      const drift = st.tops[i] - predicted;
+      if (st.spacerExtra !== null) st.spacerExtra += drift / pages;
+      st.interval = Math.abs(drift) > TABLE_DRIFT_LIMIT ? Math.max(2, st.interval >> 1) : Math.min(TABLE_REMEASURE_PAGES, st.interval * 2);
+    }
+    return { st, i };
+  };
+
   const pushTo = (el: HTMLElement, target: number) => {
+    layoutEdits++;
     const cs = win.getComputedStyle(el);
     if (!el.hasAttribute(MARK)) el.setAttribute(MARK, el.style.getPropertyValue('margin-top'));
     let margin = (parseFloat(cs.marginTop) || 0) + (target - top(el));
@@ -410,41 +507,110 @@ export function paginateDocument(doc: Document, geometry: PageGeometry | number)
     }
   };
 
+  /** Fila que no es de un `<table>` (tabla hecha con CSS): se mide directamente, como siempre. */
+  const paginateLooseRow = (el: HTMLElement, header: ReturnType<typeof repeatingHeader>) => {
+    layoutEdits++;
+    let pushed = false;
+    const r = el.getBoundingClientRect();
+    const target = pushTarget(g, r.top + win.scrollY, r.height);
+    if (target !== null) {
+      pushTableRow(doc, el, target - (r.top + win.scrollY));
+      pushed = true;
+    }
+    if (!header) return;
+    let startsPage = pushed;
+    if (!startsPage) {
+      const y = el.getBoundingClientRect().top + win.scrollY;
+      const k = pageOf(g, y);
+      const tableTop = header.table.getBoundingClientRect().top + win.scrollY;
+      startsPage = k > pageOf(g, tableTop) && Math.abs(y - pageTop(g, k)) < 1.5;
+    }
+    if (startsPage) {
+      insertHeaderCopy(win, el, header.rows, headerTemplates);
+      const r2 = el.getBoundingClientRect();
+      const t2 = pushTarget(g, r2.top + win.scrollY, r2.height);
+      if (t2 !== null) pushTableRow(doc, el, t2 - (r2.top + win.scrollY));
+    }
+  };
+
   for (const el of Array.from(body.querySelectorAll<HTMLElement>('*'))) {
     if (el.hasAttribute(SPACER) || el.closest(`[${SPACER}]`)) continue;
     const cs = win.getComputedStyle(el);
     if (cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed') continue;
 
+    // Dentro de una fila que cabe entera en su hoja no hay nada que partir ni que bajar: se salta sin medir (medir
+    // aquí obligaría a maquetar la tabla tras cada hoja). Un salto forzado dentro de una celda sí sigue el camino normal.
+    if (settledRows.size) {
+      const row = el.parentElement?.closest('tr');
+      if (row && settledRows.has(row)) {
+        if (FORCED.has(cs.breakAfter) || FORCED.has(cs.getPropertyValue('page-break-after')) || FORCED.has(cs.breakBefore)
+          || FORCED.has(cs.getPropertyValue('page-break-before')) || forcedAfter.has(el)) settledRows.delete(row);
+        else { if (cs.display === 'table-row') settledRows.add(el); continue; }
+      }
+    }
+
     if (cs.display === 'table-row') {
-      const header = repeatingHeader(win, el, g);
-      let pushed = false;
+      // La cabecera se decide una vez por tabla: medirla en cada fila obligaba a maquetar la tabla tras cada hoja.
+      const owner = el.closest('table');
+      let header: ReturnType<typeof repeatingHeader> = null;
+      const section = el.parentElement;
+      if (owner && section && section.tagName !== 'THEAD' && section.tagName !== 'TFOOT') {
+        if (!headers.has(owner)) headers.set(owner, repeatingHeader(win, el, g));
+        header = headers.get(owner) ?? null;
+      }
       // Una tabla con cabecera repetida se pagina por filas aunque no haya márgenes: la fila que no cabe pasa a la hoja siguiente.
-      if (gap || header) {
-        const r = el.getBoundingClientRect();
-        const target = pushTarget(g, r.top + win.scrollY, r.height);
-        if (target !== null) {
-          pushTableRow(doc, el, target - (r.top + win.scrollY));
-          pushed = true;
-        }
+      if (!gap && !header) continue;
+      const known = tableOf(el);
+      if (!known) { paginateLooseRow(el, header); continue; }
+      const { st, i } = known;
+      const height = st.heights[i];
+      const y = () => st.tops[i] + st.shift;
+      /**
+       * Tras insertar algo delante de la fila, las filas siguientes bajan `nominal` más un resto fijo de la tabla
+       * (`border-spacing`, alto de la copia de la cabecera). El resto se mide una vez, en la fila siguiente: la fila
+       * tocada no sirve, porque con bordes fundidos se queda medio borde más abajo que las demás.
+       */
+      const settle = (key: 'spacerExtra' | 'headerHeight', nominal: number) => {
+        const next = st.rows[i + 1];
+        if (st[key] !== null) st.shift += nominal + (st[key] as number);
+        else if (next && next.parentElement === el.parentElement) {
+          const actual = top(next);
+          st[key] = actual - (st.tops[i + 1] + st.shift) - nominal;
+          st.shift = actual - st.tops[i + 1];
+        } else st.shift = top(el) - st.tops[i]; // última fila de la sección: se mide ella misma y no se guarda el resto
+        // Las demás tablas (anidadas o que la contienen) se han movido: tienen que volver a medirse.
+        st.edits = ++layoutEdits;
+      };
+      const pushDown = (amount: number) => {
+        pushTableRow(doc, el, amount);
+        snap ??= lengthSnap(doc);
+        settle('spacerExtra', snap(amount));
+        st.pages++;
+      };
+      let pushed = false;
+      const target = pushTarget(g, y(), height);
+      if (target !== null) {
+        pushDown(target - y());
+        pushed = true;
       }
       if (header) {
         // Primera fila de una hoja que no es la de arranque de la tabla: la cabecera se repite encima.
         // Una fila recién empujada ya está al principio de su hoja (el redondeo de la tabla puede dejar 1 px de desvío).
-        // Solo se mide si no se acaba de empujar: cada lectura tras tocar el DOM fuerza maquetar toda la tabla.
         let startsPage = pushed;
         if (!startsPage) {
-          const y = el.getBoundingClientRect().top + win.scrollY;
-          const k = pageOf(g, y);
-          const tableTop = header.table.getBoundingClientRect().top + win.scrollY;
-          startsPage = k > pageOf(g, tableTop) && Math.abs(y - pageTop(g, k)) < 1.5;
+          const k = pageOf(g, y());
+          startsPage = k > pageOf(g, st.tableTop) && Math.abs(y() - pageTop(g, k)) < 1.5;
         }
         if (startsPage) {
           insertHeaderCopy(win, el, header.rows, headerTemplates);
-          const r = el.getBoundingClientRect();
-          const target = pushTarget(g, r.top + win.scrollY, r.height);
-          if (target !== null) pushTableRow(doc, el, target - (r.top + win.scrollY));
+          settle('headerHeight', 0);
+          if (!pushed) st.pages++;
+          const again = pushTarget(g, y(), height);
+          if (again !== null) pushDown(again - y());
         }
       }
+      const k = pageOf(g, y());
+      if (y() >= pageTop(g, k) - EPS && y() + height <= pageBottom(g, k) + EPS) settledRows.add(el);
       continue;
     }
     if (cs.display.startsWith('table') || cs.display === 'inline') continue; // margins don't apply
