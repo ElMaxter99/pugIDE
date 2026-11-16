@@ -230,11 +230,12 @@ try {
   try {
     const page = await app2.firstWindow();
     await page.waitForURL(/^pugide:\/\/app\//, { timeout: 60000 });
-    await page.evaluate(() => { localStorage.setItem('pug-ide-welcome', '1'); localStorage.setItem('pug-ide-workspaces-intro', '1'); });
+    // Perfil nuevo a propósito: es el primer arranque de la app, y la bienvenida no debe tapar la pregunta.
     const dlg = page.locator('[data-testid="open-with"]');
     check('abrir un .pug suelto pregunta: su carpeta como espacio (recomendado) o solo el archivo', !!(await wait(async () => (await dlg.count()) === 1, 30000)) && /Abrir factura\.pug/.test(await dlg.innerText()) && await page.locator('[data-testid="open-with-folder"]').isChecked(), await dlg.innerText().catch(() => ''));
     // Primer arranque: la pregunta de avisos de versión nueva sale encima; se contesta antes, como haría la persona.
     await page.locator('[data-testid="update-ask-no"]').click({ timeout: 8000 }).catch(() => undefined);
+    check('en el primer arranque, la bienvenida no tapa la pregunta', (await page.locator('app-welcome-dialog [role="dialog"], app-welcome-dialog .card').count()) === 0);
     await page.locator('[data-testid="open-with-go"]').click();
     const toast = page.locator('[data-testid="open-toast"]');
     check('«Abrir» crea el espacio con la carpeta y lo dice', !!(await wait(async () => /Espacio «.+» abierto/.test(await toast.innerText().catch(() => '')), 20000)), await toast.innerText().catch(() => ''));

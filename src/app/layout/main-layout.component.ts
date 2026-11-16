@@ -336,6 +336,8 @@ export class MainLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
     effect(() => {
       if (!this.welcomePending() || this.analytics.consent() === null) return;
+      // Si la app se abrió con un archivo o una carpeta, la bienvenida no se pone encima: queda para el próximo arranque.
+      if (this.openWith.received()) { untracked(() => this.welcomePending.set(false)); return; }
       untracked(() => {
         this.welcomePending.set(false);
         this.ui.welcomeOpen.set(true);
