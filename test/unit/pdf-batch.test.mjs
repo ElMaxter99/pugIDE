@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { unzipSync } from 'fflate';
 import {
-  DEFAULT_PDF_BATCH_CHOICES, datasetPdfName, describeBatch, sanitizePdfBatchChoices, templatePdfName, uniquePdfNames,
+  DEFAULT_PDF_BATCH_CHOICES, dataKeys, datasetPdfName, describeBatch, lookupKey, patternKeys, patternPdfName, sanitizePdfBatchChoices, templatePdfName, uniquePdfNames,
 } from './.build/units.mjs';
 
 const require = createRequire(import.meta.url);
@@ -58,10 +58,47 @@ test('dos PDF no salen con el mismo nombre', () => {
 
 test('las opciones guardadas que no valen vuelven a su valor de partida', () => {
   assert.deepEqual(sanitizePdfBatchChoices(null), DEFAULT_PDF_BATCH_CHOICES);
-  assert.deepEqual(sanitizePdfBatchChoices({ mode: 'datasets', target: 'zip', pageNumbers: true }), { mode: 'datasets', target: 'zip', pageNumbers: true });
+  assert.deepEqual(sanitizePdfBatchChoices({ mode: 'datasets', target: 'zip', pageNumbers: true, pattern: 'factura {numero}' }), { mode: 'datasets', target: 'zip', pageNumbers: true, pattern: 'factura {numero}' });
+  assert.equal(sanitizePdfBatchChoices({ pattern: 'x'.repeat(400) }).pattern.length, 150);
+  assert.equal(sanitizePdfBatchChoices({ pattern: 42 }).pattern, '');
   assert.deepEqual(sanitizePdfBatchChoices({ mode: 'todo', target: 7, pageNumbers: 'sí' }), DEFAULT_PDF_BATCH_CHOICES);
 });
 
 test('el Registro resume el lote con las páginas de cada PDF', () => {
   assert.equal(describeBatch([{ name: 'factura.pdf', pages: 12, bytes: 1 }, { name: 'recibo.pdf', pages: 2, bytes: 1 }]), 'factura.pdf (12 págs.), recibo.pdf (2)');
+});
+
+// ---- Nombre por patrón (P-45) ----
+const aurora = { numero: 'FA-2026-0312', paciente: { nombre: 'Lucía Romero Vidal', nif: '48211905K' }, total: 212.5, pagada: true, lineas: [{ concepto: 'Revisión' }] };
+
+test('una clave con puntos se busca a través de los objetos, no de las listas', () => {
+  assert.equal(lookupKey(aurora, 'paciente.nombre'), 'Lucía Romero Vidal');
+  assert.equal(lookupKey(aurora, 'paciente.email'), undefined);
+  assert.equal(lookupKey(aurora, 'lineas.concepto'), undefined);
+  assert.equal(lookupKey(null, 'a'), undefined);
+});
+
+test('las claves ofrecidas son las hojas de texto, número o sí/no, sin listas y sin repetir', () => {
+  assert.deepEqual(dataKeys([aurora, { numero: 'x', extra: 'y' }]), ['numero', 'paciente.nombre', 'paciente.nif', 'total', 'pagada', 'extra']);
+  assert.deepEqual(dataKeys([]), []);
+  assert.equal(dataKeys([Object.fromEntries(Array.from({ length: 80 }, (_, i) => [`k${i}`, i]))]).length, 40);
+});
+
+test('las claves de un patrón salen sin repetir y sin espacios', () => {
+  assert.deepEqual(patternKeys('factura {numero} - { paciente.nombre } ({numero})'), ['numero', 'paciente.nombre']);
+  assert.deepEqual(patternKeys('sin claves'), []);
+});
+
+test('el nombre por patrón sustituye las claves y limpia lo que un sistema de archivos no admite', () => {
+  assert.deepEqual(patternPdfName('factura {numero} - {paciente.nombre}', aurora), { name: 'factura FA-2026-0312 - Lucía Romero Vidal.pdf', missing: [] });
+  assert.equal(patternPdfName('{numero}.pdf', aurora).name, 'FA-2026-0312.pdf');
+  assert.equal(patternPdfName('{total} € {pagada}', aurora).name, '212.5 € sí.pdf');
+  assert.equal(patternPdfName('a/b:{numero}?', { numero: 'x*y' }).name, 'a b x y.pdf');
+});
+
+test('si falta una clave (o es una lista, o está vacía) no hay nombre por patrón y se dice cuál', () => {
+  assert.deepEqual(patternPdfName('factura {numero} {cliente.email}', aurora), { name: null, missing: ['cliente.email'] });
+  assert.deepEqual(patternPdfName('{lineas}', aurora), { name: null, missing: ['lineas'] });
+  assert.deepEqual(patternPdfName('{numero}', { numero: '  ' }), { name: null, missing: ['numero'] });
+  assert.deepEqual(patternPdfName('{ }', aurora).name, null);
 });

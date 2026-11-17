@@ -12,7 +12,7 @@ import { focusableElements, rememberFocus, trapTab } from '../../../core/utils/f
 import { parsePageRules } from '../../../core/utils/page-rules.util';
 import { detectPageSize, isLandscape } from '../../../core/utils/page-size.util';
 import {
-  PdfBatchChoices, PdfBatchDone, PdfBatchMode, PdfBatchTarget, datasetPdfName, describeBatch, pageCount, pdfCount, templatePdfName, uniquePdfNames,
+  PdfBatchChoices, PdfBatchDone, PdfBatchMode, PdfBatchTarget, dataKeys, datasetPdfName, describeBatch, pageCount, patternKeys, patternPdfName, pdfCount, templatePdfName, uniquePdfNames,
 } from '../../../core/utils/pdf-batch.util';
 import { PdfPaper, buildPdfRequest } from '../../../core/utils/pdf-export.util';
 import { formatBytes } from '../../../core/utils/snapshot.util';
@@ -72,6 +72,24 @@ interface Summary { done: PdfBatchDone[]; total: number; failed: string[]; compi
                     <span>{{ d.name }}</span><span class="arrow">→ {{ nameFor(d.id) }}</span></label>
                 }
               </div>
+              <label class="field">Nombre del archivo
+                <input #patternInput type="text" data-testid="pdf-batch-pattern" placeholder="{{ patternPlaceholder }}" [value]="choices().pattern" [disabled]="busy()" (input)="setPattern($any($event.target).value)" />
+              </label>
+              @if (keys().length) {
+                <div class="chips" data-testid="pdf-batch-keys"><span class="chips-label">Claves de los datos:</span>
+                  @for (k of keys(); track k) { <button type="button" class="chip" [attr.data-testid]="'pdf-batch-key-' + k" [disabled]="busy()" (click)="insertKey(k, patternInput)">{{ '{' + k + '}' }}</button> }
+                </div>
+              }
+              <p class="note">Pulsa una clave para añadirla donde está el cursor. Vacío = «plantilla - juego». La extensión .pdf se añade sola.</p>
+              @for (w of patternWarnings(); track w.text) {
+                <div class="bar" [class.warn]="w.kind === 'warn'" [class.info]="w.kind === 'info'" role="status" data-testid="pdf-batch-pattern-warning">
+                  <span aria-hidden="true" class="material-symbols-outlined">{{ w.kind === 'warn' ? 'warning' : 'info' }}</span><span class="grow">{{ w.text }}</span></div>
+              }
+              @if (previewNames().length) {
+                <div class="preview" data-testid="pdf-batch-preview"><div class="preview-title">Se guardarán como</div>
+                  @for (n of previewNames(); track $index) { <div class="preview-name">→ {{ n }}</div> }
+                </div>
+              }
               @if (locales().length > 1) {
                 <label class="field half">Idioma
                   <select data-testid="pdf-batch-locale" [disabled]="busy()" (change)="locale.set($any($event.target).value)">
@@ -165,6 +183,13 @@ interface Summary { done: PdfBatchDone[]; total: number; failed: string[]; compi
     .arrow { color: var(--text-secondary); font-size: 12px; }
     .warn { color: var(--warning-color); font-size: 12px; }
     .partial { display: flex; gap: 8px; align-items: center; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .chips-label { font-size: 12px; }
+    .chip { height: 24px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--accent-color); font-family: var(--font-mono); font-size: 11px; cursor: pointer; }
+    .chip:disabled { opacity: 0.5; cursor: not-allowed; }
+    .preview { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-tertiary); }
+    .preview-title { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+    .preview-name { font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); overflow-wrap: anywhere; }
     .partial .material-symbols-outlined { font-size: 15px; }
     .problem { margin: 0; font-size: 12px; color: var(--error-color); }
     .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
@@ -177,6 +202,7 @@ interface Summary { done: PdfBatchDone[]; total: number; failed: string[]; compi
     .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary); font-size: 12px; }
     .bar .material-symbols-outlined { font-size: 18px; }
     .bar.error { border-color: var(--error-color); } .bar.error .material-symbols-outlined { color: var(--error-color); }
+    .bar.info { border-color: var(--info-color, var(--accent-color)); } .bar.info .material-symbols-outlined { color: var(--info-color, var(--accent-color)); }
     .bar.warn { border-color: var(--warning-color); } .bar.warn .material-symbols-outlined { color: var(--warning-color); }
     .bar.progress { border-color: var(--accent-color); } .bar.progress .material-symbols-outlined { color: var(--accent-color); }
     .track { display: block; height: 4px; margin-top: 6px; border-radius: 2px; background: var(--bg-input); overflow: hidden; }
@@ -238,13 +264,47 @@ export class PdfBatchDialogComponent {
     }
     const path = this.entry();
     if (!path) return [];
+    return this.datasetJobs(path).map((j) => ({ label: j.label, name: j.name, path, data: j.data }));
+  });
+  /** Un trabajo por juego de datos elegido: el nombre sale del patrón o, si no hay patrón (o falta una clave), de «plantilla - juego». */
+  private datasetJobs(path: string): { id: string; label: string; name: string; data: Record<string, unknown>; byPattern: boolean }[] {
     const activeId = this.dataState.activeId();
     const sets = this.datasets().filter((d) => this.chosenDatasets().has(d.id));
-    const names = uniquePdfNames(sets.map((d) => datasetPdfName(path, d.name)));
-    // El juego activo se toma del estado vivo: puede tener cambios que aún no están en la lista de juegos.
-    return sets.map((d, i) => ({ label: `${path.slice(1)} con «${d.name}»`, name: names[i], path, data: d.id === activeId ? this.dataState.data() : d.data }));
-  });
+    const pattern = this.choices().pattern.trim();
+    const raw = sets.map((d) => {
+      // El juego activo se toma del estado vivo: puede tener cambios que aún no están en la lista de juegos.
+      const data = d.id === activeId ? this.dataState.data() : d.data;
+      const byPattern = pattern ? patternPdfName(pattern, data).name : null;
+      return { id: d.id, label: `${path.slice(1)} con «${d.name}»`, name: byPattern ?? datasetPdfName(path, d.name), data, byPattern: byPattern !== null };
+    });
+    const names = uniquePdfNames(raw.map((r) => r.name));
+    return raw.map((r, i) => ({ ...r, name: names[i] }));
+  }
   protected readonly count = computed(() => this.jobs().length);
+  /** Claves que se ofrecen para el patrón (de los datos de todos los juegos). */
+  protected readonly keys = computed(() => dataKeys(this.datasets().map((d) => (d.id === this.dataState.activeId() ? this.dataState.data() : d.data))));
+  protected readonly patternPlaceholder = 'plantilla - juego (por defecto)';
+  protected readonly previewNames = computed(() => (this.choices().mode === 'datasets' ? this.jobs().slice(0, 3).map((j) => j.name) : []));
+  protected readonly patternWarnings = computed<{ kind: 'warn' | 'info'; text: string }[]>(() => {
+    const pattern = this.choices().pattern.trim();
+    if (!pattern || this.choices().mode !== 'datasets') return [];
+    const out: { kind: 'warn' | 'info'; text: string }[] = [];
+    const path = this.entry();
+    const sets = this.datasets().filter((d) => this.chosenDatasets().has(d.id));
+    const activeId = this.dataState.activeId();
+    const dataOf = (d: (typeof sets)[number]) => (d.id === activeId ? this.dataState.data() : d.data);
+    const available = dataKeys(sets.map(dataOf));
+    for (const key of patternKeys(pattern)) {
+      const lacking = sets.filter((d) => patternPdfName(`{${key}}`, dataOf(d)).name === null);
+      if (sets.length && lacking.length === sets.length) out.push({ kind: 'warn', text: `La clave {${key}} no existe en los datos.${available.length ? ` Claves que sí hay: ${available.slice(0, 5).join(', ')}${available.length > 5 ? '…' : ''}.` : ''}` });
+      else if (lacking.length) out.push({ kind: 'warn', text: `{${key}} falta en ${lacking.length} ${lacking.length === 1 ? 'juego' : 'juegos'} (${lacking.slice(0, 2).map((d) => d.name).join(', ')}${lacking.length > 2 ? '…' : ''}): ahí se usa el nombre del juego.` });
+    }
+    const wanted = this.datasetJobs(path).map((j) => j.name);
+    const first = sets.map((d) => (patternPdfName(pattern, dataOf(d)).name ?? datasetPdfName(path, d.name)));
+    const renamed = wanted.find((n, i) => n !== first[i]);
+    if (renamed) out.push({ kind: 'info', text: `Dos juegos dan el mismo nombre: el segundo pasa a ${renamed}.` });
+    return out;
+  });
   /** Nombre del PDF de una plantilla o de un juego de datos tal como saldría ahora (elegido o no). */
   private readonly allNames = computed(() => {
     const map = new Map<string, string>();
@@ -252,8 +312,9 @@ export class PdfBatchDialogComponent {
       const paths = this.pages().filter((p) => !this.broken().has(p));
       uniquePdfNames(paths.map(templatePdfName)).forEach((n, i) => map.set(paths[i], n));
     } else {
-      const sets = this.datasets();
-      uniquePdfNames(sets.map((d) => datasetPdfName(this.entry(), d.name))).forEach((n, i) => map.set(sets[i].id, n));
+      for (const j of this.datasetJobs(this.entry())) map.set(j.id, j.name);
+      // Los juegos sin elegir también enseñan su nombre.
+      for (const d of this.datasets()) if (!map.has(d.id)) map.set(d.id, datasetPdfName(this.entry(), d.name));
     }
     return map;
   });
@@ -330,6 +391,20 @@ export class PdfBatchDialogComponent {
   }
 
   protected setPageNumbers(on: boolean): void { this.setChoices({ pageNumbers: on }); }
+
+  protected setPattern(pattern: string): void { this.setChoices({ pattern: pattern.slice(0, 150) }); }
+
+  /** Añade `{clave}` donde está el cursor del campo del patrón. */
+  protected insertKey(key: string, input: HTMLInputElement): void {
+    const text = this.choices().pattern;
+    const at = input.selectionStart ?? text.length;
+    const end = input.selectionEnd ?? at;
+    const next = `${text.slice(0, at)}{${key}}${text.slice(end)}`.slice(0, 150);
+    this.setPattern(next);
+    input.value = next;
+    const caret = Math.min(next.length, at + key.length + 2);
+    setTimeout(() => { input.focus(); input.setSelectionRange(caret, caret); });
+  }
 
   protected pick(): void { void this.askTarget(true); }
 
