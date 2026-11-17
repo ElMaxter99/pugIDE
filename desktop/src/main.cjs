@@ -87,6 +87,105 @@ async function exportPdf(req) {
   }
 }
 
+// «Varios PDF…» (P-42): un lote de PDF en una carpeta o en un .zip. La interfaz compila cada plantilla y manda su HTML;
+// aquí se genera y se escribe. El destino lo elige la persona (o es el propuesto, que ve antes de pulsar «Generar»).
+const pdfBatches = new Map();
+let lastBatchDir = null;
+
+async function batchTarget({ kind, workspaceId, projectName, pick } = {}) {
+  const zip = kind === 'zip';
+  const ws = typeof workspaceId === 'string' ? store.get(workspaceId) : null;
+  const forced = process.env.PUGIDE_TEST_SAVE_PDF;
+  const baseDir = forced || lastBatchDir || (ws ? path.join(ws.path, 'exportados') : app.getPath('downloads'));
+  const zipName = `${pdfExport.batchFileName(projectName || 'pug-project').replace(/\.pdf$/, '')}-pdf.zip`;
+  let target = zip ? path.join(baseDir, zipName) : baseDir;
+  if (pick === true && !forced) {
+    if (zip) {
+      const r = await dialog.showSaveDialog(mainWindow ?? undefined, { title: 'Guardar los PDF en un .zip', defaultPath: target, filters: [{ name: 'ZIP', extensions: ['zip'] }] });
+      if (r.canceled || !r.filePath) return null;
+      target = /\.zip$/i.test(r.filePath) ? r.filePath : `${r.filePath}.zip`;
+    } else {
+      const r = await dialog.showOpenDialog(mainWindow ?? undefined, { title: 'Elegir la carpeta de los PDF', defaultPath: fs.existsSync(baseDir) ? baseDir : path.dirname(baseDir), properties: ['openDirectory', 'createDirectory'] });
+      if (r.canceled || !r.filePaths[0]) return null;
+      target = r.filePaths[0];
+    }
+  }
+  const token = require('node:crypto').randomUUID();
+  pdfBatches.set(token, { kind: zip ? 'zip' : 'folder', target, written: [], zip: [], names: new Set() });
+  return { token, path: target };
+}
+
+/** Nombres (ya limpios) que chocarían con algo que hay en el destino. */
+function batchExisting({ token, names } = {}) {
+  const b = pdfBatches.get(token);
+  if (!b || !Array.isArray(names)) return [];
+  if (b.kind === 'zip') return fs.existsSync(b.target) ? [path.basename(b.target)] : [];
+  return names.map((n) => pdfExport.batchFileName(n)).filter((n) => fs.existsSync(path.join(b.target, n)));
+}
+
+async function batchItem({ token, name, onExist, req } = {}) {
+  const b = pdfBatches.get(token);
+  if (!b) return { ok: false, reason: 'invalid', message: 'El destino ya no es válido' };
+  const invalid = pdfExport.validateRequest(req);
+  if (invalid) return { ok: false, reason: 'invalid', message: invalid };
+  const job = { canceled: false };
+  pdfJob = job;
+  try {
+    let pdf;
+    try {
+      pdf = await pdfExport.renderPdf({ BrowserWindow, session }, req);
+    } catch (err) {
+      return { ok: false, reason: 'error', message: String(err?.message ?? err) };
+    }
+    if (job.canceled) return { ok: false, reason: 'canceled' };
+    const wanted = pdfExport.batchFileName(name);
+    const pages = pdfExport.countPdfPages(pdf);
+    if (b.kind === 'zip') {
+      const final = pdfExport.freePdfName(wanted, (n) => b.names.has(n));
+      b.names.add(final.toLowerCase());
+      b.zip.push({ name: final, data: pdf });
+      return { ok: true, name: final, pages, bytes: pdf.length };
+    }
+    try {
+      fs.mkdirSync(b.target, { recursive: true });
+      // Dentro del lote nunca se pisa un PDF del mismo lote; con lo que ya había, lo que la persona eligió.
+      const final = pdfExport.freePdfName(wanted, (n) => b.names.has(n) || (onExist !== 'replace' && fs.existsSync(path.join(b.target, n))));
+      const file = path.join(b.target, final);
+      fs.writeFileSync(file, pdf);
+      b.names.add(final.toLowerCase());
+      b.written.push(file);
+      writtenPdfs.add(file);
+      return { ok: true, name: final, path: file, pages, bytes: pdf.length };
+    } catch (err) {
+      return { ok: false, reason: 'write', message: String(err?.code ?? err?.message ?? err), path: b.target };
+    }
+  } finally {
+    if (pdfJob === job) pdfJob = null;
+  }
+}
+
+/** Cierra el lote: escribe el .zip (si lo es) y dice qué enseñar con «Mostrar en la carpeta». El permiso se gasta. */
+function batchFinish({ token } = {}) {
+  const b = pdfBatches.get(token);
+  pdfBatches.delete(token);
+  if (!b) return { ok: false, reason: 'invalid' };
+  if (b.kind === 'folder') {
+    if (b.written.length) lastBatchDir = b.target;
+    return { ok: true, dir: b.target, reveal: b.written[0] ?? null, bytes: 0 };
+  }
+  if (!b.zip.length) return { ok: true, dir: path.dirname(b.target), reveal: null, bytes: 0 };
+  try {
+    fs.mkdirSync(path.dirname(b.target), { recursive: true });
+    const data = pdfExport.zipStore(b.zip);
+    fs.writeFileSync(b.target, data);
+    writtenPdfs.add(b.target);
+    lastBatchDir = path.dirname(b.target);
+    return { ok: true, dir: path.dirname(b.target), reveal: b.target, zip: path.basename(b.target), bytes: data.length };
+  } catch (err) {
+    return { ok: false, reason: 'write', message: String(err?.code ?? err?.message ?? err), path: b.target };
+  }
+}
+
 const SCHEME = 'pugide';
 const ORIGIN = `${SCHEME}://app`;
 const START_URL = `${ORIGIN}/ide`;
@@ -431,6 +530,11 @@ function setupIpc() {
     'pdf:cancel': () => { if (pdfJob) pdfJob.canceled = true; return { ok: true }; },
     'pdf:open': ({ path: p }) => { if (!writtenPdfs.has(p)) return { ok: false }; void shell.openPath(p); return { ok: true }; },
     'pdf:reveal': ({ path: p }) => { if (!writtenPdfs.has(p)) return { ok: false }; shell.showItemInFolder(p); return { ok: true }; },
+    // Varios PDF (P-42): destino, choques de nombre, cada PDF y cierre del lote.
+    'pdf:batch-target': (req) => batchTarget(req),
+    'pdf:batch-existing': (req) => batchExisting(req),
+    'pdf:batch-item': (req) => batchItem(req),
+    'pdf:batch-finish': (req) => batchFinish(req),
     // «Ver novedades» y «Descargar» (macOS, portable): la página de la versión en el navegador. upd:download es el nombre antiguo.
     'upd:open-release': () => openRelease(),
     'upd:download': () => openRelease(),

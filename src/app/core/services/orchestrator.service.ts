@@ -37,6 +37,7 @@ import { ASSET_EXT_RE, mimeForPath, refToPath, rewriteRefs } from '../utils/asse
 import { DiagnosticFix, PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
 import { buildDataSkeleton, padArray } from '../utils/data-skeleton.util';
+import { OpenApiResponse, OpenApiValues, missingKeys, operationData } from '../utils/openapi-ops.util';
 import { errorifyData, mockifyData, mockLeaf } from '../utils/mock-data.util';
 import { DatasetKind, DatasetsFile, parseDatasetsFile } from '../utils/datasets.util';
 import { inferData } from '../utils/schema-infer.util';
@@ -725,8 +726,8 @@ export class OrchestratorService {
    * Compila una plantilla del proyecto a HTML autocontenido con los datos actuales, sin tocar la vista previa ni el estado.
    * Devuelve `null` y los errores si no compila.
    */
-  /** `override`: datos o archivos distintos de los del proyecto (comprobar una propuesta de la IA sin aplicarla). */
-  async renderStandalone(entryPath: string, override: { data?: Record<string, unknown>; files?: Map<string, string> } = {}): Promise<{ html: string | null; errors: string[] }> {
+  /** `override`: datos, archivos o idioma distintos de los del proyecto (comprobar una propuesta de la IA sin aplicarla; un PDF por juego de datos). */
+  async renderStandalone(entryPath: string, override: { data?: Record<string, unknown>; files?: Map<string, string>; locale?: string } = {}): Promise<{ html: string | null; errors: string[] }> {
     // Una copia: `allFileContents()` es el mapa vivo del proyecto y aquí no se debe tocar.
     const files = new Map(this.editorState.allFileContents());
     const active = this.editorState.activeTab()?.path;
@@ -738,7 +739,7 @@ export class OrchestratorService {
     const locales = listLocales(files.keys());
     let data = override.data ?? this.dataState.data();
     if (locales.length) {
-      const activeLocale = resolveLocale(this.dataState.translationLocale(), locales, this.dataState.defaultLocale())!;
+      const activeLocale = resolveLocale(override.locale ?? this.dataState.translationLocale(), locales, this.dataState.defaultLocale())!;
       let tr = parseTranslations(files.get(localePath(activeLocale)) ?? '').value;
       const fb = this.dataState.fallbackLocale();
       if (fb && fb !== activeLocale && locales.includes(fb)) tr = applyFallback(tr, parseTranslations(files.get(localePath(fb)) ?? '').value).value;
@@ -1026,6 +1027,23 @@ export class OrchestratorService {
     this.dataState.addDataset(`Importado: ${label}`, res.data, seed, 'custom');
     this.onDataChange();
     return { source: res.source, warnings: res.warnings };
+  }
+
+  /** Rutas de datos que lee la plantilla de la vista previa (`cliente.email`, `lineas[].concepto`): para avisar de las que una respuesta no trae. */
+  async usedTemplatePaths(): Promise<string[]> {
+    const files = this.editorState.allFileContents();
+    const entryPath = findEntryPath(files, this.editorState.activeTab()?.path, this.previewState.pinnedEntry());
+    const { variables } = await this.parser.parseProject(files, entryPath);
+    return variables.filter((v) => v.isLeaf).map((v) => v.path);
+  }
+
+  /** Importa la respuesta de una operación de un OpenAPI (P-43) como un juego de datos nuevo. */
+  async importOpenApiOperation(doc: unknown, response: OpenApiResponse, values: OpenApiValues, name: string, seed = this.randomSeed()): Promise<{ warnings: string[]; usedExample: boolean }> {
+    const r = operationData(doc, response, values, { seed, locale: this.dataState.locale() });
+    const missing = missingKeys(r.data, await this.usedTemplatePaths());
+    this.dataState.addDataset(name, r.data, seed, 'custom');
+    this.onDataChange();
+    return { warnings: [...r.warnings, ...missing.map((m) => `La plantilla usa ${m}, que esta respuesta no trae.`)], usedExample: r.usedExample };
   }
 
   private randomSeed(): number {

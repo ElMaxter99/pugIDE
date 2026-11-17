@@ -6,6 +6,8 @@ import { TerminalState } from '../../core/state/terminal.state';
 import { AiService } from '../../core/services/ai.service';
 import { UiState } from '../../core/state/ui.state';
 import type { DatasetKind } from '../../core/utils/datasets.util';
+import { parseDocumentText } from '../../core/utils/openapi-ops.util';
+import { detectSource } from '../../core/utils/schema-infer.util';
 
 /** Barra de juegos de datos: elegir, regenerar y, en el menú «⋯», crear, renombrar, duplicar, borrar, idioma de los mocks, importar, copiar y vaciar. */
 @Component({
@@ -34,7 +36,7 @@ import type { DatasetKind } from '../../core/utils/datasets.util';
         testId="data-more-menu"
         [items]="menuItems()"
         (chosen)="onMenu($event)" />
-      <input #importInput type="file" accept=".json,application/json" hidden (change)="importFile($event)" />
+      <input #importInput type="file" accept=".json,.yaml,.yml,application/json" hidden (change)="importFile($event)" />
     </div>
   `,
   styles: [`
@@ -186,10 +188,15 @@ export class DatasetBarComponent {
     input.value = '';
     if (!file) return;
     try {
-      const doc = JSON.parse(await file.text());
+      const doc = await parseDocumentText(await file.text(), file.name);
+      if (detectSource(doc) === 'openapi') {
+        // Un OpenAPI se abre en su diálogo: la operación y su respuesta son lo que la plantilla recibe.
+        this.ui.openApiImport.set({ name: file.name, doc });
+        return;
+      }
       this.beforeChange.emit();
-      const { source, warnings } = this.orchestrator.importDataDocument(doc, file.name.replace(/\.json$/i, ''));
-      const label = source === 'openapi' ? 'OpenAPI' : source === 'json-schema' ? 'JSON Schema' : 'JSON';
+      const { source, warnings } = this.orchestrator.importDataDocument(doc, file.name.replace(/\.(json|ya?ml)$/i, ''));
+      const label = source === 'json-schema' ? 'JSON Schema' : 'JSON';
       this.terminalState.addEntry('success', 'Datos', `Importado ${file.name} (${label}) como juego de datos nuevo.`);
       for (const w of warnings) this.terminalState.addEntry('warning', 'Datos', w);
       this.changed.emit();

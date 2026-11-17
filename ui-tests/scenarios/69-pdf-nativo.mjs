@@ -66,7 +66,7 @@ export default async function (env) {
   page = app.page;
   const items = await menuItems(page);
   check('69 en escritorio: «PDF…» (nuevo) e «Imprimir…» aparte', /PDF…/.test(items) && /Imprimir…/.test(items) && !/guardar como PDF/.test(items), items);
-  await page.locator('[role="menuitem"]', { hasText: 'PDF…' }).click();
+  await page.getByRole('menuitem', { name: 'PDF…', exact: true }).click();
   const dlg = page.locator('[data-testid="pdf-export"]');
   await dlg.waitFor({ timeout: 5000 });
   const save = page.locator('[data-testid="pdf-save"]');
@@ -110,7 +110,7 @@ export default async function (env) {
   app = await desktop(env, { slow: true });
   page = app.page;
   await page.locator('[data-testid="menu-exportar"]').click();
-  await page.locator('[role="menuitem"]', { hasText: 'PDF…' }).click();
+  await page.getByRole('menuitem', { name: 'PDF…', exact: true }).click();
   await page.locator('[data-testid="pdf-export"]').waitFor({ timeout: 5000 });
   await waitUntil(async () => !(await page.locator('[data-testid="pdf-save"]').isDisabled()), 8000);
   await page.locator('[data-testid="pdf-save"]').click();

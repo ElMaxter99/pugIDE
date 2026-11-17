@@ -17,6 +17,8 @@ export interface InferOptions {
   locale?: MockLocale;
   /** Elementos por array (por defecto 1 vacio o 2 con `fill`). */
   arrayLength?: number;
+  /** Usar los `example` / `examples` / `default` del schema (por defecto sí); sin ellos, todo se genera. */
+  useExamples?: boolean;
 }
 
 export interface InferResult {
@@ -73,6 +75,7 @@ class SchemaWalker {
       const ref = cur['$ref'] as string;
       if (seenHere.includes(ref)) { this.warn(`Referencia circular: ${ref}`); return null; }
       seenHere.push(ref);
+      if (!ref.startsWith('#')) { this.warn(`Referencia a otro archivo, no se sigue: ${ref}`); return null; }
       const target = resolveRef(this.root, ref);
       if (!isObj(target)) { this.warn(`No se pudo resolver ${ref}`); return null; }
       cur = { ...target, ...Object.fromEntries(Object.entries(cur).filter(([k]) => k !== '$ref')) };
@@ -124,9 +127,11 @@ class SchemaWalker {
       const list = s['enum'] as unknown[];
       return this.opts.fill ? list[Math.floor(createRng(`${this.opts.seed ?? 1}:${path}`)() * list.length)] : list[0];
     }
-    if ('default' in s) return structuredClone(s['default']);
-    if ('example' in s) return structuredClone(s['example']);
-    if (Array.isArray(s['examples']) && s['examples'].length > 0) return structuredClone(s['examples'][0]);
+    if (this.opts.useExamples !== false) {
+      if ('default' in s) return structuredClone(s['default']);
+      if ('example' in s) return structuredClone(s['example']);
+      if (Array.isArray(s['examples']) && s['examples'].length > 0) return structuredClone(s['examples'][0]);
+    }
 
     const type = this.typeOf(s);
     const fill = !!this.opts.fill;
@@ -184,6 +189,14 @@ export function inferFromJsonSchema(schema: unknown, opts: InferOptions = {}): I
   let v = w.value(schema, 'root', '', [], 0);
   if (!isObj(v)) v = Array.isArray(v) ? { items: v } : { value: v };
   return { source: 'json-schema', data: v as Obj, warnings: w.warnings };
+}
+
+/** Datos de un schema que vive dentro de `root` (con sus `$ref` locales): la respuesta de una operación de OpenAPI. */
+export function inferFromSchemaWithin(root: unknown, schema: unknown, opts: InferOptions = {}): { data: Obj; warnings: string[] } {
+  const w = new SchemaWalker(root, opts);
+  let v = w.value(schema, 'root', '', [], 0);
+  if (!isObj(v)) v = Array.isArray(v) ? { items: v } : { value: v };
+  return { data: v as Obj, warnings: w.warnings };
 }
 
 /** OpenAPI 3.x / Swagger 2: una clave por schema de `components.schemas` (o `definitions`). */

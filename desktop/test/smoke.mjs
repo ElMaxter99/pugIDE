@@ -5,7 +5,7 @@ import { _electron as electron } from 'playwright-core';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -161,10 +161,10 @@ try {
 
   // Exportar PDF con el motor nativo (P-39): sin diálogo de imprimir, un PDF de verdad.
   await page.locator('[data-testid="menu-exportar"]').click();
-  await page.locator('[role="menuitem"]', { hasText: 'PDF…' }).waitFor({ timeout: 5000 }).catch(() => undefined); // que el menú esté abierto
+  await page.getByRole('menuitem', { name: 'PDF…', exact: true }).waitFor({ timeout: 5000 }).catch(() => undefined); // que el menú esté abierto
   const items = await page.locator('[role="menuitem"]').allInnerTexts();
   check('en escritorio, Exportar ofrece «PDF…» e «Imprimir…» por separado', items.some((t) => /PDF…/.test(t)) && items.some((t) => /Imprimir…/.test(t)) && !items.some((t) => /guardar como PDF/.test(t)), items.join(' | '));
-  await page.locator('[role="menuitem"]', { hasText: 'PDF…' }).click();
+  await page.getByRole('menuitem', { name: 'PDF…', exact: true }).click();
   const pdfDlg = page.locator('[data-testid="pdf-export"]');
   check('«PDF…» abre el diálogo con la plantilla de la vista previa', !!(await wait(async () => (await pdfDlg.count()) === 1, 5000)) && /main\.pdf/.test(await pdfDlg.innerText()), await pdfDlg.innerText().catch(() => ''));
   await wait(async () => !(await page.locator('[data-testid="pdf-save"]').isDisabled()), 8000);
@@ -183,6 +183,38 @@ try {
   check('«Abrir» solo abre los PDF que la app acaba de guardar', notOurs?.ok === false, JSON.stringify(notOurs));
   if ((await page.locator('[data-testid="pdf-done-close"]').count()) === 1) await page.locator('[data-testid="pdf-done-close"]').click();
   else await page.keyboard.press('Escape'); // si falló, se cierra el diálogo para seguir con lo demás
+
+  // Varios PDF (P-42): un PDF por plantilla, de verdad, en la carpeta; main.pdf ya existe de la prueba anterior.
+  step('varios PDF');
+  await page.locator('[data-testid="menu-exportar"]').click();
+  await page.locator('[role="menuitem"]', { hasText: 'Varios PDF…' }).click({ timeout: 5000 });
+  const batch = page.locator('[data-testid="pdf-batch"]');
+  const batchGo = page.locator('[data-testid="pdf-batch-go"]');
+  check('«Varios PDF…» abre su diálogo con las dos plantillas del espacio', !!(await wait(async () => /Generar 2 PDF/.test(await batchGo.innerText()), 10000)) && /main\.pug/.test(await batch.innerText()) && /nuevo\.pug/.test(await batch.innerText()), await batch.innerText().catch(() => ''));
+  await batchGo.click();
+  const batchConflict = page.locator('[data-testid="pdf-batch-conflict"]');
+  check('si un PDF ya existe en la carpeta, se pregunta antes de generar', !!(await wait(async () => (await batchConflict.count()) === 1, 8000)) && /main\.pdf ya existe/.test(await batchConflict.innerText()), await batchConflict.innerText().catch(() => ''));
+  await page.locator('[data-testid="pdf-batch-rename"]').click();
+  const batchDone = page.locator('[data-testid="pdf-batch-done"]');
+  check('al terminar avisa de los 2 PDF guardados', !!(await wait(async () => (await batchDone.count()) === 1, 120000)) && /2 PDF guardados/.test(await batchDone.innerText()) && /2 páginas/.test(await batchDone.innerText()), (await batchDone.innerText().catch(() => '')) || (await batch.innerText().catch(() => 'sin aviso')));
+  const isPdf = (name) => existsSync(join(pdfOut, name)) && readFileSync(join(pdfOut, name)).subarray(0, 5).toString() === '%PDF-';
+  check('los PDF están en la carpeta: el nuevo, y el repetido con otro nombre sin pisar el que había', isPdf('nuevo.pdf') && isPdf('main (2).pdf') && readFileSync(join(pdfOut, 'main.pdf')).equals(pdf), readdirSync(pdfOut).join());
+  if ((await page.locator('[data-testid="pdf-batch-done-close"]').count()) === 1) await page.locator('[data-testid="pdf-batch-done-close"]').click();
+  else await page.keyboard.press('Escape');
+  // Y en un .zip.
+  await page.locator('[data-testid="menu-exportar"]').click();
+  await page.locator('[role="menuitem"]', { hasText: 'Varios PDF…' }).click({ timeout: 5000 });
+  await page.locator('[data-testid="pdf-batch-target"]').selectOption('zip');
+  await wait(async () => /-pdf\.zip$/.test(await page.locator('[data-testid="pdf-batch-path"]').inputValue()) && !(await batchGo.isDisabled()), 10000);
+  await batchGo.click();
+  await wait(async () => (await batchDone.count()) === 1, 120000);
+  const zipName = readdirSync(pdfOut).find((n) => /-pdf\.zip$/.test(n));
+  const zipData = zipName ? readFileSync(join(pdfOut, zipName)) : Buffer.alloc(0);
+  check('«Un .zip» guarda los PDF en un .zip con los dos dentro', zipData.subarray(0, 2).toString() === 'PK' && zipData.includes(Buffer.from('main.pdf')) && zipData.includes(Buffer.from('nuevo.pdf')) && /2 PDF guardados/.test(await batchDone.innerText().catch(() => '')), `${zipName ?? 'sin zip'} · ${zipData.length} bytes · ${await batchDone.innerText().catch(() => '')}`);
+  const stale = await page.evaluate(() => window.pugideDesktop.invoke('pdf:batch-item', { token: 'no-existe', name: 'x.pdf', req: { html: '<p>x</p>' } }));
+  check('sin el permiso de un destino no se escribe ningún PDF', stale?.ok === false, JSON.stringify(stale));
+  if ((await page.locator('[data-testid="pdf-batch-done-close"]').count()) === 1) await page.locator('[data-testid="pdf-batch-done-close"]').click();
+  else await page.keyboard.press('Escape');
 
   // Cerrar el espacio deja la carpeta como está
   await page.locator('[data-testid="menu-espacio"]').click();
