@@ -14,7 +14,7 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **0.14.0**: publicada y desplegada, con sus instaladores y los archivos de actualización. Es la primera que se actualiza sola; desde la 0.13 se llega con «Descargar».
 - **0.15.0**: publicada y desplegada, con sus 13 archivos (instaladores y actualización) y «Cambios completos» en las notas.
 - **0.16.0**: publicada y desplegada, con sus 13 archivos: PDF con el motor nativo (P-39), abrir `.pug` y carpetas con PugIDE (P-40), pasar un proyecto a una carpeta (P-41), sesión grande en IndexedDB, tablas de miles de filas en la vista PDF y dependencias al día.
-- **0.17.0**: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.17.0.md`): «Varios PDF…» (P-42, solo escritorio) y datos desde una operación de OpenAPI, con `.yaml` (P-43). Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel.
+- **0.17.0**: publicada y desplegada, con sus 13 archivos: «Varios PDF…» (P-42, solo escritorio) y datos desde una operación de OpenAPI, con `.yaml` (P-43).
 - **0.10.1**: publicada. Antes: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.10.1.md`): ejemplos genéricos en las pruebas. Falta mergearla y lanzar `npm run release:deploy`; los instaladores se construyen y adjuntan solos.
 
 ## 0.11 (publicada)
@@ -48,11 +48,11 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **`release:deploy` desde una copia sin actualizar**: mergeado (PR 92).
 - **Tablas de miles de filas en la vista PDF** (19.2): en la PR de la 0.16.0.
 
-## 0.17 (preparada)
+## 0.17 (publicada)
 - **P-42 «Varios PDF…»** (solo escritorio) y **P-43 datos desde una operación de OpenAPI** (diseño aprobado): mergeados (PR 94). Dependencia nueva: `yaml` (carga diferida, solo al leer un `.yaml`).
 
-## Siguiente
-- La fase 19 está completa con la 0.17.0. Lo que venga después se propone y se diseña antes de programarlo (ver [PLAN.md](PLAN.md)).
+## Siguiente: propuesta 0.17.1 y 0.18 (pendiente de visto bueno)
+- **0.17.1** mantenimiento (sin diseño) y **0.18** con **P-44 importar CSV como juegos de datos**, **P-45 nombre de los PDF por patrón** y **P-46 menú «Archivo» y recientes** (escritorio). Detalle y decisiones: [design/propuestas/0.18-serie-y-escritorio.md](../design/propuestas/0.18-serie-y-escritorio.md) y fase 20 de [PLAN.md](PLAN.md).
 
 ## Plan de la fase 19
 Plan completo en [PLAN.md](PLAN.md), fase 19:
@@ -75,4 +75,4 @@ Plan completo en [PLAN.md](PLAN.md), fase 19:
 | Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | ✅ publicada |
 
 ## Pendiente de la persona responsable
-- Mergear la PR de la 0.17.0, lanzar `npm run release:deploy`, desplegar `release` en Vercel y probar en la app de escritorio «Actualizar» desde la 0.16.0, «Varios PDF…» y, en cualquier versión, importar un OpenAPI `.yaml` en la zona de Datos.
+- Probar en la app de escritorio la 0.17.0 («Actualizar» desde la 0.16.0, «Varios PDF…» y un OpenAPI `.yaml` en Datos) y decidir sobre la propuesta de la 0.18.
