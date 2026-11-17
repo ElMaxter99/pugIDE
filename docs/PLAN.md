@@ -150,6 +150,16 @@ Detalle y decisiones en `design/propuestas/0.18-serie-y-escritorio.md`. Lo que s
 - ✅ **20.2 0.18 · facturación en serie (diseño aprobado y programado):** **P-44 importar CSV como juegos de datos** (una fila = un juego; tope de 500), **P-45 nombre de los PDF por patrón** (`factura {numero} - {paciente.nombre}`).
 - ✅ **20.3 0.18 · escritorio (diseño aprobado y programado):** **P-46 menú «Archivo» con «Abrir archivo…», «Abrir carpeta…» y «Abrir reciente»**, y recientes del sistema.
 
+
+### Fase 21. Plan 0.19 en adelante: volver al núcleo (propuesta del 2026-11-17)
+
+Alcance: montar y ver plantillas Pug con traducciones y datos de ejemplo, parecido al proyecto real (ver `CLAUDE.md`). Detalle, auditoría y decisiones en `design/propuestas/0.19-traducciones-y-datos.md`. Punto de partida de `npm run audit:fidelidad`: **44 de 96** (traductor 8/25, detección 12/17, archivos de idioma 4/14, datos 3/23, Pug 17/17).
+
+- ⏳ **21.1 0.19 · traducciones reales (con diseño):** reconocer al importar los diseños de i18next y ngx-translate, espacios de nombres, plurales, `defaultValue`, `lang`/`locale` con el idioma activo y más formas de detectar claves. Objetivo: A, B y C por encima del 90 %.
+- ⏳ **21.2 0.20 · datos de ejemplo creíbles:** moneda, IBAN, NIF/CIF/DNI, provincia, razón social, EAN, medidas, número de factura, textos en el idioma de los datos y «pegar el JSON real de mi API». Objetivo: D por encima del 85 %.
+- ⏳ **21.3 0.21 · fidelidad con el proyecto real:** librerías que inyecta el proyecto (`moment`, `_`…), el resto de formas de texto del traductor y la guía «Llevar mi proyecto a PugIDE».
+- ❄️ **Congelado:** lote de PDF, CSV, patrón de nombre y recientes (0.17 y 0.18): no se amplían.
+
 - 👤 **Pendiente de la persona:** protección de ramas (11.2), lector de pantalla real (12.1), Mac (12.2, aparcado).
 
 ### Fase 13. Mantenimiento (parcial)

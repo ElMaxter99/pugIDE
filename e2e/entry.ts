@@ -31,3 +31,5 @@ export { SnapshotState } from '../src/app/core/state/snapshot.state';
 export { DiagnosticsState } from '../src/app/core/state/diagnostics.state';
 export { LayoutService } from '../src/app/core/services/layout.service';
 export { UiState } from '../src/app/core/state/ui.state';
+export { mockLeaf } from '../src/app/core/utils/mock-data.util';
+export { listLocales, looksLikeTranslations, localeCodeFromFileName } from '../src/app/core/utils/locales.util';
