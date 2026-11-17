@@ -52,8 +52,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 ## 0.17 (publicada)
 - **P-42 «Varios PDF…»** (solo escritorio) y **P-43 datos desde una operación de OpenAPI** (diseño aprobado): mergeados (PR 94). Dependencia nueva: `yaml` (carga diferida, solo al leer un `.yaml`).
 
-## 0.18 (en curso)
-- **P-44 importar CSV como juegos de datos**, **P-45 nombre de los PDF por patrón** y **P-46 menú «Archivo» y recientes** (escritorio): diseño aprobado (el lienzo tiene la mesa P-44 a P-46) y programado en su PR. Falta preparar la versión 0.18.0 cuando se mergee.
+## 0.18 (preparada)
+- **P-44 importar CSV como juegos de datos**, **P-45 nombre de los PDF por patrón** y **P-46 menú «Archivo» y recientes** (escritorio): mergeados (PR 98). Versión 0.18.0, CHANGELOG y guía `docs/releases/v0.18.0.md` en su PR. Falta mergearla, lanzar `npm run release:deploy` y desplegar `release` en Vercel.
 
 ## Plan de la fase 19
 Plan completo en [PLAN.md](PLAN.md), fase 19:
@@ -76,4 +76,5 @@ Plan completo en [PLAN.md](PLAN.md), fase 19:
 | Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | ✅ publicada |
 
 ## Pendiente de la persona responsable
-- Probar en la app de escritorio la 0.17.0 («Actualizar» desde la 0.16.0, «Varios PDF…» y un OpenAPI `.yaml` en Datos) y decidir sobre la propuesta de la 0.18.
+- **Publicar la 0.17.1** (mergeada, sin tag): `npm run release:deploy -- 0.17.1` y desplegar `release` en Vercel. Debe ir **antes** que la 0.18.0 para que `release` avance en orden.
+- Mergear la PR de la 0.18.0, lanzar `npm run release:deploy` y desplegar `release` en Vercel; probar en la app de escritorio «Actualizar», el menú «Archivo → Abrir reciente», «Varios PDF…» con un patrón de nombre y la importación de un CSV en la zona de Datos.
