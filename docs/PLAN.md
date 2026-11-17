@@ -1,4 +1,4 @@
-# Estado y plan de PugIDE (v0.16.0)
+# Estado y plan de PugIDE (v0.17.0)
 
 Actualizado el 2026-11-15. El análisis inicial (v0.3.1) se hizo el 2026-11-03; las seis fases que salieron de él están hechas y resumidas en la sección 4.
 
@@ -140,7 +140,7 @@ Orden recomendado; lo que se ve se diseña antes en el lienzo (mesas P-39 en ade
 - 🔄 **19.1 0.15.1 · mantenimiento (sin diseño):** `eslint` 10 (cierra los avisos de `npm audit`, 13.1), parches de Angular 22.2, Monaco 0.57, `sass` y Electron 45.3; limpiar `ESTADO.md`. Batería completa en los tres navegadores y prueba de escritorio.
 - ✅ **19.2 0.16 · proyectos grandes (sin diseño):** ✅ la sesión que no cabe en `localStorage` (5 MB) va a IndexedDB y sobrevive a recargar, sin perder la última buena si algo falla; ✅ la paginación PDF con tablas de miles de filas ya no congela el preview (5000 filas: de 2,5 s a 0,6 s; las posiciones de las filas se calculan en vez de medir la tabla en cada hoja).
 - ✅ **19.3 0.16 · escritorio (diseño aprobado):** ✅ **P-39 PDF con el motor nativo** (en la app de escritorio, «Exportar PDF» genera un PDF real con Chromium: texto seleccionable, saltos de página reales, sin diálogo de imprimir); ✅ **P-40 abrir `.pug` y carpetas con PugIDE** (doble clic o «Abrir con», arrastrar a la ventana); ✅ **P-41 mover a una carpeta un proyecto de «Mis proyectos»** (pasa a ser un espacio de trabajo en disco).
-- 🔄 **19.4 0.17 · exportar en lote y datos desde una API (diseño aprobado):** ✅ **P-42 «Varios PDF…»** (un PDF por plantilla o por juego de datos, en una carpeta o en un `.zip`); ✅ **P-43 datos de ejemplo desde una operación de OpenAPI** (elegir la operación y su respuesta, con `.yaml`); ⏳ preparar la 0.17.0.
+- ✅ **19.4 0.17 · exportar en lote y datos desde una API (diseño aprobado):** ✅ **P-42 «Varios PDF…»** (un PDF por plantilla o por juego de datos, en una carpeta o en un `.zip`); ✅ **P-43 datos de ejemplo desde una operación de OpenAPI** (elegir la operación y su respuesta, con `.yaml`); ✅ 0.17.0 preparada.
 - 👤 **Pendiente de la persona:** protección de ramas (11.2), lector de pantalla real (12.1), Mac (12.2, aparcado).
 
 ### Fase 13. Mantenimiento (parcial)
