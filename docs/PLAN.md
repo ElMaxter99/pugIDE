@@ -1,4 +1,4 @@
-# Estado y plan de PugIDE (v0.17.0)
+# Estado y plan de PugIDE (v0.17.1)
 
 Actualizado el 2026-11-15. El análisis inicial (v0.3.1) se hizo el 2026-11-03; las seis fases que salieron de él están hechas y resumidas en la sección 4.
 
@@ -147,6 +147,7 @@ Orden recomendado; lo que se ve se diseña antes en el lienzo (mesas P-39 en ade
 
 - ✅ **13.1** `npm audit` a cero en la app: ESLint 10 (`minimatch` 11) y `overrides` para DOMPurify y `typescript-eslint` (0.15.1). En `desktop/` quedan avisos de `minimatch` dentro de `electron-builder` (solo al empaquetar).
 - ⏳ **13.2** Revisión de dependencias cada mes y subida de Angular en cuanto salga cada versión mayor.
+  - 2026-11-17 (0.17.1): al día las dependencias de desarrollo, `zone.js` 0.16.3, `material-symbols` 0.49 y Electron 45.3.3. **TypeScript 7 aparcado:** Angular 22.2 (`@angular/compiler-cli`, `@angular/build`) y `typescript-eslint` 8.73 exigen TypeScript `>=6.0 <6.1`; se retoma cuando Angular lo admita.
 - ✅ **13.3** `npm run release:check` comprueba la coherencia de la versión antes de etiquetar (ver `docs/RELEASE.md`).
 
 ## 6. Notas
