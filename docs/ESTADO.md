@@ -15,6 +15,7 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 - **0.15.0**: publicada y desplegada, con sus 13 archivos (instaladores y actualización) y «Cambios completos» en las notas.
 - **0.16.0**: publicada y desplegada, con sus 13 archivos: PDF con el motor nativo (P-39), abrir `.pug` y carpetas con PugIDE (P-40), pasar un proyecto a una carpeta (P-41), sesión grande en IndexedDB, tablas de miles de filas en la vista PDF y dependencias al día.
 - **0.17.0**: publicada y desplegada, con sus 13 archivos: «Varios PDF…» (P-42, solo escritorio) y datos desde una operación de OpenAPI, con `.yaml` (P-43).
+- **0.17.1**: mergeada (PR 97; versión, CHANGELOG, guía `docs/releases/v0.17.1.md`): dependencias al día, `zone.js` 0.16.3 y Electron 45.3.3, sin cambios visibles. TypeScript 7 aparcado (Angular 22.2 exige TypeScript 6.0.x). Falta lanzar `npm run release:deploy` y desplegar `release` en Vercel.
 - **0.10.1**: publicada. Antes: preparada en una PR (versión, CHANGELOG, guía `docs/releases/v0.10.1.md`): ejemplos genéricos en las pruebas. Falta mergearla y lanzar `npm run release:deploy`; los instaladores se construyen y adjuntan solos.
 
 ## 0.11 (publicada)

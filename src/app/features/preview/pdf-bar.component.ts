@@ -20,7 +20,7 @@ import { describePageIssue } from '../../core/utils/preview-layout.util';
           <span>Vertical</span>
         </button>
         <button type="button" class="device-btn" [class.active]="isLandscape()" [attr.aria-pressed]="isLandscape()" title="Horizontal" aria-label="Horizontal" (click)="setOrientation('landscape')">
-          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">crop_landscape</span>
+          <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 16px;">crop_3_2</span>
           <span>Horizontal</span>
         </button>
       </div>

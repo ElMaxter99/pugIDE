@@ -4,6 +4,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.17.1] - 2026-11-17
+
+### Cambiado
+- **Dependencias al día** (sin cambios visibles): `angular-eslint` 22.7, `axe-core` 4.14.1, `prettier` 3.10, `typescript-eslint` 8.73, **`zone.js` 0.16.3** (Angular 22.2 lo admite), `material-symbols` 0.49 con la fuente de iconos regenerada, y en la app de escritorio Electron 45.3.3 y `playwright-core` 1.65.1. `npm audit` sigue a cero en la app. Pasa la batería completa en Chromium, Firefox y WebKit y la prueba de la app de escritorio.
+- **El botón «Horizontal» del modo PDF** usa el icono `crop_3_2` (pareja de `crop_portrait`): `crop_landscape` ya no es un nombre canónico en `material-symbols` 0.49.
+- **Documentación:** el plan ya no dice que la paginación PDF no reparte huérfanas y viudas (lo hace como Chromium desde la 0.9).
+
 ## [0.17.0] - 2026-11-17
 
 ### Añadido
