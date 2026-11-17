@@ -52,8 +52,8 @@ Se actualiza en cada PR (regla en [CLAUDE.md](../CLAUDE.md), «Cómo se informa 
 ## 0.17 (publicada)
 - **P-42 «Varios PDF…»** (solo escritorio) y **P-43 datos desde una operación de OpenAPI** (diseño aprobado): mergeados (PR 94). Dependencia nueva: `yaml` (carga diferida, solo al leer un `.yaml`).
 
-## Siguiente: propuesta 0.17.1 y 0.18 (pendiente de visto bueno)
-- **0.17.1** mantenimiento (sin diseño) y **0.18** con **P-44 importar CSV como juegos de datos**, **P-45 nombre de los PDF por patrón** y **P-46 menú «Archivo» y recientes** (escritorio). Detalle y decisiones: [design/propuestas/0.18-serie-y-escritorio.md](../design/propuestas/0.18-serie-y-escritorio.md) y fase 20 de [PLAN.md](PLAN.md).
+## 0.18 (en curso)
+- **P-44 importar CSV como juegos de datos**, **P-45 nombre de los PDF por patrón** y **P-46 menú «Archivo» y recientes** (escritorio): diseño aprobado (el lienzo tiene la mesa P-44 a P-46) y programado en su PR. Falta preparar la versión 0.18.0 cuando se mergee.
 
 ## Plan de la fase 19
 Plan completo en [PLAN.md](PLAN.md), fase 19:

@@ -142,13 +142,13 @@ Orden recomendado; lo que se ve se diseña antes en el lienzo (mesas P-39 en ade
 - ✅ **19.3 0.16 · escritorio (diseño aprobado):** ✅ **P-39 PDF con el motor nativo** (en la app de escritorio, «Exportar PDF» genera un PDF real con Chromium: texto seleccionable, saltos de página reales, sin diálogo de imprimir); ✅ **P-40 abrir `.pug` y carpetas con PugIDE** (doble clic o «Abrir con», arrastrar a la ventana); ✅ **P-41 mover a una carpeta un proyecto de «Mis proyectos»** (pasa a ser un espacio de trabajo en disco).
 - ✅ **19.4 0.17 · exportar en lote y datos desde una API (diseño aprobado):** ✅ **P-42 «Varios PDF…»** (un PDF por plantilla o por juego de datos, en una carpeta o en un `.zip`); ✅ **P-43 datos de ejemplo desde una operación de OpenAPI** (elegir la operación y su respuesta, con `.yaml`); ✅ 0.17.0 preparada.
 
-### Fase 20. Plan 0.17.1 y 0.18 (propuesta del 2026-11-17, pendiente de visto bueno)
+### Fase 20. Plan 0.17.1 y 0.18 (propuesta del 2026-11-17, aprobada)
 
 Detalle y decisiones en `design/propuestas/0.18-serie-y-escritorio.md`. Lo que se ve se diseña antes en el lienzo (mesas P-44 en adelante).
 
 - ✅ **20.1 0.17.1 · mantenimiento (sin diseño):** dependencias de desarrollo con versión nueva, `material-symbols` 0.49 (regenerar la fuente de iconos), evaluar `zone.js` 0.16 y TypeScript 7, y corregir la documentación que aún dice que la paginación PDF no hace huérfanas y viudas.
-- ⏳ **20.2 0.18 · facturación en serie (con diseño):** **P-44 importar CSV como juegos de datos** (una fila = un juego; tope de 500), **P-45 nombre de los PDF por patrón** (`factura {numero} - {paciente.nombre}`).
-- ⏳ **20.3 0.18 · escritorio (con diseño):** **P-46 menú «Archivo» con «Abrir archivo…», «Abrir carpeta…» y «Abrir reciente»**, y recientes del sistema.
+- ✅ **20.2 0.18 · facturación en serie (diseño aprobado y programado):** **P-44 importar CSV como juegos de datos** (una fila = un juego; tope de 500), **P-45 nombre de los PDF por patrón** (`factura {numero} - {paciente.nombre}`).
+- ✅ **20.3 0.18 · escritorio (diseño aprobado y programado):** **P-46 menú «Archivo» con «Abrir archivo…», «Abrir carpeta…» y «Abrir reciente»**, y recientes del sistema.
 
 - 👤 **Pendiente de la persona:** protección de ramas (11.2), lector de pantalla real (12.1), Mac (12.2, aparcado).
 
