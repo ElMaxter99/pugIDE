@@ -41,6 +41,7 @@ import { ExportAllDialogComponent } from '../shared/components/export-dialogs/ex
 import { OpenWithComponent } from '../shared/components/desktop/open-with.component';
 import { MoveToFolderDialogComponent } from '../shared/components/desktop/move-to-folder-dialog.component';
 import { OpenWithService } from '../core/services/open-with.service';
+import { PdfBatchDialogComponent } from '../shared/components/export-dialogs/pdf-batch-dialog.component';
 import { PdfExportDialogComponent } from '../shared/components/export-dialogs/pdf-export-dialog.component';
 import { AiService } from '../core/services/ai.service';
 import { AiDialogComponent } from '../shared/components/ai/ai-dialog.component';
@@ -68,7 +69,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
     ShareCreateDialogComponent,
     LocalesDialogComponent,
     EmailExportDialogComponent,
-    ExportAllDialogComponent, PdfExportDialogComponent, OpenWithComponent, MoveToFolderDialogComponent,
+    ExportAllDialogComponent, PdfExportDialogComponent, PdfBatchDialogComponent, OpenWithComponent, MoveToFolderDialogComponent,
     SaveTemplateDialogComponent,
     ImportFilesDialogComponent,
     AiDialogComponent,
@@ -151,6 +152,7 @@ import { DEFAULT_MAIN_PUG, DEFAULT_MIXINS_PUG, DEFAULT_PROJECT_DATA, DEFAULT_PRO
       <app-email-export-dialog />
       <app-export-all-dialog />
       <app-pdf-export-dialog />
+      <app-pdf-batch-dialog />
       <app-open-with />
       <app-move-to-folder-dialog />
       <app-save-template-dialog />

@@ -280,7 +280,7 @@ export class TopbarComponent {
     { id: 'png', icon: 'photo_camera', label: 'Captura PNG del preview' },
     // Escritorio (P-39): «PDF…» con el motor nativo, e «Imprimir…» aparte. La web sigue con «Imprimir o guardar como PDF».
     ...(desktopHasSystem()
-      ? [{ id: 'pdf', icon: 'picture_as_pdf', label: 'PDF…' }, { id: 'print', icon: 'print', label: 'Imprimir…' }]
+      ? [{ id: 'pdf', icon: 'picture_as_pdf', label: 'PDF…' }, { id: 'pdf-batch', icon: 'picture_as_pdf', label: 'Varios PDF…' }, { id: 'print', icon: 'print', label: 'Imprimir…' }]
       : [{ id: 'print', icon: 'picture_as_pdf', label: 'Imprimir o guardar como PDF' }]),
     { separator: true },
     { id: 'project', icon: 'download', label: 'Proyecto en carpeta o .zip' },
@@ -308,6 +308,7 @@ export class TopbarComponent {
       case 'email': this.ui.emailExportOpen.set(true); break;
       case 'all': this.ui.exportAllOpen.set(true); break;
       case 'pdf': this.ui.pdfExportOpen.set(true); break;
+      case 'pdf-batch': this.ui.pdfBatchOpen.set(true); break;
       case 'png': void this.projectIo.exportPng(); break;
       case 'print': this.ui.requestPanel('print'); break;
       case 'project': void this.projectIo.exportProject(); break;

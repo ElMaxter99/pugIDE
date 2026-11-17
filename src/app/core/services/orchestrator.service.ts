@@ -725,8 +725,8 @@ export class OrchestratorService {
    * Compila una plantilla del proyecto a HTML autocontenido con los datos actuales, sin tocar la vista previa ni el estado.
    * Devuelve `null` y los errores si no compila.
    */
-  /** `override`: datos o archivos distintos de los del proyecto (comprobar una propuesta de la IA sin aplicarla). */
-  async renderStandalone(entryPath: string, override: { data?: Record<string, unknown>; files?: Map<string, string> } = {}): Promise<{ html: string | null; errors: string[] }> {
+  /** `override`: datos, archivos o idioma distintos de los del proyecto (comprobar una propuesta de la IA sin aplicarla; un PDF por juego de datos). */
+  async renderStandalone(entryPath: string, override: { data?: Record<string, unknown>; files?: Map<string, string>; locale?: string } = {}): Promise<{ html: string | null; errors: string[] }> {
     // Una copia: `allFileContents()` es el mapa vivo del proyecto y aquí no se debe tocar.
     const files = new Map(this.editorState.allFileContents());
     const active = this.editorState.activeTab()?.path;
@@ -738,7 +738,7 @@ export class OrchestratorService {
     const locales = listLocales(files.keys());
     let data = override.data ?? this.dataState.data();
     if (locales.length) {
-      const activeLocale = resolveLocale(this.dataState.translationLocale(), locales, this.dataState.defaultLocale())!;
+      const activeLocale = resolveLocale(override.locale ?? this.dataState.translationLocale(), locales, this.dataState.defaultLocale())!;
       let tr = parseTranslations(files.get(localePath(activeLocale)) ?? '').value;
       const fb = this.dataState.fallbackLocale();
       if (fb && fb !== activeLocale && locales.includes(fb)) tr = applyFallback(tr, parseTranslations(files.get(localePath(fb)) ?? '').value).value;

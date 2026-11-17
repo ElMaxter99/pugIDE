@@ -1,4 +1,5 @@
 import { DEFAULT_JSON_VIEW, sanitizeJsonView } from '../utils/json-view.util';
+import { PdfBatchChoices, sanitizePdfBatchChoices } from '../utils/pdf-batch.util';
 import { PdfChoices, sanitizePdfChoices } from '../utils/pdf-export.util';
 import { readSession } from '../utils/session-validate.util';
 import { Injectable, signal } from '@angular/core';
@@ -22,6 +23,7 @@ const RECENT_COMMANDS_KEY = 'pug-ide-recent-commands';
 const WELCOME_KEY = 'pug-ide-welcome';
 const TOUR_KEY = 'pug-ide-tour';
 const PDF_CHOICES_KEY = 'pug-ide-pdf-export';
+const PDF_BATCH_KEY = 'pug-ide-pdf-batch';
 const OPEN_FILE_CHOICE_KEY = 'pug-ide-open-file-choice';
 
 /** Decisión del usuario sobre la analítica anónima de visitas (null: aún no ha decidido). */
@@ -223,6 +225,15 @@ export class PersistenceService {
 
   private enqueue(task: () => Promise<void>): void {
     this.sessionQueue = this.sessionQueue.then(task, task).catch(() => undefined);
+  }
+
+  /** «Varios PDF…» (P-42): modo, carpeta o .zip y número de página. */
+  loadPdfBatchChoices(): PdfBatchChoices {
+    try { return sanitizePdfBatchChoices(JSON.parse(localStorage.getItem(PDF_BATCH_KEY) ?? 'null')); } catch { return sanitizePdfBatchChoices(null); }
+  }
+
+  savePdfBatchChoices(choices: PdfBatchChoices): void {
+    try { localStorage.setItem(PDF_BATCH_KEY, JSON.stringify(choices)); } catch { /* sin almacenamiento: no se recuerda */ }
   }
 
   /** Opciones del último «Exportar PDF» (P-39). */
