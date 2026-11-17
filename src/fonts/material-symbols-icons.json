@@ -6,6 +6,7 @@
   "arrow_forward",
   "badge",
   "balance",
+  "barcode",
   "block",
   "bolt",
   "bookmark_add",
@@ -76,6 +77,7 @@
   "keyboard_arrow_up",
   "label",
   "landscape",
+  "language",
   "last_page",
   "left_panel_close",
   "library_books",
@@ -113,6 +115,7 @@
   "print",
   "problem",
   "radio",
+  "receipt",
   "redo",
   "refresh",
   "repeat",
@@ -158,6 +161,7 @@
   "visibility_off",
   "warning",
   "web",
+  "weight",
   "window",
   "workspaces"
 ]
