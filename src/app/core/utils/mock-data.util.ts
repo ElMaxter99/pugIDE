@@ -172,7 +172,81 @@ type Rule = { match: (t: string[], joined: string) => boolean; gen: (c: MockCont
 const has = (...words: string[]) => (t: string[]): boolean => words.some((w) => t.includes(w));
 const last = (t: string[]): string => t[t.length - 1] ?? '';
 
+// ---- Campos de negocio con valores que parecen de verdad (y pasan sus comprobaciones: IBAN, NIF, CIF, EAN) ----
+
+const NIF_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
+const CCC_WEIGHTS = [1, 2, 4, 8, 5, 10, 9, 7, 3, 6];
+const digits = (rng: Rng, n: number): string => Array.from({ length: n }, () => int(rng, 0, 9)).join('');
+
+/** Dígito de control del código de cuenta (entidad+oficina o cuenta), como el Banco de España. */
+function cccControl(ten: string): number {
+  const sum = [...ten].reduce((n, d, i) => n + Number(d) * CCC_WEIGHTS[i], 0);
+  const r = 11 - (sum % 11);
+  return r === 11 ? 0 : r === 10 ? 1 : r;
+}
+
+/** `ES91 2100 0418 4502 0005 1332`: IBAN español con los dígitos de control correctos (pasa la comprobación mod 97). */
+export function mockIban(rng: Rng): string {
+  const bank = digits(rng, 4);
+  const office = digits(rng, 4);
+  const account = digits(rng, 10);
+  const bban = `${bank}${office}${cccControl('00' + bank + office)}${cccControl(account)}${account}`;
+  // Letras a números (E=14, S=28) y mod 97 por trozos para no pasar de 15 cifras.
+  let rem = 0;
+  for (const ch of `${bban}142800`) rem = (rem * 10 + Number(ch)) % 97;
+  const check = pad(98 - rem);
+  return `ES${check} ${(bban.match(/.{4}/g) ?? []).join(' ')}`;
+}
+
+/** DNI/NIF español: 8 cifras y su letra. */
+export function mockNif(rng: Rng): string {
+  const n = int(rng, 10000000, 99999999);
+  return `${n}${NIF_LETTERS[n % 23]}`;
+}
+
+/** CIF español de una sociedad (letra, 7 cifras y dígito de control). */
+export function mockCif(rng: Rng): string {
+  const body = digits(rng, 7);
+  const ds = [...body].map(Number);
+  const even = ds[1] + ds[3] + ds[5];
+  const odd = [ds[0], ds[2], ds[4], ds[6]].reduce((n, d) => n + Math.floor((d * 2) / 10) + ((d * 2) % 10), 0);
+  return `${pick(rng, ['A', 'B'])}${body}${(10 - ((even + odd) % 10)) % 10}`;
+}
+
+/** EAN-13 con su dígito de control (empieza por 84, el prefijo de España). */
+export function mockEan13(rng: Rng): string {
+  const base = `84${digits(rng, 10)}`;
+  const sum = [...base].reduce((n, d, i) => n + Number(d) * (i % 2 ? 3 : 1), 0);
+  return `${base}${(10 - (sum % 10)) % 10}`;
+}
+
+/** Fecha en el pasado (fecha de nacimiento): entre `min` y `max` años antes del 2026-11-17 que usa el resto de datos de ejemplo. */
+function mockPastDate(rng: Rng, min = 18, max = 80): string {
+  return `${2026 - int(rng, min, max)}-${pad(int(rng, 1, 12))}-${pad(int(rng, 1, 28))}`;
+}
+
+const PROVINCES: Record<MockLocale, string[]> = {
+  es: ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza', 'Málaga', 'Murcia', 'Alicante', 'Cádiz', 'Vizcaya', 'A Coruña', 'Granada'],
+  en: ['California', 'Texas', 'New York', 'Florida', 'Illinois', 'Washington', 'Ontario', 'Victoria', 'Essex', 'Kent'],
+};
+
 const RULES: Rule[] = [
+  // Más específicas primero: la primera regla que encaja gana.
+  { match: has('lang', 'idioma', 'language', 'lenguaje'), gen: (c) => c.locale },
+  { match: has('locale'), gen: (c) => (c.locale === 'es' ? 'es-ES' : 'en-GB') },
+  { match: has('moneda', 'currency', 'divisa'), gen: (c) => (c.locale === 'es' ? 'EUR' : 'USD') },
+  { match: has('iban'), gen: (c) => (c.locale === 'es' ? mockIban(c.rng) : 'GB82 WEST 1234 5698 7654 32') },
+  { match: has('cif'), gen: (c) => (c.locale === 'es' ? mockCif(c.rng) : `${int(c.rng, 10, 99)}-${int(c.rng, 1000000, 9999999)}`) },
+  { match: has('nif', 'dni', 'nie', 'vat', 'taxid'), gen: (c) => (c.locale === 'es' ? mockNif(c.rng) : `${int(c.rng, 10, 99)}-${int(c.rng, 1000000, 9999999)}`) },
+  { match: has('ean', 'ean13', 'barcode', 'gtin', 'codigobarras'), gen: (c) => mockEan13(c.rng) },
+  { match: has('provincia', 'province', 'region', 'comunidad'), gen: (c) => pick(c.rng, PROVINCES[c.locale]) },
+  { match: has('razon'), gen: (c) => pick(c.rng, LEX[c.locale].companies) },
+  { match: has('peso', 'weight'), gen: (c) => Math.round((c.rng() * 90 + 0.5) * 10) / 10 },
+  { match: has('altura'), gen: (c) => int(c.rng, 150, 195) },
+  { match: has('pages', 'paginas', 'pagecount'), gen: (c) => int(c.rng, 2, 24) },
+  { match: (t) => has('factura', 'invoice', 'albaran', 'presupuesto', 'pedido', 'order', 'ticket', 'recibo', 'receipt', 'quote')(t) && has('numero', 'number', 'num', 'nro')(t),
+    gen: (c) => `${c.locale === 'es' ? 'FA' : 'INV'}-2026-${pad(int(c.rng, 1, 999), 4)}` },
+  { match: has('birthday', 'birthdate', 'birth', 'nacimiento', 'fnac'), gen: (c) => mockPastDate(c.rng) },
   { match: has('email', 'mail', 'correo'), gen: (c) => mockFormat('email', c.rng, c.locale) },
   { match: has('phone', 'tel', 'telefono', 'movil', 'mobile', 'celular', 'fax'), gen: (c) => LEX[c.locale].phone(c.rng) },
   { match: has('uuid', 'guid'), gen: (c) => mockUuid(c.rng) },

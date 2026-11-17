@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Cambiado
+- **Datos de ejemplo más creíbles para los campos de negocio.** Antes salían en latín o con un tipo raro; ahora, por el nombre del campo, salen valores con su forma y que pasan sus comprobaciones: `moneda` / `currency` (`EUR`, `USD`), `iban` (un IBAN español con los dígitos de control correctos), `nif` / `dni` / `nie` (con su letra), `cif`, `ean` / `barcode` (EAN-13 con su dígito de control), `provincia` / `province`, `razonSocial`, `peso`, `altura`, números de factura, albarán o pedido (`FA-2026-0312`, `INV-2026-0312`), `totalPages` (un entero, antes salía `25.65`), fechas de nacimiento en el pasado, y `lang` / `idioma` / `language` / `locale` con un código de idioma (`es`, `es-ES`) en lugar de texto en latín. Lo que ya funcionaba no cambia. Medido con `npm run audit:fidelidad`: la sección de datos de ejemplo pasa de 3 a 21 de 23 casos.
+
 ## [0.18.0] - 2026-11-17
 
 ### Añadido
