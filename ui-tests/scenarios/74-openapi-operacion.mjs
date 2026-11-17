@@ -172,9 +172,16 @@ export default async function (env) {
   await page.locator('[data-testid="openapi-schemas"]').click();
   await openLogTab(page);
   check('74 «Importar todos los esquemas» sigue estando (el comportamiento de antes)', !!(await waitUntil(async () => /Importado clinica-api\.yml \(OpenAPI\) como juego de datos nuevo, con una clave por esquema/.test(await page.locator('#panel-log').innerText()), 6000)));
+  await app.close();
+
+  // Un JSON normal y un YAML roto, en otra página: en Firefox (CI) la tercera subida seguida en una misma página no abre el selector de archivos.
+  app = await openApp(env, { path: '/ide', session, storage: { 'pug-ide-workspaces-intro': '1' } });
+  page = app.page;
+  await page.locator('.monaco-editor').first().waitFor({ timeout: 20000 });
   await upload(page, 'cliente.json', JSON.stringify({ numero: 'FA-7', paciente: { nombre: 'Carla Soto' } }), 'application/json');
   check('74 un JSON normal se importa directo, sin diálogo', !!(await waitUntil(async () => (await previewText(page)).includes('Carla Soto'), 6000)) && (await page.locator('[data-testid="openapi-import"]').count()) === 0);
   await upload(page, 'roto.yaml', 'openapi: 3.0.0\npaths: [unclosed');
+  await openLogTab(page);
   check('74 un YAML roto da un error en el Registro, no una excepción', !!(await waitUntil(async () => /No se pudo importar roto\.yaml/.test(await page.locator('#panel-log').innerText()), 6000)) && app.errors.length === 0, app.errors.join(' | '));
   await app.close();
 }
