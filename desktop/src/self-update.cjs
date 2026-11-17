@@ -3,7 +3,7 @@
 // progreso, comprobar la huella (lo hace electron-updater con el SHA-512 de latest*.yml) e instalar al reiniciar o al
 // cerrar. Guía general: docs/ACTUALIZAR-ESCRITORIO.md.
 const { EventEmitter } = require('node:events');
-const { classifyUpdateError, compareVersions } = require('./updates.cjs');
+const { classifyUpdateError, compareVersions, isPrerelease } = require('./updates.cjs');
 
 /**
  * @param {object} o
@@ -11,8 +11,10 @@ const { classifyUpdateError, compareVersions } = require('./updates.cjs');
  * @param {string} o.currentVersion
  * @param {(payload: object) => void} o.send  evento a la ventana (`pugide:event`)
  * @param {() => {autoUpdater: any, CancellationToken: any}} o.load  electron-updater (o uno falso en las pruebas)
+ * @param {() => Promise<{version: string, tag: string}|null>} [o.pick]  la release que toca según el canal elegido
+ * @param {(tag: string) => string} [o.feed]  carpeta de descargas de esa release (si falta, electron-updater decide solo)
  */
-function createSelfUpdater({ support, currentVersion, send, load }) {
+function createSelfUpdater({ support, currentVersion, send, load, pick = null, feed = null }) {
   let state = { phase: 'idle', version: null, percent: 0, transferred: 0, total: 0, error: null, installOnQuit: false };
   let lib = null;
   let token = null;
@@ -22,6 +24,8 @@ function createSelfUpdater({ support, currentVersion, send, load }) {
   const fail = (err) => {
     const reason = classifyUpdateError(err?.message ?? err);
     if (reason === 'cancelled') set({ phase: 'idle', percent: 0, transferred: 0, total: 0 });
+    // .deb/.rpm: la persona cerró el cuadro de la contraseña. La descarga sigue lista; puede volver a intentarlo (P-49).
+    else if (reason === 'password') set({ phase: state.phase === 'ready' ? 'ready' : 'error', error: 'password', installOnQuit: false });
     else if (state.phase !== 'ready') set({ phase: 'error', error: reason });
   };
 
@@ -31,7 +35,7 @@ function createSelfUpdater({ support, currentVersion, send, load }) {
     const u = lib.autoUpdater;
     u.autoDownload = false; // nunca sin que la persona pulse «Actualizar»
     u.autoInstallOnAppQuit = false; // solo si elige «Al cerrar PugIDE»
-    u.allowPrerelease = false;
+    u.allowPrerelease = false; // la release la elegimos nosotros (pick), no electron-updater
     u.allowDowngrade = false;
     u.logger = null;
     u.on('download-progress', (p) => set({ phase: 'downloading', percent: Math.max(0, Math.min(100, Math.round(p?.percent ?? 0))), transferred: p?.transferred ?? 0, total: p?.total ?? 0 }));
@@ -49,6 +53,13 @@ function createSelfUpdater({ support, currentVersion, send, load }) {
       set({ phase: 'downloading', percent: 0, transferred: 0, total: 0, error: null });
       try {
         const u = updater();
+        if (pick) {
+          const chosen = await pick();
+          if (!chosen || compareVersions(chosen.version, currentVersion) <= 0) { set({ phase: 'error', error: 'missing' }); return { ok: false, reason: 'missing' }; }
+          if (feed) u.setFeedURL({ provider: 'generic', url: feed(chosen.tag) });
+          // Desde una versión de pruebas, electron-updater solo mira su mismo canal: allowPrerelease evita que descarte la elegida.
+          u.allowPrerelease = isPrerelease(chosen.version) || isPrerelease(currentVersion);
+        }
         const found = await u.checkForUpdates();
         const version = found?.updateInfo?.version;
         if (!version || compareVersions(version, currentVersion) <= 0) { set({ phase: 'error', error: 'missing' }); return { ok: false, reason: 'missing' }; }
@@ -70,6 +81,7 @@ function createSelfUpdater({ support, currentVersion, send, load }) {
     /** `now`: cierra, instala y vuelve a abrir. `quit`: la instala cuando la persona cierre la app. */
     install(when) {
       if (state.phase !== 'ready' || !lib) return { ok: false };
+      if (state.error) set({ error: null });
       if (when === 'quit') {
         lib.autoUpdater.autoInstallOnAppQuit = true;
         set({ installOnQuit: true });
@@ -88,6 +100,8 @@ function createSelfUpdater({ support, currentVersion, send, load }) {
 function fakeUpdaterModule(mode, version = '99.0.0', onInstall = () => {}) {
   class CancellationToken { constructor() { this.cancelled = false; } cancel() { this.cancelled = true; } }
   const u = new EventEmitter();
+  u.feedUrls = [];
+  u.setFeedURL = (o) => { u.feedUrls.push(o); };
   u.checkForUpdates = async () => ({ updateInfo: { version } });
   u.downloadUpdate = (tok) => new Promise((resolve, reject) => {
     const total = 112 * 1024 * 1024;

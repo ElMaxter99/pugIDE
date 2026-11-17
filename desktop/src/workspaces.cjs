@@ -32,7 +32,7 @@ class WorkspaceStore {
   /** `file`: JSON con la lista de espacios (en la carpeta de datos de la app). */
   constructor(file) {
     this.file = file;
-    this.state = { workspaces: [], lastId: null, recent: [], updates: { asked: false, enabled: false, dismissed: null, lastCheck: 0, latest: null } };
+    this.state = { workspaces: [], lastId: null, recent: [], updates: { asked: false, enabled: false, channel: 'stable', dismissed: null, lastCheck: 0, latest: null } };
     try {
       const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (raw && Array.isArray(raw.workspaces)) {
