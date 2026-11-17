@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.18.0] - 2026-11-17
+
 ### Añadido
 - **Importar un CSV como juegos de datos** (web y escritorio; diseño P-44, aprobado). «Importar JSON, CSV, Schema u OpenAPI…» en el menú «⋯» de la zona de Datos acepta ahora **`.csv`**: **una fila = un juego de datos** y la primera fila son las claves. El diálogo detecta el separador (coma, punto y coma —el de Excel en español— o tabulador), deja elegir qué columna da nombre a cada juego, enseña una vista previa con el tipo de cada columna y permite «Todo como texto». Las claves con punto crean objetos (`paciente.nombre`), «85,50» se lee como número cuando el separador es `;`, y `00123` se queda como texto. Avisa de las filas con menos o más columnas (con su número de fila), de las claves repetidas y de los archivos que no se pueden leer; con más de **500 filas** importa por tandas («Las 500 primeras», «Las filas 501 a 812»). El juego activo no cambia y se puede **Deshacer** de una vez. Solo se lee el archivo elegido.
 - **Nombre de los PDF por patrón en «Varios PDF…»** (escritorio; diseño P-45, aprobado). En el modo «Un PDF por juego de datos», un campo **«Nombre del archivo»** con claves de los datos entre llaves: `factura {numero} - {paciente.nombre}` → `factura FA-2026-0312 - Lucía Romero Vidal.pdf`. Las claves se añaden al pulsarlas, la vista previa enseña los primeros nombres y se avisa si una clave no existe en los datos, si falta en algún juego (ahí se usa el nombre del juego) o si dos juegos dan el mismo nombre (el segundo pasa a `(2)`). Se recuerda el último patrón.
