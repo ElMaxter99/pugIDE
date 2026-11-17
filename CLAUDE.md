@@ -15,6 +15,14 @@ IDE de Pug/Jade 100% en el navegador (Angular 22, componentes standalone, signal
 - **Plantillas reales multi-archivo.** Proyectos con carpetas, `include`, `extends`, estilos CSS/SCSS/Sass/Less y assets locales (imágenes y fuentes en IndexedDB, servidos como `blob:`), no ejemplos de un solo archivo.
 - **Licencia MIT con atribución:** se conserva el aviso de copyright y la atribución al autor original.
 
+## Alcance (qué es PugIDE y qué no)
+
+PugIDE sirve para **montar y ver plantillas Pug de un proyecto que genera documentos** (correos, facturas, informes, PDF): cargar sus **traducciones** (el esquema i18n de siempre), darles **datos de ejemplo** y ver el resultado al instante, **parecido a lo que dará el proyecto real**. Todo en local.
+
+- Toda función nueva tiene que ayudar a eso: montar la plantilla, cargar sus traducciones, rellenarla con datos de ejemplo creíbles o que el preview se parezca más al render real. Si una propuesta es generar documentos en serie, mover o publicar archivos, o comodidades del sistema operativo, **no entra** sin que la persona responsable lo pida expresamente.
+- El lote de PDF, el CSV, el nombre de los PDF por patrón y los recientes de escritorio (0.17 y 0.18) se quedan como están: **no se amplían** (los fallos sí se corrigen).
+- `npm run audit:fidelidad` mide la fidelidad con casos reales (traducciones, datos de ejemplo y Pug). Cada versión que toque ese terreno empieza midiendo y termina con el número subido. Detalle en [design/propuestas/0.19-traducciones-y-datos.md](design/propuestas/0.19-traducciones-y-datos.md).
+
 ## Diseño primero
 
 Todo cambio en lo que ve el usuario (pantallas, flujos, textos de pantalla) se diseña **antes de programarlo** en el lienzo de diseño de claude.ai (artifact *Design (canvas)*), y la persona responsable lo aprueba allí. Detalle y enlace en [design/README.md](design/README.md).
@@ -60,6 +68,7 @@ parser -> datos -> orquestador -> compilador -> preview. Ver `src/app/core/servi
 - `npm run test:ui` pruebas de interfaz con Playwright sobre el build de producción (`ui-tests/`; ejecuta antes `npm run build:prod`)
 - `npm run start:desktop` app de escritorio con el código actual; `npm run test:desktop` su prueba automática (tras `npm run build:prod`; ambas instalan solas las dependencias de `desktop/` si faltan o cambian)
 - `npm run ia` puente local del asistente de IA (solo con `npm start`)
+- `npm run audit:fidelidad` auditoría de fidelidad (traducciones, datos de ejemplo y Pug) con casos reales; no forma parte de la batería
 - Cómo se actualiza una app de escritorio (Electron, reutilizable en otros proyectos): [docs/ACTUALIZAR-ESCRITORIO.md](docs/ACTUALIZAR-ESCRITORIO.md)
 - Probar una rama a mano en Windows o Ubuntu (web, IA, escritorio, instaladores, aviso de versión): [docs/PROBAR-EN-LOCAL.md](docs/PROBAR-EN-LOCAL.md)
 

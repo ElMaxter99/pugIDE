@@ -75,6 +75,9 @@ Plan completo en [PLAN.md](PLAN.md), fase 19:
 | P-22 idioma por defecto y de reserva (sin plurales automáticos) | ✅ en master (PR 60) |
 | Preparar `0.9.0` (CHANGELOG, `npm run release:guide -- 0.9.0`) | ✅ publicada |
 
+## Siguiente: volver al núcleo (propuesta pendiente de visto bueno)
+- Alcance fijado en `CLAUDE.md` y auditoría medida (`npm run audit:fidelidad`: 44 de 96). Propuesta de la 0.19 (traducciones reales), 0.20 (datos de ejemplo creíbles) y 0.21 (fidelidad con el proyecto real): [design/propuestas/0.19-traducciones-y-datos.md](../design/propuestas/0.19-traducciones-y-datos.md) y fase 21 de [PLAN.md](PLAN.md). Lo del lote de PDF, CSV y recientes queda congelado.
+
 ## Pendiente de la persona responsable
 - **Publicar la 0.17.1** (mergeada, sin tag): `npm run release:deploy -- 0.17.1` y desplegar `release` en Vercel. Debe ir **antes** que la 0.18.0 para que `release` avance en orden.
 - Mergear la PR de la 0.18.0, lanzar `npm run release:deploy` y desplegar `release` en Vercel; probar en la app de escritorio «Actualizar», el menú «Archivo → Abrir reciente», «Varios PDF…» con un patrón de nombre y la importación de un CSV en la zona de Datos.
