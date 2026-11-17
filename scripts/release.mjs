@@ -4,6 +4,7 @@
 //   npm run release:deploy -- --dry-run          (solo comprueba y cuenta qué haría)
 //   npm run release:deploy -- --no-prod          (tag y release de GitHub, sin avanzar `release`)
 //   npm run release:deploy -- 0.9.0              (una versión concreta, por si master ya declara otra)
+//   npm run release:deploy -- 0.20.0-rc.1        (versión de PRUEBAS: tag y release marcada «pre-release» en GitHub; NO toca `release`)
 //   Opciones: --sha <commit> (por defecto, el merge de la versión en origin/master), --remote <nombre> (origin).
 //   `--yes` se acepta y no hace nada (ya no se pregunta).
 //
@@ -33,7 +34,7 @@ export function parseArgs(argv) {
     else if (a === '--no-prod') out.noProd = true;
     else if (a === '--sha') out.sha = rest.shift() ?? '';
     else if (a === '--remote') out.remote = rest.shift() ?? 'origin';
-    else if (/^\d+\.\d+\.\d+$/.test(a)) out.version = a;
+    else if (/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/.test(a)) out.version = a;
     else out.error = `Argumento no reconocido: ${a}`;
   }
   return out;
@@ -135,6 +136,8 @@ export async function main(argv, env = process.env) {
   }
   const version = args.version || JSON.parse(git(['show', `${remote}/master:package.json`]).out).version;
   const tag = `v${version}`;
+  const prerelease = /-/.test(version);
+  if (prerelease) log('    es una versión de pruebas (rc): release marcada «pre-release» y la rama release no se toca');
   log(`    versión: ${version}${args.version ? '' : '  (la que declara master)'}`);
   let sha = args.sha ? git(['rev-parse', '--verify', `${args.sha}^{commit}`]).out : '';
   if (!sha) {
@@ -207,7 +210,7 @@ export async function main(argv, env = process.env) {
     const file = join(dir, 'notas.md');
     writeFileSync(file, notes);
     try {
-      run(GH, ['release', 'create', tag, '--title', `PugIDE ${version}`, '--notes-file', file, '--verify-tag'], { cwd: root });
+      run(GH, ['release', 'create', tag, '--title', `PugIDE ${version}`, '--notes-file', file, '--verify-tag', ...(prerelease ? ['--prerelease'] : [])], { cwd: root });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -216,8 +219,9 @@ export async function main(argv, env = process.env) {
 
   // 5. Producción
   step(5, `Rama de producción: dejar ${remote}/release en el commit de la versión`);
-  if (args.noProd) {
-    log('    --no-prod: no se toca la rama release');
+  if (args.noProd || prerelease) {
+    log(prerelease ? '    versión de pruebas: no se toca la rama release (producción sigue en la última estable)' : '    --no-prod: no se toca la rama release');
+    if (prerelease) log(`\nHecho${dry ? ' (simulacro)' : ''}. Los instaladores se generan solos y llegan a quien tenga activado el canal «Pruebas». No hay nada que desplegar en Vercel.`);
     return 0;
   }
   const current = git(['rev-parse', `${remote}/release`], { allowFail: true }).out;

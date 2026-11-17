@@ -4,6 +4,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+### Añadido
+- **Versión y actualizaciones** (escritorio y web; diseño P-47 a P-49, aprobado). El **número de versión** de la barra lateral es ahora un botón que abre el panel «Versión y actualizaciones»: versión instalada (con la etiqueta «pruebas» si lo es), cómo está instalada la copia y qué pasará al actualizar (instalador de Windows: sin contraseña de administrador; AppImage: sustituye su archivo; `.deb`/`.rpm`: el sistema pide la contraseña; macOS: descarga manual del `.dmg`). En la web solo enseña la versión y el enlace a las novedades.
+- **Canal de actualizaciones: Estable o Pruebas** (escritorio). «Estable» (por defecto) solo ofrece versiones publicadas; «Pruebas» ofrece también las candidatas (`-rc.N`). La versión más nueva se elige por número real (`rc.2 < rc.10 < estable`), nunca baja de versión y se recuerda entre sesiones.
+- **Avisos del flujo de actualizar:** si se cierra el cuadro de la contraseña (`.deb`/`.rpm`), la descarga queda guardada y se puede reintentar; si el instalador de una versión aún se está construyendo, lo dice.
+- **`npm run release:deploy -- X.Y.Z-rc.N`** publica una versión de pruebas: tag y release marcada «pre-release» en GitHub, sin mover la rama `release` (producción sigue en la última estable).
+
 ### Cambiado
 - **Datos de ejemplo más creíbles para los campos de negocio.** Antes salían en latín o con un tipo raro; ahora, por el nombre del campo, salen valores con su forma y que pasan sus comprobaciones: `moneda` / `currency` (`EUR`, `USD`), `iban` (un IBAN español con los dígitos de control correctos), `nif` / `dni` / `nie` (con su letra), `cif`, `ean` / `barcode` (EAN-13 con su dígito de control), `provincia` / `province`, `razonSocial`, `peso`, `altura`, números de factura, albarán o pedido (`FA-2026-0312`, `INV-2026-0312`), `totalPages` (un entero, antes salía `25.65`), fechas de nacimiento en el pasado, y `lang` / `idioma` / `language` / `locale` con un código de idioma (`es`, `es-ES`) en lugar de texto en latín. Lo que ya funcionaba no cambia. Medido con `npm run audit:fidelidad`: la sección de datos de ejemplo pasa de 3 a 21 de 23 casos.
 

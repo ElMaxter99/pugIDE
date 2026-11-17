@@ -125,7 +125,7 @@ type PendingAction =
             <div class="workspace-avatar">P</div>
             <div class="workspace-text">
               <p class="workspace-name">{{ projectState.projectName() }}</p>
-              <p class="workspace-version">v{{ version }}</p>
+              <button type="button" class="workspace-version" data-testid="version-button" [attr.aria-label]="'Versión ' + version + ': ver y configurar actualizaciones'" (click)="ui.updatesOpen.set(true)">v{{ version }}</button>
             </div>
           </div>
         </div>
@@ -293,7 +293,14 @@ type PendingAction =
       font-size: 11px;
       line-height: 16px;
       color: var(--text-secondary);
+      background: none;
+      border: 0;
+      padding: 0;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
     }
+    .workspace-version:hover { color: var(--accent-color); text-decoration: underline; }
 
     .sidebar-footer {
       margin-top: auto;
@@ -339,7 +346,7 @@ export class SidebarComponent {
   protected layout = inject(LayoutService);
   /** Pestaña visible: con los datos en su propia columna solo existe «Archivos». */
   protected tab = computed<'archivos' | 'datos'>(() => (this.layout.dataColumn() ? 'archivos' : this.preferences.sidebarTab()));
-  private ui = inject(UiState);
+  protected ui = inject(UiState);
   private assetTarget: string | undefined;
 
   @ViewChild('assetInput') private assetInput!: ElementRef<HTMLInputElement>;

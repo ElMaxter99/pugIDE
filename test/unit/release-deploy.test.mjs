@@ -13,7 +13,7 @@ const git = (cwd, ...args) => {
 };
 
 /** Un «origin» de mentira (repositorio vacío) y una copia de trabajo con una versión 0.7.0 publicada y la 0.8.0 mergeada. */
-function fixture() {
+function fixture(feat = '0.8.0') {
   const tmp = mkdtempSync(join(tmpdir(), 'pugide-deploy-'));
   const origin = join(tmp, 'origin.git');
   const work = join(tmp, 'work');
@@ -33,9 +33,9 @@ function fixture() {
   git(work, 'add', '-A'); git(work, 'commit', '-m', 'v0.7.0');
   git(work, 'push', 'origin', 'master:master', 'master:release');
   git(work, 'checkout', '-b', 'feature');
-  version('0.8.0', 'Notas 0.8.0 con **negrita**.');
-  write('docs/releases/v0.8.0.md', 'guía');
-  git(work, 'add', '-A'); git(work, 'commit', '-m', 'chore(release): 0.8.0');
+  version(feat, `Notas ${feat} con **negrita**.`);
+  write(`docs/releases/v${feat}.md`, 'guía');
+  git(work, 'add', '-A'); git(work, 'commit', '-m', `chore(release): ${feat}`);
   git(work, 'checkout', 'master');
   git(work, 'merge', '--no-ff', 'feature', '-m', 'Merge PR de la 0.8.0');
   const merge = git(work, 'rev-parse', 'HEAD');
@@ -85,6 +85,7 @@ test('parseArgs lee la versión y las opciones', () => {
   assert.equal(parseArgs([]).version, '');
   assert.equal(parseArgs([]).error, '');
   assert.match(parseArgs(['0.9']).error, /Argumento no reconocido/);
+  assert.equal(parseArgs(['0.20.0-rc.1']).version, '0.20.0-rc.1');
 });
 
 test('pickVersionCommit elige el commit más antiguo de la racha que lleva la versión', () => {
@@ -135,6 +136,17 @@ test('--no-prod hace el tag y la release pero no toca release', async () => {
   assert.equal(r.error, null, r.out);
   assert.equal(hasRemoteTag(fx, 'v0.8.0'), true);
   assert.equal(remoteRef(fx, 'refs/heads/release'), before);
+});
+
+test('una versión de pruebas (rc) crea tag y pre-release pero no mueve release', async () => {
+  const fx = fixture('0.8.0-rc.1');
+  const before = remoteRef(fx, 'refs/heads/release');
+  const r = await run(fx, ['0.8.0-rc.1']);
+  assert.equal(r.error, null, r.out);
+  assert.equal(hasRemoteTag(fx, 'v0.8.0-rc.1'), true);
+  assert.equal(remoteRef(fx, 'refs/heads/release'), before, 'producción sigue en la última estable');
+  assert.match(readFileSync(join(fx.tmp, 'gh.log'), 'utf8'), /release create v0\.8\.0-rc\.1 .*--verify-tag --prerelease/);
+  assert.match(r.out, /no hay nada que desplegar|No hay nada que desplegar/);
 });
 
 test('si release ya contiene el commit de la versión (va por delante), no hace nada ni falla', async () => {

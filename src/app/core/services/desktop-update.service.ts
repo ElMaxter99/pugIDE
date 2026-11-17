@@ -11,9 +11,15 @@ export interface UpdateState {
   enabled: boolean;
   lastCheck: number;
   /** Versión más nueva que la instalada, si la hay. */
-  latest: { version: string; url: string } | null;
+  latest: { version: string; url: string; prerelease?: boolean } | null;
   /** La persona dijo «Ahora no» para esa versión. */
   dismissed: boolean;
+  /** Canal elegido: estable o pruebas (versiones candidatas, `-rc.N`). */
+  channel?: 'stable' | 'rc';
+  /** La versión instalada es de pruebas. */
+  prerelease?: boolean;
+  /** Cómo está instalada (P-48): installer | portable | appimage | deb | rpm | mac | dev | linux-unknown. */
+  install?: string;
   checked?: boolean;
   reason?: string | null;
   /** Actualizar dentro de la app (P-35/P-36); null en una app de escritorio anterior a la 0.14. */
@@ -28,7 +34,7 @@ export interface SelfUpdateState {
   percent: number;
   transferred: number;
   total: number;
-  /** offline | checksum | missing | other */
+  /** offline | checksum | missing | password | other */
   error: string | null;
   installOnQuit: boolean;
   /** Esta instalación se puede actualizar sola (instalador de Windows, AppImage, .deb, .rpm). */
@@ -98,6 +104,12 @@ export class DesktopUpdateService {
       this.lastManual.set(s.checked ? 'ok' : 'offline');
     } catch { this.lastManual.set('offline'); }
     this.checking.set(false);
+  }
+
+  /** Estable o pruebas (P-47). Cambiar de canal olvida el aviso del otro y vuelve a mirar. */
+  async setChannel(channel: 'stable' | 'rc'): Promise<void> {
+    this.lastManual.set(null);
+    try { this.state.set(await desktopInvoke<UpdateState>('upd:channel', { channel })); } catch { /* app antigua: sin canales */ }
   }
 
   async dismiss(): Promise<void> {

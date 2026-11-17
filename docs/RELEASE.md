@@ -49,6 +49,15 @@ Los comandos están en PowerShell (también valen en Bash); el `&&` se ha evitad
    - La consola del navegador no muestra violaciones de CSP.
    - Una plantilla con imágenes remotas se ve.
 
+## Versiones de pruebas (release candidates)
+
+Para probar con quien haya elegido el canal «Pruebas» antes de publicar una estable:
+
+1. PR normal con la versión `X.Y.Z-rc.N` en `package.json` y una sección `## [X.Y.Z-rc.N] - AAAA-MM-DD` en el CHANGELOG.
+2. `npm run release:deploy -- X.Y.Z-rc.N` (tras mergear): crea el tag y la release marcada **«pre-release»**. **No mueve la rama `release`**: producción (Vercel) sigue en la última estable y no hay nada que desplegar.
+3. `.github/workflows/desktop.yml` construye y adjunta los instaladores igual que en una estable. Solo las apps con «Pruebas» activado la ofrecen; las de «Estable» la ignoran.
+4. Al publicar la estable (`X.Y.Z`), se ofrece a todos, también a quien estaba en la rc.
+
 ## Volver atrás
 
 - **Rápido, sin tocar el repositorio:** en Vercel → **Deployments**, el despliegue de producción anterior → **Promote to Production** (o **Instant Rollback**). Sirve mientras se arregla el problema.
