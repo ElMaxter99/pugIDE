@@ -125,7 +125,7 @@ type PendingAction =
             <div class="workspace-avatar">P</div>
             <div class="workspace-text">
               <p class="workspace-name">{{ projectState.projectName() }}</p>
-              <button type="button" class="workspace-version" data-testid="version-button" [attr.aria-label]="'Versión ' + version + ': ver y configurar actualizaciones'" (click)="ui.updatesOpen.set(true)">v{{ version }}</button>
+              <button type="button" class="workspace-version" data-testid="version-button" [attr.aria-label]="'v' + version + ' · ver y configurar actualizaciones'" (click)="ui.updatesOpen.set(true)">v{{ version }}</button>
             </div>
           </div>
         </div>
