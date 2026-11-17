@@ -9,7 +9,7 @@ export type CsvColumnType = 'texto' | 'número' | 'sí/no';
 /** Filas que se importan de una vez: cada PDF tarda 1–2 s y cada juego se guarda en la sesión. */
 export const CSV_MAX_ROWS = 500;
 
-export const stripBom = (text: string): string => text.replace(/^﻿/, '');
+export const stripBom = (text: string): string => text.replace(/^\uFEFF/, '');
 
 /** Separador más probable: el que más veces aparece (fuera de comillas) en las primeras líneas, y de forma regular. */
 export function detectDelimiter(text: string): CsvDelimiter {
