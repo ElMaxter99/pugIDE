@@ -66,6 +66,8 @@ export class UiState {
   readonly pdfExportOpen = signal(false);
   /** «Varios PDF…» (P-42, solo escritorio): un PDF por plantilla o por juego de datos. */
   readonly pdfBatchOpen = signal(false);
+  /** «Importar de OpenAPI» (P-43): el documento ya leído, a la espera de que se elija la operación. */
+  readonly openApiImport = signal<{ name: string; doc: unknown } | null>(null);
   /** «Pasar a una carpeta…» (P-41, solo escritorio): el proyecto de «Mis proyectos» que se lleva al disco. */
   readonly moveToFolder = signal<{ id: string; name: string } | null>(null);
   /** Asistente de IA (P-30 a P-34, solo escritorio y local): sus ajustes y el diálogo de una petición. */

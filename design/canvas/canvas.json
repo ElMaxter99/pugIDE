@@ -455,6 +455,14 @@
       "h": 3520,
       "title": "P-39 a P-41 Escritorio: PDF nativo, abrir .pug y pasar a carpeta (0.16)",
       "is_interactive": true
+    },
+    "P-42-P-43-Varios-PDF-y-OpenAPI.dc.html": {
+      "x": 0,
+      "y": 53070,
+      "w": 1440,
+      "h": 2840,
+      "title": "P-42 y P-43 Varios PDF y datos desde OpenAPI (0.17)",
+      "is_interactive": true
     }
   },
   "order": [
@@ -517,7 +525,8 @@
     "P-35-P-36-Actualizar-escritorio.dc.html",
     "P-37-Conflictos-diferencias.dc.html",
     "P-38-Datos-como-traducciones.dc.html",
-    "P-39-P-41-Escritorio-PDF-abrir-mover.dc.html"
+    "P-39-P-41-Escritorio-PDF-abrir-mover.dc.html",
+    "P-42-P-43-Varios-PDF-y-OpenAPI.dc.html"
   ],
   "notes": {
     "fila-ref": {

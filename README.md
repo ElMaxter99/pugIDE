@@ -82,7 +82,7 @@ La paleta de comandos reúne las acciones, las plantillas de inicio, los disposi
 <summary><strong>Datos y plantillas</strong></summary>
 
 - Detección automática de variables y **editor de datos en árbol** con juegos de datos.
-- **Mocks** realistas, importación desde JSON, JSON Schema u OpenAPI.
+- **Mocks** realistas, importación desde JSON, JSON Schema u OpenAPI (eligiendo la operación y su respuesta; también `.yaml`).
 - **Traducciones**: las claves `t('A.B')` crean campos editables; con «Añadir idioma…» se generan `locales/es-ES/translations.json`, `locales/en/translations.json`… y el preview tiene un selector de idioma.
 - **Helpers propios**: un `helpers.js` con `module.exports = { money, formatDate… }` hace esas funciones disponibles en las plantillas.
 - Filtros `:cdata` y `:markdown`, y métodos de helpers sobre valores (`utils.upper(x)`).

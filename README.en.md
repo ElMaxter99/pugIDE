@@ -84,7 +84,7 @@ The command palette gathers actions, starter templates, preview devices and quic
 <summary><strong>Data and templates</strong></summary>
 
 - Automatic variable detection and a **tree data editor** with data sets.
-- Realistic **mocks**, and import from JSON, JSON Schema or OpenAPI.
+- Realistic **mocks**, and import from JSON, JSON Schema or OpenAPI (pick the operation and its response; `.yaml` too).
 - **Translations**: `t('A.B')` keys create editable fields; "Add language…" generates `locales/es-ES/translations.json`, `locales/en/translations.json`… and the preview gets a language selector.
 - **Your own helpers**: a `helpers.js` with `module.exports = { money, formatDate… }` makes those functions available in templates.
 - `:cdata` and `:markdown` filters, and helper methods on values (`utils.upper(x)`).

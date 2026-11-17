@@ -37,6 +37,7 @@ import { ASSET_EXT_RE, mimeForPath, refToPath, rewriteRefs } from '../utils/asse
 import { DiagnosticFix, PugVariable } from '../models/index';
 import { getFileType } from '../models/tab.model';
 import { buildDataSkeleton, padArray } from '../utils/data-skeleton.util';
+import { OpenApiResponse, OpenApiValues, missingKeys, operationData } from '../utils/openapi-ops.util';
 import { errorifyData, mockifyData, mockLeaf } from '../utils/mock-data.util';
 import { DatasetKind, DatasetsFile, parseDatasetsFile } from '../utils/datasets.util';
 import { inferData } from '../utils/schema-infer.util';
@@ -1026,6 +1027,23 @@ export class OrchestratorService {
     this.dataState.addDataset(`Importado: ${label}`, res.data, seed, 'custom');
     this.onDataChange();
     return { source: res.source, warnings: res.warnings };
+  }
+
+  /** Rutas de datos que lee la plantilla de la vista previa (`cliente.email`, `lineas[].concepto`): para avisar de las que una respuesta no trae. */
+  async usedTemplatePaths(): Promise<string[]> {
+    const files = this.editorState.allFileContents();
+    const entryPath = findEntryPath(files, this.editorState.activeTab()?.path, this.previewState.pinnedEntry());
+    const { variables } = await this.parser.parseProject(files, entryPath);
+    return variables.filter((v) => v.isLeaf).map((v) => v.path);
+  }
+
+  /** Importa la respuesta de una operación de un OpenAPI (P-43) como un juego de datos nuevo. */
+  async importOpenApiOperation(doc: unknown, response: OpenApiResponse, values: OpenApiValues, name: string, seed = this.randomSeed()): Promise<{ warnings: string[]; usedExample: boolean }> {
+    const r = operationData(doc, response, values, { seed, locale: this.dataState.locale() });
+    const missing = missingKeys(r.data, await this.usedTemplatePaths());
+    this.dataState.addDataset(name, r.data, seed, 'custom');
+    this.onDataChange();
+    return { warnings: [...r.warnings, ...missing.map((m) => `La plantilla usa ${m}, que esta respuesta no trae.`)], usedExample: r.usedExample };
   }
 
   private randomSeed(): number {
