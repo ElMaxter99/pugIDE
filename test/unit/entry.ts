@@ -52,3 +52,4 @@ export * from '../../src/app/core/utils/pdf-export.util';
 export * from '../../src/app/core/utils/pdf-batch.util';
 export * from '../../src/app/core/utils/move-to-folder.util';
 export * from '../../src/app/core/utils/openapi-ops.util';
+export * from '../../src/app/core/utils/csv.util';

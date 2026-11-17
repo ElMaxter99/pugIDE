@@ -1029,6 +1029,19 @@ export class OrchestratorService {
     return { source: res.source, warnings: res.warnings };
   }
 
+  /** Importa las filas de un CSV (P-44) como juegos de datos nuevos, sin cambiar el activo. Devuelve sus ids (para deshacer). */
+  importCsvDatasets(items: { name: string; data: Record<string, unknown> }[]): string[] {
+    const ids = this.dataState.addDatasets(items, 'custom');
+    this.onDataChange();
+    return ids;
+  }
+
+  /** Deshace una importación de CSV: quita esos juegos de datos. */
+  undoCsvImport(ids: string[]): void {
+    this.dataState.removeDatasets(ids);
+    this.onDataChange();
+  }
+
   /** Rutas de datos que lee la plantilla de la vista previa (`cliente.email`, `lineas[].concepto`): para avisar de las que una respuesta no trae. */
   async usedTemplatePaths(): Promise<string[]> {
     const files = this.editorState.allFileContents();

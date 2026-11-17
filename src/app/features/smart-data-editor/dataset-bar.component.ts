@@ -36,7 +36,7 @@ import { detectSource } from '../../core/utils/schema-infer.util';
         testId="data-more-menu"
         [items]="menuItems()"
         (chosen)="onMenu($event)" />
-      <input #importInput type="file" accept=".json,.yaml,.yml,application/json" hidden (change)="importFile($event)" />
+      <input #importInput type="file" accept=".json,.csv,.yaml,.yml,application/json,text/csv" hidden (change)="importFile($event)" />
     </div>
   `,
   styles: [`
@@ -116,7 +116,7 @@ export class DatasetBarComponent {
     { id: 'locale-en', label: 'Idioma: en', checked: this.dataState.locale() === 'en', radio: true },
     { separator: true },
     { heading: 'Entrada y salida' },
-    { id: 'import', icon: 'upload_file', label: 'Importar JSON, Schema u OpenAPI…' },
+    { id: 'import', icon: 'upload_file', label: 'Importar JSON, CSV, Schema u OpenAPI…' },
     { id: 'copy', icon: 'content_copy', label: 'Copiar JSON' },
     { id: 'clear', icon: 'delete', label: 'Dejar objeto vacío…' },
     ...(this.ai.available ? [{ separator: true } as MenuItem, { id: 'ai', icon: 'neurology', label: 'Proponer datos con IA…' } as MenuItem] : []),
@@ -188,6 +188,8 @@ export class DatasetBarComponent {
     input.value = '';
     if (!file) return;
     try {
+      // Un CSV se abre en su diálogo: una fila = un juego de datos.
+      if (/\.csv$/i.test(file.name)) { this.ui.csvImport.set({ name: file.name, text: await file.text() }); return; }
       const doc = await parseDocumentText(await file.text(), file.name);
       if (detectSource(doc) === 'openapi') {
         // Un OpenAPI se abre en su diálogo: la operación y su respuesta son lo que la plantilla recibe.

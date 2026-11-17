@@ -114,6 +114,24 @@ export class DataState {
     return id;
   }
 
+  /** Añade varios juegos de datos (nombres únicos) SIN cambiar el activo (importar un CSV, P-44). Devuelve sus ids. */
+  addDatasets(items: { name: string; data: Record<string, unknown> }[], kind?: DatasetKind): string[] {
+    let list = this.synced();
+    const ids: string[] = [];
+    for (const item of items) {
+      const id = newDatasetId(list);
+      list = [...list, { id, name: uniqueName(item.name, list), data: structuredClone(item.data), ...(kind ? { kind } : {}) }];
+      ids.push(id);
+    }
+    this.datasets.set(list);
+    return ids;
+  }
+
+  /** Quita los juegos indicados (deshacer una importación); el activo y el último que quede se respetan. */
+  removeDatasets(ids: string[]): void {
+    for (const id of ids) this.removeDataset(id);
+  }
+
   renameDataset(id: string, name: string): void {
     const list = this.synced();
     if (!name.trim()) return;
