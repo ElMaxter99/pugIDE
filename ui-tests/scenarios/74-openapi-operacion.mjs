@@ -90,12 +90,28 @@ components:
 `;
 const soloEsquemas = JSON.stringify({ openapi: '3.0.3', info: { title: 'Solo esquemas', version: '1' }, components: { schemas: { Cita: { type: 'object', properties: { motivo: { type: 'string' } } }, Paciente: { type: 'object', properties: { nombre: { type: 'string' } } } } } });
 
+// Sube un archivo por «Importar JSON, Schema u OpenAPI…». Tras otra subida el menú puede tardar en cerrarse: se espera a que
+// no haya ninguno abierto y, si el selector de archivos no llega, se reintenta (en Firefox, en CI, a veces se pierde el clic).
 async function upload(page, name, content, mime = 'application/octet-stream') {
   await page.locator('[data-testid="tab-datos"]').click(); // los datos viven en la pestaña «Datos» del panel lateral
-  await page.locator('[data-testid="data-more-menu"]').click();
-  const chooser = page.waitForEvent('filechooser');
-  await page.getByRole('menuitem', { name: /Importar JSON/ }).click();
-  await (await chooser).setFiles({ name, mimeType: mime, buffer: Buffer.from(content) });
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await waitUntil(async () => (await page.locator('[role="menu"]').count()) === 0, 4000);
+    await page.locator('[data-testid="data-more-menu"]').click();
+    const item = page.getByRole('menuitem', { name: /Importar JSON/ });
+    await item.waitFor({ timeout: 5000 });
+    const chooser = page.waitForEvent('filechooser', { timeout: 8000 });
+    chooser.catch(() => undefined);
+    await item.click();
+    try {
+      await (await chooser).setFiles({ name, mimeType: mime, buffer: Buffer.from(content) });
+      return;
+    } catch (err) {
+      last = err;
+      await page.keyboard.press('Escape');
+    }
+  }
+  throw last;
 }
 
 export default async function (env) {
@@ -156,10 +172,7 @@ export default async function (env) {
   await page.locator('[data-testid="openapi-schemas"]').click();
   await openLogTab(page);
   check('74 «Importar todos los esquemas» sigue estando (el comportamiento de antes)', !!(await waitUntil(async () => /Importado clinica-api\.yml \(OpenAPI\) como juego de datos nuevo, con una clave por esquema/.test(await page.locator('#panel-log').innerText()), 6000)));
-  await page.locator('[data-testid="data-more-menu"]').click();
-  const chooser = page.waitForEvent('filechooser');
-  await page.getByRole('menuitem', { name: /Importar JSON/ }).click();
-  await (await chooser).setFiles({ name: 'cliente.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ numero: 'FA-7', paciente: { nombre: 'Carla Soto' } })) });
+  await upload(page, 'cliente.json', JSON.stringify({ numero: 'FA-7', paciente: { nombre: 'Carla Soto' } }), 'application/json');
   check('74 un JSON normal se importa directo, sin diálogo', !!(await waitUntil(async () => (await previewText(page)).includes('Carla Soto'), 6000)) && (await page.locator('[data-testid="openapi-import"]').count()) === 0);
   await upload(page, 'roto.yaml', 'openapi: 3.0.0\npaths: [unclosed');
   check('74 un YAML roto da un error en el Registro, no una excepción', !!(await waitUntil(async () => /No se pudo importar roto\.yaml/.test(await page.locator('#panel-log').innerText()), 6000)) && app.errors.length === 0, app.errors.join(' | '));
