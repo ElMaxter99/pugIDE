@@ -21,6 +21,8 @@ export interface OpenDescriptor {
   workspaceId?: string | null;
   /** Permiso de un solo uso para crear el espacio en esa carpeta o leer la plantilla. */
   token?: string;
+  /** Ruta que ya no existe pero está en «Abrir reciente» (P-46): se ofrece quitarla de la lista. */
+  recent?: boolean;
 }
 
 export interface OpenToast {
@@ -29,6 +31,8 @@ export interface OpenToast {
   sub: string;
   /** Ofrecer «Cambiar nombre y color» (un espacio recién creado). */
   rename?: boolean;
+  /** Ofrecer «Quitar de la lista» (un reciente que ya no existe): su ruta. */
+  forget?: string;
 }
 
 /**
@@ -94,7 +98,10 @@ export class OpenWithService {
     // Primer uso abriendo un archivo: la bienvenida taparía la pregunta. Se cierra sin darla por vista (saldrá otro día).
     this.received.set(true);
     this.ui.welcomeOpen.set(false);
-    if (d.kind === 'missing') { this.fail(`No se encuentra ${d.name || d.path}`, 'Puede que se haya movido o borrado.'); return; }
+    if (d.kind === 'missing') {
+      this.fail(`No se encuentra ${d.name || d.path}`, d.recent ? `${d.path} · puede que se haya movido o borrado` : 'Puede que se haya movido o borrado.', d.recent ? d.path : undefined);
+      return;
+    }
     if (d.kind === 'unsupported') { this.fail(`No se puede abrir ${d.name}`, 'PugIDE abre .pug, .jade, carpetas y los archivos de un proyecto (estilos, datos, imágenes).'); return; }
     if (d.kind === 'folder') { await this.openFolder(d); return; }
     if (d.workspaceId) { await this.openFolder(d); return; }
@@ -143,8 +150,14 @@ export class OpenWithService {
     await this.orchestrator.setPreviewEntry(entry);
   }
 
-  private fail(title: string, sub: string): void {
-    this.toast.set({ kind: 'error', title, sub });
+  /** «Quitar de la lista»: un reciente que ya no existe (no se borra nada del disco). */
+  forget(path: string): void {
+    void desktopInvoke('open:forget', { path }).catch(() => undefined);
+    this.toast.set(null);
+  }
+
+  private fail(title: string, sub: string, forget?: string): void {
+    this.toast.set({ kind: 'error', title, sub, ...(forget ? { forget } : {}) });
     this.terminal.addEntry('error', 'Abrir', `${title}. ${sub}`);
   }
 

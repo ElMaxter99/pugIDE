@@ -19,7 +19,7 @@ const CHANNELS = new Set(['ws:list', 'ws:pick-folder', 'ws:create', 'ws:relocate
   // Varios PDF (P-42): destino del lote, nombres que ya existen, cada PDF y cierre.
   'pdf:batch-target', 'pdf:batch-existing', 'pdf:batch-item', 'pdf:batch-finish',
   // Abrir con PugIDE (P-40): lo que llega del sistema, una carpeta soltada en la ventana y leer la plantilla abierta.
-  'open:pending', 'open:path', 'open:read-file',
+  'open:pending', 'open:path', 'open:read-file', 'open:forget',
   // Pasar un proyecto de «Mis proyectos» a una carpeta (P-41): comprobar la carpeta elegida antes de escribir.
   'ws:folder-check']);
 

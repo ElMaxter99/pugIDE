@@ -17,6 +17,7 @@ const DATASETS = '.pugide/datasets.json';
 const COLORS = ['#ddb7ff', '#4cd7f6', '#fabc4e', '#a6e3a1', '#ffb4ab', '#cfc2d6'];
 
 const ext = (p) => (p.split('.').pop() ?? '').toLowerCase();
+const recentList = require('./recent.cjs');
 const cleanName = (raw) => String(raw ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
 
 /** Ruta de la app (`/styles/a.css`) → ruta absoluta dentro de `root`, o null si se sale de la carpeta. */
@@ -31,13 +32,14 @@ class WorkspaceStore {
   /** `file`: JSON con la lista de espacios (en la carpeta de datos de la app). */
   constructor(file) {
     this.file = file;
-    this.state = { workspaces: [], lastId: null, updates: { asked: false, enabled: false, dismissed: null, lastCheck: 0, latest: null } };
+    this.state = { workspaces: [], lastId: null, recent: [], updates: { asked: false, enabled: false, dismissed: null, lastCheck: 0, latest: null } };
     try {
       const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (raw && Array.isArray(raw.workspaces)) {
         this.state.workspaces = raw.workspaces.filter((w) => w && typeof w.id === 'string' && typeof w.path === 'string' && typeof w.name === 'string');
         this.state.lastId = typeof raw.lastId === 'string' ? raw.lastId : null;
         if (raw.updates && typeof raw.updates === 'object') Object.assign(this.state.updates, raw.updates);
+        this.state.recent = recentList.sanitizeRecent(raw.recent);
       }
     } catch { /* primera vez o archivo dañado: se empieza vacío */ }
   }
@@ -52,6 +54,13 @@ class WorkspaceStore {
   }
 
   get(id) { return this.state.workspaces.find((w) => w.id === id) ?? null; }
+
+  /** Archivos y carpetas recientes (P-46), el más reciente primero. */
+  listRecent() { return this.state.recent; }
+  addRecent(p, kind) { this.state.recent = recentList.addRecent(this.state.recent, { path: p, kind }); this.save(); }
+  removeRecent(p) { this.state.recent = recentList.removeRecent(this.state.recent, p); this.save(); }
+  clearRecent() { this.state.recent = []; this.save(); }
+  hasRecent(p) { return this.state.recent.length !== recentList.removeRecent(this.state.recent, p).length; }
 
   /** Lista para la interfaz, la más reciente primero, con si la carpeta sigue ahí. */
   list() {

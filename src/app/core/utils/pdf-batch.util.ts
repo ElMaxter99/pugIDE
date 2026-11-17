@@ -10,9 +10,11 @@ export interface PdfBatchChoices {
   mode: PdfBatchMode;
   target: PdfBatchTarget;
   pageNumbers: boolean;
+  /** Patrón del nombre de los PDF por juego de datos (P-45): `factura {numero} - {paciente.nombre}`. Vacío = «plantilla - juego». */
+  pattern: string;
 }
 
-export const DEFAULT_PDF_BATCH_CHOICES: PdfBatchChoices = { mode: 'templates', target: 'folder', pageNumbers: false };
+export const DEFAULT_PDF_BATCH_CHOICES: PdfBatchChoices = { mode: 'templates', target: 'folder', pageNumbers: false, pattern: '' };
 
 export function sanitizePdfBatchChoices(raw: unknown): PdfBatchChoices {
   const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
@@ -20,6 +22,7 @@ export function sanitizePdfBatchChoices(raw: unknown): PdfBatchChoices {
     mode: r['mode'] === 'datasets' ? 'datasets' : 'templates',
     target: r['target'] === 'zip' ? 'zip' : 'folder',
     pageNumbers: r['pageNumbers'] === true,
+    pattern: typeof r['pattern'] === 'string' ? r['pattern'].slice(0, 150) : '',
   };
 }
 
@@ -61,4 +64,57 @@ export const pageCount = (n: number): string => (n === 1 ? '1 página' : `${n} p
 /** Línea del Registro al terminar: `factura.pdf (12 págs.), presupuesto.pdf (3)`. */
 export function describeBatch(done: PdfBatchDone[]): string {
   return done.map((d, i) => `${d.name} (${d.pages}${i === 0 ? ' págs.' : ''})`).join(', ');
+}
+
+// ---- Nombre por patrón (P-45) ----
+
+type Obj = Record<string, unknown>;
+const isObj = (v: unknown): v is Obj => v !== null && typeof v === 'object' && !Array.isArray(v);
+const isLeaf = (v: unknown): boolean => ['string', 'number', 'boolean'].includes(typeof v);
+
+/** Valor de `paciente.nombre` dentro de unos datos (solo a través de objetos, no de listas); `undefined` si no está. */
+export function lookupKey(data: unknown, key: string): unknown {
+  let node: unknown = data;
+  for (const seg of key.split('.')) {
+    if (!isObj(node) || !(seg in node)) return undefined;
+    node = node[seg];
+  }
+  return node;
+}
+
+/** Claves ofrecidas para el patrón: hojas de texto, número o sí/no (hasta 3 niveles de objetos, sin listas), por orden de aparición. */
+export function dataKeys(sets: unknown[], max = 40): string[] {
+  const out: string[] = [];
+  const walk = (node: unknown, prefix: string, depth: number): void => {
+    if (!isObj(node) || depth > 3) return;
+    for (const [k, v] of Object.entries(node)) {
+      const key = prefix ? `${prefix}.${k}` : k;
+      if (isLeaf(v)) { if (!out.includes(key) && out.length < max) out.push(key); } else walk(v, key, depth + 1);
+    }
+  };
+  for (const d of sets) walk(d, '', 1);
+  return out;
+}
+
+/** Claves `{…}` que usa un patrón, sin repetir. */
+export function patternKeys(pattern: string): string[] {
+  return [...new Set([...pattern.matchAll(/\{([^{}]+)\}/g)].map((m) => m[1].trim()).filter(Boolean))];
+}
+
+const asText = (v: unknown): string => (typeof v === 'boolean' ? (v ? 'sí' : 'no') : String(v));
+
+/**
+ * Nombre del PDF de un juego de datos con el patrón. Si una clave no existe en esos datos (o su valor no es un texto,
+ * número o sí/no, o queda vacío), no hay nombre por patrón: `name` es null y `missing` dice qué faltó.
+ */
+export function patternPdfName(pattern: string, data: unknown): { name: string | null; missing: string[] } {
+  const missing: string[] = [];
+  const text = pattern.replace(/\{([^{}]+)\}/g, (_m, raw: string) => {
+    const key = raw.trim();
+    const v = lookupKey(data, key);
+    if (!isLeaf(v) || asText(v).trim() === '') { if (!missing.includes(key)) missing.push(key); return ''; }
+    return asText(v);
+  });
+  const name = cleanName(text.replace(/\.pdf$/i, ''));
+  return missing.length || !name ? { name: null, missing } : { name: `${name}.pdf`, missing };
 }

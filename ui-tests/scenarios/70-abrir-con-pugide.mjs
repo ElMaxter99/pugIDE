@@ -64,6 +64,15 @@ export default async function (env) {
   // 3 · Algo que no es una plantilla: aviso de error, sin tocar nada.
   await page.evaluate(() => { window.__pending.push({ kind: 'unsupported', path: '/trabajo/informe.docx', name: 'informe.docx' }); window.__emit({ type: 'open-pending' }); });
   check('70 un archivo que no es una plantilla: «No se puede abrir informe.docx» y qué se puede abrir', !!(await waitUntil(async () => /No se puede abrir informe\.docx/.test(await toast.innerText().catch(() => '')), 8000)) && /\.pug, \.jade, carpetas/.test(await toast.innerText()));
+  // 3a · Un reciente que ya no existe (P-46): se avisa, con su ruta, y se puede quitar de la lista.
+  await page.evaluate(() => { window.__pending.push({ kind: 'missing', path: '/trabajo/aurora/factura.pug', name: 'factura.pug', recent: true }); window.__emit({ type: 'open-pending' }); });
+  const forget = page.locator('[data-testid="open-toast-forget"]');
+  check('70 un reciente que ya no existe dice cuál, dónde estaba y ofrece «Quitar de la lista»', !!(await waitUntil(async () => (await forget.count()) === 1, 8000)) && /No se encuentra factura\.pug/.test(await toast.innerText()) && /\/trabajo\/aurora\/factura\.pug · puede que se haya movido o borrado/.test(await toast.innerText()), await toast.innerText().catch(() => ''));
+  await forget.click();
+  check('70 «Quitar de la lista» lo pide al proceso principal con esa ruta y cierra el aviso', (await page.evaluate(() => window.__calls.filter(([c]) => c === 'open:forget').map(([, p]) => p?.path))).join() === '/trabajo/aurora/factura.pug' && !!(await waitUntil(async () => (await toast.count()) === 0, 3000)));
+  // Lo que no es un reciente sigue con el aviso de siempre, sin botón.
+  await page.evaluate(() => { window.__pending.push({ kind: 'missing', path: '/trabajo/otro.pug', name: 'otro.pug' }); window.__emit({ type: 'open-pending' }); });
+  check('70 un archivo que no existe y no era reciente no ofrece quitarlo', !!(await waitUntil(async () => /No se encuentra otro\.pug/.test(await toast.innerText().catch(() => '')), 6000)) && (await forget.count()) === 0);
   check('70 sin errores no controlados', app.errors.length === 0, app.errors.join(' | '));
   await app.close();
 

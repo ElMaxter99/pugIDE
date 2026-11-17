@@ -56,7 +56,7 @@ export default async function (env) {
   await menu.waitFor();
   check('32 Intro abre el menú (role=menu) y expone aria-expanded', (await trigger.getAttribute('aria-expanded')) === 'true');
   const labels = (await menu.locator('[role^="menuitem"]').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim());
-  const wanted = ['Nuevo juego vacío', 'Nuevo juego lleno', 'Nuevo juego de error', 'Nuevo juego como copia personalizada', 'Renombrar…', 'Duplicar', 'Borrar…', 'Idioma: es', 'Idioma: en', 'Importar JSON, Schema u OpenAPI…', 'Copiar JSON', 'Dejar objeto vacío…'];
+  const wanted = ['Nuevo juego vacío', 'Nuevo juego lleno', 'Nuevo juego de error', 'Nuevo juego como copia personalizada', 'Renombrar…', 'Duplicar', 'Borrar…', 'Idioma: es', 'Idioma: en', 'Importar JSON, CSV, Schema u OpenAPI…', 'Copiar JSON', 'Dejar objeto vacío…'];
   check('32 el menú tiene todas las acciones de los controles antiguos', wanted.every((w) => labels.some((l) => l.includes(w))), JSON.stringify(labels));
   check('32 «Borrar…» está desactivado con un solo juego', await menu.getByRole('menuitem', { name: 'Borrar…' }).isDisabled());
   await page.keyboard.press('ArrowDown');

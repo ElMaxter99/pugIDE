@@ -463,6 +463,14 @@
       "h": 2840,
       "title": "P-42 y P-43 Varios PDF y datos desde OpenAPI (0.17)",
       "is_interactive": true
+    },
+    "P-44-P-46-CSV-nombres-y-archivo.dc.html": {
+      "x": 0,
+      "y": 56000,
+      "w": 1440,
+      "h": 4030,
+      "title": "P-44 a P-46 CSV, nombre de los PDF y menú Archivo (0.18)",
+      "is_interactive": true
     }
   },
   "order": [
@@ -526,7 +534,8 @@
     "P-37-Conflictos-diferencias.dc.html",
     "P-38-Datos-como-traducciones.dc.html",
     "P-39-P-41-Escritorio-PDF-abrir-mover.dc.html",
-    "P-42-P-43-Varios-PDF-y-OpenAPI.dc.html"
+    "P-42-P-43-Varios-PDF-y-OpenAPI.dc.html",
+    "P-44-P-46-CSV-nombres-y-archivo.dc.html"
   ],
   "notes": {
     "fila-ref": {

@@ -162,4 +162,32 @@ export default async function (env) {
   check('73 el diálogo sigue abierto para repetir', (await page.locator('[data-testid="pdf-batch"]').count()) === 1);
   check('73 sin errores no controlados (cancelar)', app.errors.length === 0, app.errors.join(' | '));
   await app.close();
+
+  // Nombre por patrón (P-45).
+  app = await desktop(env);
+  page = app.page;
+  await openDialog(page);
+  await page.locator('[data-testid="pdf-batch-mode-datasets"]').click();
+  const text3 = async () => (await page.locator('[data-testid="pdf-batch"]').innerText()).replace(/\n/g, ' ');
+  const pattern = page.locator('[data-testid="pdf-batch-pattern"]');
+  check('73 el campo «Nombre del archivo» ofrece las claves de los datos', !!(await waitUntil(async () => (await pattern.count()) === 1 && (await page.locator('[data-testid="pdf-batch-key-cliente.nombre"]').count()) === 1, 4000)), await text3());
+  await pattern.fill('factura - ');
+  await page.locator('[data-testid="pdf-batch-key-cliente.nombre"]').click();
+  check('73 pulsar una clave la añade al patrón donde está el cursor', (await pattern.inputValue()) === 'factura - {cliente.nombre}', await pattern.inputValue());
+  const preview = page.locator('[data-testid="pdf-batch-preview"]');
+  check('73 la vista previa enseña los nombres que saldrán', !!(await waitUntil(async () => /→ factura - Lucía Romero Vidal\.pdf/.test(await preview.innerText().catch(() => '')) && /→ factura - Andrés Vidal Soto\.pdf/.test(await preview.innerText()), 4000)), await preview.innerText().catch(() => ''));
+  check('73 los juegos de la lista dicen su nombre por patrón', /Taller Hermanos Vidal\s*→ factura - Andrés Vidal Soto\.pdf/.test(await text3()), await text3());
+  await pattern.fill('factura {cliente.nif} {cliente.nombre}');
+  const warn = page.locator('[data-testid="pdf-batch-pattern-warning"]');
+  check('73 una clave que no existe en los datos se avisa con las que sí hay', !!(await waitUntil(async () => /La clave \{cliente\.nif\} no existe en los datos\. Claves que sí hay: cliente\.nombre/.test(await warn.first().innerText().catch(() => '')), 4000)), await warn.first().innerText().catch(() => ''));
+  check('73 y como falta en todos se usa el nombre del juego', /Clínica Aurora\s*→ factura - Clínica Aurora\.pdf/.test(await text3()), await text3());
+  await pattern.fill('factura {cliente.nombre}');
+  await page.locator('[data-testid="pdf-batch-ds-Taller Hermanos Vidal"]').uncheck();
+  await page.locator('[data-testid="pdf-batch-go"]').click();
+  const done3 = page.locator('[data-testid="pdf-batch-done"]');
+  check('73 al generar, cada PDF lleva el nombre del patrón', !!(await waitUntil(async () => (await done3.count()) === 1, 15000)) && (await calls(page, 'pdf:batch-item')).map((r) => r.name).join() === 'factura Lucía Romero Vidal.pdf,factura Marta Gil Peña.pdf', JSON.stringify((await calls(page, 'pdf:batch-item')).map((r) => r.name)));
+  const remembered3 = await page.evaluate(() => JSON.parse(localStorage.getItem('pug-ide-pdf-batch') ?? 'null'));
+  check('73 recuerda el último patrón', remembered3?.pattern === 'factura {cliente.nombre}' && remembered3?.mode === 'datasets', JSON.stringify(remembered3));
+  check('73 sin errores no controlados (patrón)', app.errors.length === 0, app.errors.join(' | '));
+  await app.close();
 }

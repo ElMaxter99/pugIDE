@@ -49,6 +49,7 @@ import { focusableElements, rememberFocus, trapTab } from '../../../core/utils/f
         <div class="grow">
           <div><b>{{ t.title }}</b></div>
           <div class="t-sub">{{ t.sub }}</div>
+          @if (t.forget; as gone) { <button type="button" class="btn link" data-testid="open-toast-forget" (click)="open.forget(gone)"><span aria-hidden="true" class="material-symbols-outlined">delete</span>Quitar de la lista</button> }
           @if (t.rename) { <button type="button" class="btn link" data-testid="open-toast-rename" (click)="open.openWorkspaces()">Cambiar nombre y color</button> }
         </div>
         <button type="button" class="close" aria-label="Cerrar aviso" data-testid="open-toast-close" (click)="open.toast.set(null)">×</button>
