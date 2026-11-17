@@ -288,6 +288,48 @@ try {
     check('y sigue habiendo una sola ventana', app2.windows().length === 1, String(app2.windows().length));
     const other = await page.evaluate((p) => window.pugideDesktop.invoke('open:path', { path: p }), join(client, 'informe.docx'));
     check('lo que no es una plantilla ni una carpeta se rechaza', other?.kind === 'unsupported', JSON.stringify(other));
+
+    // Menú «Archivo» y recientes (P-46).
+    step('menú Archivo y recientes');
+    const fileMenu = () => app2.evaluate(({ Menu }) => {
+      const file = Menu.getApplicationMenu().items.find((i) => i.label === 'Archivo');
+      return file.submenu.items.map((i) => ({ label: i.label, type: i.type, sub: i.submenu ? i.submenu.items.map((j) => ({ label: j.label, enabled: j.enabled, type: j.type })) : null }));
+    });
+    const clickMenu = (match) => app2.evaluate(({ Menu }, m) => {
+      const file = Menu.getApplicationMenu().items.find((i) => i.label === 'Archivo');
+      const walk = (items) => { for (const i of items) { if (i.label && new RegExp(m).test(i.label) && !i.submenu) { i.click(); return true; } if (i.submenu && walk(i.submenu.items)) return true; } return false; };
+      return walk(file.submenu.items);
+    }, match);
+    const closeToast = async () => { if ((await page.locator('[data-testid="open-toast-close"]').count()) === 1) await page.locator('[data-testid="open-toast-close"]').click(); };
+    const top = (await fileMenu()).map((i) => i.label).filter(Boolean);
+    check('«Archivo» tiene «Abrir archivo…», «Abrir carpeta como espacio de trabajo…», «Abrir reciente» y «Salir»', ['Abrir archivo…', 'Abrir carpeta como espacio de trabajo…', 'Abrir reciente'].every((l) => top.includes(l)) && (top.includes('Salir') || top.includes('Cerrar ventana')), top.join(' | '));
+    const recents = async () => ((await fileMenu()).find((i) => i.label === 'Abrir reciente')?.sub ?? []).filter((i) => i.type === 'normal');
+    const rec = await recents();
+    check('«Abrir reciente» lista lo abierto, el más reciente arriba y con su carpeta', rec.length >= 2 && /^presupuesto\.pug — /.test(rec[0].label) && rec.some((r) => /^factura\.pug — /.test(r.label)) && rec[0].label.includes('pugide-abrir-'), rec.map((r) => r.label).join(' | '));
+    await closeToast();
+    await app2.evaluate((_, p) => { process.env.PUGIDE_TEST_OPEN_PATH = p; }, join(client, 'factura.pug'));
+    await clickMenu('^Abrir archivo…$');
+    check('«Abrir archivo…» abre el archivo elegido con el mismo flujo de «Abrir con»', !!(await wait(async () => /factura\.pug en la vista previa/.test(await toast.innerText().catch(() => '')), 15000)), await toast.innerText().catch(() => ''));
+    await closeToast();
+    await clickMenu('^presupuesto\\.pug — ');
+    check('elegir un reciente lo abre', !!(await wait(async () => /presupuesto\.pug en la vista previa/.test(await toast.innerText().catch(() => '')), 15000)), await toast.innerText().catch(() => ''));
+    // Un reciente que ya no existe: se avisa y se puede quitar de la lista.
+    await closeToast();
+    writeFileSync(join(client, 'temporal.pug'), 'p temporal\n');
+    await page.evaluate((p) => window.pugideDesktop.invoke('open:path', { path: p }), join(client, 'temporal.pug'));
+    check('lo que se abre pasa a «Abrir reciente»', !!(await wait(async () => (await recents()).some((r) => /^temporal\.pug — /.test(r.label)), 5000)), (await recents()).map((r) => r.label).join(' | '));
+    rmSync(join(client, 'temporal.pug'));
+    await clickMenu('^temporal\\.pug — ');
+    const gone = page.locator('[data-testid="open-toast-forget"]');
+    check('un reciente que ya no existe se avisa, con su ruta y «Quitar de la lista»', !!(await wait(async () => (await gone.count()) === 1, 15000)) && /No se encuentra temporal\.pug/.test(await toast.innerText()) && /pugide-abrir-/.test(await toast.innerText()), await toast.innerText().catch(() => ''));
+    await gone.click();
+    check('«Quitar de la lista» lo quita del menú y no toca el disco', !!(await wait(async () => !(await recents()).some((r) => /^temporal\.pug — /.test(r.label)), 5000)) && existsSync(join(client, 'factura.pug')), (await recents()).map((r) => r.label).join(' | '));
+    const stored = JSON.parse(readFileSync(join(profile2, 'pugide-desktop.json'), 'utf8'));
+    check('la lista vive en el almacén de la app (junto a los espacios)', Array.isArray(stored.recent) && stored.recent.length >= 2 && stored.recent.every((e) => (e.kind === 'file' || e.kind === 'folder') && typeof e.path === 'string'), JSON.stringify(stored.recent));
+    await clickMenu('^Borrar la lista$');
+    const after = ((await fileMenu()).find((i) => i.label === 'Abrir reciente')?.sub ?? []);
+    check('«Borrar la lista» la vacía: «Sin archivos recientes» y «Borrar la lista» apagado', after.length === 3 && after[0].label === 'Sin archivos recientes' && !after[0].enabled && !after[2].enabled, JSON.stringify(after));
+    check('y también se vacía en el almacén', JSON.parse(readFileSync(join(profile2, 'pugide-desktop.json'), 'utf8')).recent.length === 0);
   } finally {
     await Promise.race([app2.close(), new Promise((r) => setTimeout(r, 15000))]).catch(() => undefined);
     for (const d of [profile2, client]) { try { rmSync(d, { recursive: true, force: true }); } catch { /* temporal */ } }

@@ -13,6 +13,7 @@ const { compareVersions, parseLatestRelease, latestReleaseApi, selfUpdateSupport
 const { createSelfUpdater, fakeUpdaterModule } = require('./self-update.cjs');
 const aiCli = require('./ai-cli.cjs');
 const pdfExport = require('./pdf-export.cjs');
+const recent = require('./recent.cjs');
 const openPath = require('./open-path.cjs');
 
 /** Peticiones de IA en curso (P-30 a P-34), por id: se pueden detener y se paran todas al cerrar la ventana. */
@@ -24,9 +25,27 @@ const aiRuns = new Map();
 const pendingOpens = [];
 const openFileTokens = new Map();
 
+/** Lo abierto pasa a «Abrir reciente» y a la lista de recientes del sistema (P-46). */
+function rememberRecent(p, kind) {
+  if (!store) return;
+  store.addRecent(p, kind);
+  try { app.addRecentDocument(p); } catch { /* el sistema no admite la lista de recientes */ }
+  installMenu();
+}
+
+/** La lista del sistema (barra de tareas, Dock) con lo mismo que «Abrir reciente». */
+function syncSystemRecents() {
+  try {
+    app.clearRecentDocuments();
+    for (const e of [...store.listRecent()].reverse()) app.addRecentDocument(e.path);
+  } catch { /* sin lista de recientes en este sistema */ }
+}
+
 function describeOpen(p) {
   const d = openPath.classifyPath(p, { stat: fs.statSync, workspaces: store ? store.list() : [] });
+  if (d.kind === 'missing' && store && store.hasRecent(p)) return { ...d, recent: true };
   if (d.kind === 'folder' || d.kind === 'file') {
+    rememberRecent(d.path, d.kind);
     const token = require('node:crypto').randomUUID();
     pickedFolders.set(token, d.kind === 'folder' ? d.path : d.folder);
     if (d.kind === 'file') openFileTokens.set(token, d.path);
@@ -285,6 +304,19 @@ function openLink(url) {
   mainWindow.focus();
 }
 
+/** «Abrir archivo…» y «Abrir carpeta como espacio de trabajo…»: el mismo flujo que «Abrir con» (P-40). */
+async function pickAndOpen(kind) {
+  const forced = process.env.PUGIDE_TEST_OPEN_PATH; // pruebas automáticas: sin diálogo del sistema
+  let target = forced || null;
+  if (!target) {
+    const r = await dialog.showOpenDialog(mainWindow ?? undefined, kind === 'file'
+      ? { title: 'Abrir archivo', properties: ['openFile'], filters: [{ name: 'Plantillas Pug', extensions: ['pug', 'jade'] }, { name: 'Todos los archivos', extensions: ['*'] }] }
+      : { title: 'Abrir carpeta como espacio de trabajo', properties: ['openDirectory'] });
+    target = r.canceled ? null : r.filePaths[0] ?? null;
+  }
+  if (target) requestOpen(target);
+}
+
 function installMenu() {
   const isMac = process.platform === 'darwin';
   const about = () => {
@@ -297,7 +329,15 @@ function installMenu() {
   };
   const template = [
     ...(isMac ? [{ label: config.appName, submenu: [{ label: `Acerca de ${config.appName}`, click: about }, { type: 'separator' }, { role: 'hide', label: 'Ocultar' }, { role: 'hideOthers', label: 'Ocultar otros' }, { role: 'unhide', label: 'Mostrar todo' }, { type: 'separator' }, { role: 'quit', label: 'Salir' }] }] : []),
-    ...(isMac ? [] : [{ label: 'Archivo', submenu: [{ role: 'quit', label: 'Salir' }] }]),
+    { label: 'Archivo', submenu: [
+      { label: 'Abrir archivo…', accelerator: 'CmdOrCtrl+O', click: () => void pickAndOpen('file') },
+      { label: 'Abrir carpeta como espacio de trabajo…', accelerator: 'CmdOrCtrl+Shift+O', click: () => void pickAndOpen('folder') },
+      { label: 'Abrir reciente', submenu: store && store.listRecent().length
+        ? [...store.listRecent().map((e) => ({ label: recent.recentLabel(e), click: () => requestOpen(e.path) })), { type: 'separator' }, { label: 'Borrar la lista', click: () => { store.clearRecent(); syncSystemRecents(); installMenu(); } }]
+        : [{ label: 'Sin archivos recientes', enabled: false }, { type: 'separator' }, { label: 'Borrar la lista', enabled: false }] },
+      { type: 'separator' },
+      ...(isMac ? [{ role: 'close', label: 'Cerrar ventana' }] : [{ role: 'quit', label: 'Salir' }]),
+    ] },
     // «Edición» es imprescindible en macOS: sin ella no funcionan Cmd+C, Cmd+V ni Cmd+Z en el editor.
     { label: 'Edición', submenu: [{ role: 'undo', label: 'Deshacer' }, { role: 'redo', label: 'Rehacer' }, { type: 'separator' }, { role: 'cut', label: 'Cortar' }, { role: 'copy', label: 'Copiar' }, { role: 'paste', label: 'Pegar' }, { role: 'selectAll', label: 'Seleccionar todo' }] },
     { label: 'Ver', submenu: [{ role: 'reload', label: 'Recargar' }, { type: 'separator' }, { role: 'resetZoom', label: 'Tamaño real' }, { role: 'zoomIn', label: 'Acercar' }, { role: 'zoomOut', label: 'Alejar' }, { type: 'separator' }, { role: 'togglefullscreen', label: 'Pantalla completa' }, ...(app.isPackaged ? [] : [{ type: 'separator' }, { role: 'toggleDevTools' }])] },
@@ -446,6 +486,7 @@ function setupIpc() {
       const dir = pickedFolders.get(token);
       if (!dir) return null;
       const ws = store.create(name, color, dir);
+      rememberRecent(dir, 'folder');
       return { id: ws.id };
     },
     // Pasar un proyecto a una carpeta (P-41): qué hay ya en la carpeta elegida y qué nombres del proyecto coinciden.
@@ -516,6 +557,8 @@ function setupIpc() {
     'ai:cancel': ({ runId }) => { aiRuns.get(runId)?.cancel(); return { ok: aiRuns.has(runId) }; },
     // Abrir con PugIDE (P-40).
     'open:pending': () => pendingOpens.splice(0).map(describeOpen),
+    // «Quitar de la lista» (P-46): un reciente que ya no existe.
+    'open:forget': ({ path: p }) => { if (typeof p !== 'string') return { ok: false }; store.removeRecent(p); syncSystemRecents(); installMenu(); return { ok: true }; },
     'open:path': ({ path: p }) => (typeof p === 'string' && path.isAbsolute(p) ? describeOpen(p) : { kind: 'missing', path: String(p ?? ''), name: '' }),
     'open:read-file': ({ token }) => {
       const p = openFileTokens.get(token);
