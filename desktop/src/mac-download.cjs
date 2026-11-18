@@ -45,20 +45,25 @@ async function downloadVerified({ fetchFn, url, sha512, size = 0, destDir, name,
   const final = path.join(destDir, name);
   const part = `${final}.part`;
   const out = fs.createWriteStream(part);
+  // Un error del disco (sin espacio, permisos) llega como evento asíncrono: sin oyente tumbaría el proceso principal.
+  let writeError = null;
+  const failed = new Promise((_, reject) => { out.on('error', (e) => { writeError = e; reject(e); }); });
+  failed.catch(() => undefined);
   const hash = crypto.createHash('sha512');
   let done = 0;
   try {
     const reader = res.body.getReader();
     for (;;) {
       if (token.cancelled) throw new Error('cancelled');
+      if (writeError) throw writeError;
       const { value, done: end } = await reader.read();
       if (end) break;
       hash.update(value);
-      if (!out.write(value)) await new Promise((r) => out.once('drain', r));
+      if (!out.write(value)) await Promise.race([new Promise((r) => out.once('drain', r)), failed]);
       done += value.length;
       onProgress(total ? Math.min(99, Math.floor((done / total) * 100)) : 0, done, total);
     }
-    await new Promise((resolve, reject) => { out.end((e) => (e ? reject(e) : resolve())); });
+    await Promise.race([new Promise((resolve, reject) => { out.end((e) => (e ? reject(e) : resolve())); }), failed]);
     if (hash.digest('base64') !== sha512) throw new Error('sha512 checksum mismatch');
     fs.renameSync(part, final);
     onProgress(100, done, total || done);

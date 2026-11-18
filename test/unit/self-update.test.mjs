@@ -259,3 +259,14 @@ test('macOS: si la huella falla, el error es «checksum» y no se abre nada', as
   assert.equal(upd.install('now').ok, false);
   assert.deepEqual(opened, []);
 });
+
+test('un error al escribir en disco (sin espacio) se devuelve como fallo y no tumba el proceso', async () => {
+  const dir = nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'pugide-dmg-'));
+  // El destino es una carpeta que no existe y no se puede crear (un archivo ocupa su sitio): createWriteStream falla de forma asíncrona.
+  const blocker = nodePath.join(dir, 'ocupado');
+  nodeFs.writeFileSync(blocker, 'x');
+  await assert.rejects(downloadVerified({
+    fetchFn: async () => ({ ok: true, status: 200, headers: { get: () => null }, body: bodyOf(Buffer.from('datos')) }),
+    url: 'https://x/y.dmg', sha512: 'x', destDir: dir, name: nodePath.join('ocupado', 'a.dmg'),
+  }));
+});
