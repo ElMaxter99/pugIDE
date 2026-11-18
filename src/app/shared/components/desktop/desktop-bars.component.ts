@@ -28,9 +28,14 @@ import { UiState } from '../../../core/state/ui.state';
           <div class="bar update ready" role="status" data-testid="update-bar" data-phase="ready">
             <span aria-hidden="true" class="material-symbols-outlined">check_circle</span>
             <span class="text">PugIDE <strong>{{ version() }}</strong> está lista.
-              @if (self()!.linuxPackage) { Al reiniciar, el sistema te pedirá tu contraseña para instalar el paquete. } @else { Se instala al reiniciar (unos segundos); tus proyectos y espacios se guardan antes. }</span>
-            <button type="button" class="btn" data-testid="update-on-quit" (click)="updates.install('quit')">Al cerrar PugIDE</button>
-            <button type="button" class="btn primary" data-testid="update-restart" (click)="updates.install('now')"><span aria-hidden="true" class="material-symbols-outlined">sync</span>Reiniciar y actualizar</button>
+              @if (self()!.manual) { El instalador está en tu carpeta de Descargas y su huella se ha comprobado. Ábrelo, arrastra PugIDE a Aplicaciones y, la primera vez, ábrela con clic derecho → Abrir. }
+              @else if (self()!.linuxPackage) { Al reiniciar, el sistema te pedirá tu contraseña para instalar el paquete. } @else { Se instala al reiniciar (unos segundos); tus proyectos y espacios se guardan antes. }</span>
+            @if (self()!.manual) {
+              <button type="button" class="btn primary" data-testid="update-open-installer" (click)="updates.install('now')"><span aria-hidden="true" class="material-symbols-outlined">folder_open</span>Abrir el instalador</button>
+            } @else {
+              <button type="button" class="btn" data-testid="update-on-quit" (click)="updates.install('quit')">Al cerrar PugIDE</button>
+              <button type="button" class="btn primary" data-testid="update-restart" (click)="updates.install('now')"><span aria-hidden="true" class="material-symbols-outlined">sync</span>Reiniciar y actualizar</button>
+            }
           </div>
         }
         @case ('error') {

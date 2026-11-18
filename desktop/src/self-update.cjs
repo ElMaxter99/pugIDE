@@ -13,13 +13,16 @@ const { classifyUpdateError, compareVersions, isPrerelease } = require('./update
  * @param {() => {autoUpdater: any, CancellationToken: any}} o.load  electron-updater (o uno falso en las pruebas)
  * @param {() => Promise<{version: string, tag: string}|null>} [o.pick]  la release que toca según el canal elegido
  * @param {(tag: string) => string} [o.feed]  carpeta de descargas de esa release (si falta, electron-updater decide solo)
+ * @param {{download: Function, open: (file: string) => void}} [o.manual]  macOS: sin electron-updater (app sin firmar),
+ *   se descarga y comprueba el .dmg y se abre (mac-download.cjs)
  */
-function createSelfUpdater({ support, currentVersion, send, load, pick = null, feed = null }) {
-  let state = { phase: 'idle', version: null, percent: 0, transferred: 0, total: 0, error: null, installOnQuit: false };
+function createSelfUpdater({ support, currentVersion, send, load, pick = null, feed = null, manual = null }) {
+  let state = { phase: 'idle', version: null, percent: 0, transferred: 0, total: 0, error: null, installOnQuit: false, file: null };
+  let cancelToken = { cancelled: false };
   let lib = null;
   let token = null;
 
-  const snapshot = () => ({ ...state, canUpdate: !!support.ok, cannotReason: support.ok ? null : support.reason, linuxPackage: support.linuxPackage ?? null });
+  const snapshot = () => ({ ...state, canUpdate: !!support.ok || !!manual, manual: !!manual && !support.ok, cannotReason: support.ok || manual ? null : support.reason, linuxPackage: support.linuxPackage ?? null });
   const set = (patch) => { state = { ...state, ...patch }; send({ type: 'upd-progress', update: snapshot() }); };
   const fail = (err) => {
     const reason = classifyUpdateError(err?.message ?? err);
@@ -44,10 +47,31 @@ function createSelfUpdater({ support, currentVersion, send, load, pick = null, f
     return u;
   }
 
+  /** macOS: elegir la release, descargar el .dmg, comprobar su huella; después «Abrir el instalador». */
+  async function startManual() {
+    if (state.phase === 'downloading' || state.phase === 'ready') return { ok: true };
+    const mine = { cancelled: false };
+    cancelToken = mine; // un intento cancelado que acabe tarde no debe tocar el estado del siguiente
+    set({ phase: 'downloading', percent: 0, transferred: 0, total: 0, error: null, file: null });
+    try {
+      const chosen = pick ? await pick() : null;
+      if (!chosen || compareVersions(chosen.version, currentVersion) <= 0) { set({ phase: 'error', error: 'missing' }); return { ok: false, reason: 'missing' }; }
+      set({ version: chosen.version });
+      manual.download({ chosen, token: mine, onProgress: (percent, transferred, total) => { if (cancelToken === mine && !mine.cancelled) set({ phase: 'downloading', percent, transferred, total }); } })
+        .then((file) => { if (cancelToken === mine && !mine.cancelled) set({ phase: 'ready', percent: 100, file }); })
+        .catch((err) => { if (cancelToken === mine && !mine.cancelled) fail(err); });
+      return { ok: true };
+    } catch (err) {
+      fail(err);
+      return { ok: false, reason: state.error };
+    }
+  }
+
   return {
     state: snapshot,
     /** «Actualizar»: busca en la release (latest*.yml) y descarga. */
     async start() {
+      if (manual && !support.ok) return startManual();
       if (!support.ok) return { ok: false, reason: support.reason };
       if (state.phase === 'downloading' || state.phase === 'ready') return { ok: true };
       set({ phase: 'downloading', percent: 0, transferred: 0, total: 0, error: null });
@@ -74,12 +98,18 @@ function createSelfUpdater({ support, currentVersion, send, load, pick = null, f
     },
     cancel() {
       if (state.phase !== 'downloading') return { ok: false };
+      cancelToken.cancelled = true;
       token?.cancel();
       set({ phase: 'idle', percent: 0, transferred: 0, total: 0 });
       return { ok: true };
     },
     /** `now`: cierra, instala y vuelve a abrir. `quit`: la instala cuando la persona cierre la app. */
     install(when) {
+      if (manual && !support.ok) {
+        if (state.phase !== 'ready' || !state.file) return { ok: false };
+        manual.open(state.file);
+        return { ok: true };
+      }
       if (state.phase !== 'ready' || !lib) return { ok: false };
       if (state.error) set({ error: null });
       if (when === 'quit') {

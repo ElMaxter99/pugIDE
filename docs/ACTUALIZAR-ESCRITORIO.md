@@ -25,7 +25,7 @@ instalador, cuando hay un `publish` configurado:
 | Sistema | Manifiesto | Lo que contiene |
 |---|---|---|
 | Windows (NSIS) | `latest.yml` | versión, nombre del `.exe`, tamaño y **SHA-512** |
-| macOS | `latest-mac.yml` | lo mismo para el `.zip` (el `.dmg` no sirve para actualizar) |
+| macOS | `latest-mac.yml` | versión, nombre y **SHA-512** de cada `.dmg` (x64 y arm64). electron-updater no puede usarlo (el `.dmg` no sirve para actualizar y la app no está firmada), pero PugIDE lo lee para descargar y comprobar el `.dmg` por su cuenta |
 | Linux | `latest-linux.yml` | lo mismo para AppImage, `.deb` y `.rpm` |
 
 Además, los `*.blockmap` permiten descargar solo los bloques que cambian (actualización diferencial).
@@ -86,7 +86,7 @@ electron-updater elige el actualizador según el sistema (`process.platform`) y,
 | Windows, **portable** | **No** | No hay instalación que sustituir, pero electron-updater no lo sabe e intentaría instalar con NSIS: hay que detectarlo (`process.env.PORTABLE_EXECUTABLE_FILE`) y ofrecer «Descargar». |
 | Linux, AppImage | **Sí** | Sustituye el archivo `.AppImage` (requiere `process.env.APPIMAGE`, que pone el propio AppImage). |
 | Linux, `.deb` / `.rpm` | **Sí**, con contraseña | Instala con `pkexec`/`sudo`: el sistema pide la contraseña. |
-| macOS | **Solo con la app firmada y notarizada** | Squirrel.Mac rechaza actualizaciones de apps sin firmar. Sin certificado de Apple (de pago): «Descargar». |
+| macOS | **No** (Squirrel.Mac exige app firmada y notarizada) | Sin certificado de Apple (de pago), PugIDE hace lo que sí se puede dentro de la app (`desktop/src/mac-download.cjs`): descarga el `.dmg` de su arquitectura a Descargas, **comprueba su SHA-512** contra `latest-mac.yml` (si no coincide, lo borra y no abre nada) y ofrece «Abrir el instalador». La persona arrastra PugIDE a Aplicaciones y la primera vez la abre con clic derecho → Abrir. |
 
 ### 2.3 bis Canales: estable y pruebas (release candidates)
 

@@ -41,6 +41,10 @@ export interface SelfUpdateState {
   canUpdate: boolean;
   /** Si no: portable | mac | dev | linux-unknown. */
   cannotReason: string | null;
+  /** macOS: se descarga el .dmg (con su huella comprobada) y se abre; no se instala solo. */
+  manual?: boolean;
+  /** Ruta del archivo descargado (solo macOS). */
+  file?: string | null;
   /** .deb o .rpm: el sistema pedirá la contraseña al instalar. */
   linuxPackage: string | null;
 }

@@ -175,7 +175,7 @@ export class UpdatesDialogComponent {
       case 'appimage': return 'La app sustituye su propio archivo AppImage. No pide contraseña.';
       case 'deb':
       case 'rpm': return 'Al instalar, el sistema te pedirá la contraseña de administrador. Si la cancelas, la descarga queda guardada.';
-      case 'mac': return 'En macOS no se actualiza sola: se descarga el .dmg desde GitHub. Ábrelo, arrastra PugIDE a Aplicaciones y la primera vez abre con clic derecho → Abrir.';
+      case 'mac': return 'En macOS no se actualiza sola (la app no está firmada): PugIDE descarga el .dmg, comprueba que no está alterado y lo abre. Arrastra PugIDE a Aplicaciones y la primera vez ábrela con clic derecho → Abrir.';
       default: return null;
     }
   });
