@@ -9,7 +9,7 @@ const { loadRules } = require('./headers.cjs');
 const { resolveRequest } = require('./serve.cjs');
 const config = require('./config.json');
 const { WorkspaceStore, readWorkspace, readPaths, writeWorkspace, watchedPath, COLORS } = require('./workspaces.cjs');
-const { compareVersions, parseLatestRelease, latestReleaseApi, selfUpdateSupport } = require('./updates.cjs');
+const { compareVersions, isPrerelease, parseReleases, releasesApi, feedUrl, normalizeChannel, selfUpdateSupport } = require('./updates.cjs');
 const { createSelfUpdater, fakeUpdaterModule } = require('./self-update.cjs');
 const aiCli = require('./ai-cli.cjs');
 const pdfExport = require('./pdf-export.cjs');
@@ -393,22 +393,37 @@ function startWatching(ws) {
   } catch { /* sin vigilancia (carpeta de red, límite del sistema): la app sigue guardando */ }
 }
 
-async function checkForUpdate() {
-  const api = latestReleaseApi(config.repoUrl);
-  const updates = store.state.updates;
+/** La release más nueva del canal elegido (estable o pruebas), leída de GitHub. */
+async function fetchLatest(channel = normalizeChannel(store.state.updates.channel)) {
+  const api = releasesApi(config.repoUrl);
   if (!api) return { ok: false, reason: 'config' };
   try {
     const res = await net.fetch(api, { headers: { 'User-Agent': 'PugIDE-desktop', Accept: 'application/vnd.github+json' } });
     if (!res.ok) return { ok: false, reason: 'http' };
-    const latest = parseLatestRelease(await res.json(), config.repoUrl);
-    if (!latest) return { ok: false, reason: 'format' };
-    updates.lastCheck = Date.now();
-    updates.latest = latest;
-    store.save();
-    return { ok: true };
+    const latest = parseReleases(await res.json(), channel, config.repoUrl);
+    return latest ? { ok: true, latest } : { ok: false, reason: 'format' };
   } catch {
     return { ok: false, reason: 'offline' };
   }
+}
+
+async function checkForUpdate() {
+  const updates = store.state.updates;
+  const r = await fetchLatest();
+  if (!r.ok) return r;
+  updates.lastCheck = Date.now();
+  updates.latest = r.latest;
+  store.save();
+  return { ok: true };
+}
+
+/** Cómo está instalada esta copia (P-48): decide qué explicación y qué botón enseña el panel. */
+function installKind() {
+  if (!app.isPackaged) return 'dev';
+  if (process.platform === 'darwin') return 'mac';
+  if (process.platform === 'win32') return process.env.PORTABLE_EXECUTABLE_FILE ? 'portable' : 'installer';
+  if (process.env.APPIMAGE) return 'appimage';
+  return selfUpdater?.state().linuxPackage || 'linux-unknown';
 }
 
 function updateState() {
@@ -417,6 +432,7 @@ function updateState() {
   const newer = !!u.latest && compareVersions(u.latest.version, current) > 0;
   return {
     current, asked: !!u.asked, enabled: !!u.enabled, lastCheck: u.lastCheck || 0, latest: newer ? u.latest : null, dismissed: newer && u.dismissed === u.latest.version,
+    channel: normalizeChannel(u.channel), prerelease: isPrerelease(current), install: installKind(), platform: process.platform,
     self: selfUpdater ? selfUpdater.state() : null,
     justUpdated,
   };
@@ -436,6 +452,8 @@ function setupSelfUpdate() {
     support,
     currentVersion: APP_VERSION,
     send: sendEvent,
+    pick: async () => { const r = await fetchLatest(); return r.ok ? r.latest : null; },
+    feed: (tag) => feedUrl(config.repoUrl, tag),
     load: () => (fake ? fakeUpdaterModule(fake, process.env.PUGIDE_TEST_UPDATER_VERSION || '99.0.0', () => sendEvent({ type: 'upd-test-installed' })) : require('electron-updater')),
   });
   // ¿Se acaba de actualizar? Se compara con la versión de la última vez que se abrió.
@@ -460,7 +478,7 @@ function openRelease() {
   const u = store.state.updates;
   const version = selfUpdater?.state().version || u.latest?.version || justUpdated;
   const url = version ? `${config.repoUrl}/releases/tag/v${version}` : `${config.repoUrl}/releases`;
-  if (/^\d+\.\d+\.\d+$/.test(version || '0.0.0') && url.startsWith(config.repoUrl)) void shell.openExternal(url);
+  if (/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(version || '0.0.0') && url.startsWith(config.repoUrl)) void shell.openExternal(url);
   return { ok: true };
 }
 
@@ -540,6 +558,15 @@ function setupIpc() {
       return updateState();
     },
     'upd:check': async () => { const r = await checkForUpdate(); return { ...updateState(), checked: r.ok, reason: r.ok ? null : r.reason }; },
+    // Canal de actualizaciones (P-47): «stable» o «rc» (pruebas). Al cambiar se olvida el aviso del otro canal y se vuelve a mirar.
+    'upd:channel': async ({ channel } = {}) => {
+      const u = store.state.updates;
+      u.channel = normalizeChannel(channel);
+      u.latest = null; u.dismissed = null; u.lastCheck = 0;
+      store.save();
+      if (u.enabled) await checkForUpdate();
+      return updateState();
+    },
     'upd:dismiss': () => { const u = store.state.updates; if (u.latest) { u.dismissed = u.latest.version; store.save(); } return updateState(); },
     // Asistente de IA: lanza la CLI instalada (`claude` o `copilot`) sin herramientas; el texto lo ha visto la persona.
     'ai:detect': () => aiCli.detect(),

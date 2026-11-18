@@ -78,3 +78,80 @@ test('donde no se puede (portable, macOS, desde el código) no descarga nada', a
   assert.equal(up.state().canUpdate, false);
   assert.equal(up.state().cannotReason, 'portable');
 });
+
+const { compareVersions, isPrerelease, parseReleases, feedUrl, normalizeChannel } = require('../../desktop/src/updates.cjs');
+const REPO = 'https://github.com/ElMaxter99/pugIDE';
+
+test('las versiones se ordenan como semver: rc.2 < rc.10 < estable', () => {
+  assert.ok(compareVersions('0.20.0-rc.2', '0.20.0-rc.10') < 0);
+  assert.ok(compareVersions('0.20.0-rc.10', '0.20.0') < 0);
+  assert.ok(compareVersions('0.20.0-rc.1', '0.19.0') > 0);
+  assert.ok(compareVersions('v1.10.0', '1.2.0') > 0);
+  assert.equal(compareVersions('0.19.0', '0.19.0'), 0);
+  assert.equal(isPrerelease('0.20.0-rc.1'), true);
+  assert.equal(isPrerelease('0.19.0'), false);
+});
+
+test('cada canal elige la release que le toca por versión, no por fecha', () => {
+  const list = [
+    { tag_name: 'v0.20.0-rc.2', prerelease: true },
+    { tag_name: 'v0.19.0', prerelease: false },
+    { tag_name: 'v0.20.0-rc.10', prerelease: true },
+    { tag_name: 'v0.21.0', draft: true },
+    { tag_name: 'nightly' },
+  ];
+  assert.equal(parseReleases(list, 'stable', REPO).version, '0.19.0');
+  const rc = parseReleases(list, 'rc', REPO);
+  assert.equal(rc.version, '0.20.0-rc.10');
+  assert.equal(rc.prerelease, true);
+  assert.equal(rc.tag, 'v0.20.0-rc.10');
+  // Si la estable ya superó a la rc, el canal de pruebas también la ofrece.
+  assert.equal(parseReleases([...list, { tag_name: 'v0.20.0' }], 'rc', REPO).version, '0.20.0');
+  assert.equal(parseReleases([], 'stable', REPO), null);
+  assert.equal(parseReleases(null, 'rc', REPO), null);
+  assert.equal(normalizeChannel('rc'), 'rc');
+  assert.equal(normalizeChannel('loquesea'), 'stable');
+  assert.equal(feedUrl(REPO, 'v0.20.0-rc.1'), `${REPO}/releases/download/v0.20.0-rc.1/`);
+});
+
+test('la contraseña cancelada se distingue de una descarga cancelada', () => {
+  assert.equal(classifyUpdateError('Error executing command as another user: Request dismissed'), 'password');
+  assert.equal(classifyUpdateError('pkexec exited with exit code 126'), 'password');
+  assert.equal(classifyUpdateError('cancelled'), 'cancelled');
+});
+
+test('el canal elegido decide qué release se descarga', async () => {
+  const events = [];
+  const lib = fakeUpdaterModule('ok', '0.20.0-rc.1');
+  const upd = createSelfUpdater({
+    support: { ok: true, reason: null }, currentVersion: '0.19.0', send: (e) => events.push(e), load: () => lib,
+    pick: async () => ({ version: '0.20.0-rc.1', tag: 'v0.20.0-rc.1' }), feed: (tag) => feedUrl(REPO, tag),
+  });
+  assert.equal((await upd.start()).ok, true);
+  assert.deepEqual(lib.autoUpdater.feedUrls, [{ provider: 'generic', url: `${REPO}/releases/download/v0.20.0-rc.1/` }]);
+  assert.equal(lib.autoUpdater.allowPrerelease, true);
+  await new Promise((r) => setTimeout(r, 900));
+  assert.equal(upd.state().phase, 'ready');
+});
+
+test('sin release nueva en el canal no hay descarga', async () => {
+  const upd = createSelfUpdater({
+    support: { ok: true, reason: null }, currentVersion: '0.20.0', send: () => {}, load: () => fakeUpdaterModule('ok'),
+    pick: async () => ({ version: '0.19.0', tag: 'v0.19.0' }), feed: (tag) => feedUrl(REPO, tag),
+  });
+  assert.equal((await upd.start()).reason, 'missing');
+  assert.equal(upd.state().error, 'missing');
+});
+
+test('cerrar el cuadro de la contraseña deja la descarga lista para reintentar', async () => {
+  const lib = fakeUpdaterModule('ok', '0.20.0');
+  const upd = createSelfUpdater({ support: { ok: true, reason: null, linuxPackage: 'deb' }, currentVersion: '0.19.0', send: () => {}, load: () => lib });
+  await upd.start();
+  await new Promise((r) => setTimeout(r, 900));
+  assert.equal(upd.state().phase, 'ready');
+  lib.autoUpdater.emit('error', new Error('Request dismissed'));
+  assert.equal(upd.state().phase, 'ready');
+  assert.equal(upd.state().error, 'password');
+  upd.install('now');
+  assert.equal(upd.state().error, null);
+});

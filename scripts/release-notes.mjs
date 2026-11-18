@@ -17,7 +17,7 @@ const REPO = 'https://github.com/ElMaxter99/pugIDE';
 
 /** La versión anterior a `version` según el CHANGELOG (la siguiente sección fechada), o null si es la primera. */
 export function previousVersion(version, changelog) {
-  const versions = [...changelog.matchAll(/^## \[(\d+\.\d+\.\d+)\]/gm)].map((m) => m[1]);
+  const versions = [...changelog.matchAll(/^## \[(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)\]/gm)].map((m) => m[1]);
   const i = versions.indexOf(version);
   return i >= 0 && i + 1 < versions.length ? versions[i + 1] : null;
 }
@@ -34,7 +34,7 @@ export function releaseBody(version, changelog = readFileSync(path.join(root, 'C
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const [version, out] = process.argv.slice(2);
-  if (!/^\d+\.\d+\.\d+$/.test(version ?? '')) {
+  if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/.test(version ?? '')) {
     console.error('Uso: node scripts/release-notes.mjs X.Y.Z [archivo]');
     process.exit(1);
   }

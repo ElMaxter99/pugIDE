@@ -88,6 +88,15 @@ electron-updater elige el actualizador según el sistema (`process.platform`) y,
 | Linux, `.deb` / `.rpm` | **Sí**, con contraseña | Instala con `pkexec`/`sudo`: el sistema pide la contraseña. |
 | macOS | **Solo con la app firmada y notarizada** | Squirrel.Mac rechaza actualizaciones de apps sin firmar. Sin certificado de Apple (de pago): «Descargar». |
 
+### 2.3 bis Canales: estable y pruebas (release candidates)
+
+La persona elige en el panel «Versión y actualizaciones» (clic en el número de versión) si quiere solo **estables** o también **pruebas** (`vX.Y.Z-rc.N`, releases marcadas «pre-release» en GitHub). Cómo funciona:
+
+- **Elegimos nosotros la release**, no electron-updater: `parseReleases` (`desktop/src/updates.cjs`) lee la lista de releases de GitHub y toma la más nueva **por versión semver** del canal (`rc.2 < rc.10 < estable`; «Estable» ignora las de pruebas; «Pruebas» ve todas, así que cuando sale la estable la ofrece). Después `setFeedURL({ provider: 'generic', url: .../releases/download/<tag>/ })` apunta a esa release y electron-updater lee su `latest*.yml`. Se comprobó construyendo una `0.99.0-rc.1`: electron-builder genera `latest-linux.yml` normal (no `rc-linux.yml`), así que **los instaladores de una rc no necesitan cambios en el flujo de CI**.
+- **Nunca se baja de versión** (`allowDowngrade = false`): quien está en una rc y vuelve a «Estable» se queda en la rc hasta que salga la siguiente estable.
+- El canal se guarda en el almacén de la app (`updates.channel`) y se cambia con el canal IPC `upd:channel`. Sin aceptar el aviso, la app sigue sin hacer ninguna llamada de red.
+- Publicar una rc: `npm run release:deploy -- 0.20.0-rc.1` (ver [RELEASE.md](RELEASE.md)).
+
 ### 2.4 Seguridad (lo que se garantiza y lo que no)
 
 - Todo va por **HTTPS** a github.com, y el instalador se comprueba con el **SHA-512** del manifiesto. Así se evita
@@ -151,6 +160,7 @@ descargar nada: `PUGIDE_TEST_UPDATER=ok npm run start:desktop` (también `fail` 
 | Aviso de versión nueva (opt-in, API de releases de GitHub) | `desktop/src/main.cjs` (`checkForUpdate`), P-27 |
 | ¿Se puede actualizar sola esta instalación? | `desktop/src/updates.cjs` (`selfUpdateSupport`) |
 | Descargar, progreso, comprobar e instalar (electron-updater) | `desktop/src/self-update.cjs` (`createSelfUpdater`; `fakeUpdaterModule` para las pruebas) |
+| Canal estable / pruebas, elegir la release, orden semver | `desktop/src/updates.cjs` (`parseReleases`, `compareVersions`, `feedUrl`), `main.cjs` (`upd:channel`) |
 | Canales `upd:update`, `upd:cancel`, `upd:install`, `upd:open-release`, `upd:ack-updated` | `desktop/src/main.cjs`, `desktop/src/preload.cjs` |
 | Interfaz (barra, progreso, lista, error, aviso «se ha actualizado», diálogo) | `desktop-bars.component.ts`, `updates-dialog.component.ts`, `desktop-update.service.ts` (P-35/P-36) |
 | Manifiestos y blockmaps en la release | `desktop/electron-builder.yml` (`publish`) y `.github/workflows/desktop.yml` (`--publish never` + subirlos) |

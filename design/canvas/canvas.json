@@ -471,6 +471,14 @@
       "h": 4030,
       "title": "P-44 a P-46 CSV, nombre de los PDF y menú Archivo (0.18)",
       "is_interactive": true
+    },
+    "P-47-P-49-Version-y-actualizaciones.dc.html": {
+      "x": 0,
+      "y": 60400,
+      "w": 1440,
+      "h": 3090,
+      "title": "P-47 a P-49 Versión y actualizaciones (0.19)",
+      "is_interactive": true
     }
   },
   "order": [
@@ -535,7 +543,8 @@
     "P-38-Datos-como-traducciones.dc.html",
     "P-39-P-41-Escritorio-PDF-abrir-mover.dc.html",
     "P-42-P-43-Varios-PDF-y-OpenAPI.dc.html",
-    "P-44-P-46-CSV-nombres-y-archivo.dc.html"
+    "P-44-P-46-CSV-nombres-y-archivo.dc.html",
+    "P-47-P-49-Version-y-actualizaciones.dc.html"
   ],
   "notes": {
     "fila-ref": {
