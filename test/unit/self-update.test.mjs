@@ -270,3 +270,23 @@ test('un error al escribir en disco (sin espacio) se devuelve como fallo y no tu
     url: 'https://x/y.dmg', sha512: 'x', destDir: dir, name: nodePath.join('ocupado', 'a.dmg'),
   }));
 });
+
+test('macOS: cancelar y reintentar no deja que el intento viejo cambie el estado del nuevo', async () => {
+  const gates = [];
+  const upd = createSelfUpdater({
+    support: { ok: false, reason: 'mac' }, currentVersion: '0.18.0', send: () => {}, load: () => ({}),
+    pick: async () => ({ version: '0.19.0', tag: 'v0.19.0' }),
+    manual: { download: () => new Promise((resolve, reject) => { gates.push({ resolve, reject }); }), open: () => {} },
+  });
+  await upd.start();
+  upd.cancel();
+  assert.equal(upd.state().phase, 'idle');
+  await upd.start();
+  assert.equal(upd.state().phase, 'downloading');
+  gates[0].reject(new Error('cancelled')); // el intento viejo termina tarde
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(upd.state().phase, 'downloading', 'el intento nuevo sigue descargando');
+  gates[1].resolve('/tmp/PugIDE.dmg');
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(upd.state().phase, 'ready');
+});

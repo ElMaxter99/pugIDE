@@ -50,15 +50,16 @@ function createSelfUpdater({ support, currentVersion, send, load, pick = null, f
   /** macOS: elegir la release, descargar el .dmg, comprobar su huella; después «Abrir el instalador». */
   async function startManual() {
     if (state.phase === 'downloading' || state.phase === 'ready') return { ok: true };
-    cancelToken = { cancelled: false };
+    const mine = { cancelled: false };
+    cancelToken = mine; // un intento cancelado que acabe tarde no debe tocar el estado del siguiente
     set({ phase: 'downloading', percent: 0, transferred: 0, total: 0, error: null, file: null });
     try {
       const chosen = pick ? await pick() : null;
       if (!chosen || compareVersions(chosen.version, currentVersion) <= 0) { set({ phase: 'error', error: 'missing' }); return { ok: false, reason: 'missing' }; }
       set({ version: chosen.version });
-      manual.download({ chosen, token: cancelToken, onProgress: (percent, transferred, total) => { if (!cancelToken.cancelled) set({ phase: 'downloading', percent, transferred, total }); } })
-        .then((file) => { if (!cancelToken.cancelled) set({ phase: 'ready', percent: 100, file }); })
-        .catch(fail);
+      manual.download({ chosen, token: mine, onProgress: (percent, transferred, total) => { if (cancelToken === mine && !mine.cancelled) set({ phase: 'downloading', percent, transferred, total }); } })
+        .then((file) => { if (cancelToken === mine && !mine.cancelled) set({ phase: 'ready', percent: 100, file }); })
+        .catch((err) => { if (cancelToken === mine && !mine.cancelled) fail(err); });
       return { ok: true };
     } catch (err) {
       fail(err);
