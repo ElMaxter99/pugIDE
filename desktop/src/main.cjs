@@ -11,6 +11,7 @@ const config = require('./config.json');
 const { WorkspaceStore, readWorkspace, readPaths, writeWorkspace, watchedPath, COLORS } = require('./workspaces.cjs');
 const { compareVersions, isPrerelease, parseReleases, releasesApi, feedUrl, normalizeChannel, selfUpdateSupport } = require('./updates.cjs');
 const { createSelfUpdater, fakeUpdaterModule } = require('./self-update.cjs');
+const { downloadMacDmg } = require('./mac-download.cjs');
 const aiCli = require('./ai-cli.cjs');
 const pdfExport = require('./pdf-export.cjs');
 const recent = require('./recent.cjs');
@@ -453,6 +454,14 @@ function setupSelfUpdate() {
     currentVersion: APP_VERSION,
     send: sendEvent,
     pick: async () => { const r = await fetchLatest(); return r.ok ? r.latest : null; },
+    // macOS (app sin firmar, no se actualiza sola): descargar el .dmg, comprobar su huella y abrirlo (P-48).
+    manual: process.platform === 'darwin' && app.isPackaged && !fake ? {
+      download: ({ chosen, token, onProgress }) => downloadMacDmg({
+        fetchFn: (url, init) => net.fetch(url, init), repoUrl: config.repoUrl, tag: chosen.tag, version: chosen.version,
+        arch: process.arch, destDir: app.getPath('downloads'), onProgress, token,
+      }),
+      open: (file) => { void shell.openPath(file); },
+    } : null,
     feed: (tag) => feedUrl(config.repoUrl, tag),
     load: () => (fake ? fakeUpdaterModule(fake, process.env.PUGIDE_TEST_UPDATER_VERSION || '99.0.0', () => sendEvent({ type: 'upd-test-installed' })) : require('electron-updater')),
   });

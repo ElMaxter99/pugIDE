@@ -5,6 +5,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 ## [Sin publicar]
 
 ### Añadido
+- **macOS: descargar la actualización dentro de la app** (diseño P-48). Como la app no está firmada, macOS no deja que se actualice sola; ahora «Actualizar» descarga el `.dmg` de tu arquitectura (Intel o Apple Silicon) a Descargas con barra de progreso, **comprueba su huella SHA-512** contra la publicada en la release (si no coincide, lo borra y no abre nada) y ofrece «Abrir el instalador». Arrastra PugIDE a Aplicaciones y la primera vez ábrela con clic derecho → Abrir.
+
+### Añadido
 - **Versión y actualizaciones** (escritorio y web; diseño P-47 a P-49, aprobado). El **número de versión** de la barra lateral es ahora un botón que abre el panel «Versión y actualizaciones»: versión instalada (con la etiqueta «pruebas» si lo es), cómo está instalada la copia y qué pasará al actualizar (instalador de Windows: sin contraseña de administrador; AppImage: sustituye su archivo; `.deb`/`.rpm`: el sistema pide la contraseña; macOS: descarga manual del `.dmg`). En la web solo enseña la versión y el enlace a las novedades.
 - **Canal de actualizaciones: Estable o Pruebas** (escritorio). «Estable» (por defecto) solo ofrece versiones publicadas; «Pruebas» ofrece también las candidatas (`-rc.N`). La versión más nueva se elige por número real (`rc.2 < rc.10 < estable`), nunca baja de versión y se recuerda entre sesiones.
 - **Avisos del flujo de actualizar:** si se cierra el cuadro de la contraseña (`.deb`/`.rpm`), la descarga queda guardada y se puede reintentar; si el instalador de una versión aún se está construyendo, lo dice.

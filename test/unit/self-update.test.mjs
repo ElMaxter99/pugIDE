@@ -155,3 +155,107 @@ test('cerrar el cuadro de la contraseña deja la descarga lista para reintentar'
   upd.install('now');
   assert.equal(upd.state().error, null);
 });
+
+const { parseLatestYml, pickDmg, downloadVerified, downloadMacDmg } = require('../../desktop/src/mac-download.cjs');
+const nodeCrypto = require('node:crypto');
+const nodeFs = require('node:fs');
+const nodeOs = require('node:os');
+const nodePath = require('node:path');
+
+const MAC_YML = `version: 0.19.0
+files:
+  - url: PugIDE-0.19.0-mac-x64.dmg
+    sha512: AAA
+    size: 10
+  - url: PugIDE-0.19.0-mac-arm64.dmg
+    sha512: BBB
+    size: 20
+path: PugIDE-0.19.0-mac-x64.dmg
+sha512: AAA
+releaseDate: '2026-11-18T10:00:00.000Z'
+`;
+
+test('latest-mac.yml: lee los .dmg y elige el de la arquitectura', () => {
+  const files = parseLatestYml(MAC_YML);
+  assert.equal(files.length, 2);
+  assert.deepEqual(files[1], { url: 'PugIDE-0.19.0-mac-arm64.dmg', sha512: 'BBB', size: 20 });
+  assert.equal(pickDmg(files, 'arm64').sha512, 'BBB');
+  assert.equal(pickDmg(files, 'x64').sha512, 'AAA');
+  assert.equal(pickDmg([], 'x64'), null);
+});
+
+const bodyOf = (buf, chunk = 4) => {
+  let i = 0;
+  return { getReader: () => ({ read: async () => (i >= buf.length ? { done: true } : { done: false, value: buf.subarray(i, (i += chunk)) }) }) };
+};
+
+test('el .dmg se descarga, se comprueba su huella y solo entonces queda con su nombre', async () => {
+  const dir = nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'pugide-dmg-'));
+  const data = Buffer.from('contenido-del-instalador');
+  const sha = nodeCrypto.createHash('sha512').update(data).digest('base64');
+  const seen = [];
+  const file = await downloadVerified({
+    fetchFn: async () => ({ ok: true, status: 200, headers: { get: () => String(data.length) }, body: bodyOf(data) }),
+    url: 'https://x/y.dmg', sha512: sha, destDir: dir, name: 'PugIDE-0.19.0-mac-arm64.dmg', onProgress: (p) => seen.push(p),
+  });
+  assert.equal(nodeFs.readFileSync(file).toString(), 'contenido-del-instalador');
+  assert.equal(seen.at(-1), 100);
+  assert.deepEqual(nodeFs.readdirSync(dir), ['PugIDE-0.19.0-mac-arm64.dmg']);
+});
+
+test('si la huella no coincide no queda ningún archivo y se dice «checksum»', async () => {
+  const dir = nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'pugide-dmg-'));
+  const data = Buffer.from('alterado');
+  await assert.rejects(downloadVerified({
+    fetchFn: async () => ({ ok: true, status: 200, headers: { get: () => null }, body: bodyOf(data) }),
+    url: 'https://x/y.dmg', sha512: 'otra-cosa', destDir: dir, name: 'a.dmg',
+  }), (e) => classifyUpdateError(e.message) === 'checksum');
+  assert.deepEqual(nodeFs.readdirSync(dir), []);
+});
+
+test('cancelar a mitad no deja restos', async () => {
+  const dir = nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'pugide-dmg-'));
+  const token = { cancelled: false };
+  await assert.rejects(downloadVerified({
+    fetchFn: async () => ({ ok: true, status: 200, headers: { get: () => null }, body: bodyOf(Buffer.alloc(64)) }),
+    url: 'https://x/y.dmg', sha512: 'x', destDir: dir, name: 'a.dmg', token, onProgress: () => { token.cancelled = true; },
+  }), /cancelled/);
+  assert.deepEqual(nodeFs.readdirSync(dir), []);
+});
+
+test('sin instalador publicado (404) se dice «missing»', async () => {
+  await assert.rejects(downloadMacDmg({
+    fetchFn: async () => ({ ok: false, status: 404 }), repoUrl: REPO, tag: 'v0.19.0', version: '0.19.0', arch: 'arm64', destDir: nodeOs.tmpdir(),
+  }), (e) => classifyUpdateError(e.message) === 'missing');
+});
+
+test('macOS: «Actualizar» descarga el .dmg y «Abrir el instalador» lo abre', async () => {
+  const opened = [];
+  const upd = createSelfUpdater({
+    support: { ok: false, reason: 'mac' }, currentVersion: '0.18.0', send: () => {}, load: () => { throw new Error('no se usa electron-updater'); },
+    pick: async () => ({ version: '0.19.0', tag: 'v0.19.0' }),
+    manual: { download: async ({ onProgress }) => { onProgress(50, 5, 10); onProgress(100, 10, 10); return '/Users/ana/Downloads/PugIDE-0.19.0-mac-arm64.dmg'; }, open: (f) => opened.push(f) },
+  });
+  assert.equal(upd.state().canUpdate, true);
+  assert.equal(upd.state().manual, true);
+  assert.equal((await upd.start()).ok, true);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(upd.state().phase, 'ready');
+  assert.equal(upd.install('now').ok, true);
+  assert.deepEqual(opened, ['/Users/ana/Downloads/PugIDE-0.19.0-mac-arm64.dmg']);
+});
+
+test('macOS: si la huella falla, el error es «checksum» y no se abre nada', async () => {
+  const opened = [];
+  const upd = createSelfUpdater({
+    support: { ok: false, reason: 'mac' }, currentVersion: '0.18.0', send: () => {}, load: () => ({}),
+    pick: async () => ({ version: '0.19.0', tag: 'v0.19.0' }),
+    manual: { download: async () => { throw new Error('sha512 checksum mismatch'); }, open: (f) => opened.push(f) },
+  });
+  await upd.start();
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(upd.state().phase, 'error');
+  assert.equal(upd.state().error, 'checksum');
+  assert.equal(upd.install('now').ok, false);
+  assert.deepEqual(opened, []);
+});

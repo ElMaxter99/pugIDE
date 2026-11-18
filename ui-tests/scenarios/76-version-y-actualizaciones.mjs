@@ -8,7 +8,7 @@ function fakeDesktop(cfg) {
   const listeners = new Set();
   window.__calls = [];
   let channel = cfg.channel ?? 'stable';
-  const self = { phase: 'idle', version: null, percent: 0, transferred: 0, total: 0, error: cfg.error ?? null, installOnQuit: false, canUpdate: cfg.install !== 'mac', cannotReason: null, linuxPackage: cfg.install === 'deb' ? 'deb' : null };
+  const self = { phase: 'idle', version: null, percent: 0, transferred: 0, total: 0, error: cfg.error ?? null, installOnQuit: false, canUpdate: true, manual: cfg.install === 'mac', cannotReason: null, linuxPackage: cfg.install === 'deb' ? 'deb' : null, ...cfg.self };
   const state = () => ({ current: cfg.current ?? '0.19.0', asked: true, enabled: true, lastCheck: Date.now(), latest: null, dismissed: false, channel, prerelease: /-/.test(cfg.current ?? ''), install: cfg.install ?? 'installer', platform: 'linux', self, justUpdated: null });
   window.pugideDesktop = Object.freeze({
     platform: 'linux', version: cfg.current ?? '0.19.0', webUrl: 'https://pug-ide.vercel.app',
@@ -17,6 +17,7 @@ function fakeDesktop(cfg) {
       window.__calls.push([ch, payload ?? null]);
       if (ch === 'ws:list') return { workspaces: [], lastId: null, colors: [] };
       if (ch === 'upd:state') return state();
+      if (ch === 'upd:install') return { ok: true };
       if (ch === 'upd:channel') { channel = payload.channel; return state(); }
       return null;
     },
@@ -70,5 +71,16 @@ export default async function (env) {
   check('76 explica que no se baja de versión al volver a «Estable»', (await d3.locator('[data-testid="channel-back-note"]').count()) === 1);
   check('76 contraseña cancelada: dice que la descarga sigue guardada', /sigue guardada/.test(await d3.locator('[data-testid="updates-password"]').innerText()));
   check('76 sin errores no controlados', app.errors.length === 0, app.errors.join(' | '));
+  await app.close();
+
+  // 4 · macOS: el .dmg ya está descargado y comprobado; la barra ofrece abrirlo (no reiniciar).
+  app = await open(env, { install: 'mac', self: { phase: 'ready', version: '0.20.0', percent: 100, file: '/Users/ana/Downloads/PugIDE-0.20.0-mac-arm64.dmg' } });
+  page = app.page;
+  const bar = page.locator('[data-testid="update-bar"][data-phase="ready"]');
+  await bar.waitFor({ timeout: 8000 });
+  check('76 macOS: «Abrir el instalador» en vez de «Reiniciar y actualizar»', (await bar.locator('[data-testid="update-open-installer"]').count()) === 1 && (await bar.locator('[data-testid="update-restart"]').count()) === 0);
+  check('76 macOS: explica Aplicaciones y clic derecho → Abrir', /Aplicaciones/.test(await bar.innerText()) && /clic derecho/.test(await bar.innerText()));
+  await bar.locator('[data-testid="update-open-installer"]').click();
+  check('76 macOS: pide abrir el instalador al proceso principal', !!(await waitUntil(async () => (await calls(page, 'upd:install')).length === 1, 3000)));
   await app.close();
 }
