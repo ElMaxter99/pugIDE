@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: c9d6aaa84f5624ff
+// pugide-runtime source-hash: 5ffaf835f8fba988
 "use strict";
 (() => {
   // src/app/core/utils/diagnostics.util.ts
@@ -262,6 +262,43 @@ El filtro ${m[1]} no est\xE1 disponible en PugIDE (corre en el navegador, sin pa
   var TRANSLATIONS_KEY = "translations";
   var TRANSLATE_FNS = /* @__PURE__ */ new Set(["t", "$t", "__", "_t", "translate", "trans", "gettext", "instant"]);
   var isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  function closingBrace(text, from) {
+    let depth = 0;
+    for (let i = from; i < text.length; i++) {
+      if (text[i] === "{") depth++;
+      else if (text[i] === "}" && --depth === 0) return i;
+    }
+    return -1;
+  }
+  function expandIcuPlurals(text, count, select) {
+    const head = /\{\s*\w+\s*,\s*plural\s*,/g;
+    let out = "";
+    let last = 0;
+    let found = false;
+    for (let m = head.exec(text); m; m = head.exec(text)) {
+      const end = closingBrace(text, m.index);
+      if (end < 0) break;
+      const forms = /* @__PURE__ */ new Map();
+      let i = m.index + m[0].length;
+      while (i < end) {
+        const f = /\s*(=?\w+)\s*\{/y;
+        f.lastIndex = i;
+        const fm = f.exec(text);
+        if (!fm) break;
+        const open = fm.index + fm[0].length - 1;
+        const close = closingBrace(text, open);
+        if (close < 0 || close > end) break;
+        forms.set(fm[1], text.slice(open + 1, close));
+        i = close + 1;
+      }
+      const chosen = forms.get(`=${count}`) ?? forms.get(select(count)) ?? forms.get("other") ?? "";
+      out += text.slice(last, m.index) + chosen.replace(/#/g, String(count));
+      last = end + 1;
+      head.lastIndex = end + 1;
+      found = true;
+    }
+    return found ? out + text.slice(last) : null;
+  }
   function pluralLocale(data) {
     const v = data["locale"] ?? data["lang"] ?? data["language"];
     return typeof v === "string" && /^[a-z]{2,3}([-_][A-Za-z]{2,4})?$/.test(v) ? v.replace("_", "-") : "es";
@@ -293,13 +330,8 @@ El filtro ${m[1]} no est\xE1 disponible en PugIDE (corre en el navegador, sin pa
       return (space ? raw(`${space}.${bare}`) : void 0) ?? raw(bare);
     };
     const pluralOf = (text, count) => {
-      const icu = /^\{\s*\w+\s*,\s*plural\s*,\s*([\s\S]*)\}$/.exec(text.trim());
-      if (icu) {
-        const forms = /* @__PURE__ */ new Map();
-        for (const f of icu[1].matchAll(/(=?\w+)\s*\{([^{}]*)\}/g)) forms.set(f[1], f[2]);
-        const chosen = forms.get(`=${count}`) ?? forms.get(rules.select(count)) ?? forms.get("other") ?? "";
-        return chosen.replace(/#/g, String(count));
-      }
+      const icu = expandIcuPlurals(text, count, (n) => rules.select(n));
+      if (icu !== null) return icu;
       if (text.includes(" | ")) {
         const parts = text.split(" | ").map((x) => x.trim());
         if (parts.length === 2) return count === 1 ? parts[0] : parts[1];

@@ -81,3 +81,14 @@ test('sin traducciones: la clave (o su valor por defecto)', () => {
 test('el esqueleto de claves con espacio de nombres lo deja como un nivel más', () => {
   assert.deepEqual(buildTranslationSkeleton(['common:A.B', 'C']), { common: { A: { B: '' } }, C: '' });
 });
+
+test('ICU dentro de un texto y con varios plurales', () => {
+  const t = tr({
+    a: 'Tienes {count, plural, one {# aviso} other {# avisos}} nuevos.',
+    b: '{count, plural, =0 {Nada} one {# cosa} other {# cosas}} y {count, plural, one {un día} other {# días}}',
+  });
+  assert.equal(t('a', { count: 1 }), 'Tienes 1 aviso nuevos.');
+  assert.equal(t('a', { count: 3 }), 'Tienes 3 avisos nuevos.');
+  assert.equal(t('b', { count: 0 }), 'Nada y 0 días');
+  assert.equal(t('b', { count: 1 }), '1 cosa y un día');
+});

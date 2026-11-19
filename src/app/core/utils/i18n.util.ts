@@ -34,6 +34,50 @@ export function buildTranslationSkeleton(keys: Iterable<string>): Obj {
 }
 
 
+/** Índice de la `}` que cierra la `{` de `from` (con llaves anidadas), o -1. */
+function closingBrace(text: string, from: number): number {
+  let depth = 0;
+  for (let i = from; i < text.length; i++) {
+    if (text[i] === '{') depth++;
+    else if (text[i] === '}' && --depth === 0) return i;
+  }
+  return -1;
+}
+
+/**
+ * Sustituye cada `{x, plural, one {…} other {…}}` del texto por su forma según `count` (`#` es el número).
+ * Devuelve null si el texto no lleva ninguno.
+ */
+function expandIcuPlurals(text: string, count: number, select: (n: number) => string): string | null {
+  const head = /\{\s*\w+\s*,\s*plural\s*,/g;
+  let out = '';
+  let last = 0;
+  let found = false;
+  for (let m = head.exec(text); m; m = head.exec(text)) {
+    const end = closingBrace(text, m.index);
+    if (end < 0) break;
+    const forms = new Map<string, string>();
+    let i = m.index + m[0].length;
+    while (i < end) {
+      const f = /\s*(=?\w+)\s*\{/y;
+      f.lastIndex = i;
+      const fm = f.exec(text);
+      if (!fm) break;
+      const open = fm.index + fm[0].length - 1;
+      const close = closingBrace(text, open);
+      if (close < 0 || close > end) break;
+      forms.set(fm[1], text.slice(open + 1, close));
+      i = close + 1;
+    }
+    const chosen = forms.get(`=${count}`) ?? forms.get(select(count)) ?? forms.get('other') ?? '';
+    out += text.slice(last, m.index) + chosen.replace(/#/g, String(count));
+    last = end + 1;
+    head.lastIndex = end + 1;
+    found = true;
+  }
+  return found ? out + text.slice(last) : null;
+}
+
 /** Código de idioma para las reglas de plural: `locale`/`lang` de los datos o español. */
 function pluralLocale(data: Obj): string {
   const v = data['locale'] ?? data['lang'] ?? data['language'];
@@ -74,14 +118,9 @@ export function createTranslator(data: Obj): (key?: unknown, params?: unknown) =
   };
 
   const pluralOf = (text: string, count: number): string => {
-    // ICU: {count, plural, one {# elemento} other {# elementos}}
-    const icu = /^\{\s*\w+\s*,\s*plural\s*,\s*([\s\S]*)\}$/.exec(text.trim());
-    if (icu) {
-      const forms = new Map<string, string>();
-      for (const f of icu[1].matchAll(/(=?\w+)\s*\{([^{}]*)\}/g)) forms.set(f[1], f[2]);
-      const chosen = forms.get(`=${count}`) ?? forms.get(rules.select(count)) ?? forms.get('other') ?? '';
-      return chosen.replace(/#/g, String(count));
-    }
+    // ICU, también dentro de un texto: «Tienes {count, plural, one {# aviso} other {# avisos}}.»
+    const icu = expandIcuPlurals(text, count, (n) => rules.select(n));
+    if (icu !== null) return icu;
     // vue-i18n: «ninguno | uno | muchos» (con 2 formas: 1 → la primera; con 3: 0, 1, resto)
     if (text.includes(' | ')) {
       const parts = text.split(' | ').map((x) => x.trim());
