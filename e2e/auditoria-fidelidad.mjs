@@ -68,7 +68,7 @@ await det('__', "p= __('A.B')", ['A.B']);
 await det('translate.instant', "p= translate.instant('A.B')", ['A.B']);
 await det('req.t (i18next-http-middleware)', "p= req.t('A.B')", ['A.B']);
 await det('res.__ / locals.t', "p= locals.t('A.B')", ['A.B']);
-await det('con espacio de nombres ns:clave', "p= t('common:A.B')", ['common:A.B']);
+await det('con espacio de nombres ns:clave (un nivel más: common.A.B)', "p= t('common:A.B')", ['common.A.B']);
 await det('clave con guion y número', "p= t('FOOTER.LINE-2')", ['FOOTER.LINE-2']);
 await det('texto como clave (gettext) «Hola mundo»', "p= t('Hola mundo')", ['Hola mundo']);
 await det('clave dinámica t("A." + x)', "- const x = 'B'\np= t('A.' + x)", []);

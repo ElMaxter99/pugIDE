@@ -1,4 +1,4 @@
-// pugide-runtime source-hash: 3631178ad8132b99
+// pugide-runtime source-hash: 5ffaf835f8fba988
 "use strict";
 (() => {
   // src/app/core/utils/diagnostics.util.ts
@@ -262,23 +262,123 @@ El filtro ${m[1]} no est\xE1 disponible en PugIDE (corre en el navegador, sin pa
   var TRANSLATIONS_KEY = "translations";
   var TRANSLATE_FNS = /* @__PURE__ */ new Set(["t", "$t", "__", "_t", "translate", "trans", "gettext", "instant"]);
   var isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  function closingBrace(text, from) {
+    let depth = 0;
+    for (let i = from; i < text.length; i++) {
+      if (text[i] === "{") depth++;
+      else if (text[i] === "}" && --depth === 0) return i;
+    }
+    return -1;
+  }
+  function expandIcuPlurals(text, count, select) {
+    const head = /\{\s*\w+\s*,\s*plural\s*,/g;
+    let out = "";
+    let last = 0;
+    let found = false;
+    for (let m = head.exec(text); m; m = head.exec(text)) {
+      const end = closingBrace(text, m.index);
+      if (end < 0) break;
+      const forms = /* @__PURE__ */ new Map();
+      let i = m.index + m[0].length;
+      while (i < end) {
+        const f = /\s*(=?\w+)\s*\{/y;
+        f.lastIndex = i;
+        const fm = f.exec(text);
+        if (!fm) break;
+        const open = fm.index + fm[0].length - 1;
+        const close = closingBrace(text, open);
+        if (close < 0 || close > end) break;
+        forms.set(fm[1], text.slice(open + 1, close));
+        i = close + 1;
+      }
+      const chosen = forms.get(`=${count}`) ?? forms.get(select(count)) ?? forms.get("other") ?? "";
+      out += text.slice(last, m.index) + chosen.replace(/#/g, String(count));
+      last = end + 1;
+      head.lastIndex = end + 1;
+      found = true;
+    }
+    return found ? out + text.slice(last) : null;
+  }
+  function pluralLocale(data) {
+    const v = data["locale"] ?? data["lang"] ?? data["language"];
+    return typeof v === "string" && /^[a-z]{2,3}([-_][A-Za-z]{2,4})?$/.test(v) ? v.replace("_", "-") : "es";
+  }
   function createTranslator(data) {
     const root = data[TRANSLATIONS_KEY];
-    const lookup = (key) => {
-      if (!isObj(root)) return key;
+    const rules = (() => {
+      try {
+        return new Intl.PluralRules(pluralLocale(data));
+      } catch {
+        return new Intl.PluralRules("es");
+      }
+    })();
+    const raw = (key) => {
+      if (!isObj(root) || !key) return void 0;
       const flat = root[key];
       if (typeof flat === "string" && flat) return flat;
       let cur = root;
       for (const p of key.split(".")) {
         if (isObj(cur) && p in cur) cur = cur[p];
-        else return key;
+        else return void 0;
       }
-      return typeof cur === "string" && cur ? cur : key;
+      return typeof cur === "string" && cur ? cur : void 0;
+    };
+    const find = (key, ns) => {
+      const m = /^([\w$-]+):(.+)$/.exec(key);
+      const space = m ? m[1] : ns;
+      const bare = m ? m[2] : key;
+      return (space ? raw(`${space}.${bare}`) : void 0) ?? raw(bare);
+    };
+    const pluralOf = (text, count) => {
+      const icu = expandIcuPlurals(text, count, (n) => rules.select(n));
+      if (icu !== null) return icu;
+      if (text.includes(" | ")) {
+        const parts = text.split(" | ").map((x) => x.trim());
+        if (parts.length === 2) return count === 1 ? parts[0] : parts[1];
+        return parts[Math.min(count === 0 ? 0 : count === 1 ? 1 : 2, parts.length - 1)];
+      }
+      return text;
+    };
+    const resolve = (key, options, depth) => {
+      const ns = typeof options["ns"] === "string" ? options["ns"] : void 0;
+      const count = typeof options["count"] === "number" ? options["count"] : void 0;
+      const context = typeof options["context"] === "string" && options["context"] ? options["context"] : void 0;
+      const bases = context ? [`${key}_${context}`, key] : [key];
+      let found;
+      for (const base of bases) {
+        if (count !== void 0) {
+          found = (count === 0 ? find(`${base}_zero`, ns) : void 0) ?? find(`${base}_${rules.select(count)}`, ns) ?? (count !== 1 ? find(`${base}_plural`, ns) : void 0) ?? find(`${base}_other`, ns);
+        }
+        found ?? (found = find(base, ns));
+        if (found !== void 0) break;
+      }
+      if (found === void 0) return void 0;
+      if (count !== void 0) found = pluralOf(found, count);
+      if (depth < 4 && found.includes("$t(")) {
+        found = found.replace(/\$t\(\s*([^),\s]+)\s*\)/g, (m, k) => resolve(k.replace(/^['"]|['"]$/g, ""), options, depth + 1) ?? m);
+      }
+      return found;
     };
     return (key, params) => {
-      const out = lookup(String(key ?? ""));
-      if (!isObj(params)) return out;
-      return out.replace(/\{\{?\s*([\w$]+)\s*\}?\}/g, (m, name) => name in params ? String(params[name]) : m);
+      const options = isObj(params) ? params : {};
+      const keys = Array.isArray(key) ? key.map(String) : [String(key ?? "")];
+      let text;
+      for (const k of keys) {
+        text = resolve(k, options, 0);
+        if (text !== void 0) break;
+      }
+      if (text === void 0) {
+        const fallback = typeof params === "string" ? params : typeof options["defaultValue"] === "string" ? options["defaultValue"] : void 0;
+        const k = keys[keys.length - 1] ?? "";
+        text = fallback ?? k;
+        if (fallback === void 0 && !isObj(params)) return text;
+        if (fallback !== void 0 && typeof options["count"] === "number") text = pluralOf(text, options["count"]);
+      }
+      if (!isObj(params)) return text;
+      return text.replace(/\{\{-?\s*([\w$]+)\s*(?:,[^}]*)?\}\}|%\{\s*([\w$]+)\s*\}|\{\s*([\w$]+)\s*\}/g, (m, a, b, c) => {
+        const name = a ?? b ?? c;
+        return name in options && options[name] !== void 0 && options[name] !== null ? String(options[name]) : m;
+      });
     };
   }
 
