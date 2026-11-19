@@ -113,6 +113,11 @@ jobs:
           ELECTRON_ENABLE_LOGGING: '1'
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a node test/smoke.mjs; else node test/smoke.mjs; fi
+      - name: Prueba de actualización de punta a punta (Linux, AppImage)
+        if: runner.os == 'Linux'
+        working-directory: desktop
+        timeout-minutes: 20
+        run: xvfb-run -a node test/update-e2e.mjs
       - name: Construir los instaladores
         working-directory: desktop
         timeout-minutes: 25

@@ -9,6 +9,7 @@
   "scripts": {
     "start": "electron . --no-sandbox",
     "test": "node test/smoke.mjs",
+    "test:update": "node test/update-e2e.mjs",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "dist:linux": "electron-builder --linux",
