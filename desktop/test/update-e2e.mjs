@@ -29,10 +29,11 @@ const check = (name, ok, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} 
 const step = (m) => console.log(`... ${m}`);
 const wait = async (fn, ms = 60000) => { const end = Date.now() + ms; while (Date.now() < end) { try { const v = await fn(); if (v) return v; } catch { /* sigue */ } await new Promise((r) => setTimeout(r, 300)); } return null; };
 const sha = (file) => createHash('sha512').update(readFileSync(file)).digest('base64');
-const watchdog = setTimeout(() => { console.log('FAIL la prueba no terminó en 25 minutos'); process.exit(1); }, 25 * 60 * 1000);
+let work = '';
+const watchdog = setTimeout(() => { console.log('FAIL la prueba no terminó en 10 minutos'); spawnSync('pkill', ['-9', '-f', work]); process.exit(1); }, 10 * 60 * 1000);
 watchdog.unref?.();
 
-const work = mkdtempSync(join(tmpdir(), 'pugide-update-e2e-'));
+work = mkdtempSync(join(tmpdir(), 'pugide-update-e2e-'));
 const out = { old: join(work, 'out-old'), new: join(work, 'out-new') };
 
 function build(version, dir) {
@@ -125,8 +126,11 @@ async function run(label, expect) {
       check(`${label}: el archivo viejo queda intacto`, sha(target) === before);
     }
   } finally {
-    await app.close().catch(() => undefined);
-    spawnSync('pkill', ['-f', work]); // la versión nueva que se relanza sola tras instalar
+    // La versión nueva se relanza sola tras instalar y queda huérfana: se mata primero, y cerrar la app no puede colgar la prueba
+    // (en el runner de GitHub esperar a `app.close()` agotó el tiempo del paso aunque todo había pasado).
+    spawnSync('pkill', ['-f', work]);
+    await Promise.race([app.close().catch(() => undefined), new Promise((r) => setTimeout(r, 15000))]);
+    spawnSync('pkill', ['-9', '-f', work]);
     rmSync(profile, { recursive: true, force: true });
   }
 }
