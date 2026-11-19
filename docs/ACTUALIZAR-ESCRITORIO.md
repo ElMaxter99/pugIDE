@@ -129,6 +129,10 @@ La persona elige en el panel «Versión y actualizaciones» (clic en el número 
 5. Errores: corta la red a mitad de descarga (sigue la A, «Reintentar» funciona) y, en una release de prueba,
    cambia el SHA-512 del `.yml` (debe negarse a instalar).
 
+### 3.0 Automática: `desktop/test/update-e2e.mjs` (Linux, AppImage)
+
+`cd desktop && xvfb-run -a node test/update-e2e.mjs` (o `npm run test:update`, con `npm run build:prod` hecho antes) construye de verdad una AppImage vieja (0.99.0) y una nueva (0.99.1), sirve la nueva desde un servidor HTTPS local que hace de GitHub (la app lo cree con `--host-resolver-rules` y `--ignore-certificate-errors`, banderas de Chromium solo de la prueba; `--no-proxy-server` evita que un proxy del entorno la mande al GitHub real) y comprueba, con la app real: que encuentra la nueva en el canal estable, que se reconoce como AppImage, que con la **huella alterada se niega y deja el archivo intacto**, y que con la buena descarga, queda lista y tras reiniciar el `.AppImage` es el de la nueva. Corre en CI (job «Linux» de `desktop.yml`, antes de construir los instaladores). Windows y macOS siguen a mano (3.1 y el `.dmg` de P-48).
+
 ### 3.1 De verdad, sin publicar nada: un servidor local (como se probó en PugIDE)
 
 electron-updater también sabe leer de un servidor web normal (`provider: generic`). Se construye una versión «vieja»
