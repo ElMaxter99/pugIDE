@@ -144,3 +144,11 @@ test('lo que ya funcionaba no cambia: un número a secas sigue siendo una cantid
   assert.equal(typeof leaf('total', 'total', { seed: 1, locale: 'es' }), 'number');
   assert.match(String(leaf('email', 'email', { seed: 1, locale: 'es' })), /@/);
 });
+
+test('URL y slug salen en ASCII aunque el vocabulario lleve acentos', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const rng = createRng(seed);
+    assert.match(mockFormat('uri', rng, 'es'), /^https:\/\/[\x21-\x7e]+$/);
+    assert.match(mockValue('slug', { rng: createRng(seed), locale: 'es' }), /^[\x21-\x7e]+$/);
+  }
+});

@@ -110,6 +110,8 @@ const EN: Lexicon = {
 const LEX: Record<MockLocale, Lexicon> = { es: ES, en: EN };
 
 const capitalize = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
+/** Sin acentos (`revisión` → `revision`): para URL y slugs, que deben ser ASCII. */
+const ascii = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 const slug = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '');
 
 export function mockSentence(rng: Rng, locale: MockLocale, words?: number): string {
@@ -155,7 +157,7 @@ export function mockFormat(format: string, rng: Rng, locale: MockLocale): string
     case 'date-time': return mockDate(rng, true);
     case 'time': return `${pad(int(rng, 0, 23))}:${pad(int(rng, 0, 59))}:${pad(int(rng, 0, 59))}`;
     case 'email': case 'idn-email': return `${slug(pick(rng, lex.first))}.${slug(pick(rng, lex.last))}@${pick(rng, lex.domains)}`;
-    case 'uri': case 'url': case 'iri': return `https://www.${pick(rng, lex.domains)}/${pick(rng, lex.words)}`;
+    case 'uri': case 'url': case 'iri': return `https://www.${pick(rng, lex.domains)}/${ascii(pick(rng, lex.words))}`;
     case 'uuid': return mockUuid(rng);
     case 'hostname': return `www.${pick(rng, lex.domains)}`;
     case 'ipv4': return `${int(rng, 11, 223)}.${int(rng, 0, 255)}.${int(rng, 0, 255)}.${int(rng, 1, 254)}`;
@@ -302,7 +304,7 @@ const RULES: Rule[] = [
   { match: has('title', 'titulo', 'heading', 'headline', 'subject', 'asunto', 'encabezado'), gen: (c) => pick(c.rng, LEX[c.locale].titles) },
   { match: has('description', 'descripcion', 'desc', 'summary', 'resumen', 'bio', 'about', 'body', 'cuerpo', 'content', 'contenido', 'text', 'texto', 'message', 'mensaje', 'comment', 'comentario', 'notes', 'nota', 'notas', 'review', 'resena', 'subtitle', 'subtitulo', 'lead'),
     gen: (c, t) => (has('summary', 'resumen', 'subtitle', 'subtitulo', 'lead', 'bio', 'message', 'mensaje', 'comment', 'comentario')(t) ? mockSentence(c.rng, c.locale) : mockParagraph(c.rng, c.locale)) },
-  { match: has('label', 'etiqueta', 'tag', 'category', 'categoria', 'tipo', 'type', 'role', 'rol', 'slug'), gen: (c) => pick(c.rng, LEX[c.locale].words) },
+  { match: has('label', 'etiqueta', 'tag', 'category', 'categoria', 'tipo', 'type', 'role', 'rol', 'slug'), gen: (c, t) => (t.includes('slug') ? ascii(pick(c.rng, LEX[c.locale].words)) : pick(c.rng, LEX[c.locale].words)) },
   { match: has('name', 'nombre'), gen: (c) => capitalize(pick(c.rng, LEX[c.locale].words)) + ' ' + pick(c.rng, LEX[c.locale].words) },
 ];
 
