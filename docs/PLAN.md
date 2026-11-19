@@ -1,4 +1,4 @@
-# Estado y plan de PugIDE (v0.18.0)
+# Estado y plan de PugIDE (v0.19.0)
 
 Actualizado el 2026-11-15. El análisis inicial (v0.3.1) se hizo el 2026-11-03; las seis fases que salieron de él están hechas y resumidas en la sección 4.
 
@@ -155,7 +155,7 @@ Detalle y decisiones en `design/propuestas/0.18-serie-y-escritorio.md`. Lo que s
 
 Alcance: montar y ver plantillas Pug con traducciones y datos de ejemplo, parecido al proyecto real (ver `CLAUDE.md`). Detalle, auditoría y decisiones en `design/propuestas/0.19-traducciones-y-datos.md`. Punto de partida de `npm run audit:fidelidad`: **44 de 96** (traductor 8/25, detección 12/17, archivos de idioma 4/14, datos 3/23, Pug 17/17).
 
-- 🔄 **21.0 0.19 · versión y actualizaciones (diseño P-47 a P-49 aprobado):** el número de versión abre un panel con el canal **Estable / Pruebas** (rc), cómo se instala en cada sistema (contraseña en `.deb`/`.rpm`, `.dmg` en macOS) y avisos; `release:deploy` publica rc sin mover producción. Hecho: lógica de canales, panel, avisos y release de pruebas. Hecho también: descarga del `.dmg` con huella comprobada en macOS. Falta: la prueba de actualización de punta a punta en cada sistema (script manual).
+- ✅ **21.0 0.19 · versión y actualizaciones (diseño P-47 a P-49 aprobado; publicada en la 0.19.0):** el número de versión abre un panel con el canal **Estable / Pruebas** (rc), cómo se instala en cada sistema (contraseña en `.deb`/`.rpm`, `.dmg` en macOS) y avisos; `release:deploy` publica rc sin mover producción. Hecho: lógica de canales, panel, avisos y release de pruebas. Hecho también: descarga del `.dmg` con huella comprobada en macOS. Falta: la prueba de actualización de punta a punta en cada sistema (script manual).
 - ⏳ **21.1 0.20 · traducciones reales (con diseño):** reconocer al importar los diseños de i18next y ngx-translate, espacios de nombres, plurales, `defaultValue`, `lang`/`locale` con el idioma activo y más formas de detectar claves. Objetivo: A, B y C por encima del 90 %.
 - 🔄 **21.2 0.21 · datos de ejemplo creíbles (hecho: campos de negocio, 21 de 23 en la auditoría; falta el texto largo en español, pendiente de decisión):** moneda, IBAN, NIF/CIF/DNI, provincia, razón social, EAN, medidas, número de factura, textos en el idioma de los datos y «pegar el JSON real de mi API». Objetivo: D por encima del 85 %.
 - ⏳ **21.3 0.22 · fidelidad con el proyecto real:** librerías que inyecta el proyecto (`moment`, `_`…), el resto de formas de texto del traductor y la guía «Llevar mi proyecto a PugIDE».

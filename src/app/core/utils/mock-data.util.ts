@@ -36,19 +36,34 @@ const pick = <T>(rng: Rng, list: readonly T[]): T => list[Math.floor(rng() * lis
 const int = (rng: Rng, min: number, max: number): number => min + Math.floor(rng() * (max - min + 1));
 const pad = (n: number, len = 2): string => String(n).padStart(len, '0');
 
-/** Texto generico de relleno (lorem ipsum): igual en es/en; los campos con significado (nombre, email...) siguen usando datos reales. */
-const LOREM_WORDS = ['lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing', 'elit', 'sed', 'do', 'eiusmod', 'tempor', 'incididunt', 'ut', 'labore', 'dolore', 'magna', 'aliqua', 'enim', 'minim', 'veniam', 'quis', 'nostrud', 'exercitation', 'ullamco', 'laboris', 'nisi', 'aliquip', 'commodo', 'consequat'];
-const LOREM_TITLES = ['Lorem ipsum dolor sit amet', 'Consectetur adipiscing elit', 'Sed do eiusmod tempor', 'Ut labore et dolore magna', 'Quis nostrud exercitation', 'Duis aute irure dolor'];
-const LOREM_SENTENCES = [
-  'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
-  'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
-  'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
-  'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
-  'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
-  'Curabitur pretium tincidunt lacus, nulla gravida orci a odio.',
+/** Texto de relleno en el idioma de los datos (no latín): frases corrientes de un documento comercial. Los campos con significado (nombre, email…) usan datos reales. */
+const ES_WORDS = ['factura', 'servicio', 'pedido', 'entrega', 'cliente', 'importe', 'plazo', 'revisión', 'producto', 'oficina', 'garantía', 'envío', 'cuenta', 'pago', 'contrato', 'consulta', 'informe', 'documento', 'fecha', 'detalle', 'cantidad', 'proyecto', 'equipo', 'acuerdo', 'proveedor', 'material', 'horario', 'resumen', 'incidencia', 'seguimiento'];
+const ES_TITLES = ['Resumen del pedido', 'Condiciones del servicio', 'Detalle de la entrega', 'Informe de seguimiento', 'Datos de facturación', 'Notas del proyecto'];
+const ES_SENTENCES = [
+  'Gracias por confiar en nosotros; adjuntamos el detalle de su pedido.',
+  'El plazo de entrega estimado es de cinco días laborables desde la confirmación.',
+  'Si detecta algún error en los datos, responda a este mensaje y lo corregiremos a la mayor brevedad.',
+  'El importe indicado incluye el IVA vigente y los gastos de envío a la dirección facilitada.',
+  'Conserve este documento: le servirá como justificante de la operación.',
+  'Para cualquier duda sobre su cuenta, nuestro equipo de atención al cliente le atenderá de lunes a viernes.',
+  'La revisión del servicio se realizará en las instalaciones del cliente, previa cita.',
+  'Los productos están cubiertos por la garantía legal de dos años desde la fecha de entrega.',
+];
+const EN_WORDS = ['invoice', 'service', 'order', 'delivery', 'customer', 'amount', 'term', 'review', 'product', 'office', 'warranty', 'shipping', 'account', 'payment', 'quotation', 'inquiry', 'report', 'document', 'date', 'detail', 'quantity', 'project', 'team', 'agreement', 'supplier', 'material', 'timetable', 'summary', 'issue', 'follow-up'];
+const EN_TITLES = ['Order summary', 'Terms of service', 'Delivery details', 'Follow-up report', 'Billing information', 'Project notes'];
+const EN_SENTENCES = [
+  'Thank you for choosing us; the details of your order are attached.',
+  'The estimated delivery time is five working days from confirmation.',
+  'If you notice any mistake in the data, reply to this message and we will correct it as soon as possible.',
+  'The amount shown includes the applicable VAT and shipping to the address provided.',
+  'Please keep this document: it serves as proof of the transaction.',
+  'For any question about your account, our customer support team is available Monday to Friday.',
+  'The service review will take place at the customer\'s premises, by appointment.',
+  'Products are covered by a two-year legal warranty from the delivery date.',
 ];
 
 interface Lexicon {
+  sentences: string[];
   first: string[];
   last: string[];
   cities: string[];
@@ -69,8 +84,9 @@ const ES: Lexicon = {
   countries: ['España', 'México', 'Argentina', 'Colombia', 'Chile', 'Perú', 'Portugal'],
   streets: ['Calle Mayor', 'Avenida de la Constitución', 'Calle del Sol', 'Paseo de Gracia', 'Calle Alcalá', 'Plaza España'],
   companies: ['Soluciones Aurora', 'Grupo Mediterráneo', 'Tecnologías Norte', 'Industrias Levante', 'Estudio Brújula'],
-  words: LOREM_WORDS,
-  titles: LOREM_TITLES,
+  words: ES_WORDS,
+  titles: ES_TITLES,
+  sentences: ES_SENTENCES,
   domains: ['ejemplo.es', 'correo.com', 'empresa.es', 'mail.org'],
   statuses: ['activo', 'pendiente', 'completado', 'en revisión'],
   phone: (r) => `+34 6${int(r, 0, 9)}${int(r, 0, 9)} ${pad(int(r, 0, 99))} ${pad(int(r, 0, 99))} ${pad(int(r, 0, 99))}`,
@@ -83,8 +99,9 @@ const EN: Lexicon = {
   countries: ['United Kingdom', 'United States', 'Canada', 'Australia', 'Ireland', 'New Zealand'],
   streets: ['Main Street', 'Oak Avenue', 'Park Lane', 'High Street', 'Maple Road', 'Station Road'],
   companies: ['Northwind Labs', 'Bright Harbor', 'Acme Works', 'Summit Group', 'Blue Orchard'],
-  words: LOREM_WORDS,
-  titles: LOREM_TITLES,
+  words: EN_WORDS,
+  titles: EN_TITLES,
+  sentences: EN_SENTENCES,
   domains: ['example.com', 'mail.com', 'company.org', 'inbox.net'],
   statuses: ['active', 'pending', 'completed', 'in review'],
   phone: (r) => `+1 (${int(r, 200, 989)}) ${int(r, 200, 989)}-${pad(int(r, 0, 9999), 4)}`,
@@ -95,10 +112,11 @@ const LEX: Record<MockLocale, Lexicon> = { es: ES, en: EN };
 const capitalize = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const slug = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '');
 
-export function mockSentence(rng: Rng, _locale: MockLocale, words?: number): string {
-  if (words === undefined) return pick(rng, LOREM_SENTENCES);
+export function mockSentence(rng: Rng, locale: MockLocale, words?: number): string {
+  const lex = LEX[locale];
+  if (words === undefined) return pick(rng, lex.sentences);
   const out: string[] = [];
-  for (let i = 0; i < words; i++) out.push(LOREM_WORDS[(Math.floor(rng() * LOREM_WORDS.length) + i) % LOREM_WORDS.length]);
+  for (let i = 0; i < words; i++) out.push(lex.words[(Math.floor(rng() * lex.words.length) + i) % lex.words.length]);
   return capitalize(out.join(' ')) + '.';
 }
 

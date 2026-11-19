@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.19.0] - 2026-11-19
+
 ### Añadido
 - **El traductor de la vista previa entiende más formas de i18n:** valor por defecto (`t('K', 'Texto')`, `{ defaultValue }`), lista de claves de reserva, espacios de nombres `ns:clave` (un nivel más dentro del idioma), `%{nombre}` y `{{- nombre}}`, `$t(otra.clave)`, contexto, y **plurales** (`_one`/`_other`/`_zero` con las reglas del idioma de los datos, `_plural`, ICU `{count, plural, …}` y `a | b | c` de vue-i18n). `req.t`, `res.__` y `locals.t` se detectan como traducciones.
 - **Prueba de actualización de punta a punta en CI** (Linux, AppImage): construye una versión vieja y una nueva, sirve la nueva desde un GitHub falso local y comprueba con la app real que se actualiza, y que con la huella alterada se niega y no cambia nada (`desktop/test/update-e2e.mjs`).
@@ -14,6 +16,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 - **`npm run release:deploy -- X.Y.Z-rc.N`** publica una versión de pruebas: tag y release marcada «pre-release» en GitHub, sin mover la rama `release` (producción sigue en la última estable).
 
 ### Cambiado
+- **Textos largos de ejemplo en el idioma de los datos.** `observaciones`, `descripcion`, `resumen`, `mensaje`, `nota`… salían en latín («Lorem ipsum»); ahora son frases corrientes de un documento comercial en español o en inglés según el idioma de los datos (y los títulos y palabras sueltas igual). Auditoría de fidelidad, sección de datos: 23 de 23.
 - **Datos de ejemplo más creíbles para los campos de negocio.** Antes salían en latín o con un tipo raro; ahora, por el nombre del campo, salen valores con su forma y que pasan sus comprobaciones: `moneda` / `currency` (`EUR`, `USD`), `iban` (un IBAN español con los dígitos de control correctos), `nif` / `dni` / `nie` (con su letra), `cif`, `ean` / `barcode` (EAN-13 con su dígito de control), `provincia` / `province`, `razonSocial`, `peso`, `altura`, números de factura, albarán o pedido (`FA-2026-0312`, `INV-2026-0312`), `totalPages` (un entero, antes salía `25.65`), fechas de nacimiento en el pasado, y `lang` / `idioma` / `language` / `locale` con un código de idioma (`es`, `es-ES`) en lugar de texto en latín. Lo que ya funcionaba no cambia. Medido con `npm run audit:fidelidad`: la sección de datos de ejemplo pasa de 3 a 21 de 23 casos.
 
 ## [0.18.0] - 2026-11-17
