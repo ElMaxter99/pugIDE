@@ -78,9 +78,12 @@ Plan completo en [PLAN.md](PLAN.md), fase 19:
 ## Siguiente: volver al núcleo (propuesta pendiente de visto bueno)
 - Alcance fijado en `CLAUDE.md` y auditoría medida (`npm run audit:fidelidad`: 44 de 96). Propuesta de la 0.19 (traducciones reales), 0.20 (datos de ejemplo creíbles) y 0.21 (fidelidad con el proyecto real): [design/propuestas/0.19-traducciones-y-datos.md](../design/propuestas/0.19-traducciones-y-datos.md) y fase 21 de [PLAN.md](PLAN.md). Lo del lote de PDF, CSV y recientes queda congelado.
 
-## En curso: versión y actualizaciones (0.19, rama `claude/actualizaciones`)
-- Diseño P-47 a P-49 aprobado. Hecho: canal Estable/Pruebas, orden semver, panel desde el número de versión, explicación por sistema, aviso de contraseña cancelada, `release:deploy` con rc. Hecho: descargar el `.dmg` con su huella comprobada dentro de la app en macOS (PR siguiente a la 102). Falta: probar la actualización de punta a punta en Windows, Linux y macOS (script manual; un job en CI exige tocar `.github/workflows` y espera tu visto bueno).
+## Versión 0.19.0 (preparada, pendiente de publicar)
+- Panel «Versión y actualizaciones» con canal Estable/Pruebas, descarga del `.dmg` con huella en macOS, prueba de actualización de punta a punta en Linux (con job en CI), traductor con plurales y espacios de nombres y textos de ejemplo en español. Fidelidad (`npm run audit:fidelidad`): **80 de 96** (traductor 22/25, detección 14/17, archivos de idioma 4/14, datos 23/23, Pug 17/17).
+- Sin probar en máquinas reales: la descarga del `.dmg` en un Mac y la actualización en Windows (receta manual en `docs/ACTUALIZAR-ESCRITORIO.md`, 3.1).
+- Lo siguiente (con diseño): reconocer las carpetas de idioma de un proyecto real al importar (`public/locales/es/translation.json`, `src/assets/i18n/es.json`…).
 
 ## Pendiente de la persona responsable
-- **Publicar la 0.17.1** (mergeada, sin tag): `npm run release:deploy -- 0.17.1` y desplegar `release` en Vercel. Debe ir **antes** que la 0.18.0 para que `release` avance en orden.
-- Mergear la PR de la 0.18.0, lanzar `npm run release:deploy` y desplegar `release` en Vercel; probar en la app de escritorio «Actualizar», el menú «Archivo → Abrir reciente», «Varios PDF…» con un patrón de nombre y la importación de un CSV en la zona de Datos.
+- Mergear la PR de la 0.19.0, lanzar `npm run release:deploy` (desde la carpeta del proyecto; guía en `docs/releases/v0.19.0.md`) y desplegar `release` en Vercel.
+- Probar en un Mac la descarga del `.dmg` (se necesita una versión nueva publicada: la 0.19.0 sirve de «vieja» y una `0.20.0-rc.1` de «nueva» con el canal «Pruebas»).
+
