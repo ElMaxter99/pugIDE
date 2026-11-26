@@ -78,12 +78,12 @@ Plan completo en [PLAN.md](PLAN.md), fase 19:
 ## Siguiente: volver al núcleo (propuesta pendiente de visto bueno)
 - Alcance fijado en `CLAUDE.md` y auditoría medida (`npm run audit:fidelidad`: 44 de 96). Propuesta de la 0.19 (traducciones reales), 0.20 (datos de ejemplo creíbles) y 0.21 (fidelidad con el proyecto real): [design/propuestas/0.19-traducciones-y-datos.md](../design/propuestas/0.19-traducciones-y-datos.md) y fase 21 de [PLAN.md](PLAN.md). Lo del lote de PDF, CSV y recientes queda congelado.
 
-## Versión 0.19.0 (preparada, pendiente de publicar)
-- Panel «Versión y actualizaciones» con canal Estable/Pruebas, descarga del `.dmg` con huella en macOS, prueba de actualización de punta a punta en Linux (con job en CI), traductor con plurales y espacios de nombres y textos de ejemplo en español. Fidelidad (`npm run audit:fidelidad`): **80 de 96** (traductor 22/25, detección 14/17, archivos de idioma 4/14, datos 23/23, Pug 17/17).
+## Versión 0.19.1 (preparada, pendiente de publicar)
+- «Archivos que faltan» plegable y con scroll propio, con el nombre del archivo siempre entero (P-50, aprobado). Con 86 archivos que faltan el árbol de archivos ya no desaparece. La 0.19.0 está publicada (release con sus 13 archivos).
 - Sin probar en máquinas reales: la descarga del `.dmg` en un Mac y la actualización en Windows (receta manual en `docs/ACTUALIZAR-ESCRITORIO.md`, 3.1).
 - Lo siguiente (con diseño): reconocer las carpetas de idioma de un proyecto real al importar (`public/locales/es/translation.json`, `src/assets/i18n/es.json`…).
 
 ## Pendiente de la persona responsable
-- Mergear la PR de la 0.19.0, lanzar `npm run release:deploy` (desde la carpeta del proyecto; guía en `docs/releases/v0.19.0.md`) y desplegar `release` en Vercel.
-- Probar en un Mac la descarga del `.dmg` (se necesita una versión nueva publicada: la 0.19.0 sirve de «vieja» y una `0.20.0-rc.1` de «nueva» con el canal «Pruebas»).
+- Mergear la PR de la 0.19.1, lanzar `npm run release:deploy` (desde la carpeta del proyecto; guía en `docs/releases/v0.19.1.md`) y desplegar `release` en Vercel.
+- Probar en un Mac la descarga del `.dmg` (hace falta una versión nueva publicada: la 0.19.1 sirve de «vieja» y una `0.20.0-rc.1` de «nueva» con el canal «Pruebas»).
 

@@ -4,6 +4,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 ## [Sin publicar]
 
+## [0.19.1] - 2026-11-26
+
+### Cambiado
+- **«Archivos que faltan» se puede plegar y tiene scroll propio** (diseño P-50, aprobado). Con muchos archivos que faltan (por ejemplo un CSS con 84 fuentes y 2 imágenes) la caja crecía sin límite y **empujaba al árbol de archivos fuera de la vista**: no se podían ver ni abrir las carpetas. Ahora la cabecera es un botón (`aria-expanded`; Intro o Espacio) con el recuento y un resumen por tipo («84 fuentes · 2 imágenes»); **arranca plegada si faltan más de 6**; desplegada, la lista muestra unas 7 filas y se desplaza dentro de su caja (nunca más de un tercio del alto de la ventana). La elección se recuerda mientras dure la sesión y vuelve a la regla por defecto si la lista crece.
+- **El nombre del archivo que falta no se corta nunca.** Antes las rutas largas salían cortadas por el final (`/fonts/dosis/Dosis-Bold…`) y no se distinguía `.eot` de `.woff` o `.ttf`; ahora se acorta la carpeta, por el principio y en gris, y el nombre con su extensión se ve entero. La ruta completa sigue en el título de cada fila.
+
 ## [0.19.0] - 2026-11-19
 
 ### Añadido

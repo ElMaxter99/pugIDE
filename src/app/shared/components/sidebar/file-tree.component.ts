@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, ElementRef, inject, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ElementRef, computed, effect, inject, output, signal, untracked } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FileNode } from '../../../core/models/file-node.model';
 import { getFileType } from '../../../core/models/tab.model';
@@ -11,6 +11,7 @@ import { ProjectIoService } from '../../../core/services/project-io.service';
 import type { EntryLike } from '../../../core/utils/drop-import.util';
 import { openInHost } from '../../../core/render/preview-host';
 import { isFontPath } from '../../../core/utils/asset.util';
+import { missingStartsOpen, splitAssetPath, summarizeMissing } from '../../../core/utils/missing-assets.util';
 import { getFileIcon } from '../../../core/utils/file-icon.util';
 
 /** Árbol de archivos del proyecto: abrir, plegar carpetas, soltar assets y lista de archivos que faltan. */
@@ -21,16 +22,34 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (assetState.missing().length > 0) {
-      <div class="missing-assets">
-        <p class="missing-title">
+      <div class="missing-assets" data-testid="missing-assets">
+        <button
+          type="button"
+          class="missing-head"
+          data-testid="missing-toggle"
+          aria-controls="missing-list"
+          [attr.aria-expanded]="missingOpen()"
+          [title]="missingOpen() ? 'Plegar la lista' : 'Desplegar la lista'"
+          (click)="toggleMissing()">
           <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">broken_image</span>
-          Faltan {{ assetState.missing().length }} archivo(s)
-        </p>
-        @for (path of assetState.missing(); track path) {
-          <button class="missing-row" [title]="'Subir ' + path" (click)="pickAsset.emit(path)">
-            <span class="missing-path">{{ path }}</span>
-            <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
-          </button>
+          <span class="missing-head-text">
+            <span class="missing-title" data-testid="missing-title">Faltan {{ assetState.missing().length }} archivo(s)</span>
+            @if (missingSummary()) { <span class="missing-summary" data-testid="missing-summary">{{ missingSummary() }}</span> }
+          </span>
+          <span aria-hidden="true" class="material-symbols-outlined missing-chevron">{{ missingOpen() ? 'keyboard_arrow_up' : 'chevron_right' }}</span>
+        </button>
+        @if (missingOpen()) {
+          <div id="missing-list" class="missing-list" data-testid="missing-list" role="group" aria-label="Archivos que faltan" tabindex="0">
+            @for (path of assetState.missing(); track path) {
+              <button type="button" class="missing-row" [title]="'Subir ' + path" (click)="pickAsset.emit(path)">
+                <span class="missing-path">
+                  <span class="missing-dir"><bdi>{{ split(path).dir }}</bdi></span>
+                  <span class="missing-file">{{ split(path).name }}</span>
+                </span>
+                <span aria-hidden="true" class="material-symbols-outlined" style="font-size: 14px;">upload_file</span>
+              </button>
+            }
+          </div>
         }
       </div>
     }
@@ -111,19 +130,39 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
     }
 
     .missing-assets {
+      flex: none;
       margin: 0 12px 8px;
       padding: 8px;
       border: 1px solid var(--warning-color, #e5a50a);
       border-radius: var(--radius);
       background: var(--bg-surface-container);
     }
-    .missing-title {
+    .missing-head {
       display: flex;
       align-items: center;
-      gap: 4px;
-      margin-bottom: 4px;
+      gap: 6px;
+      width: 100%;
+      padding: 0;
       color: var(--warning-color, #e5a50a);
+      border-radius: 4px;
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
     }
+    .missing-head:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
+    .missing-head-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .missing-title { font-weight: 600; }
+    .missing-summary { font-size: 11px; color: var(--text-secondary); }
+    .missing-chevron { font-size: 16px; }
+    /* Unas 7 filas y, más allá, scroll dentro de la caja; en ventanas bajas, nunca más de un tercio del alto (P-50). */
+    .missing-list {
+      margin-top: 4px;
+      max-height: min(168px, 33vh);
+      overflow-y: auto;
+      padding-right: 2px;
+      scrollbar-width: thin;
+    }
+    .missing-list:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; border-radius: 3px; }
     .missing-row {
       display: flex;
       align-items: center;
@@ -133,10 +172,23 @@ import { getFileIcon } from '../../../core/utils/file-icon.util';
       padding: 2px 4px;
       color: var(--text-secondary);
       border-radius: 3px;
+      font-size: 12px;
       text-align: left;
     }
     .missing-row:hover { background: var(--bg-surface-variant); color: var(--text-primary); }
-    .missing-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); }
+    /* El nombre con su extensión no se corta nunca: lo que se acorta es la carpeta, por el principio. */
+    .missing-path { display: flex; flex: 1; min-width: 0; font-family: var(--font-mono); }
+    .missing-dir {
+      flex: 0 1000 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      direction: rtl;
+      text-align: left;
+      color: var(--text-tertiary, var(--text-secondary));
+    }
+    .missing-file { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
     .file-tree.drop-active { outline: 2px dashed var(--accent-color); outline-offset: -4px; }
     .file-tree {
       flex: 1;
@@ -213,9 +265,31 @@ export class FileTreeComponent {
   private orchestrator = inject(OrchestratorService);
   private projectIo = inject(ProjectIoService);
   protected dragOver = signal(false);
+
+  /** Elección de la persona sobre la lista de archivos que faltan; `null` = la regla por defecto (plegada si son más de 6). */
+  private missingChoice = signal<boolean | null>(null);
+  protected missingOpen = computed(() => this.missingChoice() ?? missingStartsOpen(this.assetState.missing().length));
+  protected missingSummary = computed(() => summarizeMissing(this.assetState.missing()));
+  protected split = splitAssetPath;
+  private lastMissingCount = 0;
   /** Fila que tiene (o tuvo) el foco: el árbol es una sola parada de Tab y las flechas mueven el foco entre filas. */
   protected focusPath = signal<string | null>(null);
   private host = inject(ElementRef<HTMLElement>);
+
+  constructor() {
+    // La elección se recuerda mientras dure la sesión, pero vuelve a la regla por defecto si la lista crece (otro CSS importado) o se vacía.
+    effect(() => {
+      const n = this.assetState.missing().length;
+      untracked(() => {
+        if (n === 0 || n > this.lastMissingCount) this.missingChoice.set(null);
+        this.lastMissingCount = n;
+      });
+    });
+  }
+
+  protected toggleMissing(): void {
+    this.missingChoice.set(!this.missingOpen());
+  }
 
   /** Se pide subir el archivo que falta en esa ruta. */
   readonly pickAsset = output<string>();

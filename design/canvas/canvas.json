@@ -479,6 +479,14 @@
       "h": 3090,
       "title": "P-47 a P-49 Versión y actualizaciones (0.19)",
       "is_interactive": true
+    },
+    "P-50-Archivos-que-faltan-plegable.dc.html": {
+      "x": 0,
+      "y": 63900,
+      "w": 1440,
+      "h": 2560,
+      "title": "P-50 Archivos que faltan: plegable, con scroll propio y nombre siempre visible (0.19.1)",
+      "is_interactive": true
     }
   },
   "order": [
@@ -544,7 +552,8 @@
     "P-39-P-41-Escritorio-PDF-abrir-mover.dc.html",
     "P-42-P-43-Varios-PDF-y-OpenAPI.dc.html",
     "P-44-P-46-CSV-nombres-y-archivo.dc.html",
-    "P-47-P-49-Version-y-actualizaciones.dc.html"
+    "P-47-P-49-Version-y-actualizaciones.dc.html",
+    "P-50-Archivos-que-faltan-plegable.dc.html"
   ],
   "notes": {
     "fila-ref": {
@@ -776,6 +785,19 @@
       "text": "Propuesta 0.13 v2 (pendiente de aprobar). Asistente de IA solo en la app de escritorio y en local (npm start); nunca en la web publicada. Usa las CLI instaladas en el equipo, claude (Claude Code) y copilot (GitHub Copilot), con la sesión de cada una, sin claves ni SDK y sin herramientas. Modelo por defecto elegible por proveedor. Diálogo de tres pasos: preparar (qué se envía, orden exacta, tokens estimados), en curso (pasos y tokens en vivo) y propuestas (probar, revertir, aplicar).",
       "size": "s",
       "fill": "blue"
+    },
+    "fila-p0191": {
+      "x": 0,
+      "y": 63660,
+      "text": "Propuesta 0.19.1 · «Archivos que faltan» plegable y con scroll propio",
+      "kind": "title1",
+      "maxW": 1440
+    },
+    "nota-p0191": {
+      "x": -560,
+      "y": 63900,
+      "w": 440,
+      "text": "Propuesta 0.19.1 (pendiente de aprobar). Con muchos archivos que faltan (86 en un CSS con @fontsource), la caja «Faltan N archivos» empuja al árbol fuera de la vista. Se propone: cabecera que es un botón (plegar/desplegar, aria-expanded) con resumen «84 fuentes · 2 imágenes»; lista desplegada con altura máxima (~7 filas) y scroll propio; plegada por defecto si faltan más de 6; la elección se recuerda durante la sesión. Decisiones: 1) umbral de plegado por defecto (6); 2) recordar la elección (sesión / por proyecto / no); 3) resumen por tipo en la cabecera; 4) altura máxima de la lista; 5) el nombre del archivo con su extensión nunca se corta (se acorta la carpeta, por el principio, en gris) porque en la captura real de 0.19.0 no se distinguía .eot de .woff o .ttf."
     }
   },
   "designSystems": []
